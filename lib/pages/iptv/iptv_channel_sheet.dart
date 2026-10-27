@@ -1,0 +1,828 @@
+import '../../l10n/l10n.dart';
+import 'package:flutter/material.dart';
+import '../../models/iptv/iptv_models.dart';
+import '../../services/theme/design_tokens.dart';
+import '../../services/iptv/hardcoded_channels.dart';
+import '../../services/iptv/iptv_controller.dart';
+import '../../services/iptv/iptv_storage.dart';
+import '../../services/iptv/live_health_ordering.dart';
+import '../../utils/navigation/route_transitions.dart';
+import '../../widgets/common/focusable_card.dart';
+import '../../widgets/common/pill_button.dart';
+import '../../widgets/iptv/iptv_health_badge.dart';
+import '../../widgets/player/player_glass.dart';
+import 'iptv_player_page.dart';
+
+class IptvChannelSheet extends StatefulWidget {
+  final HardcodedChannel channel;
+
+  const IptvChannelSheet({super.key, required this.channel});
+
+  static Future<void> show(BuildContext context, HardcodedChannel channel) {
+    return showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => IptvChannelSheet(channel: channel),
+    );
+  }
+
+  @override
+  State<IptvChannelSheet> createState() => _IptvChannelSheetState();
+}
+
+class _IptvChannelSheetState extends State<IptvChannelSheet> {
+  final _ctrl = IptvController.instance;
+
+  bool _isSelecting = false;
+  final Set<String> _selectedUrls = {};
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  /// Alive snapshots for the portals behind the hits on screen, keyed by
+  /// [IptvAliveStore.portalKey]. A null entry is a portal nobody has probed,
+  /// which is where most hits start out.
+  final Map<String, AliveSnapshot?> _snapshots = {};
+  final Set<String> _loadingSnapshots = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.openHardcodedChannel(widget.channel);
+    // Fires on every controller notification; the snapshot load below is
+    // idempotent, so the only cost of the extra wakes is a set lookup.
+    _ctrl.addListener(_loadMissingSnapshots);
+    IptvDeadUrlStore.instance.revision.addListener(_onHealthChanged);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.removeListener(_loadMissingSnapshots);
+    IptvDeadUrlStore.instance.revision.removeListener(_onHealthChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onHealthChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Reads the alive snapshot of every portal a listed hit came from, once each.
+  ///
+  /// The probe that writes these snapshots is per portal credentials, not per
+  /// feed, so a hit can only be called alive if its own portal was checked -
+  /// and that lookup is why the sheet can be honest about the rest.
+  Future<void> _loadMissingSnapshots() async {
+    final keys = <String>{};
+    for (final hit in _ctrl.channelResults) {
+      final key = IptvAliveStore.portalKey(hit.portal.portal);
+      if (_snapshots.containsKey(key) || _loadingSnapshots.contains(key)) {
+        continue;
+      }
+      keys.add(key);
+    }
+    if (keys.isEmpty) return;
+    _loadingSnapshots.addAll(keys);
+    final loaded = <String, AliveSnapshot?>{};
+    for (final key in keys) {
+      loaded[key] = await IptvAliveStore.load(key);
+    }
+    if (!mounted) return;
+    setState(() {
+      _loadingSnapshots.removeAll(keys);
+      _snapshots.addAll(loaded);
+    });
+  }
+
+  IptvHitHealth _healthOf(ChannelHit hit) => IptvHitHealth.resolve(
+        streamUrl: hit.streamUrl,
+        streamId: hit.stream.streamId,
+        snapshot: _snapshots[IptvAliveStore.portalKey(hit.portal.portal)],
+      );
+
+  /// Whether a source label names a free/public collection.
+  ///
+  /// Only the two labels the app itself writes qualify: the built-in public
+  /// playlist (`Free Sports (iptv-org)`) and the user's own imports
+  /// (`Your playlist: ...`). A portal's name is never one of these, so a paid
+  /// panel can never be shown a FREE chip.
+  static bool _isFreeSource(String label) =>
+      label.startsWith('Free') || label.startsWith('Your playlist');
+
+  void _playHit(ChannelHit hit, [Offset? tapPos]) {
+    final results = _ctrl.channelResults;
+    if (results.isEmpty) return;
+    final index = results.indexOf(hit);
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      LiquidRevealRoute(
+        page: IptvPlayerPage(
+          channel: widget.channel,
+          hits: results,
+          initialHitIndex: index >= 0 ? index : 0,
+          isLive: true,
+        ),
+        tapPosition: tapPos,
+      ),
+    );
+  }
+
+  void _toggleSelection(String streamUrl) {
+    setState(() {
+      if (_selectedUrls.contains(streamUrl)) {
+        _selectedUrls.remove(streamUrl);
+      } else {
+        _selectedUrls.add(streamUrl);
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedStreams() async {
+    if (_selectedUrls.isEmpty) return;
+    final count = _selectedUrls.length;
+    final toDelete = Set<String>.from(_selectedUrls);
+    setState(() {
+      _selectedUrls.clear();
+      _isSelecting = false;
+    });
+    await _ctrl.removeChannelHits(widget.channel.id, toDelete);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10nCurrent().tv2RemovedStreamFeeds(count)),
+          duration: const Duration(seconds: 2),
+          backgroundColor: context.tokens.surfaceOverlay,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final ch = widget.channel;
+    final primaryColor = ch.gradient.isNotEmpty ? ch.gradient.first : tokens.accent;
+    // Second stop of a channel's data-driven gradient; falls back to the info hue.
+    final secondaryColor = ch.gradient.length > 1 ? ch.gradient.last : tokens.info;
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final results = _ctrl.channelResults;
+        final isScanning = _ctrl.channelIsRunning;
+        final status = _ctrl.channelStatus;
+        final filteredResults = _searchQuery.trim().isEmpty
+            ? results
+            : results.where((hit) {
+                final q = _searchQuery.trim().toLowerCase();
+                final nameMatches = hit.stream.name.toLowerCase().contains(q);
+                final portalMatches = hit.portal.name.toLowerCase().contains(q) ||
+                    hit.portal.portal.username.toLowerCase().contains(q);
+                final formatMatches = hit.stream.containerExt.toLowerCase().contains(q);
+                return nameMatches || portalMatches || formatMatches;
+              }).toList();
+        // Display order only: the same hits, regrouped so the feeds the app
+        // believes work come first and the ones it knows failed sink to the
+        // bottom. `_playHit` and the player still read `_ctrl.channelResults`,
+        // and the sort permutes the very objects in that list, so its
+        // `indexOf` keeps resolving every row.
+        final display = IptvHealthOrdering.sort(filteredResults);
+        final allSelected = results.isNotEmpty && _selectedUrls.length == results.length;
+
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+          ),
+          // A sheet is already separated from the page by its modal barrier, so
+          // it needs neither an edge nor a lift: both were chrome the content
+          // had to compete with.
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            borderRadius: ZplayRadius.sheetTop,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(
+                    top: ZplaySpacing.s12,
+                    bottom: ZplaySpacing.s8,
+                  ),
+                  width: 44,
+                  height: 4.5,
+                  decoration: BoxDecoration(
+                    color: tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
+                    borderRadius: ZplayRadius.xsAll,
+                  ),
+                ),
+              ),
+
+              // Header Banner
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 10, 16, 10),
+                child: Row(
+                  children: [
+                    // Channel Short / Icon Badge
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: ZplayRadius.mdAll,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [primaryColor, secondaryColor],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          ch.short,
+                          style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 14),
+
+                    // Title & Category
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: tokens.danger,
+                                  borderRadius: ZplayRadius.xsAll,
+                                ),
+                                child: Text(
+                                  l10nCurrent().tvLiveBadge,
+                                  style: ZplayType.overline.toStyle(color: tokens.textPrimary),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                ch.category,
+                                style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            ch.name,
+                            style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Pen / Edit Button
+                    if (results.isNotEmpty)
+                      Tooltip(
+                        message: _isSelecting ? l10nCurrent().tvCancelSelection : l10nCurrent().tvManageDeleteChannels,
+                        child: FocusableInkWell(
+                          borderRadius: ZplayRadius.smAll,
+                          onTap: () {
+                            setState(() {
+                              _isSelecting = !_isSelecting;
+                              if (!_isSelecting) _selectedUrls.clear();
+                            });
+                          },
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Icon(
+                              _isSelecting ? Icons.edit_off_rounded : Icons.edit_rounded,
+                              color: _isSelecting ? tokens.info : tokens.textEmphasis,
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Close Button
+                    FocusableInkWell(
+                      borderRadius: ZplayRadius.smAll,
+                      onTap: () => Navigator.pop(context),
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Icon(Icons.close_rounded, color: tokens.textMuted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Search Input Field
+              if (results.isNotEmpty || _searchQuery.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
+                  child: Container(
+                    height: 42,
+                    // The fill is the field's whole shape: a resting hairline
+                    // drew a second box on a surface that already reads as one.
+                    decoration: BoxDecoration(
+                      color: tokens.borderSubtle,
+                      borderRadius: ZplayRadius.smAll,
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      style: ZplayType.label.toStyle(color: tokens.textPrimary),
+                      cursorColor: tokens.accent,
+                      decoration: InputDecoration(
+                        hintText: l10nCurrent().tv2SearchChannelsHint(results.length),
+                        hintStyle: ZplayType.label.toStyle(color: tokens.textMuted),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: _searchQuery.isNotEmpty ? tokens.accent : tokens.textMuted,
+                          size: 20,
+                        ),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? FocusableInkWell(
+                                borderRadius: ZplayRadius.fullAll,
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                                child: SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: Icon(Icons.close_rounded, color: tokens.textEmphasis, size: 18),
+                                ),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      onChanged: (val) {
+                        setState(() => _searchQuery = val);
+                      },
+                    ),
+                  ),
+                ),
+
+              // Selection Toolbar (when in edit mode)
+              if (_isSelecting)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(22, 0, 22, 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  // One accent wash says "edit mode" for the whole bar; the
+                  // hairline that used to sit on top of it was a second edge.
+                  decoration: BoxDecoration(
+                    color: tokens.accentSubtle,
+                    borderRadius: ZplayRadius.smAll,
+                  ),
+                  child: Row(
+                    children: [
+                      // Select All / Deselect All
+                      FocusableInkWell(
+                        borderRadius: ZplayRadius.smAll,
+                        onTap: () {
+                          setState(() {
+                            if (allSelected) {
+                              _selectedUrls.clear();
+                            } else {
+                              _selectedUrls.clear();
+                              _selectedUrls.addAll(results.map((h) => h.streamUrl));
+                            }
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                allSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+                                size: 18,
+                                color: tokens.info,
+                              ),
+                              const SizedBox(width: ZplaySpacing.s8),
+                              Text(
+                                allSelected ? l10nCurrent().tvDeselectAll : l10nCurrent().tvSelectAll,
+                                style: ZplayType.label.toStyle(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '(${_selectedUrls.length}/${results.length})',
+                        style: ZplayType.caption.toStyle(color: tokens.textEmphasis),
+                      ),
+                      const Spacer(),
+                      // Delete Selected
+                      FocusableInkWell(
+                        borderRadius: ZplayRadius.smAll,
+                        enabled: _selectedUrls.isNotEmpty,
+                        onTap: _selectedUrls.isEmpty ? null : _deleteSelectedStreams,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: _selectedUrls.isEmpty ? tokens.borderStrong : tokens.danger,
+                            borderRadius: ZplayRadius.smAll,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.delete_rounded,
+                                size: 15,
+                                color: _selectedUrls.isEmpty ? tokens.textMuted : tokens.onAccent,
+                              ),
+                              const SizedBox(width: ZplaySpacing.s8),
+                              Text(
+                                l10nCurrent().tv2DeleteSelectedFeeds(_selectedUrls.length),
+                                style: ZplayType.caption.toStyle(
+                                  color: _selectedUrls.isEmpty ? tokens.textMuted : tokens.onAccent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Status Bar / Progress
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+                    borderRadius: ZplayRadius.smAll,
+                  ),
+                  child: Row(
+                    children: [
+                      if (isScanning)
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: tokens.accent,
+                          ),
+                        )
+                      else
+                        Icon(Icons.check_circle_outline_rounded, color: tokens.success, size: 16),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          status.isNotEmpty
+                              ? status
+                              : (_searchQuery.trim().isNotEmpty
+                                  ? l10nCurrent().tv2FoundFeedsOfTotal(filteredResults.length, results.length)
+                                  : l10nCurrent().tv2LiveFeedsAvailable(results.length)),
+                          style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+                        ),
+                      ),
+                      if (isScanning)
+                        FocusableCard(
+                          onTap: _ctrl.stopChannelSearch,
+                          builder: (context, state) => CardFocusRing(
+                            focused: state.focused,
+                            radius: ZplayRadius.xsAll,
+                            // Padded to a real D-pad target: the bare label was
+                            // a four-letter-wide stop.
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: ZplaySpacing.s12,
+                                vertical: ZplaySpacing.s8,
+                              ),
+                              child: Text(
+                                l10nCurrent().tvStop,
+                                style: ZplayType.caption.toStyle(color: tokens.danger),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Discovered Stream Hits List
+              Expanded(
+                child: results.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isScanning) ...[
+                                CircularProgressIndicator(color: tokens.accent),
+                                const SizedBox(height: ZplaySpacing.s16),
+                                Text(
+                                  l10nCurrent().tvScanningPortals,
+                                  style: ZplayType.body.toStyle(color: tokens.textEmphasis),
+                                ),
+                              ] else ...[
+                                Icon(Icons.tv_off_rounded, color: tokens.textMuted, size: 48),
+                                const SizedBox(height: ZplaySpacing.s12),
+                                Text(
+                                  l10nCurrent().tvNoAliveStreams,
+                                  style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  l10nCurrent().tvTapScanMoreHint,
+                                  style: ZplayType.label.toStyle(color: tokens.textMuted),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      )
+                    : (filteredResults.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.search_off_rounded, color: tokens.textMuted, size: 48),
+                                  const SizedBox(height: ZplaySpacing.s12),
+                                  Text(
+                                    l10nCurrent().tv2NoFeedsMatch(_searchQuery),
+                                    style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
+                                  ),
+                                  const SizedBox(height: ZplaySpacing.s8),
+                                  FocusableInkWell(
+                                    borderRadius: ZplayRadius.smAll,
+                                    onTap: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: ZplaySpacing.s12,
+                                        vertical: ZplaySpacing.s8,
+                                      ),
+                                      child: Text(
+                                        l10nCurrent().tvClearSearch,
+                                        style: ZplayType.label.toStyle(color: tokens.accent),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: display.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final hit = display[index];
+                              final isFav = _ctrl.isFavoriteHit(ch.id, hit);
+                              final isSelected = _selectedUrls.contains(hit.streamUrl);
+                              // The source this hit came from, as the row
+                              // states it. A hit off a public or user playlist
+                              // carries its honest label in `portal.name` (its
+                              // synthetic portal has no username), so this is
+                              // already the truth for those - the chip below
+                              // just marks which family they belong to.
+                              final sourceLabel = hit.portal.portal.username.isNotEmpty
+                                  ? hit.portal.portal.username
+                                  : (hit.portal.name.isNotEmpty
+                                      ? hit.portal.name
+                                      : l10nCurrent().tv2ServerNumber(index + 1));
+
+                              return FocusableCard(
+                                onTap: () => _isSelecting
+                                    ? _toggleSelection(hit.streamUrl)
+                                    : _playHit(hit),
+                                builder: (context, state) => CardFocusRing(
+                                  focused: state.focused,
+                                  radius: ZplayRadius.mdAll,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: ZplaySpacing.s16,
+                                      vertical: ZplaySpacing.s12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      // Selected is one accent wash; favourite
+                                      // is the filled star alone. The row is a
+                                      // card on a sheet, so it carries no edge
+                                      // and no resting fill of its own.
+                                      color: isSelected
+                                          ? tokens.accentSubtle
+                                          : (state.highlighted ? tokens.borderDefault : Colors.transparent),
+                                      borderRadius: ZplayRadius.mdAll,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Selection checkbox or Play icon
+                                        if (_isSelecting)
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? tokens.accent
+                                                  : tokens.borderStrong,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: isSelected
+                                                ? Icon(Icons.check_rounded, color: tokens.onAccent, size: 18)
+                                                : null,
+                                          )
+                                        else
+                                          Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              color: tokens.accent.withValues(alpha: 0.2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.play_arrow_rounded,
+                                              color: tokens.accent,
+                                              size: 22,
+                                            ),
+                                          ),
+
+                                        const SizedBox(width: 14),
+
+                                        // Stream Info
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  // The dot this row used to
+                                                  // carry was unconditionally
+                                                  // green - liveness claimed for
+                                                  // every feed the channel had
+                                                  // ever stored, including the
+                                                  // ones that have since failed.
+                                                  IptvHealthBadge(health: _healthOf(hit)),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      hit.stream.name,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Padding(
+                                                padding: const EdgeInsets.only(left: 13),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        sourceLabel,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                                                      ),
+                                                    ),
+                                                    // Free-to-air is a property
+                                                    // of the source's own label,
+                                                    // not a guess: the built-in
+                                                    // public playlist names
+                                                    // itself 'Free ...' and a
+                                                    // user's playlist 'Your
+                                                    // playlist: ...'. A paid
+                                                    // portal is never marked.
+                                                    if (_isFreeSource(sourceLabel)) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                                          borderRadius: ZplayRadius.xsAll,
+                                                        ),
+                                                        child: Text(
+                                                          l10nCurrent().tvFreeBadge,
+                                                          style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Format Tag
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                            borderRadius: ZplayRadius.xsAll,
+                                          ),
+                                          child: Text(
+                                            hit.stream.containerExt.toUpperCase(),
+                                            style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
+                                          ),
+                                        ),
+
+                                        const SizedBox(width: 8),
+
+                                        // Favorite Pin
+                                        FocusableInkWell(
+                                          borderRadius: ZplayRadius.fullAll,
+                                          onTap: () => _ctrl.toggleFavoriteHit(hit),
+                                          child: SizedBox(
+                                            width: 44,
+                                            height: 44,
+                                            child: Icon(
+                                              isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                                              color: isFav ? tokens.warning : tokens.textMuted,
+                                              size: 22,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )),
+              ),
+
+              // Bottom Action Bar
+              Container(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+                child: Row(
+                  children: [
+                    // Watch Live plays the head of the health order: the feed
+                    // the app is least likely to have to fail over from.
+                    if (results.isNotEmpty)
+                      Expanded(
+                        child: PillButton(
+                          label: l10nCurrent().tvWatchLive,
+                          icon: Icons.play_arrow_rounded,
+                          expand: true,
+                          onPressed: display.isNotEmpty
+                              ? () => _playHit(display.first)
+                              : () => _playHit(results.first),
+                        ),
+                      ),
+
+                    if (results.isNotEmpty) const SizedBox(width: 12),
+
+                    // Scan More: a secondary action, so it stays a quiet
+                    // text-only control - the primary pill above is the only
+                    // filled button in the bar.
+                    FocusableInkWell(
+                      borderRadius: ZplayRadius.mdAll,
+                      enabled: !isScanning,
+                      onTap: isScanning ? null : () => _ctrl.getMoreChannels(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ZplaySpacing.s16,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.refresh_rounded,
+                              size: 18,
+                              color: isScanning ? tokens.textMuted : tokens.textPrimary,
+                            ),
+                            const SizedBox(width: ZplaySpacing.s8),
+                            Text(
+                              l10nCurrent().tvScanMore,
+                              style: ZplayType.label.toStyle(
+                                color: isScanning ? tokens.textMuted : tokens.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

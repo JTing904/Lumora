@@ -1,0 +1,690 @@
+# ──────────────────────────────────────────────────────────────────────────────
+#  ZPlay — Multi-Platform CI/CD Release Builder
+#  Builds:
+#    - Windows: Installer (Inno Setup) & Portable ZIP (x64)
+#    - Android: Split-per-ABI APKs (arm64-v8a, armeabi-v7a, x86_64) — ARM devices,
+#               plus x86_64 so emulators (which are always x86_64) can install a
+#               release build directly instead of a locally built APK
+#    - Linux: AppImage & Tar.gz (x86_64)
+#    - macOS: Apple Silicon (ARM64) & Intel (x64) DMG & ZIP
+#    - iOS: Sideloadable IPA (no-codesign)
+#  Trigger: Git tag push (v*) or Manual Workflow Dispatch
+#  Environment: Injects --dart-define-from-file=.env using ${{ secrets.ENV_FILE }}
+# ──────────────────────────────────────────────────────────────────────────────
+name: Build and Release ZPlay
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# ═══════════════════════════════════════════════════════════════════════════════
+jobs:
+
+  # ─── Windows Build ────────────────────────────────────────────────────────
+  windows:
+    name: Windows (Installer & Portable)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Setup .env from GitHub Secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -n "${{ secrets.DOTENV }}" ]; then
+            echo "${{ secrets.DOTENV }}" > .env
+          else
+            touch .env
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # The plugin ships no binary of its own: it downloads one from its own
+      # GitHub release, and that release is gone — the repository 404s — so the
+      # build died in `cmake_install.cmake` looking for a file nobody could
+      # fetch. Fetch the real TorrServer binary from the project the plugin
+      # wraps instead, named exactly as the plugin looks for it:
+      # TORRSERVER_FLUTTER_LOCAL_BINARIES is the plugin's own escape hatch.
+      # The tag is pinned deliberately, so a new upstream release cannot
+      # silently change what this build ships; bump it when there is a reason.
+      - name: Fetch TorrServer binary
+        shell: bash
+        run: |
+          mkdir -p torrserver_bin
+          curl -fSL "https://github.com/YouROK/TorrServer/releases/download/MatriX.146.1/TorrServer-windows-amd64.exe" \
+            -o torrserver_bin/torrserver-windows-amd64.exe
+          ls -la torrserver_bin
+
+      - name: Build Windows App
+        env:
+          # Read at CMake configure time, so it belongs on the build step.
+          TORRSERVER_FLUTTER_LOCAL_BINARIES: ${{ github.workspace }}/torrserver_bin
+        run: flutter build windows --release --dart-define-from-file=.env --split-debug-info=build/symbols
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          Write-Host "PATH refreshed for Inno Setup."
+
+      - name: Compile Inno Setup Installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $cleanVersion = "${{ github.ref_name }}".TrimStart('v')
+          if ([string]::IsNullOrWhiteSpace($cleanVersion)) { $cleanVersion = "1.1.5" }
+
+          $isccCmd = (Get-Command iscc.exe -ErrorAction SilentlyContinue)?.Source
+          if (-not $isccCmd) {
+            $candidates = @(
+              "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+              "C:\Program Files\Inno Setup 6\ISCC.exe",
+              "C:\ProgramData\chocolatey\bin\iscc.exe"
+            )
+            foreach ($candidate in $candidates) {
+              if (Test-Path $candidate) {
+                $isccCmd = $candidate
+                break
+              }
+            }
+          }
+          if (-not $isccCmd) {
+            throw "ISCC compiler executable could not be found!"
+          }
+          Write-Host "Using Inno Setup Compiler at: $isccCmd"
+
+          New-Item -ItemType Directory -Force -Path "installer\windows\Output"
+
+          & $isccCmd /DMyAppVersion=$cleanVersion installer\windows\setup.iss
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup compilation failed with exit code $LASTEXITCODE"
+          }
+
+          if (Test-Path "installer\windows\Output\ZPlay-Windows-Setup.exe") {
+            Copy-Item "installer\windows\Output\ZPlay-Windows-Setup.exe" ".\ZPlay-Windows-Setup.exe" -Force
+            Write-Host "Verified and copied ZPlay-Windows-Setup.exe to root."
+          } else {
+            throw "ZPlay-Windows-Setup.exe was not found in Output directory after ISCC compile!"
+          }
+
+      - name: Package Portable ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "ZPlay-Windows-x64-Portable.zip" -Force
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-Windows
+          path: |
+            ZPlay-Windows-Setup.exe
+            ZPlay-Windows-x64-Portable.zip
+
+      - name: Upload Windows Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-Windows-symbols
+          if-no-files-found: ignore
+          path: build/symbols/**
+
+  # ── Android Build (split-per-ABI APKs) ───────────────────────────────────
+  android:
+    name: Android (APK per ABI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup .env from GitHub Secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -n "${{ secrets.DOTENV }}" ]; then
+            echo "${{ secrets.DOTENV }}" > .env
+          else
+            touch .env
+          fi
+
+      # Every CI runner generates a fresh Android debug keystore, so debug-signed releases
+      # each carry a different certificate and Android refuses to install them over an
+      # existing install ("App not installed as package conflicts with an existing package").
+      # Releases must therefore use the shared release keystore; only non-tag triggers
+      # (workflow_dispatch, PRs) fall back to debug signing.
+      - name: Configure release signing
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.p12
+            printf 'storeFile=../upload-keystore.p12\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "${{ secrets.ANDROID_STORE_PASSWORD }}" \
+              "${{ secrets.ANDROID_KEY_ALIAS }}" \
+              "${{ secrets.ANDROID_KEY_PASSWORD }}" > android/key.properties
+            echo "Release APKs will be signed with the provided PKCS12 keystore."
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not set — tagged releases must be signed with the release keystore."
+            exit 1
+          else
+            echo "ANDROID_KEYSTORE_BASE64 not set — release APKs will be debug-signed."
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # x86_64 is in the list purely so the emulator, which has no ARM translation
+      # for a release build, can install one. flutter build apk is the whole
+      # version-code scheme: with --split-per-abi the Flutter Gradle plugin sets
+      # each APK's versionCode to the ABI's number times 1000 plus the pubspec
+      # build number (armeabi-v7a = 1, arm64-v8a = 2, x86_64 = 4), so the three
+      # ABIs stay at +1000 / +2000 / +4000 with no offset written down here.
+      - name: Build Android APKs
+        run: flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64,android-x64 --dart-define-from-file=.env --split-debug-info=build/symbols
+
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-Android
+          path: build/app/outputs/flutter-apk/app-*-release.apk
+
+      - name: Upload Android Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-Android-symbols
+          if-no-files-found: ignore
+          path: build/symbols/**
+
+  # ─── Linux x64 Build (AppImage & Tar.gz) ───────────────────────────────────
+  linux-x64:
+    name: Linux x64 (AppImage & Tar)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo grep -rl "dl.google.com" /etc/apt/ 2>/dev/null | xargs -r sudo rm -f
+          sudo rm -f /etc/apt/sources.list.d/*chrome* /etc/apt/sources.list.d/*google*
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get clean
+          sudo apt-get update -y || true
+          sudo apt-get install -y \
+            clang cmake git ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libmpv-dev xvfb \
+            libboost-all-dev libssl-dev libgcrypt20-dev \
+            libsecret-1-dev
+
+      - name: Setup .env from GitHub Secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -n "${{ secrets.DOTENV }}" ]; then
+            echo "${{ secrets.DOTENV }}" > .env
+          else
+            touch .env
+          fi
+
+      - name: Generate Linux platform files if missing
+        run: |
+          if [ ! -d "linux" ]; then
+            flutter create --platforms=linux .
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Same vanished plugin release as the Windows job: see the note there.
+      # The Linux asset keeps upstream's own name, because the plugin asks for
+      # `torrserver-linux-amd64` in exactly that case.
+      - name: Fetch TorrServer binary
+        shell: bash
+        run: |
+          mkdir -p torrserver_bin
+          curl -fSL "https://github.com/YouROK/TorrServer/releases/download/MatriX.146.1/TorrServer-linux-amd64" \
+            -o torrserver_bin/torrserver-linux-amd64
+          chmod +x torrserver_bin/torrserver-linux-amd64
+          ls -la torrserver_bin
+
+      - name: Build Linux Release
+        env:
+          TORRSERVER_FLUTTER_LOCAL_BINARIES: ${{ github.workspace }}/torrserver_bin
+        run: flutter build linux --release --dart-define-from-file=.env --split-debug-info=build/symbols
+
+      - name: Package as AppImage & Tar
+        run: |
+          curl -fSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" \
+            -o appimagetool
+          chmod +x appimagetool
+
+          APP=ZPlay.AppDir
+          mkdir -p "$APP"
+          cp -r build/linux/x64/release/bundle/* "$APP/"
+
+          if [ -f "assets/icon.png" ]; then
+            cp assets/icon.png "$APP/ZPlay.png"
+          elif [ -f "icon.png" ]; then
+            cp icon.png "$APP/ZPlay.png"
+          else
+            touch "$APP/ZPlay.png"
+          fi
+
+          cat <<EOF > "$APP/ZPlay.desktop"
+          [Desktop Entry]
+          Name=ZPlay
+          Exec=AppRun
+          Icon=ZPlay
+          Type=Application
+          Categories=AudioVideo;Audio;Video;Player;
+          EOF
+
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./zplay "$@"\n' > "$APP/AppRun"
+          chmod +x "$APP/AppRun"
+
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$APP" ZPlay-Linux-x86_64.AppImage
+          tar -czvf ZPlay-Linux-x86_64.tar.gz -C build/linux/x64/release/bundle .
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-Linux-x64
+          path: |
+            ZPlay-Linux-x86_64.AppImage
+            ZPlay-Linux-x86_64.tar.gz
+
+      - name: Upload Linux Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-Linux-symbols
+          if-no-files-found: ignore
+          path: build/symbols/**
+
+  # ─── macOS ARM64 Build (Apple Silicon) ───────────────────────────────────
+  macos-arm64:
+    name: macOS (Apple Silicon ARM64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Setup .env from GitHub Secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -n "${{ secrets.DOTENV }}" ]; then
+            echo "${{ secrets.DOTENV }}" > .env
+          else
+            touch .env
+          fi
+
+      - name: Configure macOS platform files if missing
+        run: |
+          if [ ! -d "macos" ]; then
+            flutter create --platforms=macos .
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS Release
+        run: flutter build macos --release --dart-define-from-file=.env --split-debug-info=build/symbols
+
+      - name: Package as DMG & ZIP
+        run: |
+          cd build/macos/Build/Products/Release
+          mv zplay.app ZPlay.app
+
+          codesign --sign - --force --deep ZPlay.app
+
+          mkdir -p dmg_temp
+          cp -R ZPlay.app dmg_temp/
+          ln -s /Applications dmg_temp/Applications
+
+          sync
+          sleep 2
+
+          for i in {1..3}; do
+            hdiutil create -volname "ZPlay" -srcfolder dmg_temp -ov -format UDZO ../../../../../ZPlay-macOS-arm64.dmg && break || sleep 3
+          done
+          zip -ry ../../../../../ZPlay-macOS-arm64.zip ZPlay.app
+
+      - name: Upload macOS ARM64 Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-macOS-arm64
+          path: |
+            ZPlay-macOS-arm64.dmg
+            ZPlay-macOS-arm64.zip
+
+      - name: Upload macOS ARM64 Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-macOS-arm64-symbols
+          if-no-files-found: ignore
+          path: build/symbols/**
+
+  # ─── macOS Intel Build (x86_64) ──────────────────────────────────────────
+  macos-intel:
+    name: macOS (Intel x86_64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rosetta 2
+        run: softwareupdate --install-rosetta --agree-to-license || true
+
+      - name: Setup Flutter x64
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: 'stable'
+          architecture: x64
+          cache: true
+
+      - name: Setup .env from GitHub Secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -n "${{ secrets.DOTENV }}" ]; then
+            echo "${{ secrets.DOTENV }}" > .env
+          else
+            touch .env
+          fi
+
+      - name: Install dependencies
+        run: arch -x86_64 flutter pub get
+
+      - name: Build macOS Intel Release
+        run: arch -x86_64 flutter build macos --release --dart-define-from-file=.env --split-debug-info=build/symbols
+
+      - name: Package as DMG & ZIP
+        run: |
+          cd build/macos/Build/Products/Release
+          mv zplay.app ZPlay.app
+
+          codesign --sign - --force --deep ZPlay.app
+
+          mkdir -p dmg_temp
+          cp -R ZPlay.app dmg_temp/
+          ln -s /Applications dmg_temp/Applications
+
+          sync
+          sleep 2
+
+          for i in {1..3}; do
+            hdiutil create -volname "ZPlay" -srcfolder dmg_temp -ov -format UDZO ../../../../../ZPlay-macOS-intel.dmg && break || sleep 3
+          done
+          zip -ry ../../../../../ZPlay-macOS-intel.zip ZPlay.app
+
+      - name: Upload macOS Intel Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-macOS-intel
+          path: |
+            ZPlay-macOS-intel.dmg
+            ZPlay-macOS-intel.zip
+
+      - name: Upload macOS Intel Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-macOS-intel-symbols
+          if-no-files-found: ignore
+          path: build/symbols/**
+
+  # ─── iOS Build (Sideloadable IPA — no-codesign) ───────────────────────────
+  ios:
+    name: iOS (IPA)
+    runs-on: macos-latest
+    # Allowed to fail on purpose. This plugin embeds TorrServer as a
+    # `TorrServerKit.xcframework` it downloads from its own release — the same
+    # vanished repository as the desktop binaries — and unlike those it cannot
+    # be replaced with upstream's own artefact: the Swift plugin imports a
+    # module only that package ever built, so there is nothing to point it at
+    # from here. An unsigned, sideload-only IPA is not worth holding a release
+    # for, so this job reports its failure without stopping the publish, and
+    # the IPA is attached whenever it does build.
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Setup .env from GitHub Secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -n "${{ secrets.DOTENV }}" ]; then
+            echo "${{ secrets.DOTENV }}" > .env
+          else
+            touch .env
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS Release (No Codesign)
+        run: flutter build ios --release --no-codesign --dart-define-from-file=.env --split-debug-info=build/symbols
+
+      - name: Package as IPA
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -R Runner.app Payload/
+          zip -ry ../../../ZPlay-iOS.ipa Payload
+
+      - name: Upload iOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-iOS
+          path: ZPlay-iOS.ipa
+
+      - name: Upload iOS Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZPlay-iOS-symbols
+          if-no-files-found: ignore
+          path: build/symbols/**
+
+  # ─── Create / Publish GitHub Release ─────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    # `ios` is deliberately absent: it is the one platform that cannot build
+    # until the vanished plugin release is replaced upstream (see that job), and
+    # an optional sideload IPA must not hold back the desktop and Android
+    # artifacts. Add it back here once that framework can be fetched again.
+    needs: [windows, android, linux-x64, macos-arm64, macos-intel]
+    # `always()` alone would publish even when a build job failed, and because
+    # draft is false the in-app updater would then offer a release with missing
+    # artifacts. The android job hard-fails when ANDROID_KEYSTORE_BASE64 is
+    # absent, so that failure has to stop the publish rather than ship around it.
+    if: always() && startsWith(github.ref, 'refs/tags/v') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # The job needs the repository itself now, not just the build artifacts:
+      # the release body is composed from CHANGELOG.md below.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      # The release body IS the changelog: the in-app updater renders this text in
+      # its update dialog, so the first thing a user reads on update has to be what
+      # changed. GitHub's generated commit list is noise there, and the licence
+      # block used to lead the body, which is why the dialog announced the fork
+      # lineage instead of the release. The body is therefore composed here, from
+      # CHANGELOG.md, with the licence material kept below the machine-readable
+      # `<!-- zplay:changelog-end -->` marker so the app can stop reading there.
+      - name: Compose release notes from CHANGELOG.md
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # A missing or unreadable changelog must not block the binaries from
+          # being published, so the extraction is best-effort and an empty entry
+          # falls through to the note printed below.
+          : > changelog-entry.md
+          if [ -f CHANGELOG.md ]; then
+            awk -v v="$version" '
+              index($0, "## [" v "]") == 1 { inside = 1; next }
+              inside && index($0, "## [") == 1 { exit }
+              inside { print }
+            ' CHANGELOG.md | cat -s > changelog-entry.md
+          fi
+
+          {
+            printf '## What changed in %s\n' "${GITHUB_REF_NAME}"
+            if [ -s changelog-entry.md ]; then
+              cat changelog-entry.md
+            else
+              printf '\nNo changelog entry was written for this tag. See CHANGELOG.md in the repository.\n'
+            fi
+            printf '\n<!-- zplay:changelog-end -->\n\n'
+            printf '## Downloads\n\n'
+            printf -- '- **Windows** `ZPlay-Windows-Setup.exe` or `ZPlay-Windows-x64-Portable.zip`\n'
+            printf -- '- **Android** `app-arm64-v8a-release.apk` or `app-armeabi-v7a-release.apk` (Android TV included); `app-x86_64-release.apk` for the emulator\n'
+            printf -- '- **Linux** `ZPlay-Linux-x86_64.AppImage` or `ZPlay-Linux-x86_64.tar.gz`\n'
+            printf -- '- **macOS** `ZPlay-macOS-arm64.dmg` or `ZPlay-macOS-intel.dmg`\n'
+            # The iOS job is optional (see its comment): only advertise an IPA
+            # when the artifact actually made it into this release.
+            if [ -f ZPlay-iOS.ipa ]; then
+              printf -- '- **iOS** `ZPlay-iOS.ipa` (unsigned, sideload only)\n\n'
+            else
+              # The message carries an apostrophe and a backquoted name, and
+              # neither can live in a single-quoted bash string (a backslash
+              # does not escape a quote there) nor safely in a double-quoted
+              # one (backticks are command substitution). It is assembled
+              # from parts instead: the apostrophe and the backticks are
+              # written as separate quoted pieces.
+              printf -- '%s' '- **iOS** Not included in this release: the TorrServer plugin'
+              printf -- "'"
+              printf -- '%s' 's `TorrServerKit` artifact is unavailable upstream.'
+              printf -- '\n\n'
+            fi
+            printf 'ZPlay is a modified fork of PlayTorrio V3, © 2026 Ayman, distributed under the GNU GPL v3.0.\n'
+            printf 'Corresponding source for this release: https://github.com/%s (tag %s)\n' "$GITHUB_REPOSITORY" "${GITHUB_REF_NAME}"
+            printf 'Upstream project and source: https://github.com/ayman708-UX/PlayTorrioV3\n'
+            printf 'This program comes with ABSOLUTELY NO WARRANTY.\n'
+          } > release_notes.md
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          : > SHA256SUMS
+          for file in \
+            ZPlay-Windows-Setup.exe \
+            ZPlay-Windows-x64-Portable.zip \
+            app-arm64-v8a-release.apk \
+            app-armeabi-v7a-release.apk \
+            app-x86_64-release.apk \
+            ZPlay-Linux-x86_64.AppImage \
+            ZPlay-Linux-x86_64.tar.gz \
+            ZPlay-macOS-arm64.dmg \
+            ZPlay-macOS-arm64.zip \
+            ZPlay-macOS-intel.dmg \
+            ZPlay-macOS-intel.zip \
+            ZPlay-iOS.ipa
+          do
+            if [ -f "$file" ]; then
+              sha256sum "$file" >> SHA256SUMS
+            fi
+          done
+          cat SHA256SUMS
+
+      - name: Publish Release with Assets
+        # v3 runs on Node 24. v2 is the final v2 release and pins the Node 20
+        # runtime that GitHub Actions has deprecated.
+        uses: softprops/action-gh-release@v3
+        with:
+          name: "ZPlay ${{ github.ref_name }}"
+          # Must be false. The in-app updater reads GitHub's releases/latest
+          # endpoint, and that endpoint EXCLUDES drafts, so a draft release makes
+          # the updater report "up to date" forever. This is why the app has 16
+          # inherited tags and 0 releases and no one has ever been offered an
+          # update.
+          draft: false
+          prerelease: false
+          # The hand-composed notes above replace GitHub's generated commit list.
+          generate_release_notes: false
+          # GPLv3 §6d requires offering the Corresponding Source alongside a
+          # published binary, and §5a requires upstream's notices to survive. Both
+          # live in the composed body, below the changelog.
+          body_path: release_notes.md
+          # The iOS IPA is the one optional asset: its job may fail for a reason
+          # this repository cannot fix, and without this an unmatched `files`
+          # entry aborts the publish outright, which is how a missing sideload
+          # IPA would cost everyone else their release.
+          fail_on_unmatched_files: false
+          # Scoped to the names the build jobs produce. A glob such as `*.exe`
+          # also matches stray executables checked into the repository, which is
+          # how `zplay-new.exe` ended up attached to a release.
+          files: |
+            ZPlay-Windows-Setup.exe
+            ZPlay-Windows-x64-Portable.zip
+            app-arm64-v8a-release.apk
+            app-armeabi-v7a-release.apk
+            app-x86_64-release.apk
+            ZPlay-Linux-x86_64.AppImage
+            ZPlay-Linux-x86_64.tar.gz
+            ZPlay-macOS-arm64.dmg
+            ZPlay-macOS-arm64.zip
+            ZPlay-macOS-intel.dmg
+            ZPlay-macOS-intel.zip
+            ZPlay-iOS.ipa
+            SHA256SUMS

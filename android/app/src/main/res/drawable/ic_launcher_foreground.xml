@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "明暗 L" mark in its 100-unit box, scaled into the 66 dp safe zone of
+     the 108 dp adaptive canvas so no launcher mask can clip it. Everything
+     past the diagonal x + y = 110 is in shadow. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="21"
+        android:translateY="21"
+        android:scaleX="0.66"
+        android:scaleY="0.66">
+        <clip-path android:pathData="M29,18 H41 A3,3 0 0 1 44,21 V62 H73 A3,3 0 0 1 76,65 V77 A3,3 0 0 1 73,80 H29 A3,3 0 0 1 26,77 V21 A3,3 0 0 1 29,18 Z" />
+        <path
+            android:fillColor="#FFD27A"
+            android:pathData="M0,0 H100 V100 H0 Z" />
+        <path
+            android:fillColor="#9A6A1C"
+            android:pathData="M110,0 L0,110 L110,110 Z" />
+    </group>
+</vector>

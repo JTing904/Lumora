@@ -1,0 +1,193 @@
+/// The player's remote contract: which keys the player answers itself, and
+/// which it leaves to the focus system.
+///
+/// Extracted from `player_screen.dart` so the whole contract is reachable from a
+/// widget test. `PlayerScreen` owns a `media_kit` `Player`, which no widget test
+/// can build, so anything left inside it can only be tested by a stand-in that
+/// agrees with it by hand — and a stand-in is what this replaces.
+library;
+
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+
+/// What the player does with one key from a remote.
+///
+/// Every branch a television user can reach lives here, and the two rules that
+/// make the transport controls reachable are:
+///
+/// **The arrows are not the player's.** On a television this returns `ignored`
+/// for all four, so `WidgetsApp`'s default `DirectionalFocusIntent` binding
+/// moves focus between the controls and `ActivateIntent` fires the one holding
+/// it. Answering them here would `handled`-stop the event before the binding
+/// saw it, which is the state a Chromecast with Google TV reported: the D-pad
+/// changed volume and seeked instead of navigating.
+///
+/// **The hardware volume keys are answered before the focus gate.** They are
+/// neither traversal nor activation keys, they arrive as `audioVolumeUp` /
+/// `audioVolumeDown` on Android TV, and they have to keep working while a HUD
+/// control holds focus - the gate below deliberately stands every other shortcut
+/// down then, so leaving them inside it would mean a focused button costs the
+/// viewer the volume rocker.
+///
+/// [hudHasFocus] is that gate, and it asks the question the shortcuts actually
+/// care about: is one of the player's own controls holding focus? The transport
+/// bar and the stalled overlay's actions are both such controls. If one of them
+/// holds focus the remaining shortcuts stand down, because `select`, `enter` and
+/// `space` are `ActivateIntent` keys and the focused control needs them.
+///
+/// It is deliberately *not* "does the page node hold focus", which is what this
+/// used to ask. That was true on a pointer device and on a television only
+/// while nothing else had taken focus, and on a real television the page node is
+/// not what holds it: the route's own focus does. The gate then failed open -
+/// every arrow was `ignored` while nothing in the transport was focused either,
+/// so the focus system was handed an arrow it could not place, and the player
+/// sat there unanswerable with its HUD on screen. Asking whether a *transport*
+/// control holds focus is true only in the case the shortcuts have to stand
+/// down, and false in every case where they should run.
+KeyEventResult handlePlayerRemoteKey(
+  KeyEvent event, {
+  required bool isTelevision,
+  required bool hudHasFocus,
+  required bool controlsVisible,
+  required bool escapeExitsFullscreen,
+  required VoidCallback onShowControls,
+  required VoidCallback onFocusControls,
+  required VoidCallback onTogglePlayPause,
+  required VoidCallback onToggleMute,
+  required VoidCallback onToggleFullscreen,
+  required VoidCallback onExitFullscreen,
+  required VoidCallback onCycleVideoFit,
+  required void Function(double delta) onAdjustVolume,
+  required void Function(Duration offset) onSeekRelative,
+}) {
+  if (event is! KeyDownEvent) {
+    return KeyEventResult.ignored;
+  }
+  final key = event.logicalKey;
+
+  // Dedicated hardware keys, ahead of the gate on purpose. See above.
+  if (key == LogicalKeyboardKey.audioVolumeUp) {
+    onAdjustVolume(0.05);
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.audioVolumeDown) {
+    onAdjustVolume(-0.05);
+    return KeyEventResult.handled;
+  }
+
+  if (hudHasFocus) {
+    return KeyEventResult.ignored;
+  }
+
+  // A remote's centre button has no pointer equivalent, so it is the only way to
+  // raise a HUD that has auto-hidden, and then to step into it. The focus
+  // request is what makes that second press land on a real control instead of
+  // nowhere: a `FocusNode` no widget owns defers the request forever and never
+  // moves focus at all (`focus_manager.dart`, `_doRequestFocus`: `_parent ==
+  // null` -> `_requestFocusWhenReparented = true`, which is the state the player
+  // shipped with a node it created, requested and disposed but never handed to a
+  // widget).
+  if (key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter) {
+    if (!controlsVisible) onShowControls();
+    onFocusControls();
+    return KeyEventResult.handled;
+  }
+
+  if (key == LogicalKeyboardKey.keyM) {
+    onToggleMute();
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.keyK) {
+    onTogglePlayPause();
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.keyF || key == LogicalKeyboardKey.f11) {
+    onToggleFullscreen();
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.keyC) {
+    onCycleVideoFit();
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.escape && escapeExitsFullscreen) {
+    onExitFullscreen();
+    return KeyEventResult.handled;
+  }
+
+  // A pointer device keeps the arrow-key map: there is no focus ring to follow
+  // and a keyboard user expects up and down to be the volume. A television hands
+  // the arrows to traversal, which is the fix this file exists for.
+  //
+  // Reached only while the page node holds focus (the gate above), which is the
+  // state `PlayerScreen` opens in and the state its hide timer restores: the HUD
+  // is up, nothing inside it is focused, and the page node's rect is the whole
+  // screen, so a directional search from it finds no neighbour and the arrow
+  // does nothing at all. The viewer is then left with only the keys the platform
+  // answers by itself - play/pause, rewind/fast-forward, the volume rocker - and
+  // a reported Chromecast with Google TV was exactly that: "only play, 10 sec
+  // forward/backward and volume are selectable via remote control".
+  //
+  // So a television's arrows step *into* the HUD, exactly as `select` already
+  // does, instead of dead-ending on the page node. Once a control holds focus
+  // this branch is not reached at all and the arrows traverse the row, which is
+  // what the rest of the file's contract is for.
+  if (isTelevision) {
+    if (key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight) {
+      if (!controlsVisible) onShowControls();
+      onFocusControls();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  if (key == LogicalKeyboardKey.arrowUp) {
+    onAdjustVolume(0.05);
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.arrowDown) {
+    onAdjustVolume(-0.05);
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.keyJ) {
+    onSeekRelative(const Duration(seconds: -10));
+    return KeyEventResult.handled;
+  }
+  if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.keyL) {
+    onSeekRelative(const Duration(seconds: 10));
+    return KeyEventResult.handled;
+  }
+  return KeyEventResult.ignored;
+}
+
+/// Whether the focused element sits inside [ancestor].
+///
+/// The player has to answer "is one of the HUD's controls focused?" for
+/// [handlePlayerRemoteKey]'s gate, and the HUD carries no node of its own: the
+/// bar is deliberately not wrapped in a `Focus`, because that would re-indent
+/// its whole build for a question worth two lines. Two contexts and a walk up
+/// the element tree answer it instead - and as a free function it can be driven
+/// by a test on any host, which `PlayerScreen` cannot.
+///
+/// False when either side is missing, and when the focused element *is* the
+/// ancestor: a bar that held focus itself is not a control inside it.
+bool focusedElementIsUnder({
+  required BuildContext? focused,
+  required BuildContext? ancestor,
+}) {
+  if (focused == null || ancestor == null || identical(focused, ancestor)) {
+    return false;
+  }
+  final Element focusedElement = focused as Element;
+  bool inside = false;
+  focusedElement.visitAncestorElements((candidate) {
+    if (identical(candidate, ancestor)) {
+      inside = true;
+      return false;
+    }
+    return true;
+  });
+  return inside;
+}

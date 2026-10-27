@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZPlay: no telemetry, no accounts, just play</title>
+  <meta name="description" content="ZPlay is a free, open-source all-in-one media client for movies, TV, anime, manga, audiobooks, music and live TV. No telemetry, no accounts, no paywall.">
+  <meta property="og:title" content="ZPlay">
+  <meta property="og:description" content="Free, open-source all-in-one media client. No telemetry, no accounts, no paywall.">
+  <meta property="og:image" content="https://tzero86.github.io/ZPlay/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://tzero86.github.io/ZPlay/og.png">
+  <link rel="icon" href="icon.png?v=3">
+  <link rel="preload" href="fonts/poppins-regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/poppins-semibold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/poppins-bold.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face { font-family: "Poppins"; src: url("fonts/poppins-regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "Poppins"; src: url("fonts/poppins-semibold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+    @font-face { font-family: "Poppins"; src: url("fonts/poppins-bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+
+    :root {
+      --canvas: #0a0d12;
+      --surface: #10141b;
+      --surface-2: #161b24;
+      --ink: #ffffff;
+      --ink-muted: #a3abb8;
+      --line: rgba(255, 255, 255, .10);
+      --ember: #f04e3c;
+      --max: 1180px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--canvas); }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 400 16px/1.6 "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; height: auto; }
+    a { color: inherit; }
+    a:focus-visible, button:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+    h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.02em; line-height: 1.08; }
+    p { margin: 0; }
+    .shell { width: min(100% - 2.5rem, var(--max)); margin-inline: auto; }
+
+    .skip { position: absolute; left: 1rem; top: -4rem; z-index: 9; padding: .65rem .9rem; background: var(--ember); color: var(--canvas); font-weight: 600; }
+    .skip:focus { top: 1rem; }
+
+    /* Sticky masthead: transparent over the hero, tinted after scroll. */
+    .masthead {
+      position: sticky; top: 0; z-index: 50;
+      border-bottom: 1px solid transparent;
+      transition: background-color .25s ease, border-color .25s ease;
+    }
+    .masthead.is-scrolled {
+      background: rgba(10, 13, 18, .82);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      border-bottom-color: var(--line);
+    }
+    .masthead-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 62px; }
+    .brand { display: flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; text-decoration: none; }
+    .brand-mark { width: 26px; height: 26px; border-radius: 7px; }
+    .nav { display: flex; align-items: center; gap: 1.6rem; font-size: .9rem; }
+    .nav a { color: var(--ink-muted); text-decoration: none; font-weight: 400; }
+    .nav a:hover { color: var(--ink); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: .7rem 1.5rem; border-radius: 999px;
+      font-size: .95rem; font-weight: 600; text-decoration: none; white-space: nowrap;
+    }
+    .btn-ember { background: var(--ember); color: #fff; }
+    .btn-ember:hover { background: #d8412f; }
+    .btn-ghost { border: 1px solid var(--line); color: var(--ink); }
+    .btn-ghost:hover { border-color: rgba(255, 255, 255, .28); }
+    .nav .btn { padding: .5rem 1.1rem; font-size: .85rem; }
+
+    section { border-top: 1px solid var(--line); }
+    .eyebrow {
+      margin: 0 0 1rem;
+      color: var(--ember);
+      font-size: .75rem; font-weight: 600;
+      letter-spacing: .18em; text-transform: uppercase;
+    }
+    .section-title { font-size: clamp(2rem, 4.5vw, 3rem); }
+    .intro { margin-top: 1rem; color: var(--ink-muted); font-size: 1.1rem; max-width: 56ch; }
+
+    /* 1. Hero */
+    .hero { border-top: 0; padding-top: clamp(3rem, 7vw, 6rem); }
+    .hero-copy { max-width: 60ch; }
+    .hero h1 { font-size: clamp(2.6rem, 7vw, 5rem); }
+    .hero-sub { margin-top: 1.25rem; color: var(--ink-muted); font-size: clamp(1.05rem, 2vw, 1.25rem); max-width: 52ch; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: .9rem; margin-top: 2rem; }
+    .hero-shot { position: relative; width: 100%; margin-top: clamp(2.5rem, 6vw, 5rem); }
+    .hero-shot img {
+      display: block; width: 100%;
+      border: 1px solid var(--line); border-radius: 14px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+      -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+    }
+
+    /* 2. Four ways to play (bento) */
+    .ways { padding: clamp(4rem, 9vw, 7rem) 0; }
+    .bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; margin-top: clamp(2.5rem, 5vw, 4rem); }
+    .cell {
+      display: flex; flex-direction: column;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+      overflow: hidden;
+    }
+    .cell-copy { padding: 1.6rem 1.6rem 1.8rem; }
+    .cell h3 { font-size: 1.4rem; }
+    .cell-copy p { margin-top: .55rem; color: var(--ink-muted); font-size: .95rem; }
+    .cell img { display: block; width: 100%; }
+    .cell-watch { grid-column: span 7; }
+    .cell-watch .cell-img + .cell-img { border-top: 1px solid var(--line); }
+    .cell-read { grid-column: span 5; }
+    .cell-read .cell-img { flex: 1 1 auto; min-height: 0; }
+    .cell-read .cell-img img {
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+    }
+    .cell-listen { grid-column: span 5; }
+    .cell-tune { grid-column: span 7; justify-content: center; padding: clamp(2rem, 5vw, 3.5rem); }
+    .cell-tune p { margin-top: .8rem; color: var(--ink-muted); font-size: 1.05rem; max-width: 46ch; }
+
+    /* 3. Make it yours */
+    .make { padding: clamp(4rem, 9vw, 7rem) 0; }
+    .make-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(2rem, 5vw, 4rem); align-items: center; margin-top: clamp(2.5rem, 5vw, 4rem); }
+    .make-shot img {
+      display: block; width: 100%;
+      border: 1px solid var(--line); border-radius: 14px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+    }
+    .make-copy p { color: var(--ink-muted); font-size: 1.05rem; }
+    .swatches { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.8rem; padding: 0; list-style: none; }
+    .swatch {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .45rem .9rem; border-radius: 999px;
+      background: var(--surface-2); border: 1px solid var(--line);
+      font-size: .82rem; color: var(--ink);
+    }
+    .swatch i { display: block; width: 13px; height: 13px; border-radius: 50%; }
+
+    /* 4. Principles band */
+    .principles { padding: clamp(4rem, 9vw, 7rem) 0; }
+    .proofs { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: clamp(2.5rem, 5vw, 4rem); }
+    .proof { padding: .4rem clamp(1.5rem, 3vw, 3rem); border-left: 1px solid var(--line); }
+    .proof:first-child { padding-left: 0; border-left: 0; }
+    .proof h3 { text-transform: uppercase; letter-spacing: .1em; font-size: .85rem; font-weight: 600; }
+    .proof p { margin-top: .7rem; color: var(--ink-muted); font-size: .95rem; }
+
+    /* 5. Download */
+    .download { padding: clamp(4rem, 9vw, 7rem) 0; }
+    .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1.1rem; margin: clamp(2.5rem, 5vw, 4rem) 0 0; padding: 0; list-style: none; }
+    .card { display: flex; flex-direction: column; gap: .9rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+    .card[data-detected] { background: var(--surface-2); border-color: var(--ember); }
+    .card-head { display: flex; align-items: center; gap: .75rem; }
+    .card-icon { flex: none; width: 26px; height: 26px; fill: currentColor; color: var(--ink-muted); }
+    .card[data-detected] .card-icon { color: var(--ember); }
+    .card h3 { font-size: 1.15rem; }
+    .chip { display: none; margin-left: auto; padding: .22rem .5rem; border: 1px solid var(--ember); border-radius: 999px; color: var(--ember); font-size: .6rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+    .card[data-detected] .chip { display: inline-block; }
+    .card-note { margin: 0; color: var(--ink-muted); font-size: .85rem; }
+    .card .btn { width: 100%; }
+    .card-alt { margin-top: auto; color: var(--ink-muted); font-size: .8rem; font-weight: 600; text-align: center; text-decoration: none; }
+    .card-alt:hover { color: var(--ink); }
+
+    /* 6. Closing + footer */
+    .closing { padding: clamp(4rem, 9vw, 7rem) 0; }
+    .closing p { color: var(--ink-muted); max-width: 68ch; }
+    .closing p + p { margin-top: 1.2rem; }
+    .closing h2 + p { margin-top: 1.5rem; }
+    .closing strong { color: var(--ink); }
+    .closing .repo-link { display: inline-block; margin-top: 1.6rem; color: var(--ink); font-weight: 600; }
+    footer { border-top: 1px solid var(--line); padding: 2.2rem 0 3rem; color: var(--ink-muted); font-size: .8rem; }
+    .footer-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+    .footer-row p { margin: 0; max-width: 68ch; }
+    .footer-row a { color: var(--ink); }
+
+    /* Reveal: only hidden when JS is active; failsafe in script reveals all. */
+    .js [data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
+    .js [data-reveal].is-in { opacity: 1; transform: none; }
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+    @media (max-width: 900px) {
+      .bento { grid-template-columns: 1fr; }
+      .cell-watch, .cell-read, .cell-listen, .cell-tune { grid-column: auto; }
+      .make-grid { grid-template-columns: 1fr; }
+      .proofs { grid-template-columns: 1fr; }
+      .proof { padding: 1.4rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
+      .proof:first-child { padding-top: 0; border-top: 0; }
+    }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 2rem, var(--max)); }
+      .nav a:not(.btn) { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .js [data-reveal] { opacity: 1; transform: none; transition: none; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+  <script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-apple" viewBox="0 0 24 24"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></symbol>
+    <symbol id="i-linux" viewBox="0 0 24 24"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"/></symbol>
+    <symbol id="i-android" viewBox="0 0 24 24"><path d="M18.4395 5.5586c-.675 1.1664-1.352 2.3318-2.0274 3.498-.0366-.0155-.0742-.0286-.1113-.043-1.8249-.6957-3.484-.8-4.42-.787-1.8551.0185-3.3544.4643-4.2597.8203-.084-.1494-1.7526-3.021-2.0215-3.4864a1.1451 1.1451 0 0 0-.1406-.1914c-.3312-.364-.9054-.4859-1.379-.203-.475.282-.7136.9361-.3886 1.5019 1.9466 3.3696-.0966-.2158 1.9473 3.3593.0172.031-.4946.2642-1.3926 1.0177C2.8987 12.176.452 14.772 0 18.9902h24c-.119-1.1108-.3686-2.099-.7461-3.0683-.7438-1.9118-1.8435-3.2928-2.7402-4.1836a12.1048 12.1048 0 0 0-2.1309-1.6875c.6594-1.122 1.312-2.2559 1.9649-3.3848.2077-.3615.1886-.7956-.0079-1.1191a1.1001 1.1001 0 0 0-.8515-.5332c-.5225-.0536-.9392.3128-1.0488.5449zm-.0391 8.461c.3944.5926.324 1.3306-.1563 1.6503-.4799.3197-1.188.0985-1.582-.4941-.3944-.5927-.324-1.3307.1563-1.6504.4727-.315 1.1812-.1086 1.582.4941zM7.207 13.5273c.4803.3197.5506 1.0577.1563 1.6504-.394.5926-1.1038.8138-1.584.4941-.48-.3197-.5503-1.0577-.1563-1.6504.4008-.6021 1.1087-.8106 1.584-.4941z"/></symbol>
+    <symbol id="i-windows" viewBox="0 0 24 24"><path d="M2 2h9.25v9.25H2zM12.75 2H22v9.25h-9.25zM2 12.75h9.25V22H2zM12.75 12.75H22V22h-9.25z"/></symbol>
+  </svg>
+
+  <header class="masthead" id="top">
+    <div class="shell masthead-row">
+      <a class="brand" href="https://tzero86.github.io/ZPlay/" aria-label="ZPlay home"><img class="brand-mark" src="icon.png?v=3" alt="" width="26" height="26"> ZPlay</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="#ways">Ways to play</a>
+        <a href="#make">Themes</a>
+        <a href="#principles">Principles</a>
+        <a href="https://github.com/tzero86/ZPlay">Source</a>
+        <a class="btn btn-ember" href="#download">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- 1. Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="shell">
+        <div class="hero-copy" data-reveal>
+          <p class="eyebrow">One private place for media</p>
+          <h1 id="hero-title">Every screen you own, one player.</h1>
+          <p class="hero-sub">ZPlay brings movies, TV, anime, manga, audiobooks, music and live TV into one free, open-source app, without a required account, a paywall, or telemetry.</p>
+          <div class="hero-actions">
+            <a class="btn btn-ember" href="#download">Download ZPlay</a>
+            <a class="btn btn-ghost" href="https://github.com/tzero86/ZPlay#build-from-source">Build from source</a>
+          </div>
+        </div>
+      </div>
+      <div class="hero-shot">
+        <img src="shots/home.webp" alt="ZPlay home screen with rows of movie, TV, anime and manga titles." width="1600" height="610" fetchpriority="high">
+      </div>
+    </section>
+
+    <!-- 2. Four ways to play -->
+    <section id="ways" class="ways" aria-labelledby="ways-title">
+      <div class="shell">
+        <h2 id="ways-title" class="section-title" data-reveal>Four ways to play.</h2>
+        <p class="intro" data-reveal>A single app for the screens, pages, stations and soundtracks that normally live apart.</p>
+        <div class="bento">
+          <article class="cell cell-watch" data-reveal>
+            <div class="cell-copy">
+              <h3>Watch</h3>
+              <p>Movies, TV and anime with hardware decode, HDR, subtitles and player controls kept close to the show.</p>
+            </div>
+            <div class="cell-img"><img src="shots/browse.webp" alt="ZPlay browse screen with a grid of poster artwork." width="1600" height="837" loading="lazy"></div>
+            <div class="cell-img"><img src="shots/details.webp" alt="ZPlay title details page with overview and episode list." width="1600" height="968" loading="lazy"></div>
+          </article>
+          <article class="cell cell-read" data-reveal>
+            <div class="cell-copy">
+              <h3>Read</h3>
+              <p>Manga with horizontal or vertical reading, pinch zoom, and chapter and page resume.</p>
+            </div>
+            <div class="cell-img"><img src="shots/manga.webp" alt="ZPlay manga screen showing a grid of manga covers." width="1600" height="968" loading="lazy"></div>
+          </article>
+          <article class="cell cell-listen" data-reveal>
+            <div class="cell-copy">
+              <h3>Listen</h3>
+              <p>Audiobooks with speed, sleep timer and chapter controls. Music with playlists, quality switching and a persistent mini-player.</p>
+            </div>
+            <div class="cell-img"><img src="shots/music.webp" alt="ZPlay music screen with the now playing bar at the bottom." width="1600" height="968" loading="lazy"></div>
+          </article>
+          <article class="cell cell-tune" data-reveal>
+            <h3>Tune in</h3>
+            <p>Bring an Xtream-style IPTV portal for live TV, with channel search, favourites and history.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Make it yours -->
+    <section id="make" class="make" aria-labelledby="make-title">
+      <div class="shell">
+        <h2 id="make-title" class="section-title" data-reveal>Make it yours.</h2>
+        <div class="make-grid">
+          <div class="make-shot" data-reveal>
+            <img src="shots/settings.webp" alt="ZPlay settings with the accent color picker open and Vampire Red selected." width="1600" height="968" loading="lazy">
+          </div>
+          <div class="make-copy" data-reveal>
+            <p>The settings screen shows the accent picker with Vampire Red selected. Choose from 11 accent colors; Ember Crimson (#f04e3c) is the default, and every background stays on the app's dark surfaces.</p>
+            <ul class="swatches">
+              <li class="swatch"><i style="background:#2FD0C0"></i>Signal Teal</li>
+              <li class="swatch"><i style="background:#7C5CFF"></i>Amethyst Violet</li>
+              <li class="swatch"><i style="background:#FF2A85"></i>Cyberpunk Neon</li>
+              <li class="swatch"><i style="background:#10B981"></i>Emerald Aurora</li>
+              <li class="swatch"><i style="background:#FF3366"></i>Sunset Crimson</li>
+              <li class="swatch"><i style="background:#3B82F6"></i>Midnight Sapphire</li>
+              <li class="swatch"><i style="background:#F59E0B"></i>Golden Amber</li>
+              <li class="swatch"><i style="background:#E50914"></i>Vampire Red</li>
+              <li class="swatch"><i style="background:#FF1493"></i>Pink Barbie</li>
+              <li class="swatch"><i style="background:#f04e3c"></i>Ember Crimson</li>
+              <li class="swatch"><i style="background:#B8B0A0"></i>Studio Bone</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Principles -->
+    <section id="principles" class="principles" aria-labelledby="principles-title">
+      <div class="shell">
+        <h2 id="principles-title" class="section-title" data-reveal>Quiet by design.</h2>
+        <div class="proofs" data-reveal>
+          <div class="proof">
+            <h3>No required account</h3>
+            <p>Download, open and play. Optional Trakt, Simkl and debrid connections stay yours to set up or skip.</p>
+          </div>
+          <div class="proof">
+            <h3>No analytics</h3>
+            <p>No analytics SDK, crash reporter or usage statistics. Release diagnostics are off by default.</p>
+          </div>
+          <div class="proof">
+            <h3>Progress stays local</h3>
+            <p>Watch, reading and listening positions are saved on your device from the first title.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Download -->
+    <section id="download" class="download" aria-labelledby="download-title">
+      <div class="shell">
+        <p class="eyebrow" data-reveal>Available where you watch</p>
+        <h2 id="download-title" class="section-title" data-reveal>Take ZPlay with you.</h2>
+        <p class="intro" data-reveal>Every button downloads the newest published build straight from the release archive. Android and iOS packages are sideloaded, and the iOS build is unsigned.</p>
+        <ul class="downloads" role="list">
+          <li class="card" data-platform="windows">
+            <div class="card-head"><svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-windows"></use></svg><h3>Windows</h3><span class="chip">Your device</span></div>
+            <p class="card-note">Installer for 64-bit Windows</p>
+            <a class="btn btn-ember" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-Windows-Setup.exe">Download Windows installer (.exe)</a>
+            <a class="card-alt" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-Windows-x64-Portable.zip">Portable ZIP (.zip)</a>
+          </li>
+          <li class="card" data-platform="macos">
+            <div class="card-head"><svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-apple"></use></svg><h3>macOS (Apple Silicon)</h3><span class="chip">Your device</span></div>
+            <p class="card-note">Apple Silicon</p>
+            <a class="btn btn-ember" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-macOS-arm64.dmg">Download macOS Apple Silicon (.dmg)</a>
+            <a class="card-alt" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-macOS-arm64.zip">Apple Silicon ZIP (.zip)</a>
+          </li>
+          <li class="card" data-platform="macos">
+            <div class="card-head"><svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-apple"></use></svg><h3>macOS (Intel)</h3><span class="chip">Your device</span></div>
+            <p class="card-note">Intel</p>
+            <a class="btn btn-ember" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-macOS-intel.dmg">Download macOS Intel (.dmg)</a>
+            <a class="card-alt" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-macOS-intel.zip">Intel ZIP (.zip)</a>
+          </li>
+          <li class="card" data-platform="linux">
+            <div class="card-head"><svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-linux"></use></svg><h3>Linux</h3><span class="chip">Your device</span></div>
+            <p class="card-note">AppImage runs anywhere, no install</p>
+            <a class="btn btn-ember" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-Linux-x86_64.AppImage">Download Linux AppImage (.AppImage)</a>
+            <a class="card-alt" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-Linux-x86_64.tar.gz">Portable tar.gz (.tar.gz)</a>
+          </li>
+          <li class="card" data-platform="android">
+            <div class="card-head"><svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-android"></use></svg><h3>Android / Android TV</h3><span class="chip">Your device</span></div>
+            <p class="card-note">Runs on Android TV too</p>
+            <a class="btn btn-ember" href="https://github.com/tzero86/ZPlay/releases/latest/download/app-arm64-v8a-release.apk">Download Android APK (arm64)</a>
+            <a class="card-alt" href="https://github.com/tzero86/ZPlay/releases/latest/download/app-armeabi-v7a-release.apk">armv7 APK for older devices (.apk)</a>
+          </li>
+          <li class="card" data-platform="ios">
+            <div class="card-head"><svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-apple"></use></svg><h3>iOS</h3><span class="chip">Your device</span></div>
+            <p class="card-note">Unsigned: sideload only</p>
+            <a class="btn btn-ember" href="https://github.com/tzero86/ZPlay/releases/latest/download/ZPlay-iOS.ipa">Download iOS app (.ipa)</a>
+            <a class="card-alt" href="https://github.com/tzero86/ZPlay/releases">All published releases</a>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 6. Closing / fork note -->
+    <section class="closing" aria-labelledby="closing-title">
+      <div class="shell" data-reveal>
+        <h2 id="closing-title" class="section-title">Open by design.</h2>
+        <p><strong>ZPlay is free software under the GNU GPL v3.0.</strong> The source is available to inspect, build and improve, not a hidden service behind a subscription.</p>
+        <p><strong>Made from a real lineage.</strong> ZPlay is a fork of <a href="https://github.com/ayman708-UX/PlayTorrioV3">PlayTorrio V3 by Ayman</a>. That upstream work is acknowledged with the same openness that makes this project possible.</p>
+        <a class="repo-link" href="https://github.com/tzero86/ZPlay">Explore source on GitHub</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell footer-row">
+      <p>© ZPlay contributors · GPL-3.0 · Media access depends on the sources and accounts you choose to use. Screenshots contain artwork that belongs to its respective owners. Poppins is set under the SIL Open Font License, see <a href="fonts/OFL.txt">OFL.txt</a>.</p>
+      <p><a href="https://github.com/tzero86/ZPlay">GitHub</a> · <a href="https://github.com/tzero86/ZPlay/releases">Releases</a> · <a href="https://github.com/tzero86/ZPlay#build-from-source">Build guide</a></p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var masthead = document.querySelector(".masthead");
+      var onScroll = function () {
+        if (window.scrollY > 8) { masthead.classList.add("is-scrolled"); }
+        else { masthead.classList.remove("is-scrolled"); }
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    })();
+
+    (function () {
+      var els = document.querySelectorAll("[data-reveal]");
+      if (!els.length) return;
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+      var showAll = function () {
+        for (var i = 0; i < els.length; i += 1) { els[i].classList.add("is-in"); }
+      };
+      if (reduce.matches || !("IntersectionObserver" in window)) { showAll(); return; }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); }
+        });
+      }, { rootMargin: "0px 0px -8% 0px" });
+      for (var j = 0; j < els.length; j += 1) {
+        var r = els[j].getBoundingClientRect();
+        if (r.top < window.innerHeight * 0.92) { els[j].classList.add("is-in"); }
+        else { io.observe(els[j]); }
+      }
+      setTimeout(showAll, 1500);
+    })();
+
+    (function () {
+      var ua = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || "").toLowerCase();
+      var key = /android/.test(ua) ? "android" : /iphone|ipad|ipod/.test(ua) ? "ios" : /win/.test(ua) ? "windows" : /mac/.test(ua) ? "macos" : /linux|x11/.test(ua) ? "linux" : "";
+      if (!key) return;
+      var cards = document.querySelectorAll('[data-platform="' + key + '"]');
+      for (var i = 0; i < cards.length; i += 1) { cards[i].setAttribute("data-detected", key); }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1750 @@
+import '../../l10n/l10n.dart';
+import 'package:flutter/material.dart';
+
+import '../../models/addon/addon.dart';
+import '../../models/movie/movie.dart';
+import '../../models/movie/movie_section.dart';
+import '../../services/addon/addon_manager.dart';
+import '../../services/content/content_settings.dart';
+import '../../services/layout/form_factor.dart';
+import '../../services/metadata/metadata_service.dart';
+import '../../services/theme/app_theme_service.dart';
+import '../../services/theme/design_tokens.dart';
+import '../../shell/app_shell_scope.dart';
+import '../../widgets/common/animated_ambient_background.dart';
+import '../../widgets/common/card_focus_expansion.dart';
+import '../../widgets/common/error_view.dart';
+import '../../widgets/common/horizontal_edge_fade.dart';
+import '../../widgets/common/focusable_card.dart';
+import '../../widgets/movie/movie_card.dart';
+
+class DiscoverPage extends StatefulWidget {
+  final String? query;
+  final bool isGenre;
+  final AddonCatalog? initialCatalog;
+  final InstalledAddon? initialAddon;
+
+  const DiscoverPage({
+    super.key,
+    this.query,
+    this.isGenre = false,
+    this.initialCatalog,
+    this.initialAddon,
+  });
+
+  @override
+  State<DiscoverPage> createState() => _DiscoverPageState();
+}
+
+class _DiscoverPageState extends State<DiscoverPage> {
+  // Legacy query mode (when query is passed)
+  bool get _isLegacyMode => widget.query != null && widget.query!.isNotEmpty;
+
+  // Legacy state
+  bool _legacyLoading = true;
+  String? _legacyError;
+  List<MovieSection> _legacySections = [];
+
+  // Full Discover state
+  List<({InstalledAddon addon, AddonCatalog catalog})> _allCatalogs = [];
+  List<String> _availableTypes = [];
+  String _selectedType = 'movie';
+
+  /// Pseudo-type that narrows the catalog list to adult addons. Only offered
+  /// while the global Adult Content switch is on and such an addon exists.
+  static const String _adultType = '18+';
+
+  ({InstalledAddon addon, AddonCatalog catalog})? _selectedCatalogEntry;
+  final Map<String, String> _selectedExtras = {};
+
+  final List<Movie> _items = [];
+  bool _isLoading = false;
+  bool _hasMore = true;
+  String? _error;
+
+  String _searchQuery = '';
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  final ScrollController _scrollController = ScrollController();
+
+  /// The catalog chip row's controller.
+  final ScrollController _filtersScrollController = ScrollController();
+
+  /// The extras row's own controller.
+  ///
+  /// A [ScrollController] holds exactly one attached [ScrollPosition]: the
+  /// second viewport to attach detaches the first. The chip row and the extras
+  /// row were both bound to `_filtersScrollController`, so whichever mounted
+  /// second silently stopped scrolling - and because `HorizontalEdgeFade` also
+  /// watches that controller, its fades belonged to that row rather than to the
+  /// row they were painted on. A chip that cannot be scrolled to is a chip that
+  /// cannot be selected.
+  final ScrollController _extrasScrollController = ScrollController();
+
+  /// Scroll distance over which the selector row's chrome fades from invisible
+  /// over the page's own top padding to a calm tinted bar.
+  ///
+  /// The same 32 dp Home's `_GlassAppBar` uses, so the shell's own nav bar - which
+  /// blends on the same `offset / 32` curve - and this row settle together rather
+  /// than one trailing the other.
+  static const double _chromeTintThreshold = 32.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    ContentSettings.adultEnabled.addListener(_onAdultContentChanged);
+
+    if (_isLegacyMode) {
+      _fetchLegacyData();
+    } else {
+      _initDiscoverCatalogs();
+    }
+  }
+
+  /// The shell keeps every slot mounted in one `IndexedStack`, so this page is
+  /// built once at startup and never rebuilt on a slot switch. `initState` also
+  /// runs before [AddonManager.initialize] has finished hydrating, so the
+  /// catalog list it reads there is whatever happened to be in memory - usually
+  /// nothing - and it is then never refreshed. Returning to Browse reloads it,
+  /// which is the same reload cue Home uses (see `HomePage._onSlotChanged`).
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = AppShellScope.of(context);
+    if (identical(controller, _shellController)) return;
+    _shellController?.current.removeListener(_onSlotChanged);
+    _shellController = controller;
+    _lastSlot = controller?.current.value;
+    controller?.current.addListener(_onSlotChanged);
+  }
+
+  AppShellController? _shellController;
+  ShellSlot? _lastSlot;
+
+  void _onSlotChanged() {
+    final slot = _shellController?.current.value;
+    final returnedBrowse = slot == ShellSlot.browse && _lastSlot != ShellSlot.browse;
+    _lastSlot = slot;
+    if (!returnedBrowse || !mounted || _isLegacyMode) return;
+    _initDiscoverCatalogs();
+  }
+
+  @override
+  void dispose() {
+    ContentSettings.adultEnabled.removeListener(_onAdultContentChanged);
+    _shellController?.current.removeListener(_onSlotChanged);
+    _scrollController.dispose();
+    _filtersScrollController.dispose();
+    _extrasScrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// The catalog list is adult-filtered at query time, so rebuild it under the
+  /// new switch value and reload. The previous type/entry is preserved when it
+  /// still exists (see [_initDiscoverCatalogs]).
+  void _onAdultContentChanged() {
+    if (!mounted) return;
+    MetadataService.clearCatalogCache();
+    if (_isLegacyMode) {
+      _fetchLegacyData();
+      return;
+    }
+    _initDiscoverCatalogs();
+  }
+
+  // ── Legacy Search / Genre Mode ──
+  Future<void> _fetchLegacyData() async {
+    setState(() {
+      _legacyLoading = true;
+      _legacyError = null;
+    });
+
+    try {
+      final manager = AddonManager.instance;
+      List<MovieSection> sections;
+
+      if (widget.isGenre) {
+        sections = await manager.fetchByGenre(widget.query!);
+      } else {
+        sections = await manager.searchAll(widget.query!);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _legacySections = sections;
+        _legacyLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _legacyError = e.toString();
+        _legacyLoading = false;
+      });
+    }
+  }
+
+  // ── Full Discover Mode ──
+  void _initDiscoverCatalogs() {
+    final catalogs = AddonManager.instance.getAvailableDiscoverCatalogs();
+    final types = <String>{};
+    for (final entry in catalogs) {
+      types.add(entry.catalog.type);
+    }
+
+    final sortedTypes = types.toList();
+    const priority = ['movie', 'series', 'anime', 'collections', 'collection'];
+    sortedTypes.sort((a, b) {
+      final idxA = priority.indexOf(a);
+      final idxB = priority.indexOf(b);
+      if (idxA != -1 && idxB != -1) return idxA.compareTo(idxB);
+      if (idxA != -1) return -1;
+      if (idxB != -1) return 1;
+      return a.compareTo(b);
+    });
+
+    // The 18+ entry is a view of the app's adult sources, so it is offered
+    // whenever the global switch is on — even before any adult addon exists,
+    // otherwise the filter silently looks missing. The empty view explains how
+    // to add one.
+    if (ContentSettings.adultEnabled.value &&
+        !sortedTypes.contains(_adultType)) {
+      sortedTypes.add(_adultType);
+    }
+
+    // Preserve the user's current type/entry across re-inits (e.g. the 18+
+    // switch flipping the available catalog list). Falls back to the initial
+    // catalog when the prior selection no longer exists.
+    final hasPriorSelection =
+        _availableTypes.isNotEmpty || _selectedCatalogEntry != null;
+    final priorType = _selectedType;
+    final priorEntry = _selectedCatalogEntry;
+
+    String initialType;
+    if (hasPriorSelection && sortedTypes.contains(priorType)) {
+      initialType = priorType;
+    } else {
+      initialType =
+          widget.initialCatalog?.type ??
+          (sortedTypes.isNotEmpty ? sortedTypes.first : 'movie');
+      if (!sortedTypes.contains(initialType) && sortedTypes.isNotEmpty) {
+        initialType = sortedTypes.first;
+      }
+    }
+
+    ({InstalledAddon addon, AddonCatalog catalog})? initialEntry;
+    if (priorEntry != null) {
+      for (final entry in catalogs) {
+        if (entry.catalog.id == priorEntry.catalog.id &&
+            entry.addon.manifest.id == priorEntry.addon.manifest.id) {
+          initialEntry = entry;
+          break;
+        }
+      }
+    }
+    if (initialEntry == null && widget.initialCatalog != null) {
+      for (final entry in catalogs) {
+        if (entry.catalog.id == widget.initialCatalog!.id &&
+            (widget.initialAddon == null || entry.addon.manifest.id == widget.initialAddon!.manifest.id)) {
+          initialEntry = entry;
+          break;
+        }
+      }
+    }
+
+    initialEntry ??= catalogs.where((c) => c.catalog.type == initialType).firstOrNull ?? catalogs.firstOrNull;
+
+    setState(() {
+      _allCatalogs = catalogs;
+      _availableTypes = sortedTypes;
+      _selectedType = initialType;
+      _selectedCatalogEntry = initialEntry;
+    });
+
+    _checkAndLoadCatalog();
+  }
+
+  List<({InstalledAddon addon, AddonCatalog catalog})> get _currentTypeCatalogs {
+    if (_selectedType == _adultType) {
+      return _allCatalogs.where((c) => c.addon.isAdultCapable).toList();
+    }
+    return _allCatalogs.where((c) => c.catalog.type == _selectedType).toList();
+  }
+
+  bool get _hasVisibleExtras {
+    if (_selectedCatalogEntry == null) return false;
+    return _selectedCatalogEntry!.catalog.extra.any((e) =>
+        e.name != 'skip' && (e.name != 'search' || e.isRequired));
+  }
+
+  List<CatalogExtra> get _missingRequiredExtras {
+    if (_selectedCatalogEntry == null) return const [];
+    final catalog = _selectedCatalogEntry!.catalog;
+    return catalog.requiredExtras.where((req) {
+      final val = _selectedExtras[req.name];
+      return val == null || val.trim().isEmpty;
+    }).toList();
+  }
+
+  bool get _areRequiredExtrasSatisfied => _missingRequiredExtras.isEmpty;
+
+  /// Short badge text naming what a catalog will demand before it will load.
+  ///
+  /// The chip used to read "Custom", which is true and useless: it does not say
+  /// that choosing this catalog replaces the grid with "Select Required Filter",
+  /// so the gate looked like the chip being broken. Naming the filter puts the
+  /// cost of the choice on the choice.
+  ///
+  /// Falls back to "Custom" when a catalog declares a required extra with no
+  /// name, because an empty badge is worse than an uninformative one.
+  String _requiredExtraLabel(AddonCatalog catalog) {
+    final required = catalog.requiredExtras.map((e) => e.name).where(
+          (name) => name.trim().isNotEmpty && name != 'skip',
+        );
+    if (required.isEmpty) return l10nCurrent().dscCustom;
+    return required.join(' + ');
+  }
+
+  void _onTypeChanged(String type) {
+    if (_selectedType == type) return;
+    setState(() {
+      _selectedType = type;
+      // The 18+ entry is a cross-addon filter, so resolve the first catalog
+      // through the same getter the chip row uses.
+      _selectedCatalogEntry = _currentTypeCatalogs.firstOrNull;
+      _selectedExtras.clear();
+      _searchQuery = '';
+      _isSearching = false;
+      _searchController.clear();
+    });
+    _checkAndLoadCatalog();
+  }
+
+  void _onCatalogChanged(({InstalledAddon addon, AddonCatalog catalog}) entry) {
+    if (_selectedCatalogEntry == entry) return;
+    setState(() {
+      _selectedCatalogEntry = entry;
+      _selectedExtras.clear();
+      _searchQuery = '';
+      _isSearching = false;
+      _searchController.clear();
+    });
+    _checkAndLoadCatalog();
+  }
+
+  void _onExtraOptionSelected(String extraName, String? value) {
+    if (_selectedExtras[extraName] == value) return;
+    setState(() {
+      if (value == null || value.trim().isEmpty) {
+        _selectedExtras.remove(extraName);
+      } else {
+        _selectedExtras[extraName] = value.trim();
+      }
+      _isSearching = false;
+      _searchQuery = '';
+      _searchController.clear();
+    });
+    _checkAndLoadCatalog();
+  }
+
+  void _onCustomExtraSubmitted(String extraName, String value) {
+    if (value.trim().isEmpty) {
+      setState(() {
+        _selectedExtras.remove(extraName);
+      });
+    } else {
+      setState(() {
+        _selectedExtras[extraName] = value.trim();
+      });
+    }
+    _checkAndLoadCatalog();
+  }
+
+  void _checkAndLoadCatalog() {
+    if (_selectedCatalogEntry == null) {
+      setState(() {
+        _items.clear();
+        _isLoading = false;
+        _hasMore = false;
+      });
+      return;
+    }
+
+    if (!_areRequiredExtrasSatisfied) {
+      // Gating: DO NOT fire network requests until required extras are selected!
+      setState(() {
+        _items.clear();
+        _isLoading = false;
+        _hasMore = false;
+        _error = null;
+      });
+      return;
+    }
+
+    _loadItems(refresh: true);
+  }
+
+  void _onScroll() {
+    // Legacy mode borrows this controller for the header's tint and never
+    // paginates; `_loadItems` would no-op anyway, but the guard keeps the
+    // listener from being consulted for a mode it does not own.
+    if (_isLegacyMode) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 400) {
+      if (!_isLoading && _hasMore) {
+        _loadItems();
+      }
+    }
+  }
+
+  Future<void> _loadItems({bool refresh = false}) async {
+    if (_selectedCatalogEntry == null) return;
+    final entry = _selectedCatalogEntry!;
+
+    if (refresh) {
+      setState(() {
+        _items.clear();
+        _hasMore = true;
+        _error = null;
+      });
+    }
+
+    if (!_hasMore) return;
+    if (!_areRequiredExtrasSatisfied) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      List<Movie> newItems = [];
+
+      final params = Map<String, String>.from(_selectedExtras);
+      if (_searchQuery.isNotEmpty) {
+        params['search'] = _searchQuery;
+      }
+
+      if (_isSearching && _searchQuery.isNotEmpty && !entry.catalog.supportsSkip) {
+        newItems = await MetadataService.search(
+          baseUrl: entry.addon.baseUrl,
+          type: entry.catalog.type,
+          catalogId: entry.catalog.id,
+          query: _searchQuery,
+        );
+        _hasMore = false;
+      } else {
+        newItems = await MetadataService.fetchCatalog(
+          baseUrl: entry.addon.baseUrl,
+          type: entry.catalog.type,
+          catalogId: entry.catalog.id,
+          extraParams: params.isNotEmpty ? params : null,
+          skip: entry.catalog.supportsSkip ? _items.length : 0,
+        );
+
+        if (!entry.catalog.supportsSkip) {
+          _hasMore = false;
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        if (newItems.isEmpty) {
+          _hasMore = false;
+        } else {
+          _items.addAll(newItems);
+          if (newItems.length < 10) {
+            _hasMore = false;
+          }
+        }
+        _isLoading = false;
+      });
+
+      // Auto load more if screen not filled yet
+      if (_hasMore && !_isLoading) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scrollController.hasClients) return;
+          if (_scrollController.position.maxScrollExtent <= 0) {
+            _loadItems();
+          }
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _onSearchSubmitted(String query) {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _isSearching = false;
+        _searchQuery = '';
+      });
+      _checkAndLoadCatalog();
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _searchQuery = query.trim();
+    });
+    _checkAndLoadCatalog();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _isSearching = false;
+      _searchQuery = '';
+    });
+    _checkAndLoadCatalog();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLegacyMode) {
+      return _buildLegacyScaffold();
+    }
+    return _buildDiscoverScaffold();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Full Discover UI
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildDiscoverScaffold() {
+    final tokens = context.tokens;
+    final mediaQuery = MediaQuery.of(context);
+    final topPadding = mediaQuery.padding.top;
+    final bottomInset = mediaQuery.padding.bottom;
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+    final isCompactScreen = screenHeight < 520;
+
+    // Cards are sized from the height this page actually has left, not from the
+    // width alone.
+    //
+    // The width-only version is why the Browse grid looked wrong: at 960 dp it
+    // produced 176 dp cards, four across 928 dp, and one row of 326.5 dp cards
+    // filled a 540 dp screen with nothing to spare - the posters looked enormous
+    // and the titles were cut off. The whole header is stacked above this grid
+    // and its height is known right here; it was never used.
+    //
+    // Two rows visible is the target: enough to scroll, small enough that a card
+    // is a card rather than a billboard.
+    final hasExtras = _hasVisibleExtras;
+    // The title row is not drawn on a television, so it is not paid for here
+    // either. Leaving it in this sum while the widget is gone would size every
+    // card 56 dp short - the budget and the layout have to agree, or the grid is
+    // tuned against chrome that is not on screen.
+    //
+    // The extras row is the same bargain, and it was the one still being paid
+    // for. On a television the extras are *merged into* the selector row
+    // (`_buildHeader`), so no second row is drawn - and charging `extrasH` for
+    // it anyway sized every card 48 dp shorter than the space it actually had.
+    // `!television` on that term is what makes the sum equal the column the
+    // header really builds: title (non-TV) + selector (+ extras, non-TV).
+    final television = FormFactorService.of(context) == FormFactor.television;
+    final toolbarH = isCompactScreen ? 46.0 : kToolbarHeight;
+    // 48 dp on a television, not 44.
+    //
+    // Every chip in this row is a remote target, and a pill shorter than the
+    // ten-foot floor is a target a person has to aim at. The pills fill the row
+    // (`_DiscoverPill.height`), so the row's height *is* the target: 48 dp, the
+    // same number the shell's own top bar uses for exactly this reason. The
+    // grid pays the 4 dp back out of the budget below.
+    final selectorH = television
+        ? 48.0
+        : (isCompactScreen ? 44.0 : 50.0);
+    final extrasH = isCompactScreen ? 42.0 : 48.0;
+
+    final headerHeight = topPadding +
+        (television ? 0 : toolbarH) +
+        selectorH +
+        (hasExtras && !television ? extrasH : 0);
+    final rowsToShow = screenHeight < 640 ? 2 : 3;
+    // `sizing.spacing` is 16 and not derived from the budget, so the first pass
+    // of this sizing does not need to know its own height budget.
+    final cardBudget =
+        (screenHeight - headerHeight - ZplaySpacing.s24 * 2 - ZplaySpacing.s16) /
+            rowsToShow;
+
+    final sizing = MovieCardSizing.fromWidth(
+      screenWidth,
+      availableHeight: cardBudget,
+    );
+
+    return Scaffold(
+      backgroundColor: tokens.bg,
+      // One ambient canvas under the whole page, so Browse's Discover vertical
+      // sits on the same surface as Home rather than on a flat fill.
+      body: AnimatedAmbientBackground(
+        child: Stack(
+          children: [
+            // ── Main Content Grid ──
+            Positioned.fill(
+              child: _buildDiscoverContent(headerHeight, sizing, bottomInset),
+            ),
+
+            // ── Chrome: type/catalog selector ──
+            //
+            // Transparent at the top of the page and tinted only once the grid
+            // scrolls under it - Home's `_GlassAppBar` treatment (see
+            // `_buildHeader`), not the opaque band with a hairline this used to
+            // pin. The band was the seam the blended nav exists to remove.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildHeader(
+                topPadding,
+                hasExtras,
+                isCompactScreen: isCompactScreen,
+                toolbarH: toolbarH,
+                selectorH: selectorH,
+                extrasH: extrasH,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiscoverContent(double topOffset, MovieCardSizing sizing, double bottomInset) {
+    final tokens = context.tokens;
+    if (_selectedCatalogEntry == null) {
+      return Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            ZplaySpacing.s20,
+            topOffset + 30,
+            ZplaySpacing.s20,
+            100,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.category_outlined, size: 48, color: tokens.textDisabled),
+              const SizedBox(height: ZplaySpacing.s12),
+              Text(
+                _selectedType == _adultType
+                    ? l10nCurrent().dscNoAdultSources
+                    : l10nCurrent().dsc2NoCatalogsForType(_selectedType),
+                style: ZplayType.subtitle.toStyle(color: tokens.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Required extra gating prompt
+    if (!_areRequiredExtrasSatisfied) {
+      return _buildRequiredExtraGatingPrompt(topOffset);
+    }
+
+    if (_items.isEmpty && _isLoading) {
+      return Center(
+        child: CircularProgressIndicator(color: AppThemeService.currentPalette.value.primaryColor),
+      );
+    }
+
+    if (_items.isEmpty && _error != null) {
+      return Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            ZplaySpacing.s20,
+            topOffset + 30,
+            ZplaySpacing.s20,
+            100,
+          ),
+          child: ErrorView(
+            error: _error,
+            onRetry: () => _loadItems(refresh: true),
+          ),
+        ),
+      );
+    }
+
+    if (_items.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            ZplaySpacing.s20,
+            topOffset + 30,
+            ZplaySpacing.s20,
+            100,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.inbox_rounded, size: 48, color: tokens.textDisabled),
+              const SizedBox(height: ZplaySpacing.s12),
+              Text(
+                l10nCurrent().dscNoTitlesInCatalog,
+                style: ZplayType.subtitle.toStyle(color: tokens.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    // Columns are counted from the card that is actually *drawn*, not from the
+    // width the width band asks for.
+    //
+    // The height budget squeezes the artwork (`MovieCardSizing.fromWidth`), so
+    // on the television's 540 dp canvas these cards resolve to 112.8 dp wide
+    // while `sizing.cardWidth` stays at its nominal 176. Counting 176 dp columns
+    // then left one 112 dp card alone in a 220 dp cell: about 120 dp of empty
+    // canvas between neighbours, and a 120 dp dead band at the right edge
+    // against the grid's own 16 dp left padding - four sparse columns using
+    // barely half the canvas. `posterHeight / posterRatio` is the width the
+    // artwork resolves to, which for the poster shape is the card's own width.
+    final drawnWidth = sizing.posterHeight / MovieCardSizing.posterRatio;
+    final columns = ((screenWidth - sizing.sidePadding * 2 + sizing.spacing) /
+            (drawnWidth + sizing.spacing))
+        .floor()
+        .clamp(2, 10);
+
+    // Where this page's own content starts, which is also the band a focused
+    // card's pop may paint in - see [PageContentTop]. `topOffset` is the header
+    // the scaffold stacked above the grid: the device inset (which carries the
+    // shell's own top bar) plus the catalog chip row, plus the extras row on the
+    // form factors that do not merge it into that same row. The grid starts one
+    // `s16` below it, and that sum is what the pop is told, because the chips and
+    // the sort chips are the chrome the pop used to paint over.
+    final contentTop = topOffset + ZplaySpacing.s16;
+
+    return PageContentTop(
+      value: contentTop,
+      child: GridView.builder(
+        controller: _scrollController,
+        // The shell reserves its own chrome's space, so only the device safe area
+        // and one gap are still owed here.
+        padding: EdgeInsets.fromLTRB(
+          sizing.sidePadding,
+          contentTop,
+          sizing.sidePadding,
+          ZplaySpacing.s24 + bottomInset,
+        ),
+        physics: const BouncingScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          // `mainAxisExtent`, not `childAspectRatio`. The ratio is a proportion, so
+          // it is only right at exactly `sizing.cardWidth`; these cells are
+          // `columns`-driven and come out wider, which inflated every card 25% -
+          // 408 dp tall on a screen with about 200 dp to spend. Same fix as
+          // `manga_page.dart`, which already did this correctly.
+          mainAxisExtent: sizing.totalHeight,
+          crossAxisSpacing: sizing.spacing,
+          mainAxisSpacing: sizing.spacing,
+        ),
+        itemCount: _items.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _items.length) {
+            return Center(
+              child: CircularProgressIndicator(color: AppThemeService.currentPalette.value.primaryColor),
+            );
+          }
+          return MovieCard(movie: _items[index]);
+        },
+      ),
+    );
+  }
+
+  Widget _buildRequiredExtraGatingPrompt(double topOffset) {
+    final tokens = context.tokens;
+    final missing = _missingRequiredExtras;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isNarrow = screenWidth < 420;
+
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          isNarrow ? ZplaySpacing.s16 : ZplaySpacing.s24,
+          topOffset + ZplaySpacing.s20,
+          isNarrow ? ZplaySpacing.s16 : ZplaySpacing.s24,
+          120 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 480),
+          padding: EdgeInsets.symmetric(
+            horizontal: isNarrow ? ZplaySpacing.s20 : ZplaySpacing.s32,
+            vertical: isNarrow ? ZplaySpacing.s20 : ZplaySpacing.s32,
+          ),
+          decoration: BoxDecoration(
+            color: tokens.surfaceOverlay,
+            borderRadius: ZplayRadius.lgAll,
+            border: Border.all(color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: 0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: 0.1),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(ZplaySpacing.s16),
+                decoration: BoxDecoration(
+                  color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.tune_rounded, color: tokens.accent, size: 30),
+              ),
+              const SizedBox(height: ZplaySpacing.s16),
+              Text(
+                l10nCurrent().dscSelectRequiredFilter,
+                style: ZplayType.title.toStyle(color: tokens.textPrimary),
+              ),
+              const SizedBox(height: ZplaySpacing.s8),
+              Text(
+                l10nCurrent().dsc2CatalogRequiresSelecting(missing.map((e) => e.name).join(' & ')),
+                textAlign: TextAlign.center,
+                style: ZplayType.body.toStyle(color: tokens.textEmphasis),
+              ),
+              const SizedBox(height: ZplaySpacing.s20),
+              // Quick selection chips for missing extras
+              Wrap(
+                spacing: ZplaySpacing.s8,
+                runSpacing: ZplaySpacing.s8,
+                alignment: WrapAlignment.center,
+                children: missing.map((extra) {
+                  if (extra.options.isNotEmpty) {
+                    return PopupMenuButton<String>(
+                      tooltip: extra.name,
+                      constraints: const BoxConstraints(maxHeight: 360),
+                      color: tokens.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: ZplayRadius.smAll,
+                        side: tokens.hairline,
+                      ),
+                      onSelected: (val) => _onExtraOptionSelected(extra.name, val),
+                      itemBuilder: (context) => extra.options
+                          .map(
+                            (opt) => PopupMenuItem<String>(
+                              value: opt,
+                              child: Text(
+                                opt,
+                                style: ZplayType.body.toStyle(
+                                  color: tokens.textPrimary,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ZplaySpacing.s16,
+                          vertical: ZplaySpacing.s8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppThemeService.currentPalette.value.primaryColor,
+                          borderRadius: ZplayRadius.lgAll,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              l10nCurrent().dsc2SelectExtra(extra.name[0].toUpperCase(), extra.name.substring(1)),
+                              style: ZplayType.label
+                                  .copyWith(weight: FontWeight.w600)
+                                  .toStyle(color: tokens.onAccent),
+                            ),
+                            const SizedBox(width: ZplaySpacing.s8),
+                            Icon(Icons.arrow_drop_down, color: tokens.onAccent, size: 20),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else {
+                    return ElevatedButton.icon(
+                      onPressed: () => _showCustomExtraDialog(extra.name),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppThemeService.currentPalette.value.primaryColor,
+                        foregroundColor: tokens.onAccent,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isNarrow ? ZplaySpacing.s16 : ZplaySpacing.s20,
+                          vertical: isNarrow ? ZplaySpacing.s8 : ZplaySpacing.s12,
+                        ),
+                        shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.lgAll),
+                      ),
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      label: Text(
+                        l10nCurrent().dsc2EnterExtra(extra.name),
+                        style: ZplayType.label.toStyle(),
+                      ),
+                    );
+                  }
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCustomExtraDialog(String extraName) {
+    final tokens = context.tokens;
+    final controller = TextEditingController(text: _selectedExtras[extraName] ?? '');
+    final screenWidth = MediaQuery.sizeOf(context).width;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: tokens.surfaceOverlay,
+        shape: RoundedRectangleBorder(
+          borderRadius: ZplayRadius.mdAll,
+          side: tokens.hairline,
+        ),
+        title: Text(
+          l10nCurrent().dsc2EnterExtraName(extraName),
+          style: ZplayType.title.toStyle(color: tokens.textPrimary),
+        ),
+        content: SizedBox(
+          width: (screenWidth - 64).clamp(260.0, 420.0),
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            style: ZplayType.body.toStyle(color: tokens.textPrimary),
+            decoration: InputDecoration(
+              hintText: l10nCurrent().dsc2TypeExtraHere(extraName),
+              hintStyle: ZplayType.body.toStyle(color: tokens.textDisabled),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: tokens.hairlineStrong,
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: AppThemeService.currentPalette.value.primaryColor),
+              ),
+            ),
+            onSubmitted: (val) {
+              Navigator.pop(ctx);
+              _onCustomExtraSubmitted(extraName, val);
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              l10nCurrent().dscCancel,
+              style: ZplayType.label.toStyle(color: tokens.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppThemeService.currentPalette.value.primaryColor,
+              foregroundColor: tokens.onAccent,
+              shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _onCustomExtraSubmitted(extraName, controller.text);
+            },
+            child: Text(l10nCurrent().dsc2Apply),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// One catalog extra, rendered as a chip for the merged television row.
+  ///
+  /// Deliberately a *chip that opens a menu* rather than a second inline
+  /// control: on a television the catalog row scrolls horizontally, and a menu
+  /// keeps the row from growing a dropdown column that would have to be measured
+  /// against a 540 dp canvas.
+  ///
+  /// [height] is the television selector row's own height, so the chip fills
+  /// it: a pill that is shorter than the row it sits in is a remote target
+  /// shorter than the row, and this row is the one place on the page where a
+  /// press has to land.
+  Widget _buildInlineExtraChip(CatalogExtra extra, {required double height}) {
+    final tokens = context.tokens;
+    final currentVal = _selectedExtras[extra.name];
+    final isRequired = extra.isRequired;
+    final isSelected = currentVal != null && currentVal.isNotEmpty;
+    final label = extra.options.isNotEmpty
+        ? '${extra.name}: ${currentVal ?? 'All'}'
+        : '${extra.name.toUpperCase()}: ${currentVal ?? (isRequired ? 'Required' : 'Enter')}';
+
+    return Padding(
+      padding: const EdgeInsets.only(right: ZplaySpacing.s8),
+      child: _DiscoverPill(
+        label: label,
+        // The prototype marks a chip that must be filled in with its accent
+        // edge (`app.css` -> `.discover-chip-required`); the warning tint stays
+        // on the label, because "this catalog will refuse to load until you
+        // pick one" is a state and not decoration.
+        required: isRequired,
+        attention: isRequired && !isSelected,
+        selected: isSelected,
+        height: height,
+        onActivate: (pill) => _openPillMenu<String>(
+          pill,
+          items: [
+            if (!isRequired && extra.options.isNotEmpty)
+              PopupMenuItem<String>(
+                // `''`, not `null`.
+                //
+                // `PopupMenuButton` routes a `null` result to `onCanceled`, so
+                // an "All <extra>" row whose value was `null` was
+                // indistinguishable from the menu being dismissed and never
+                // reached `onSelected` - the row was inert. `showMenu` keeps
+                // that split, and `_onExtraOptionSelected` already reads an
+                // empty value as "clear this extra", so the row now does what
+                // it says.
+                value: '',
+                child: Text(
+                  l10nCurrent().dsc2AllExtra(extra.name),
+                  style: ZplayType.body.toStyle(color: tokens.textPrimary),
+                ),
+              ),
+            ...extra.options.map(
+              (option) => PopupMenuItem<String>(
+                value: option,
+                child: Text(
+                  option,
+                  style: ZplayType.body.toStyle(
+                    color: option == currentVal ? tokens.accent : tokens.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          onSelected: (value) => _onExtraOptionSelected(extra.name, value),
+        ),
+      ),
+    );
+  }
+
+  /// Opens [items] under the pill that was activated, and reports the choice.
+  ///
+  /// `PopupMenuButton` is what every one of these chips used, and positioning
+  /// the menu from the button's own render box is the part worth keeping - the
+  /// copy below is its `PopupMenuPosition.over` maths, so a menu opens exactly
+  /// where it always has. What is dropped is the `InkWell` it wraps its child
+  /// in: that is a *second* focus node inside the chip, and it paints Material's
+  /// grey focus overlay over the pill's own ring. A chip cannot carry the row's
+  /// one accent ring and an unrelated grey one at the same time, so the menu is
+  /// opened directly and the chip stays a [FocusableCard].
+  ///
+  /// `showMenu` answers `null` both for "the menu was dismissed" and for "the
+  /// item's value was `null`". Callers therefore give a real choice a non-null
+  /// value - see the `''` note on the extras menus, where `null` used to make
+  /// the row inert - and a dismissal changes nothing.
+  Future<void> _openPillMenu<T>(
+    BuildContext pill, {
+    required List<PopupMenuEntry<T>> items,
+    required ValueChanged<T> onSelected,
+  }) async {
+    final tokens = context.tokens;
+    final button = pill.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(pill).overlay!.context.findRenderObject()! as RenderBox;
+    final choice = await showMenu<T>(
+      context: pill,
+      color: tokens.surface,
+      constraints: const BoxConstraints(maxHeight: 360),
+      shape: RoundedRectangleBorder(
+        borderRadius: ZplayRadius.smAll,
+        side: tokens.hairline,
+      ),
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(
+          button.localToGlobal(Offset.zero, ancestor: overlay),
+          button.localToGlobal(
+            button.size.bottomRight(Offset.zero),
+            ancestor: overlay,
+          ),
+        ),
+        Offset.zero & overlay.size,
+      ),
+      items: items,
+    );
+    if (choice != null) onSelected(choice);
+  }
+
+  Widget _buildHeader(
+    double topPadding,
+    bool hasExtras, {
+    bool isCompactScreen = false,
+    double toolbarH = kToolbarHeight,
+    double selectorH = 50.0,
+    double extrasH = 48.0,
+  }) {
+    final tokens = context.tokens;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isNarrow = screenWidth < 400;
+    // Whether the title row is drawn. On a television it is not - see the note
+    // on that row - and the budget below has to agree with it, or the grid is
+    // sized against chrome that is no longer there and the cards come out too
+    // small for a screen that has just gained 56 dp.
+    final television =
+        FormFactorService.of(context) == FormFactor.television;
+
+    return AnimatedBuilder(
+      // Scroll-driven tint: fully transparent at the top of the page, where all
+      // that sits under the row is the grid's own top padding, and `tokens.bg`
+      // at 0.82 once the grid is under it so a chip is never read through a
+      // poster. This is Home's `_GlassAppBar` treatment exactly. No hairline: the
+      // bottom border this used to draw was the opaque-band seam the blended nav
+      // exists to remove.
+      animation: _scrollController,
+      builder: (context, child) {
+        final offset = _scrollController.hasClients
+            ? _scrollController.offset
+            : 0.0;
+        final t = (offset / _chromeTintThreshold).clamp(0.0, 1.0);
+        return Container(
+          padding: EdgeInsets.only(top: topPadding),
+          decoration: BoxDecoration(
+            color: tokens.bg.withValues(alpha: 0.82 * t),
+          ),
+          child: child,
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Title row ──────────────────────────────────────────────
+          //
+          // **Desktop and phone only.** On a television this row costs 56 dp to
+          // say "Discover" and to hold a search icon, while the catalog chips
+          // below it carry the actual navigation. That is 10% of a 540 dp screen
+          // spent on a page title.
+          //
+          // The useful parts are not lost - a back button when the page was
+          // pushed as a route, and the in-catalog search field - they move into
+          // the selector row below, which is always present. What disappears is
+          // the label: a shell slot does not need to name itself, because the
+          // rail already says which destination this is. Netflix has no page
+          // titles at all for the same reason.
+          //
+          // A phone keeps the title. It has no rail, so the page has to say what
+          // it is, and there is height to spare.
+          if (!television)
+            SizedBox(
+              height: toolbarH,
+            child: Row(
+              children: [
+                const SizedBox(width: ZplaySpacing.s8),
+                // Discover is a Browse vertical now, so this page is normally
+                // a shell slot with nothing below it to pop. Gated rather than
+                // deleted so the legacy search and genre route, which is still
+                // pushed with a query, keeps its back button. There is no
+                // layout jump in practice: inside the shell the gate is always
+                // false, so the row always starts at the gutter.
+                if (Navigator.of(context).canPop())
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back_ios_rounded,
+                      size: 19,
+                      color: tokens.textPrimary,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                const SizedBox(width: ZplaySpacing.s2),
+                if (!_isSearching) ...[
+                  Icon(Icons.explore_rounded, color: AppThemeService.currentPalette.value.primaryColor, size: 21),
+                  const SizedBox(width: ZplaySpacing.s8),
+                  Text(
+                    l10nCurrent().dscDiscover,
+                    style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
+                  ),
+                ],
+                if (_isSearching)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: ZplaySpacing.s12,
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        // Never on a television.
+                        //
+                        // A focused `EditableText` installs
+                        // `DirectionalFocusAction.forTextField()`, which
+                        // swallows every arrow press - so a field that takes
+                        // focus on build traps the remote with no way back out
+                        // (the same trap `SearchPage` guards, and the same
+                        // guard: the form factor, not the width). This row is
+                        // already television-gated, so today the branch cannot
+                        // be taken there; the guard is kept because it is the
+                        // invariant, not the gate, that has to hold.
+                        autofocus:
+                            FormFactorService.of(context) != FormFactor.television,
+                        style: ZplayType.body.toStyle(color: tokens.textPrimary),
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: _onSearchSubmitted,
+                        decoration: InputDecoration(
+                          hintText: isNarrow
+                              ? l10nCurrent().dscSearchHint
+                              : l10nCurrent().dsc2SearchWithinCatalog(_selectedCatalogEntry?.catalog.name ?? 'catalog'),
+                          hintStyle: ZplayType.body.toStyle(
+                            color: tokens.textSecondary,
+                          ),
+                          border: InputBorder.none,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: tokens.textEmphasis,
+                            ),
+                            onPressed: _clearSearch,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  const Spacer(),
+
+                // Search toggle button
+                if (!_isSearching &&
+                    (_selectedCatalogEntry?.catalog.supportsSearch ?? false) &&
+                    MetadataService.catalogSearchIsTrustworthy(
+                        _selectedCatalogEntry?.addon.baseUrl ?? ''))
+                  IconButton(
+                    icon: Icon(
+                      Icons.search_rounded,
+                      color: tokens.textEmphasis,
+                      size: 22,
+                    ),
+                    tooltip: l10nCurrent().dscSearchCatalog,
+                    onPressed: () => setState(() => _isSearching = true),
+                  ),
+                const SizedBox(width: ZplaySpacing.s8),
+              ],
+            ),
+          ),
+
+          // ── Type and Catalog Selector Row ──
+          Container(
+            height: selectorH,
+            padding: EdgeInsets.symmetric(
+              horizontal: isNarrow ? ZplaySpacing.s12 : ZplaySpacing.s16,
+            ),
+            child: Row(
+              children: [
+                // What the title row used to carry that still has to work on a
+                // television: a way back when this page was pushed as a route,
+                // and a way into the catalog's own search. They sit at the start
+                // of the chip row so they cost no row of their own.
+                if (television && Navigator.of(context).canPop()) ...[
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back_ios_rounded,
+                      size: 19,
+                      color: tokens.textPrimary,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: ZplaySpacing.s4),
+                ],
+                if (television &&
+                    !_isSearching &&
+                    (_selectedCatalogEntry?.catalog.supportsSearch ?? false) &&
+                    MetadataService.catalogSearchIsTrustworthy(
+                        _selectedCatalogEntry?.addon.baseUrl ?? '')) ...[
+                  IconButton(
+                    icon: Icon(
+                      Icons.search_rounded,
+                      color: tokens.textEmphasis,
+                      size: 22,
+                    ),
+                    tooltip: l10nCurrent().dscSearchCatalog,
+                    onPressed: () => setState(() => _isSearching = true),
+                  ),
+                  const SizedBox(width: ZplaySpacing.s8),
+                ],
+                // Type selector popup/dropdown
+                if (_availableTypes.isNotEmpty) ...[
+                  _DiscoverPill(
+                    label: '${_selectedType[0].toUpperCase()}${_selectedType.substring(1)}',
+                    trailing: Icons.arrow_drop_down,
+                    height: television ? selectorH : null,
+                    onActivate: (pill) => _openPillMenu<String>(
+                      pill,
+                      items: _availableTypes
+                          .map(
+                            (t) => PopupMenuItem<String>(
+                              value: t,
+                              child: Text(
+                                '${t[0].toUpperCase()}${t.substring(1)}',
+                                style: ZplayType.body.toStyle(
+                                  color: t == _selectedType
+                                      ? tokens.accent
+                                      : tokens.textPrimary,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onSelected: _onTypeChanged,
+                    ),
+                  ),
+                  SizedBox(width: isNarrow ? ZplaySpacing.s8 : ZplaySpacing.s12),
+                ],
+
+                // Catalog selector horizontal scroll.
+                //
+                // Eight catalogs do not fit a 960 dp television, and a chip cut
+                // in half at the edge reads as a broken layout rather than as
+                // more to see. The fade says "this continues" on exactly the
+                // sides that have somewhere left to scroll, which is the same
+                // affordance the rest of the app's horizontal rows use.
+                Expanded(
+                  child: HorizontalEdgeFade(
+                    scrollController: _filtersScrollController,
+                    child: SingleChildScrollView(
+                      controller: _filtersScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                      children: _currentTypeCatalogs.map((entry) {
+                        final isSelected = _selectedCatalogEntry == entry;
+                        // The 18+ view mixes addons, so name the source.
+                        final name =
+                            '${AddonManager.instance.catalogDisplayName(entry.catalog)}'
+                            '${_selectedType == _adultType ? ' · ${entry.addon.manifest.name}' : ''}';
+                        final hasReq = entry.catalog.hasRequiredExtra;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: ZplaySpacing.s8),
+                          child: _DiscoverPill(
+                            label: name,
+                            // The badge names the filter the catalog will
+                            // demand, rather than saying only "Custom".
+                            //
+                            // "Custom" told the user nothing about what
+                            // selecting this chip would do, so selecting it
+                            // appeared to be a dead end: the grid was replaced
+                            // by "Select Required Filter". The gate is right -
+                            // the catalog genuinely needs a genre - but the chip
+                            // that triggers it is the only place the user can
+                            // find out beforehand.
+                            badge: hasReq
+                                ? _requiredExtraLabel(entry.catalog)
+                                : null,
+                            selected: isSelected,
+                            height: television ? selectorH : null,
+                            onActivate: (_) => _onCatalogChanged(entry),
+                          ),
+                        );
+                      }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ── Extras, merged in on a television ──
+                //
+                // The same controls the row below holds, in the same order, in
+                // this row instead. They are not removed on TV - they are
+                // reachable and focusable, which is the thing that matters - they
+                // just stop costing 48 dp of screen to be visible. A rule between
+                // the two groups keeps "these refine the catalog above" legible
+                // without a second row to say it.
+                if (television && hasExtras) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ZplaySpacing.s8,
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 1,
+                        height: 24,
+                        color: tokens.borderStrong,
+                      ),
+                    ),
+                  ),
+                  ..._selectedCatalogEntry!.catalog.extra
+                      .where(
+                        (extra) => extra.name != 'skip' &&
+                            (extra.name != 'search' || extra.isRequired),
+                      )
+                      .map(
+                        (extra) => _buildInlineExtraChip(extra, height: selectorH),
+                      ),
+                ],
+              ],
+            ),
+          ),
+
+          // ── Extra Selectors Row (Genre, Tag, Sort, Performer, etc.) ──
+          //
+          // **Desktop and phone only.** These are a second horizontal row of
+          // chips, and on a television they cost 48 dp to sit directly under a
+          // row that already scrolls. Together with the title row that was 162
+          // dp of chrome before the first poster - 30% of a 540 dp screen.
+          //
+          // On TV they are merged into the catalog chip row instead, separated
+          // by a rule: same row, same scroll, same focus order, and the screen
+          // goes back to the content. Which is the whole point - a filter is not
+          // worth 9% of a television's height when the catalog chips it refines
+          // are already on screen.
+          if (hasExtras && !television) ...[
+            SizedBox(
+              height: extrasH,
+              child: ListView(
+                controller: _extrasScrollController,
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isNarrow ? ZplaySpacing.s12 : ZplaySpacing.s16,
+                  vertical: ZplaySpacing.s8,
+                ),
+                physics: const BouncingScrollPhysics(),
+                children: _selectedCatalogEntry!.catalog.extra.map((extra) {
+                  if (extra.name == 'skip' || (extra.name == 'search' && !extra.isRequired)) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final currentVal = _selectedExtras[extra.name];
+                  final isReq = extra.isRequired;
+                  final isSelected = currentVal != null && currentVal.isNotEmpty;
+
+                  // Dropdown for extras with predefined options
+                  if (extra.options.isNotEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: ZplaySpacing.s8),
+                      child: _DiscoverPill(
+                        label:
+                            '${extra.name.toUpperCase()}: ${currentVal ?? (isReq ? "Required *" : "All")}',
+                        trailing: Icons.arrow_drop_down,
+                        required: isReq,
+                        attention: isReq && !isSelected,
+                        selected: isSelected,
+                        onActivate: (pill) => _openPillMenu<String>(
+                          pill,
+                          items: [
+                            if (!isReq)
+                              PopupMenuItem<String>(
+                                // `''` rather than `null` - see the note in
+                                // `_buildInlineExtraChip`.
+                                value: '',
+                                child: Text(
+                                  l10nCurrent().dsc2AllExtra(extra.name),
+                                  style: ZplayType.body.toStyle(
+                                    color: tokens.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ...extra.options.map(
+                              (opt) => PopupMenuItem<String>(
+                                value: opt,
+                                child: Text(
+                                  opt,
+                                  style: ZplayType.body.toStyle(
+                                    color: opt == currentVal
+                                        ? tokens.accent
+                                        : tokens.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          onSelected: (val) => _onExtraOptionSelected(extra.name, val),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Text input chip for freeform extras (or search if isRequired)
+                  return Padding(
+                    padding: const EdgeInsets.only(right: ZplaySpacing.s8),
+                    child: _DiscoverPill(
+                      label:
+                          '${extra.name.toUpperCase()}: ${currentVal ?? (isReq ? "Required *" : "Enter")}',
+                      trailing: Icons.edit_rounded,
+                      required: isReq,
+                      attention: isReq && !isSelected,
+                      selected: isSelected,
+                      onActivate: (_) => _showCustomExtraDialog(extra.name),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Legacy Search/Genre Scaffold (Backwards compatibility)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildLegacyScaffold() {
+    final tokens = context.tokens;
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    // The header, over the grid: transparent at the top of the list, tinted once
+    // the grid scrolls under it. This is the same scroll-driven treatment
+    // `_buildHeader` uses, and it is the fix for the opaque band with a hairline
+    // that used to pin here - that band was the "different app" seam the blended
+    // nav exists to remove. This route is always pushed (search/genre from
+    // `DetailsPage`), so the back affordance stays.
+    final header = AnimatedBuilder(
+      animation: _scrollController,
+      builder: (context, child) {
+        final offset = _scrollController.hasClients
+            ? _scrollController.offset
+            : 0.0;
+        final t = (offset / _chromeTintThreshold).clamp(0.0, 1.0);
+        return Container(
+          height: kToolbarHeight + topPadding,
+          padding: EdgeInsets.only(
+            top: topPadding,
+            left: ZplaySpacing.s16,
+            right: ZplaySpacing.s16,
+          ),
+          decoration: BoxDecoration(
+            color: tokens.bg.withValues(alpha: 0.82 * t),
+          ),
+          child: child,
+        );
+      },
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: tokens.textPrimary),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: ZplaySpacing.s8),
+          Expanded(
+            child: Text(
+              widget.isGenre ? l10nCurrent().dsc2GenreQuery(widget.query ?? '') : l10nCurrent().dsc2SearchQuery(widget.query ?? ''),
+              style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: tokens.bg,
+      body: AnimatedAmbientBackground(
+        child: Stack(
+          children: [
+            if (_legacyLoading)
+              Center(child: CircularProgressIndicator(color: AppThemeService.currentPalette.value.primaryColor))
+            else if (_legacyError != null)
+              ErrorView(error: _legacyError, onRetry: _fetchLegacyData)
+            else if (_legacySections.isEmpty)
+              Center(
+                child: Text(
+                  l10nCurrent().dsc2NoResultsFor(widget.query ?? ''),
+                  style: ZplayType.subtitle.toStyle(color: tokens.textSecondary),
+                ),
+              )
+            else
+              _buildLegacySectionsList(topPadding + kToolbarHeight + 20),
+
+            Positioned(top: 0, left: 0, right: 0, child: header),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegacySectionsList(double topPadding) {
+    final allMoviesMap = <String, Movie>{};
+    for (var section in _legacySections) {
+      for (var movie in section.movies) {
+        if (!allMoviesMap.containsKey(movie.id)) {
+          allMoviesMap[movie.id] = movie;
+        }
+      }
+    }
+    final allMovies = allMoviesMap.values.toList();
+    final sizing = MovieCardSizing.fromWidth(MediaQuery.sizeOf(context).width);
+
+    return GridView.builder(
+      // The same controller the discover grid uses; the two modes never coexist,
+      // and the legacy header's tint reads this offset.
+      controller: _scrollController,
+      padding: EdgeInsets.fromLTRB(
+        sizing.sidePadding,
+        topPadding,
+        sizing.sidePadding,
+        110 + MediaQuery.paddingOf(context).bottom,
+      ),
+      physics: const BouncingScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: ((MediaQuery.sizeOf(context).width - sizing.sidePadding * 2 + sizing.spacing) /
+                (sizing.cardWidth + sizing.spacing))
+            .floor()
+            .clamp(2, 10),
+        mainAxisExtent: sizing.totalHeight,
+        crossAxisSpacing: sizing.spacing,
+        mainAxisSpacing: sizing.spacing,
+      ),
+      itemCount: allMovies.length,
+      itemBuilder: (context, index) {
+        return MovieCard(movie: allMovies[index]);
+      },
+    );
+  }
+}
+
+/// One pill in the discover control row.
+///
+/// The prototype draws this row from a single rule set - `app.css`'s
+/// `.discover-chip`: a muted resting fill, **no resting border**, and the accent
+/// spent only where it carries meaning. This page had three versions of it
+/// instead: two border colours, an accent `BoxShadow` with an 8 px blur on the
+/// selected catalog, an accent-tinted fill on the type selector, and no focus
+/// indicator on any of the three. So it is one widget, with the prototype's
+/// rules:
+///
+///   * **Pill.** [ZplayRadius.fullAll] - the shape the mock's own switcher pills
+///     and the shell's top bar both use.
+///   * **Muted at rest, and borderless.** [ZplayTokens.borderDefault] as a fill
+///     and no `Border` at all: nothing to reserve, so nothing shifts when the
+///     state changes, and no box around a chip that is not doing anything.
+///   * **Accent only where it means something.** [CardFocusRing] (2 dp, accent,
+///     painted over the pill so no layout moves) is the focus ring, and the
+///     required-extra edge is the one accent the mock spends on a chip's own
+///     body (`.discover-chip-required`). The blurred accent shadow is gone: a
+///     zero-offset blur bleeds *inside* the shape and reads as a second edge.
+///   * **Selection is a fill, not a ring.** "The remote is here" and "this
+///     catalog is the one loaded" are different questions, and the shell's top
+///     bar already answers them differently - a wash for the second, the ring
+///     for the first. One ring per element, always.
+///
+/// [height] is the row's own height when the pill has to fill it - a television
+/// row, where the pill *is* the remote target and 48 dp is the floor. Null
+/// leaves the pill at its intrinsic size, which is what the pointer rows have
+/// always had.
+class _DiscoverPill extends StatelessWidget {
+  const _DiscoverPill({
+    required this.label,
+    required this.onActivate,
+    this.badge,
+    this.trailing,
+    this.required = false,
+    this.selected = false,
+    this.attention = false,
+    this.height,
+  });
+
+  final String label;
+
+  /// A short trailing caption, e.g. the filter a catalog will demand before it
+  /// will load anything.
+  final String? badge;
+
+  final IconData? trailing;
+
+  /// Marks the pill with the prototype's accent edge.
+  final bool required;
+
+  /// The pill's value is the one currently in force.
+  final bool selected;
+
+  /// The pill is required and still empty. A warning tint, because that is a
+  /// state and not decoration.
+  final bool attention;
+
+  final double? height;
+
+  /// Called with the pill's own context, so a menu can be positioned against
+  /// the pill rather than against the page.
+  final void Function(BuildContext pill) onActivate;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final Color labelColor = selected
+        ? tokens.textPrimary
+        : (attention ? tokens.warning : tokens.textEmphasis);
+
+    return FocusableCard(
+      onTap: () => onActivate(context),
+      builder: (context, state) => CardFocusRing(
+        focused: state.focused,
+        radius: ZplayRadius.fullAll,
+        child: AnimatedContainer(
+          duration: ZplayMotion.fast,
+          curve: ZplayMotion.standard,
+          height: height,
+          // Only when the height is imposed. With a null height the pill has to
+          // shrink-wrap its label, and an `Align` with no factors would expand
+          // it to the row's full cross axis instead - which is a fine target and
+          // the wrong chip for a pointer row.
+          alignment: height == null ? null : Alignment.center,
+          padding: const EdgeInsets.symmetric(
+            horizontal: ZplaySpacing.s12,
+            vertical: ZplaySpacing.s8,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withValues(alpha: ZplayOpacity.overlayHover)
+                : (attention
+                    ? tokens.warning.withValues(alpha: ZplayOpacity.overlayHover)
+                    : tokens.borderDefault),
+            borderRadius: ZplayRadius.fullAll,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (required) ...[
+                Container(
+                  width: 3,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: tokens.accent,
+                    borderRadius: ZplayRadius.xsAll,
+                  ),
+                ),
+                const SizedBox(width: ZplaySpacing.s8),
+              ],
+              Text(label, style: ZplayType.label.toStyle(color: labelColor)),
+              if (badge != null) ...[
+                const SizedBox(width: ZplaySpacing.s8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? tokens.borderStrong
+                        : tokens.warning.withValues(alpha: 0.25),
+                    borderRadius: ZplayRadius.smAll,
+                  ),
+                  child: Text(
+                    badge!,
+                    style: ZplayType.caption.toStyle(
+                      color: selected ? tokens.textPrimary : tokens.warning,
+                    ),
+                  ),
+                ),
+              ],
+              if (trailing != null) ...[
+                const SizedBox(width: ZplaySpacing.s4),
+                Icon(trailing, size: 18, color: labelColor),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

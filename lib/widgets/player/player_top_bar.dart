@@ -1,0 +1,355 @@
+import '../../l10n/l10n.dart';
+import 'package:flutter/material.dart';
+import '../../services/theme/design_tokens.dart';
+import 'player_glass.dart';
+
+/// Top header bar for the video player.
+class PlayerTopBar extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+
+  /// The source currently playing, shown as a tag beside the title so the
+  /// viewer can see which provider they are on. Null hides the tag.
+  ///
+  /// This used to be called `quality` and fed the source's raw `name`, which for
+  /// a built-in ZPlayHTTP source is the scraped group tag — the sweep read
+  /// `111477` next to the title on the 1.5.5 build. The value is the label the
+  /// source list shows for the same source, from one rule
+  /// (`StreamSource.providerLabel`), so a chip over the video and the row the
+  /// user picked can no longer disagree.
+  final String? sourceLabel;
+
+  final VoidCallback onBack;
+
+  final VoidCallback? onToggleEpisodes;
+  final bool isEpisodesActive;
+  /// Opens the in-player sources panel; null hides the Sources badge.
+  final VoidCallback? onShowSources;
+  final bool isSourcesActive;
+  final VoidCallback? onScreenshot;
+  final VoidCallback? onToggleAspect;
+  final VoidCallback? onCast;
+  final VoidCallback? onDownload;
+  final bool isDownloading;
+  final VoidCallback? onCopyStreamUrl;
+  final VoidCallback? onLock;
+
+  const PlayerTopBar({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.sourceLabel,
+    required this.onBack,
+    this.onToggleEpisodes,
+    this.isEpisodesActive = false,
+    this.onShowSources,
+    this.isSourcesActive = false,
+    this.onScreenshot,
+    this.onToggleAspect,
+    this.onCast,
+    this.onDownload,
+    this.isDownloading = false,
+    this.onCopyStreamUrl,
+    this.onLock,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.paddingOf(context).top + ZplaySpacing.s12,
+        left: ZplaySpacing.s24,
+        right: ZplaySpacing.s24,
+        bottom: ZplaySpacing.s24,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            tokens.bg.withValues(alpha: 0.75),
+            tokens.bg.withValues(alpha: 0.35),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Frosted Glass Circular Back Button
+          PlayerIconButton(
+            size: 44,
+            iconSize: 26,
+            icon: const Icon(Icons.chevron_left_rounded),
+            tooltip: l10nOf(context).playerBack,
+            backgroundColor: tokens.bg.withValues(alpha: 0.20),
+            borderRadius: ZplayRadius.full,
+            onPressed: onBack,
+          ),
+
+          const SizedBox(width: ZplaySpacing.s16),
+
+          // Title & Details Column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: ZplayType.title
+                            .toStyle(color: tokens.textPrimary)
+                            .copyWith(
+                              fontWeight: FontWeight.w700,
+                              shadows: const [
+                                Shadow(
+                                  color: Color(0x99000000),
+                                  offset: Offset(0, 2),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (sourceLabel != null && sourceLabel!.isNotEmpty) ...[
+                      const SizedBox(width: ZplaySpacing.s8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: ZplaySpacing.s2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.textPrimary
+                              .withValues(alpha: ZplayOpacity.overlayHover),
+                          borderRadius: ZplayRadius.xsAll,
+                        ),
+                        child: Text(
+                          sourceLabel!.toUpperCase(),
+                          style: ZplayType.overline
+                              .toStyle(color: tokens.textPrimary)
+                              .copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.6,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: ZplaySpacing.s2),
+                  Text(
+                    subtitle!,
+                    style: ZplayType.label
+                        .toStyle(color: tokens.textEmphasis)
+                        .copyWith(
+                          fontWeight: FontWeight.w400,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x99000000),
+                              offset: Offset(0, 1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Top-Right Action Badges
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onToggleEpisodes != null) ...[
+                FocusableInkWell(
+                  onTap: onToggleEpisodes,
+                  borderRadius: ZplayRadius.smAll,
+                  child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: ZplaySpacing.s12,
+                        vertical: ZplaySpacing.s8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isEpisodesActive
+                            ? PlayerTheme.accent.withValues(alpha: 0.30)
+                            : tokens.bg.withValues(alpha: 0.20),
+                        borderRadius: ZplayRadius.smAll,
+                        border: Border.all(
+                          color: isEpisodesActive
+                              ? PlayerTheme.accent.withValues(alpha: 0.85)
+                              : tokens.borderStrong,
+                          width: 1.2,
+                        ),
+                        boxShadow: isEpisodesActive
+                            ? [
+                                BoxShadow(
+                                  color: PlayerTheme.accent.withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.video_library_rounded,
+                            size: 18,
+                            color: isEpisodesActive ? tokens.accent : tokens.textPrimary,
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            l10nOf(context).playerEpisodes,
+                            style: ZplayType.label
+                                .toStyle(color: tokens.textPrimary)
+                                .copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.1,
+                                ),
+                          ),
+                        ],
+                      ),
+                  ),
+                ),
+              ],
+              if (onShowSources != null) ...[
+                const SizedBox(width: 10),
+                FocusableInkWell(
+                  onTap: onShowSources,
+                  borderRadius: ZplayRadius.smAll,
+                  child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: ZplaySpacing.s12,
+                        vertical: ZplaySpacing.s8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSourcesActive
+                            ? PlayerTheme.accent.withValues(alpha: 0.30)
+                            : tokens.bg.withValues(alpha: 0.20),
+                        borderRadius: ZplayRadius.smAll,
+                        border: Border.all(
+                          color: isSourcesActive
+                              ? PlayerTheme.accent.withValues(alpha: 0.85)
+                              : tokens.borderStrong,
+                          width: 1.2,
+                        ),
+                        boxShadow: isSourcesActive
+                            ? [
+                                BoxShadow(
+                                  color: PlayerTheme.accent.withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.playlist_play_rounded,
+                            size: 18,
+                            color: isSourcesActive ? tokens.accent : tokens.textPrimary,
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            l10nOf(context).playerSources,
+                            style: ZplayType.label
+                                .toStyle(color: tokens.textPrimary)
+                                .copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.1,
+                                ),
+                          ),
+                        ],
+                      ),
+                  ),
+                ),
+              ],
+              if (onCopyStreamUrl != null) ...[
+                PlayerIconButton(
+                  size: 40,
+                  iconSize: 20,
+                  icon: const Icon(Icons.link_rounded),
+                  tooltip: l10nCurrent().wgPlyCopyStreamUrl,
+                  backgroundColor: tokens.bg.withValues(alpha: 0.13),
+                  onPressed: onCopyStreamUrl,
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (onScreenshot != null) ...[
+                PlayerIconButton(
+                  size: 40,
+                  iconSize: 20,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  tooltip: l10nOf(context).playerScreenshot,
+                  backgroundColor: tokens.bg.withValues(alpha: 0.13),
+                  onPressed: onScreenshot,
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (onDownload != null) ...[
+                PlayerIconButton(
+                  size: 40,
+                  iconSize: 20,
+                  icon: isDownloading
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: tokens.success,
+                          ),
+                        )
+                      : const Icon(Icons.file_download_outlined),
+                  tooltip: isDownloading
+                      ? l10nOf(context).playerDownloading
+                      : l10nOf(context).playerDownloadMedia,
+                  backgroundColor: isDownloading
+                      ? tokens.success.withValues(alpha: 0.2)
+                      : tokens.bg.withValues(alpha: 0.13),
+                  onPressed: onDownload,
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (onLock != null) ...[
+                PlayerIconButton(
+                  size: 40,
+                  iconSize: 20,
+                  icon: const Icon(Icons.lock_outline_rounded),
+                  tooltip: l10nOf(context).playerLockScreen,
+                  backgroundColor: tokens.bg.withValues(alpha: 0.13),
+                  onPressed: onLock,
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (onCast != null)
+                PlayerIconButton(
+                  size: 40,
+                  iconSize: 20,
+                  icon: const Icon(Icons.cast_rounded),
+                  tooltip: l10nOf(context).playerCast,
+                  backgroundColor: tokens.bg.withValues(alpha: 0.13),
+                  onPressed: onCast,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
