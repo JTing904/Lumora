@@ -32,7 +32,7 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
     defaultConfig {
-        applicationId = "io.github.tzero86.zplay"
+        applicationId = "io.github.jting904.lumora"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
