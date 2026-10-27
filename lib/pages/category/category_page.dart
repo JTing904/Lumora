@@ -7,6 +7,7 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
 import '../../models/movie/movie.dart';
 import '../../services/layout/form_factor.dart';
+import '../../services/settings/locale_settings.dart';
 import '../../services/metadata/tmdb_catalog.dart';
 import '../../services/playback/play_launcher.dart';
 import '../../shell/app_shell_scope.dart';
@@ -203,6 +204,37 @@ class _CategoryPageState extends State<CategoryPage> {
   bool _started = false;
   ValueListenable<ShellSlot>? _current;
 
+  /// Bumped on every reload (a new language, Retry), so a row that lands for
+  /// an older one is dropped.
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    LocaleSettings.locale.addListener(_onLocaleChanged);
+  }
+
+  /// TMDb answers in the viewer's language, so a new one reads the rows
+  /// again. A page not yet shown has nothing to redo; it loads in the new
+  /// language when it is.
+  void _onLocaleChanged() {
+    if (!_started || !mounted) return;
+    _generation++;
+    _load();
+  }
+
+  /// Reads again every row that came back empty - a failed read looks the
+  /// same as an empty list.
+  void _retry() {
+    _generation++;
+    setState(() {
+      for (var i = 0; i < _rows.length; i++) {
+        if (_rows[i]?.isEmpty ?? false) _rows[i] = null;
+      }
+    });
+    _load(onlyMissing: true);
+  }
+
   /// The 筛选 panel's choice; anything but the default shows its results in
   /// place of the rows.
   CategoryFilter _filter = const CategoryFilter();
@@ -238,20 +270,30 @@ class _CategoryPageState extends State<CategoryPage> {
 
   @override
   void dispose() {
+    LocaleSettings.locale.removeListener(_onLocaleChanged);
     _current?.removeListener(_onSlotChanged);
     super.dispose();
   }
 
-  Future<void> _load() async {
+  /// Every row, or with [onlyMissing] those not loaded. The rows already on
+  /// screen stay until their new titles land, so a reload does not blank the
+  /// page.
+  Future<void> _load({bool onlyMissing = false}) async {
+    final generation = _generation;
+    bool wanted(int i) => !onlyMissing || _rows[i] == null;
     // The first row first, so the featured title arrives as early as it can,
     // then the rest together.
-    await _loadRow(0);
-    await Future.wait([for (var i = 1; i < _specs.length; i++) _loadRow(i)]);
+    if (wanted(0)) await _loadRow(0, generation);
+    if (!mounted || generation != _generation) return;
+    await Future.wait([
+      for (var i = 1; i < _specs.length; i++)
+        if (wanted(i)) _loadRow(i, generation),
+    ]);
   }
 
-  Future<void> _loadRow(int i) async {
+  Future<void> _loadRow(int i, int generation) async {
     final movies = await TmdbCatalog.row(_specs[i].query, resolveImdb: false);
-    if (!mounted) return;
+    if (!mounted || generation != _generation) return;
     setState(() => _rows[i] = movies);
   }
 
@@ -263,6 +305,10 @@ class _CategoryPageState extends State<CategoryPage> {
     final tv = FormFactorService.of(context) == FormFactor.television;
     final pad = phone ? 16.0 : (tv ? 48.0 : LuSpace.page);
     final posterW = phone ? 116.0 : (tv ? 150.0 : 160.0);
+    // Room for the cards' text at the viewer's text size, plus the focus
+    // lift, so a rail does not overflow at a large text setting.
+    final railH =
+        LuPosterCard.heightFor(posterW, MediaQuery.textScalerOf(context)) + 8;
     final featured = (_rows.first ?? const <Movie>[])
         .where((m) => m.backdrop != null)
         .take(6)
@@ -295,19 +341,28 @@ class _CategoryPageState extends State<CategoryPage> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(48),
-                  child: Text(
-                    l10n.catEmpty,
-                    textAlign: TextAlign.center,
-                    style: LuText.bodySoft,
+                  child: Column(
+                    children: [
+                      Text(
+                        l10n.catEmpty,
+                        textAlign: TextAlign.center,
+                        style: LuText.bodySoft,
+                      ),
+                      const SizedBox(height: 20),
+                      LuButton(
+                        label: l10n.actionRetry,
+                        icon: Icons.refresh_rounded,
+                        kind: LuButtonKind.secondary,
+                        onPressed: _retry,
+                      ),
+                    ],
                   ),
                 ),
               ),
             for (var i = 0; i < _specs.length && _filter.isDefault; i++)
               SliverToBoxAdapter(
                 child: switch (_rows[i]) {
-                  null => SizedBox(
-                    height: LuPosterCard.heightFor(posterW) + 60,
-                  ),
+                  null => SizedBox(height: railH + 52),
                   final movies when movies.length < 4 =>
                     const SizedBox.shrink(),
                   final movies => Padding(
@@ -315,7 +370,7 @@ class _CategoryPageState extends State<CategoryPage> {
                     child: LuRail(
                       title: _specs[i].title(l10n),
                       padding: pad,
-                      height: LuPosterCard.heightFor(posterW),
+                      height: railH,
                       itemCount: movies.length,
                       itemBuilder: (context, j) {
                         final m = movies[j];

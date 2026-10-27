@@ -21,6 +21,7 @@ import '../discover/discover_page.dart';
 import '../iptv/iptv_page.dart';
 import '../manga/manga_page.dart';
 import '../music/music_page.dart';
+import '../account/login_page.dart' show SignInRequired;
 
 /// The content verticals Browse switches between. Declaration order is
 /// the switcher order and the stack index at once, so one list drives both.
@@ -104,10 +105,11 @@ extension BrowseVerticalX on BrowseVertical {
         return const MangaPage();
       case BrowseVertical.books:
         return const BooksPage();
+      // Listening needs an account, as watching does; browsing books does not.
       case BrowseVertical.audiobooks:
-        return const AudiobooksPage();
+        return const SignInRequired(child: AudiobooksPage());
       case BrowseVertical.music:
-        return const MusicPage();
+        return const SignInRequired(child: MusicPage());
       case BrowseVertical.adult:
         return const AdultPage();
     }

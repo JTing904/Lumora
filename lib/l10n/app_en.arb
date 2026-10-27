@@ -5530,5 +5530,56 @@
   "liveCatSports": "Sports",
   "liveCatSoccerShort": "Soccer",
   "liveCatMoviesShort": "Movies",
-  "liveCatNewsShort": "News"
+  "liveCatNewsShort": "News",
+  "authWithGoogle": "Continue with Google",
+  "authWithFacebook": "Continue with Facebook",
+  "authOr": "or",
+  "authRedeemTitle": "One invite code, once",
+  "authRedeemBody": "Lumora is invite-only. The first time you sign in with GitHub or Discord, enter the invite code a friend gave you.",
+  "authRedeemAction": "Continue",
+  "authRedeemSwitch": "Use another account",
+  "authOAuthFailed": "Couldn't open the sign-in page.",
+  "authWithGithub": "Continue with GitHub",
+  "authWithDiscord": "Continue with Discord",
+  "authForgot": "Forgot password?",
+  "authForgotNeedEmail": "Enter your email above first.",
+  "authForgotSent": "A reset link is on its way to {email}. Open it on this device to set a new password.",
+  "@authForgotSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "authNewPasswordTitle": "Set a new password",
+  "authNewPasswordBody": "Choose a new password for {email}.",
+  "@authNewPasswordBody": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "authNewPasswordAction": "Save password",
+  "authNewPasswordSaved": "Password changed.",
+  "authResetCodeTitle": "Check your email",
+  "authResetCodeBody": "We sent a code to {email}. Enter it here, on any device you read the email on.",
+  "@authResetCodeBody": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "authResetCode": "Code",
+  "authResetCodeHint": "The digits in the email",
+  "authResetVerify": "Continue",
+  "authResetWrongCode": "That code is wrong or has expired. Send a new one.",
+  "authResetResend": "Send again",
+  "authResetBack": "Back to sign in",
+  "authErrSamePassword": "That's your current password. Choose a different one.",
+  "authNewPasswordKeep": "Keep my current password",
+  "filterLoading": "Loading…",
+  "filterEmptyOrFailed": "Nothing to show. These filters may have no matches, or the list couldn't load.",
+  "filterMoreFailed": "Couldn't load more."
 }

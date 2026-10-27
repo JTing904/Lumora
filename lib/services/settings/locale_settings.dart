@@ -3,16 +3,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// The app language choice. `null` follows the system.
 ///
-/// Lumora opens in Chinese until the user picks something else, so "follow the
+/// Lumora opens in English until the user picks something else, so "follow the
 /// system" is stored as its own value rather than as the absence of one.
 abstract final class LocaleSettings {
   static const String _storageKey = 'zplay_locale';
   static const String systemCode = 'system';
 
-  static const Locale defaultLocale = Locale('zh');
+  static const Locale defaultLocale = Locale('en');
 
-  static final ValueNotifier<Locale?> locale =
-      ValueNotifier<Locale?>(defaultLocale);
+  static final ValueNotifier<Locale?> locale = ValueNotifier<Locale?>(
+    defaultLocale,
+  );
 
   /// The stored choice, or [systemCode].
   static String get code =>

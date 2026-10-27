@@ -28,7 +28,7 @@ class BuiltinProvidersSettingsService extends ChangeNotifier {
   static const String _prefOrderKey = 'builtin_providers_custom_order';
   static const String _prefDisabledKey = 'builtin_providers_disabled_ids';
 
-  /// Master list of all 46 ZPlayHTTP providers in standard default order.
+  /// Master list of all 47 ZPlayHTTP providers in standard default order.
   static const List<BuiltinProviderMeta> defaultProviders = [
     BuiltinProviderMeta(id: 'a111477', name: '111477', description: 'Stremio-based multi-resolution HTTP stream scraper'),
     BuiltinProviderMeta(id: 'vadapav', name: 'Vadapav', description: 'Direct high-speed HTTP media storage scraper'),
@@ -69,6 +69,7 @@ class BuiltinProvidersSettingsService extends ChangeNotifier {
     BuiltinProviderMeta(id: 'fsonic', name: 'FSonic', description: 'FSonic direct cloud video scraper'),
     BuiltinProviderMeta(id: 'fsonline', name: 'FSOnline', description: 'FSOnline multi-host stream resolver'),
     BuiltinProviderMeta(id: 'kisskh', name: 'KissKH', description: 'KissKH Asian drama & anime streaming provider'),
+    BuiltinProviderMeta(id: 'maccms', name: '中文资源站', description: '苹果CMS 资源站：国产剧、动漫、综艺、短剧，按中文片名搜索'),
     BuiltinProviderMeta(id: 'lmscript', name: 'LMScript', description: 'LMScript video source extractor'),
     BuiltinProviderMeta(id: 'meowtv', name: 'MeowTV', description: 'MeowTV direct streaming network'),
     BuiltinProviderMeta(id: 'vidlink', name: 'VidLink', description: 'VidLink fast multi-CDN stream provider'),

@@ -1,4 +1,5 @@
 import '../../l10n/l10n.dart';
+import '../account/login_page.dart' show SignInRequired;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -65,14 +66,24 @@ enum MultiNutzLayout {
   const MultiNutzLayout(this.label);
 }
 
-class MultiNutzPage extends StatefulWidget {
+/// [_MultiNutzPageBody] for a signed-in viewer; the sign-in page for anyone
+/// else.
+class MultiNutzPage extends StatelessWidget {
   const MultiNutzPage({super.key});
 
   @override
-  State<MultiNutzPage> createState() => _MultiNutzPageState();
+  Widget build(BuildContext context) =>
+      const SignInRequired(child: _MultiNutzPageBody());
 }
 
-class _MultiNutzPageState extends State<MultiNutzPage>
+class _MultiNutzPageBody extends StatefulWidget {
+  const _MultiNutzPageBody();
+
+  @override
+  State<_MultiNutzPageBody> createState() => _MultiNutzPageState();
+}
+
+class _MultiNutzPageState extends State<_MultiNutzPageBody>
     with WidgetsBindingObserver {
   final List<MultiStreamCell> _cells = [];
   final List<StreamSubscription> _playingSubs = [];

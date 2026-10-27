@@ -6,6 +6,7 @@ import '../../models/movie/movie.dart';
 import '../../services/content/adult_guard.dart';
 import '../../services/metadata/tmdb_catalog.dart';
 import '../../services/playback/play_launcher.dart';
+import '../../services/settings/locale_settings.dart';
 import '../../ui/lu_button.dart';
 import '../../ui/lu_cards.dart';
 import '../../ui/lu_focusable.dart';
@@ -384,6 +385,16 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
   bool _loading = false;
   bool _done = false;
 
+  /// The last page asked for came back empty after the first. The list gives
+  /// an empty page both when it fails and when it is over, so this offers
+  /// Retry rather than calling the results finished.
+  bool _moreFailed = false;
+
+  /// Keeps the remote's focus on 加载更多 while the next page loads: the
+  /// button stays (pressing it does nothing meanwhile) instead of giving way
+  /// to a spinner that cannot hold focus.
+  final FocusNode _moreFocus = FocusNode(debugLabel: 'filter-load-more');
+
   /// Bumped on every new filter, so a page that lands for an old one is
   /// dropped.
   int _generation = 0;
@@ -391,6 +402,7 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
   @override
   void initState() {
     super.initState();
+    LocaleSettings.locale.addListener(_retryFirst);
     _more();
   }
 
@@ -403,8 +415,29 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
       _page = 0;
       _done = false;
       _loading = false;
+      _moreFailed = false;
       _more();
     }
+  }
+
+  @override
+  void dispose() {
+    LocaleSettings.locale.removeListener(_retryFirst);
+    _moreFocus.dispose();
+    super.dispose();
+  }
+
+  /// The first page again: after it came back empty, or in a new language
+  /// (TMDb answers in the viewer's).
+  void _retryFirst() {
+    if (!mounted) return;
+    _generation++;
+    _movies.clear();
+    _page = 0;
+    _done = false;
+    _loading = false;
+    _moreFailed = false;
+    _more();
   }
 
   Future<void> _more() async {
@@ -417,16 +450,31 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
       resolveImdb: false,
     );
     if (!mounted || generation != _generation) return;
+    // The last page: Load more goes, so a remote on it moves up to the
+    // posters first rather than being left focused on nothing.
+    final last = movies.isNotEmpty && (movies.length < 10 || next >= 10);
+    if (last && _moreFocus.hasFocus) {
+      _moreFocus.focusInDirection(TraversalDirection.up);
+    }
     setState(() {
       _loading = false;
+      if (movies.isEmpty) {
+        // A failed read and the end of the list both come back empty. On
+        // the first page the empty state offers Retry; after it, so does the
+        // Load more button - the page is asked again rather than skipped.
+        _moreFailed = next > 1;
+        if (next == 1) _done = true;
+        return;
+      }
+      _moreFailed = false;
       _page = next;
       final seen = _movies.map((m) => m.id).toSet();
       final fresh = AdultGuard.filter(
         movies.where((m) => seen.add(m.id)).toList(),
       );
       _movies.addAll(fresh);
-      // TMDb pages are 20; a short or repeated page is the end.
-      if (movies.length < 10 || next >= 10) _done = true;
+      // TMDb pages are 20; a short page is the end.
+      if (last) _done = true;
     });
   }
 
@@ -442,10 +490,28 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
       );
     }
     if (_movies.isEmpty) {
+      // Nothing came back: no matches, or the list could not be read - the
+      // two look the same from here, so say both and offer Retry.
       return Padding(
         padding: const EdgeInsets.all(48),
         child: Center(
-          child: Text(l10n.filterNoResults, style: LuText.bodySoft),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.filterEmptyOrFailed,
+                textAlign: TextAlign.center,
+                style: LuText.bodySoft,
+              ),
+              const SizedBox(height: 20),
+              LuButton(
+                label: l10n.actionRetry,
+                icon: Icons.refresh_rounded,
+                kind: LuButtonKind.secondary,
+                onPressed: _retryFirst,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -473,19 +539,32 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 28),
               child: Center(
-                child: _loading
-                    ? const SizedBox.square(
-                        dimension: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: LuColors.gold,
-                        ),
-                      )
-                    : LuButton(
-                        label: l10n.filterLoadMore,
-                        kind: LuButtonKind.secondary,
-                        onPressed: _more,
-                      ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_moreFailed && !_loading) ...[
+                      Text(l10n.filterMoreFailed, style: LuText.bodySoft),
+                      const SizedBox(height: 12),
+                    ],
+                    // One button throughout, so focus stays on it: while a
+                    // page loads it says so and a press does nothing.
+                    LuButton(
+                      focusNode: _moreFocus,
+                      label: _loading
+                          ? l10n.filterLoading
+                          : _moreFailed
+                          ? l10n.actionRetry
+                          : l10n.filterLoadMore,
+                      icon: _loading
+                          ? Icons.hourglass_top_rounded
+                          : _moreFailed
+                          ? Icons.refresh_rounded
+                          : null,
+                      kind: LuButtonKind.secondary,
+                      onPressed: _loading ? () {} : _more,
+                    ),
+                  ],
+                ),
               ),
             ),
         ],

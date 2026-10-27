@@ -15,11 +15,11 @@ void main() {
       await service.setMode(BuiltinProvidersMode.defaultMode);
     });
 
-    test('Initializes with default mode and all 46 providers enabled', () {
+    test('Initializes with default mode and all 47 providers enabled', () {
       final service = BuiltinProvidersSettingsService.instance;
       expect(service.isCustom, isFalse);
       expect(service.mode, BuiltinProvidersMode.defaultMode);
-      expect(service.customOrder.length, 46);
+      expect(service.customOrder.length, 47);
 
       // In default mode, all providers are enabled
       for (final p in BuiltinProvidersSettingsService.defaultProviders) {

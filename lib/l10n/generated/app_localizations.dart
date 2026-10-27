@@ -14802,6 +14802,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'News'**
   String get liveCatNewsShort;
+
+  /// No description provided for @authWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get authWithGoogle;
+
+  /// No description provided for @authWithFacebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Facebook'**
+  String get authWithFacebook;
+
+  /// No description provided for @authOr.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get authOr;
+
+  /// No description provided for @authRedeemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One invite code, once'**
+  String get authRedeemTitle;
+
+  /// No description provided for @authRedeemBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Lumora is invite-only. The first time you sign in with GitHub or Discord, enter the invite code a friend gave you.'**
+  String get authRedeemBody;
+
+  /// No description provided for @authRedeemAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get authRedeemAction;
+
+  /// No description provided for @authRedeemSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Use another account'**
+  String get authRedeemSwitch;
+
+  /// No description provided for @authOAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the sign-in page.'**
+  String get authOAuthFailed;
+
+  /// No description provided for @authWithGithub.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with GitHub'**
+  String get authWithGithub;
+
+  /// No description provided for @authWithDiscord.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Discord'**
+  String get authWithDiscord;
+
+  /// No description provided for @authForgot.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get authForgot;
+
+  /// No description provided for @authForgotNeedEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email above first.'**
+  String get authForgotNeedEmail;
+
+  /// No description provided for @authForgotSent.
+  ///
+  /// In en, this message translates to:
+  /// **'A reset link is on its way to {email}. Open it on this device to set a new password.'**
+  String authForgotSent(String email);
+
+  /// No description provided for @authNewPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a new password'**
+  String get authNewPasswordTitle;
+
+  /// No description provided for @authNewPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password for {email}.'**
+  String authNewPasswordBody(String email);
+
+  /// No description provided for @authNewPasswordAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save password'**
+  String get authNewPasswordAction;
+
+  /// No description provided for @authNewPasswordSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Password changed.'**
+  String get authNewPasswordSaved;
+
+  /// No description provided for @authResetCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your email'**
+  String get authResetCodeTitle;
+
+  /// No description provided for @authResetCodeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a code to {email}. Enter it here, on any device you read the email on.'**
+  String authResetCodeBody(String email);
+
+  /// No description provided for @authResetCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Code'**
+  String get authResetCode;
+
+  /// No description provided for @authResetCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The digits in the email'**
+  String get authResetCodeHint;
+
+  /// No description provided for @authResetVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get authResetVerify;
+
+  /// No description provided for @authResetWrongCode.
+  ///
+  /// In en, this message translates to:
+  /// **'That code is wrong or has expired. Send a new one.'**
+  String get authResetWrongCode;
+
+  /// No description provided for @authResetResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send again'**
+  String get authResetResend;
+
+  /// No description provided for @authResetBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sign in'**
+  String get authResetBack;
+
+  /// No description provided for @authErrSamePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s your current password. Choose a different one.'**
+  String get authErrSamePassword;
+
+  /// No description provided for @authNewPasswordKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep my current password'**
+  String get authNewPasswordKeep;
+
+  /// No description provided for @filterLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get filterLoading;
+
+  /// No description provided for @filterEmptyOrFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to show. These filters may have no matches, or the list couldn\'t load.'**
+  String get filterEmptyOrFailed;
+
+  /// No description provided for @filterMoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load more.'**
+  String get filterMoreFailed;
 }
 
 class _AppLocalizationsDelegate

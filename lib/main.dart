@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import './shell/app_shell.dart';
 import './l10n/generated/app_localizations.dart';
+import './services/platform/url_scheme.dart';
 import './services/settings/locale_settings.dart';
 import './services/player/source_pick_settings.dart';
 import './services/player/intro_outro_store.dart';
@@ -59,6 +60,8 @@ import './services/diagnostics/renderer_backend.dart';
 import './widgets/debug/perf_hud.dart';
 import './services/scraper/builtin_providers_settings_service.dart';
 import './widgets/updater/update_dialog.dart';
+import './services/account/library_sync.dart';
+import './services/account/account_scope.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -97,6 +100,10 @@ void main() async {
   await EnvService.initialize();
   // Before the first frame: the frame shows the sign-in page or the app.
   await AccountService.initialize();
+  // Before the library services read: an updated install's library becomes
+  // the signed-in account's.
+  await AccountScope.adoptUnscopedLibrary();
+  unawaited(UrlScheme.register());
   await PlayerSettings.initialize();
   await LocaleSettings.initialize();
   await SourcePickSettings.initialize();
@@ -119,6 +126,7 @@ void main() async {
     RendererBackendSettings.initialize(),
   ]);
   runApp(const ZPlayApp());
+  LibrarySync.start();
   if (kDebugMode) PerfMonitor.start();
   unawaited(CrashBreadcrumbs.initialize());
   CrashBreadcrumbs.lifecycle('start');
@@ -219,6 +227,8 @@ class _ZPlayAppState extends State<ZPlayApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     CrashBreadcrumbs.lifecycle(state.name);
+    // Back from another device, maybe: pick up the account's library.
+    if (state == AppLifecycleState.resumed) unawaited(LibrarySync.pull());
     if (state == AppLifecycleState.detached) {
       CrashBreadcrumbs.memory('app.detached');
     }

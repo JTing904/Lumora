@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 
 import '../../services/layout/form_factor.dart';
 import '../../services/p2p/p2p_settings_service.dart';
-import '../../services/theme/design_tokens.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_theme.dart';
 import '../common/whole_line_viewport.dart';
 
 class P2pWarningDialog extends StatefulWidget {
@@ -92,341 +93,244 @@ class _P2pWarningDialogState extends State<P2pWarningDialog> {
     return KeyEventResult.ignored;
   }
 
+  Future<void> _turnOff() async {
+    await P2pSettingsService.setP2pEnabled(false);
+    await P2pSettingsService.setNeverShowWarning(true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10nOf(context).p2pTurnedOff),
+        backgroundColor: LuColors.surfaceHigh,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _dontShowAgain() async {
+    await P2pSettingsService.setNeverShowWarning(true);
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = l10nOf(context);
     final size = MediaQuery.sizeOf(context);
-    final isSmallScreen = size.width < 500;
-    final tokens = ZplayTokens.of(context);
-    final warning = tokens.warning;
+    final narrow = size.width < 500;
+    final television = FormFactorService.of(context) == FormFactor.television;
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: FocusScope(
-        node: _scope,
-        // The first action, not the close button: this dialog exists to make a
-        // decision, and the decision is in the row of three.
-        autofocus: true,
-        child: FocusTraversalGroup(
-          policy: ReadingOrderTraversalPolicy(),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 540,
-                maxHeight: size.height * 0.90,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: tokens.surfaceOverlay,
-                  borderRadius: ZplayRadius.lgAll,
-                  border: Border.all(
-                    color: warning.withValues(alpha: 0.35),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: warning.withValues(alpha: 0.15),
-                      blurRadius: 40,
-                      spreadRadius: 2,
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.70),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+    return Theme(
+      data: luTheme(),
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: FocusScope(
+          node: _scope,
+          // The first action, not the close button: this dialog exists to
+          // make a decision, and the decision is in the actions.
+          autofocus: true,
+          child: FocusTraversalGroup(
+            policy: ReadingOrderTraversalPolicy(),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 520,
+                  maxHeight: size.height * 0.90,
                 ),
-                child: ClipRRect(
-                  borderRadius: ZplayRadius.lgAll,
-                  child: Column(
-                    // `max`, not `min`.
-                    //
-                    // `mainAxisSize.min` sizes the column to its children, so the
-                    // `Flexible` scroll body below is offered the full height of its
-                    // content rather than the space actually left by the header and
-                    // the button bar. On a short viewport the column then overflows
-                    // instead of shrinking the scroll area, which sliced the third
-                    // engine row in half and hid it behind the buttons.
-                    //
-                    // Verified on a Chromecast with Google TV, which reports
-                    // 960x540 dp: the dialog has a fixed header, a scrolling middle
-                    // and a fixed action bar, and only the middle should give way.
-                    // A desktop window is taller than the content, so nothing there
-                    // changes.
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      // 1. Header Banner
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(
-                          ZplaySpacing.s20,
-                          ZplaySpacing.s20,
-                          ZplaySpacing.s16,
-                          ZplaySpacing.s20,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              warning.withValues(alpha: 0.22),
-                              warning.withValues(alpha: 0.04),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border(
-                            bottom: BorderSide(
-                              color: warning.withValues(alpha: 0.15),
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(ZplaySpacing.s12),
-                              decoration: BoxDecoration(
-                                color: warning.withValues(alpha: 0.20),
-                                borderRadius: ZplayRadius.mdAll,
-                                border: Border.all(
-                                  color: warning.withValues(alpha: 0.35),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: LuColors.surface,
+                    borderRadius: LuRadius.card,
+                    border: Border.all(color: LuColors.glassEdge),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x8C000000),
+                        blurRadius: 60,
+                        offset: Offset(0, 24),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: LuRadius.card,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 1. Header
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(28, 24, 12, 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      l10n.p2pAdvisory.toUpperCase(),
+                                      style: LuText.caption.copyWith(
+                                        color: LuColors.gold,
+                                        letterSpacing: 1.2,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: LuSpace.xs),
+                                    Text(l10n.p2pTitle, style: LuText.heading),
+                                  ],
                                 ),
                               ),
-                              child: Icon(
-                                Icons.shield_outlined,
-                                color: warning,
-                                size: 28,
+                              // A pointer's way out; a remote has Exit below.
+                              ExcludeFocus(
+                                excluding: television,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    color: LuColors.textFaint,
+                                  ),
+                                  tooltip: l10n.p2pExit,
+                                  onPressed: () => Navigator.of(context).pop(),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: ZplaySpacing.s16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                            ],
+                          ),
+                        ),
+
+                        // 2. Scrollable body
+                        Flexible(
+                          child: WholeLineViewport(
+                            child: Scrollbar(
+                              // A pointer can drag this; a remote reaches it
+                              // through the focusable body (see [_bodyFocus]).
+                              controller: _scrollController,
+                              thumbVisibility: true,
+                              child: Focus(
+                                focusNode: _bodyFocus,
+                                canRequestFocus: true,
+                                skipTraversal: false,
+                                onKeyEvent: _onBodyKey,
+                                child: SingleChildScrollView(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.fromLTRB(
+                                    28,
+                                    LuSpace.m,
+                                    28,
+                                    LuSpace.m,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: ZplaySpacing.s8,
-                                          vertical: ZplaySpacing.s4,
+                                      // The question leads, not the legal
+                                      // text: on a television the paragraph
+                                      // used to push it under the buttons.
+                                      Text(
+                                        l10n.p2pQuestion,
+                                        style: LuText.body.copyWith(
+                                          color: LuColors.text,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        decoration: BoxDecoration(
-                                          color: warning.withValues(
-                                            alpha: 0.20,
-                                          ),
-                                          borderRadius: ZplayRadius.xsAll,
+                                      ),
+                                      const SizedBox(height: LuSpace.m),
+                                      Text(
+                                        l10n.p2pBody,
+                                        style: LuText.bodySoft.copyWith(
+                                          fontSize: 14,
                                         ),
-                                        child: Text(
-                                          l10nOf(context).p2pAdvisory,
-                                          style: ZplayType.overline.toStyle(
-                                            color: warning,
-                                          ),
+                                      ),
+                                      const SizedBox(height: LuSpace.m),
+                                      _choice(
+                                        Icons.cloud_done_rounded,
+                                        l10n.p2pDirectTitle,
+                                        l10n.p2pDirectBody,
+                                      ),
+                                      const SizedBox(height: LuSpace.s),
+                                      _choice(
+                                        Icons.hub_rounded,
+                                        l10n.p2pTorrentTitle,
+                                        l10n.p2pTorrentBody,
+                                      ),
+                                      const SizedBox(height: LuSpace.m),
+                                      Text(
+                                        l10n.p2pNote,
+                                        style: LuText.caption.copyWith(
+                                          color: LuColors.textFaint,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: ZplaySpacing.s4),
-                                  Text(
-                                    l10nOf(context).p2pTitle,
-                                    style: ZplayType.title.toStyle(
-                                      color: tokens.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Not in the focus order on a television.
-                            //
-                            // A modal's close button is a pointer affordance; a
-                            // remote has no pointer, and a user with one should
-                            // reach the *decision*, not the exit. Worse, leaving it
-                            // focusable made it a dead end: the close button sits at
-                            // x=689 in the header and the three actions at y=755,
-                            // 700 px below and 256 px to the left.
-                            // `ReadingOrderTraversalPolicy` bands candidates by
-                            // overlapping x, finds no shared band, and returns
-                            // nothing for `down` - so the dialog opened with the
-                            // remote on the close button and could not be
-                            // operated at all.
-                            //
-                            // Verified on a Chromecast with Google TV: the focus
-                            // tree showed `P2pDialogScope` with four focusables
-                            // and primary focus on the close button, and `down`
-                            // did nothing. Excluded, the dialog opens on the first
-                            // action instead, which is what it is for.
-                            ExcludeFocus(
-                              excluding:
-                                  FormFactorService.of(context) ==
-                                  FormFactor.television,
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.close_rounded,
-                                  color: tokens.textSecondary,
                                 ),
-                                tooltip: l10nOf(context).p2pExit,
-                                onPressed: () => Navigator.of(context).pop(),
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
 
-                      // 2. Scrollable Body
-                      Flexible(
-                        child: WholeLineViewport(
-                          child: Scrollbar(
-                            // A pointer can drag this; a remote cannot.
-                            //
-                            // Arrow keys are delivered to whatever holds focus, and
-                            // in a dialog the only focusable things are the three
-                            // buttons. The body is text, so it never took focus and
-                            // the scroll view was unreachable from a D-pad: the
-                            // engine comparison stayed sliced in half behind the
-                            // action bar no matter how many times UP or DOWN was
-                            // pressed, on the first dialog every user meets.
-                            controller: _scrollController,
-                            thumbVisibility: true,
-                            child: Focus(
-                              focusNode: _bodyFocus,
-                              canRequestFocus: true,
-                              skipTraversal: false,
-                              onKeyEvent: _onBodyKey,
-                              child: SingleChildScrollView(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: ZplaySpacing.s24,
-                                  vertical: ZplaySpacing.s20,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    // The question leads, not the legal text.
-                                    //
-                                    // This dialog asks one thing, and on a television it sat
-                                    // below a paragraph of legal wording and two engine
-                                    // descriptions. At a 540 dp canvas that put it under the
-                                    // button bar, so the user saw three buttons and no question
-                                    // at all. All three answers were on screen either way, but
-                                    // the one that explains them has to be the first thing read.
-                                    // The legal text and the breakdown follow underneath, where a
-                                    // reader who wants them scrolls to them rather than being
-                                    // blocked by them.
-                                    Container(
-                                      padding: const EdgeInsets.all(
-                                        ZplaySpacing.s16,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: warning.withValues(alpha: 0.10),
-                                        borderRadius: ZplayRadius.mdAll,
-                                        border: Border.all(
-                                          color: warning.withValues(alpha: 0.25),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.help_outline_rounded,
-                                            color: warning,
-                                            size: 22,
-                                          ),
-                                          const SizedBox(width: ZplaySpacing.s12),
-                                          Expanded(
-                                            child: Text(
-                                              l10nOf(context).p2pQuestion,
-                                              style: ZplayType.subtitle.toStyle(
-                                                color: tokens.textPrimary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                        // 3. Actions
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(28, 14, 28, 22),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              top: BorderSide(color: LuColors.lineSoft),
+                            ),
+                          ),
+                          child: narrow
+                              ? Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    LuButton(
+                                      label: l10n.p2pTurnOff,
+                                      icon: Icons.check_circle_outline_rounded,
+                                      expand: true,
+                                      compact: true,
+                                      onPressed: _turnOff,
                                     ),
-                                    const SizedBox(height: ZplaySpacing.s12),
-                                    // Main advisory text
-                                    Text(
-                                      l10nOf(context).p2pBody,
-                                      style: ZplayType.body.toStyle(
-                                        color: tokens.textPrimary,
-                                      ),
+                                    const SizedBox(height: LuSpace.s),
+                                    LuButton(
+                                      label: l10n.p2pDontShowAgain,
+                                      kind: LuButtonKind.secondary,
+                                      expand: true,
+                                      compact: true,
+                                      onPressed: _dontShowAgain,
                                     ),
-                                    const SizedBox(height: ZplaySpacing.s16),
-
-                                    // Engine Breakdown Box
-                                    Container(
-                                      padding: const EdgeInsets.all(
-                                        ZplaySpacing.s16,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: tokens.bg.withValues(alpha: 0.7),
-                                        borderRadius: ZplayRadius.mdAll,
-                                        border: Border.all(
-                                          color: tokens.borderDefault,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          _buildSourceInfoRow(
-                                            context,
-                                            icon: Icons.cloud_done_rounded,
-                                            iconColor: tokens.success,
-                                            title: l10nOf(context).p2pDirectTitle,
-                                            subtitle:
-                                                l10nOf(context).p2pDirectBody,
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: ZplaySpacing.s12,
-                                            ),
-                                            child: Divider(
-                                              height: 1,
-                                              color: tokens.borderSubtle,
-                                            ),
-                                          ),
-                                          _buildSourceInfoRow(
-                                            context,
-                                            icon: Icons.hub_rounded,
-                                            iconColor: warning,
-                                            title: l10nOf(context).p2pTorrentTitle,
-                                            subtitle:
-                                                l10nOf(context).p2pTorrentBody,
-                                          ),
-                                        ],
-                                      ),
+                                    LuButton(
+                                      label: l10n.p2pExit,
+                                      kind: LuButtonKind.text,
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
                                     ),
-
-                                    const SizedBox(height: ZplaySpacing.s16),
-
-                                    // Prompt question
-                                    Text(
-                                      l10nOf(context).p2pNote,
-                                      style: ZplayType.caption
-                                          .toStyle(color: tokens.textSecondary)
-                                          .copyWith(fontStyle: FontStyle.italic),
+                                  ],
+                                )
+                              // Wraps rather than overflows where the labels
+                              // run long (English, a 960 dp television).
+                              : Wrap(
+                                  alignment: WrapAlignment.end,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: LuSpace.s,
+                                  runSpacing: LuSpace.s,
+                                  children: [
+                                    LuButton(
+                                      label: l10n.p2pExit,
+                                      kind: LuButtonKind.text,
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                    ),
+                                    LuButton(
+                                      label: l10n.p2pDontShowAgain,
+                                      kind: LuButtonKind.secondary,
+                                      compact: true,
+                                      onPressed: _dontShowAgain,
+                                    ),
+                                    LuButton(
+                                      label: l10n.p2pTurnOff,
+                                      icon: Icons.check_circle_outline_rounded,
+                                      compact: true,
+                                      onPressed: _turnOff,
                                     ),
                                   ],
                                 ),
-                              ),
-                            ),
-                          ),
                         ),
-                      ),
-
-                      // 3. Responsive Action Buttons Footer
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(
-                          ZplaySpacing.s20,
-                          ZplaySpacing.s16,
-                          ZplaySpacing.s20,
-                          ZplaySpacing.s20,
-                        ),
-                        decoration: BoxDecoration(
-                          color: tokens.bg.withValues(alpha: 0.95),
-                          border: Border(
-                            top: BorderSide(color: tokens.borderDefault),
-                          ),
-                        ),
-                        child: isSmallScreen
-                            ? _buildStackedButtons(context)
-                            : _buildHorizontalButtons(context),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -437,206 +341,35 @@ class _P2pWarningDialogState extends State<P2pWarningDialog> {
     );
   }
 
-  Widget _buildSourceInfoRow(
-    BuildContext context, {
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-  }) {
-    final tokens = ZplayTokens.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(ZplaySpacing.s8),
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.15),
-            borderRadius: ZplayRadius.smAll,
-          ),
-          child: Icon(icon, color: iconColor, size: 18),
-        ),
-        const SizedBox(width: ZplaySpacing.s12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: ZplayType.label.toStyle(color: tokens.textPrimary),
-              ),
-              const SizedBox(height: ZplaySpacing.s2),
-              Text(
-                subtitle,
-                style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHorizontalButtons(BuildContext context) {
-    final tokens = ZplayTokens.of(context);
-
-    // A Wrap so the three buttons drop to a second line on a narrow dialog
-    // (a television's 960 dp canvas) instead of overflowing.
-    return Wrap(
-      alignment: WrapAlignment.end,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: ZplaySpacing.s12,
-      runSpacing: ZplaySpacing.s8,
-      children: [
-        // Exit button
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s12,
-            ),
-            foregroundColor: tokens.textSecondary,
-          ),
-          child: Text(l10nOf(context).p2pExit, style: ZplayType.label.toStyle()),
-        ),
-
-        // Don't show again button (keeps P2P enabled)
-        OutlinedButton(
-          onPressed: () async {
-            await P2pSettingsService.setNeverShowWarning(true);
-            if (context.mounted) Navigator.of(context).pop();
-          },
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: tokens.borderStrong),
-            foregroundColor: tokens.textEmphasis,
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s12,
-            ),
-            shape: const RoundedRectangleBorder(
-              borderRadius: ZplayRadius.smAll,
-            ),
-          ),
-          child: Text(l10nOf(context).p2pDontShowAgain, style: ZplayType.label.toStyle()),
-        ),
-
-        // Yes, Turn Off P2P button
-        ElevatedButton.icon(
-          onPressed: () async {
-            await P2pSettingsService.setP2pEnabled(false);
-            await P2pSettingsService.setNeverShowWarning(true);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    l10nOf(context).p2pTurnedOff,
-                  ),
-                  backgroundColor: tokens.success,
-                  behavior: SnackBarBehavior.floating,
+  /// One of the two ways to play, side by side in the body.
+  Widget _choice(IconData icon, String title, String body) {
+    return Container(
+      padding: const EdgeInsets.all(LuSpace.m),
+      decoration: BoxDecoration(
+        color: LuColors.field,
+        borderRadius: LuRadius.field,
+        border: Border.all(color: LuColors.lineSoft),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: LuColors.gold, size: 22),
+          const SizedBox(width: LuSpace.m),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: LuText.label),
+                const SizedBox(height: 2),
+                Text(
+                  body,
+                  style: LuText.caption.copyWith(color: LuColors.textMuted),
                 ),
-              );
-              Navigator.of(context).pop();
-            }
-          },
-          icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-          label: Text(l10nOf(context).p2pTurnOff, style: ZplayType.label.toStyle()),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: tokens.warning,
-            foregroundColor: Colors.black,
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s12,
+              ],
             ),
-            shape: const RoundedRectangleBorder(
-              borderRadius: ZplayRadius.smAll,
-            ),
-            elevation: 0,
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStackedButtons(BuildContext context) {
-    final tokens = ZplayTokens.of(context);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Yes, Turn Off P2P button
-        ElevatedButton.icon(
-          onPressed: () async {
-            await P2pSettingsService.setP2pEnabled(false);
-            await P2pSettingsService.setNeverShowWarning(true);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    l10nOf(context).p2pTurnedOff,
-                  ),
-                  backgroundColor: tokens.success,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              Navigator.of(context).pop();
-            }
-          },
-          icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-          label: Text(l10nOf(context).p2pTurnOff, style: ZplayType.label.toStyle()),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: tokens.warning,
-            foregroundColor: Colors.black,
-            padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s12),
-            shape: const RoundedRectangleBorder(
-              borderRadius: ZplayRadius.smAll,
-            ),
-            elevation: 0,
-          ),
-        ),
-        const SizedBox(height: ZplaySpacing.s8),
-
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () async {
-                  await P2pSettingsService.setNeverShowWarning(true);
-                  if (context.mounted) Navigator.of(context).pop();
-                },
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: tokens.borderStrong),
-                  foregroundColor: tokens.textEmphasis,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: ZplaySpacing.s12,
-                  ),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: ZplayRadius.smAll,
-                  ),
-                ),
-                child: Text(
-                  l10nOf(context).p2pDontShowAgain,
-                  style: ZplayType.label.toStyle(),
-                ),
-              ),
-            ),
-            const SizedBox(width: ZplaySpacing.s8),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ZplaySpacing.s16,
-                  vertical: ZplaySpacing.s12,
-                ),
-                foregroundColor: tokens.textSecondary,
-              ),
-              child: Text(l10nOf(context).p2pExit, style: ZplayType.label.toStyle()),
-            ),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

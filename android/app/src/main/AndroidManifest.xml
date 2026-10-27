@@ -91,6 +91,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
+            <!-- Google / Facebook sign-in hands back here. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="io.github.jting904.lumora" android:host="login-callback"/>
+            </intent-filter>
         </activity>
 
         <!-- OTA Update Provider -->

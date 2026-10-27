@@ -89,3 +89,5 @@ stremio*.png
 
 # Local release artifacts served for device testing
 dist/
+*.p12
+*.keystore

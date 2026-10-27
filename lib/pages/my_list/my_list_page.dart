@@ -10,6 +10,7 @@ import '../details/details_page.dart';
 import '../../models/movie/movie.dart';
 import '../../ui/lu_button.dart';
 import '../../ui/lu_cards.dart';
+import '../../ui/lu_confirm.dart';
 import '../../ui/lu_focusable.dart';
 import '../../ui/lu_theme.dart';
 
@@ -74,9 +75,12 @@ class _MyListPageState extends State<MyListPage> {
   /// and the id, or tapping a card opens a different record than the one the
   /// user just read - so both read this.
   Movie _movieFor(MyListItem item) {
+    // A TMDb-only title opens as `tmdb:tv:123` / `tmdb:movie:123`, the form
+    // the details page resolves; a bare `tmdb:123` names no kind and cannot be.
+    final tmdbKind = item.type == 'movie' ? 'movie' : 'tv';
     final effectiveId =
         item.imdbId ??
-        (item.tmdbId != null ? 'tmdb:${item.tmdbId}' : null) ??
+        (item.tmdbId != null ? 'tmdb:$tmdbKind:${item.tmdbId}' : null) ??
         item.traktId?.toString() ??
         '';
 
@@ -101,41 +105,14 @@ class _MyListPageState extends State<MyListPage> {
   }
 
   Future<void> _confirmRemove(MyListItem item) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: LuColors.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(20)),
-        ),
-        title: Text(l10nCurrent().listRemoveConfirm, style: LuText.heading),
-        content: Text(item.title, style: LuText.bodySoft),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              l10nCurrent().commonCancel,
-              style: LuText.label.copyWith(color: LuColors.textSoft),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: LuColors.danger,
-              foregroundColor: LuColors.bg,
-              shape: const StadiumBorder(),
-            ),
-            child: Text(l10nCurrent().listRemove),
-          ),
-        ],
-      ),
+    final l10n = l10nOf(context);
+    final confirm = await showLuConfirm(
+      context,
+      title: l10n.listRemoveConfirm,
+      message: item.title,
+      confirmLabel: l10n.listRemove,
     );
-
-    if (confirm == true) {
-      if (mounted) {
-        MyListService.remove(item);
-      }
-    }
+    if (confirm && mounted) MyListService.remove(item);
   }
 
   double _pad(BuildContext context) {
@@ -184,8 +161,10 @@ class _MyListPageState extends State<MyListPage> {
   }
 
   /// The saved titles as posters, as many to a row as the width takes. A
-  /// long press asks to remove one.
+  /// card's second action (long press, right click, the menu key or a held
+  /// Select) asks to remove it.
   Widget _buildGrid(BuildContext context, double pad, List<MyListItem> items) {
+    final l10n = l10nOf(context);
     return LayoutBuilder(
       builder: (context, box) {
         final width = box.maxWidth - pad * 2;
@@ -209,20 +188,16 @@ class _MyListPageState extends State<MyListPage> {
             runSpacing: 24,
             children: [
               for (final item in items)
-                GestureDetector(
+                LuPosterCard(
+                  width: cardWidth,
+                  title: item.title,
+                  poster: item.poster,
+                  subtitle: [
+                    if (item.year != null) '${item.year}',
+                    item.type == 'movie' ? l10n.typeMovies : l10n.typeSeries,
+                  ].join(' · '),
+                  onTap: () => _navigateToDetail(item),
                   onLongPress: () => _confirmRemove(item),
-                  child: LuPosterCard(
-                    width: cardWidth,
-                    title: item.title,
-                    poster: item.poster,
-                    subtitle: [
-                      if (item.year != null) '${item.year}',
-                      item.type == 'movie'
-                          ? l10nCurrent().typeMovies
-                          : l10nCurrent().typeSeries,
-                    ].join(' · '),
-                    onTap: () => _navigateToDetail(item),
-                  ),
                 ),
             ],
           ),
@@ -234,7 +209,7 @@ class _MyListPageState extends State<MyListPage> {
   /// 全部 / 电影 / 剧集, the order, the count and sync state, and a search
   /// field for a long list.
   Widget _buildToolbar(BuildContext context, double pad, int total) {
-    final l10n = l10nCurrent();
+    final l10n = l10nOf(context);
     final phone = MediaQuery.sizeOf(context).width < 600;
     final filters = Wrap(
       spacing: 8,
@@ -372,7 +347,7 @@ class _MyListPageState extends State<MyListPage> {
   }
 
   Widget _buildEmptyState(bool isListEmpty) {
-    final l10n = l10nCurrent();
+    final l10n = l10nOf(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),

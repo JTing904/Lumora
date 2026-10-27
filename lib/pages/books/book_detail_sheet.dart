@@ -13,6 +13,7 @@ import '../../services/theme/design_tokens.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../../widgets/common/pill_button.dart';
 import '../../widgets/common/section_header.dart';
+import '../account/login_page.dart' show SignInRequired;
 
 class BookDetailSheet extends StatefulWidget {
   final BookResult book;
@@ -377,7 +378,9 @@ class _BookDetailSheetState extends State<BookDetailSheet> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const GenerateAudiobookScreen(),
+                                builder: (_) => const SignInRequired(
+                                  child: GenerateAudiobookScreen(),
+                                ),
                               ),
                             );
                           },

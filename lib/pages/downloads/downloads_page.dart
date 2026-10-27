@@ -71,7 +71,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
     if (!file.existsSync()) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(l10nCurrent().dlFileMissing)));
+      ).showSnackBar(SnackBar(content: Text(l10nOf(context).dlFileMissing)));
       return;
     }
 
@@ -90,7 +90,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
         id: '${task.mediaId}:${task.season}:${task.episode}',
         title:
             task.episodeTitle ??
-            l10nCurrent().dl3EpisodeNumber(task.episode ?? 0),
+            l10nOf(context).dl3EpisodeNumber(task.episode ?? 0),
         season: task.season ?? 1,
         episode: task.episode ?? 1,
         thumbnail: task.backdropUrl,
@@ -118,18 +118,18 @@ class _DownloadsPageState extends State<DownloadsPage> {
         backgroundColor: tokens.surfaceOverlay,
         shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.mdAll),
         title: Text(
-          l10nCurrent().dlDeleteTitle,
+          l10nOf(context).dlDeleteTitle,
           style: ZplayType.title.toStyle(color: tokens.textPrimary),
         ),
         content: Text(
-          l10nCurrent().dl3ConfirmDeleteTask(task.title),
+          l10nOf(context).dl3ConfirmDeleteTask(task.title),
           style: ZplayType.body.toStyle(color: tokens.textEmphasis),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
-              l10nCurrent().commonCancel,
+              l10nOf(context).commonCancel,
               style: ZplayType.label.toStyle(color: tokens.textSecondary),
             ),
           ),
@@ -145,7 +145,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
               Navigator.pop(ctx);
               DownloadService.instance.deleteDownload(task.id);
             },
-            child: Text(l10nCurrent().commonDelete),
+            child: Text(l10nOf(context).commonDelete),
           ),
         ],
       ),
@@ -191,19 +191,19 @@ class _DownloadsPageState extends State<DownloadsPage> {
                         padding: EdgeInsets.fromLTRB(_pad, 16, _pad, 4),
                         child: Semantics(
                           container: true,
-                          label: l10nCurrent().dlList,
+                          label: l10nOf(context).dlList,
                           child: Wrap(
                             spacing: 8,
                             children: [
                               _DownloadsPill(
-                                label: l10nCurrent().dlActive,
+                                label: l10nOf(context).dlActive,
                                 count: activeCount,
                                 selected: _tab == DownloadTab.active,
                                 onTap: () =>
                                     setState(() => _tab = DownloadTab.active),
                               ),
                               _DownloadsPill(
-                                label: l10nCurrent().dlDone,
+                                label: l10nOf(context).dlDone,
                                 count: completedCount,
                                 selected: _tab == DownloadTab.downloaded,
                                 onTap: () => setState(
@@ -247,10 +247,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10nCurrent().dl3ActiveAndDownloaded(
-                    activeCount,
-                    completedCount,
-                  ),
+                  l10nOf(
+                    context,
+                  ).dl3ActiveAndDownloaded(activeCount, completedCount),
                   style: LuText.caption.copyWith(color: LuColors.textMuted),
                 ),
               ],
@@ -262,13 +261,13 @@ class _DownloadsPageState extends State<DownloadsPage> {
               color: tokens.textSecondary,
               size: 22,
             ),
-            tooltip: l10nCurrent().dlOpenFolder,
+            tooltip: l10nOf(context).dlOpenFolder,
             onPressed: () async {
               final dir = await DownloadPathHelper.getDownloadsDirectoryPath();
               final opened = await OpenFileLocationHelper.openLocation(dir);
               if (!opened && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10nCurrent().dl3FolderPath(dir))),
+                  SnackBar(content: Text(l10nOf(context).dl3FolderPath(dir))),
                 );
               }
             },
@@ -294,12 +293,12 @@ class _DownloadsPageState extends State<DownloadsPage> {
               ),
               const SizedBox(height: ZplaySpacing.s16),
               Text(
-                l10nCurrent().dlNoActive,
+                l10nOf(context).dlNoActive,
                 style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
               ),
               const SizedBox(height: ZplaySpacing.s8),
               Text(
-                l10nCurrent().dlNoActiveBody,
+                l10nOf(context).dlNoActiveBody,
                 style: ZplayType.body.toStyle(color: tokens.textMuted),
               ),
             ],
@@ -420,11 +419,11 @@ class _DownloadsPageState extends State<DownloadsPage> {
                               ),
                               child: Text(
                                 task.sourceType == DownloadSourceType.p2p
-                                    ? l10nCurrent().dlTorrent
+                                    ? l10nOf(context).dlTorrent
                                     : (task.sourceType ==
                                               DownloadSourceType.debrid
-                                          ? l10nCurrent().dlDebrid
-                                          : l10nCurrent().dlDirect),
+                                          ? l10nOf(context).dlDebrid
+                                          : l10nOf(context).dlDirect),
                                 style: ZplayType.caption.toStyle(
                                   color: palette.primaryColor,
                                 ),
@@ -433,7 +432,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                             if (task.peers > 0) ...[
                               const SizedBox(width: ZplaySpacing.s8),
                               Text(
-                                l10nCurrent().dl3PeersCount(task.peers),
+                                l10nOf(context).dl3PeersCount(task.peers),
                                 style: ZplayType.caption.toStyle(
                                   color: tokens.textSecondary,
                                 ),
@@ -444,14 +443,14 @@ class _DownloadsPageState extends State<DownloadsPage> {
                         const SizedBox(height: ZplaySpacing.s4),
                         Text(
                           isFailed
-                              ? l10nCurrent().dl3FailedReason(
-                                  task.error ?? l10nCurrent().dlUnknownError,
+                              ? l10nOf(context).dl3FailedReason(
+                                  task.error ?? l10nOf(context).dlUnknownError,
                                 )
                               : isPaused
-                              ? l10nCurrent().dl3PausedPercent(
+                              ? l10nOf(context).dl3PausedPercent(
                                   (progress * 100).toStringAsFixed(1),
                                 )
-                              : l10nCurrent().dl3ProgressSpeedEta(
+                              : l10nOf(context).dl3ProgressSpeedEta(
                                   (progress * 100).toStringAsFixed(1),
                                   task.speedLabel,
                                   task.etaLabel,
@@ -479,7 +478,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                             color: tokens.warning,
                             size: 26,
                           ),
-                          tooltip: l10nCurrent().playerPause,
+                          tooltip: l10nOf(context).playerPause,
                           onPressed: () =>
                               DownloadService.instance.pauseDownload(task.id),
                         )
@@ -490,7 +489,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                             color: palette.primaryColor,
                             size: 26,
                           ),
-                          tooltip: l10nCurrent().dlResume,
+                          tooltip: l10nOf(context).dlResume,
                           onPressed: () =>
                               DownloadService.instance.resumeDownload(task.id),
                         )
@@ -501,7 +500,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                             color: tokens.warning,
                             size: 26,
                           ),
-                          tooltip: l10nCurrent().dlRetry,
+                          tooltip: l10nOf(context).dlRetry,
                           onPressed: () =>
                               DownloadService.instance.resumeDownload(task.id),
                         ),
@@ -511,7 +510,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                           color: tokens.textSecondary,
                           size: 22,
                         ),
-                        tooltip: l10nCurrent().dlOpenLocation,
+                        tooltip: l10nOf(context).dlOpenLocation,
                         onPressed: () async {
                           final opened =
                               await OpenFileLocationHelper.openLocation(
@@ -521,7 +520,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  l10nCurrent().dl3FolderLabel(
+                                  l10nOf(context).dl3FolderLabel(
                                     File(task.targetFilePath).parent.path,
                                   ),
                                 ),
@@ -536,7 +535,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                           color: tokens.textMuted,
                           size: 22,
                         ),
-                        tooltip: l10nCurrent().commonCancel,
+                        tooltip: l10nOf(context).commonCancel,
                         onPressed: () => _confirmDelete(task),
                       ),
                     ],
@@ -604,12 +603,12 @@ class _DownloadsPageState extends State<DownloadsPage> {
               ),
               const SizedBox(height: ZplaySpacing.s16),
               Text(
-                l10nCurrent().dlNoDone,
+                l10nOf(context).dlNoDone,
                 style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
               ),
               const SizedBox(height: ZplaySpacing.s8),
               Text(
-                l10nCurrent().dlNoDoneBody,
+                l10nOf(context).dlNoDoneBody,
                 style: ZplayType.body.toStyle(color: tokens.textMuted),
               ),
             ],
@@ -741,9 +740,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    l10nCurrent().dl3PathLabel(
-                                      task.targetFilePath,
-                                    ),
+                                    l10nOf(
+                                      context,
+                                    ).dl3PathLabel(task.targetFilePath),
                                   ),
                                 ),
                               );
@@ -840,13 +839,13 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       const SizedBox(height: ZplaySpacing.s2),
                       Text(
                         task.season != null && task.episode != null
-                            ? l10nCurrent().dl3EpisodeOffline(
+                            ? l10nOf(context).dl3EpisodeOffline(
                                 task.season ?? 1,
                                 task.episode ?? 0,
                               )
                             : (task.year != null
-                                  ? l10nCurrent().dl3YearOffline(task.year!)
-                                  : l10nCurrent().dlOffline),
+                                  ? l10nOf(context).dl3YearOffline(task.year!)
+                                  : l10nOf(context).dlOffline),
                         style: ZplayType.caption.toStyle(
                           color: tokens.textSecondary,
                         ),
@@ -910,7 +909,7 @@ class _StorageBreakdownBar extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    l10nCurrent().dl3DeviceStorageUsed(
+                    l10nOf(context).dl3DeviceStorageUsed(
                       DownloadTask.formatBytes(usedBytes),
                       info.totalFormatted,
                     ),
@@ -921,7 +920,7 @@ class _StorageBreakdownBar extends StatelessWidget {
                 ),
                 const SizedBox(width: ZplaySpacing.s12),
                 Text(
-                  l10nCurrent().dl3FreeSpace(info.freeFormatted),
+                  l10nOf(context).dl3FreeSpace(info.freeFormatted),
                   style: ZplayType.caption.toStyle(color: tokens.textMuted),
                 ),
               ],

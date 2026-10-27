@@ -34,6 +34,7 @@ import '../scraper/sites/peestream.dart';
 import '../scraper/sites/lookmovie.dart';
 import '../scraper/sites/hexa.dart';
 import '../scraper/sites/bcine.dart';
+import '../scraper/sites/maccms.dart';
 import '../scraper/sites/mapple.dart';
 import '../scraper/sites/nova.dart';
 import '../scraper/sites/megasource.dart';
@@ -104,6 +105,7 @@ class StreamService {
       episode: episode,
       imdbId: imdbId,
       skipTmdbNumbered: tmdbHasEpisode == false,
+      tmdbRef: id.startsWith('tmdb:') ? id : null,
     );
   }
 
@@ -173,6 +175,7 @@ class StreamService {
     ScraperManager.instance.registerScraper(HexaScraper());
     ScraperManager.instance.registerScraper(BcineScraper());
     ScraperManager.instance.registerScraper(MappleScraper());
+    ScraperManager.instance.registerScraper(MacCmsScraper());
     ScraperManager.instance.registerScraper(NovaScraper());
     ScraperManager.instance.registerScraper(MegaSourceScraper());
     ScraperManager.instance.registerScraper(PurstreamScraper());

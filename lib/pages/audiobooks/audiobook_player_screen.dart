@@ -26,8 +26,11 @@ import '../../widgets/common/segmented_tabs.dart';
 import '../../widgets/player/player_glass.dart';
 import '../settings/appearance/audiobook_player_studio_page.dart';
 import '../../services/storage/app_image_cache.dart';
+import '../account/login_page.dart' show SignInRequired;
 
-class AudiobookPlayerScreen extends StatefulWidget {
+/// Playing an audiobook needs an account; [SignInRequired] shows the sign-in
+/// page in its place until there is one.
+class AudiobookPlayerScreen extends StatelessWidget {
   final Audiobook audiobook;
   final List<AudiobookChapter> chapters;
   final int initialChapterIndex;
@@ -42,7 +45,31 @@ class AudiobookPlayerScreen extends StatefulWidget {
   });
 
   @override
-  State<AudiobookPlayerScreen> createState() => _AudiobookPlayerScreenState();
+  Widget build(BuildContext context) => SignInRequired(
+    child: _AudiobookPlayerBody(
+      audiobook: audiobook,
+      chapters: chapters,
+      initialChapterIndex: initialChapterIndex,
+      initialPosition: initialPosition,
+    ),
+  );
+}
+
+class _AudiobookPlayerBody extends StatefulWidget {
+  final Audiobook audiobook;
+  final List<AudiobookChapter> chapters;
+  final int initialChapterIndex;
+  final Duration? initialPosition;
+
+  const _AudiobookPlayerBody({
+    required this.audiobook,
+    required this.chapters,
+    required this.initialChapterIndex,
+    required this.initialPosition,
+  });
+
+  @override
+  State<_AudiobookPlayerBody> createState() => _AudiobookPlayerScreenState();
 }
 
 /// Audiobook playback lives here rather than in a controller, so the shell's bar
@@ -53,7 +80,7 @@ class AudiobookPlayerScreen extends StatefulWidget {
 /// oversight: it would be a product change, not a refactor, because playback
 /// would then survive the route. Until then this screen is the audiobook owner
 /// and registers itself as such.
-class _AudiobookPlayerScreenState extends State<AudiobookPlayerScreen>
+class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     with SingleTickerProviderStateMixin
     implements NowPlayingCommands {
   Player? _player;

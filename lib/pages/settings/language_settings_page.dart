@@ -43,6 +43,11 @@ class LanguageSettingsPage extends StatelessWidget {
                       ),
                     ),
                     _LanguageTile(
+                      title: l10n.languageEnglish,
+                      selected: selected == 'en',
+                      onTap: () => LocaleSettings.setLocale('en'),
+                    ),
+                    _LanguageTile(
                       title: l10n.languageChinese,
                       selected: selected == 'zh',
                       onTap: () => LocaleSettings.setLocale('zh'),
@@ -52,11 +57,6 @@ class LanguageSettingsPage extends StatelessWidget {
                       selected: selected == LocaleSettings.systemCode,
                       onTap: () =>
                           LocaleSettings.setLocale(LocaleSettings.systemCode),
-                    ),
-                    _LanguageTile(
-                      title: l10n.languageEnglish,
-                      selected: selected == 'en',
-                      onTap: () => LocaleSettings.setLocale('en'),
                     ),
                   ],
                 );

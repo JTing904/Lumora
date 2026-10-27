@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/l10n.dart';
 import '../../models/iptv/iptv_models.dart';
 import '../../models/iptv/m3u_models.dart';
@@ -166,6 +167,7 @@ class IptvController extends ChangeNotifier {
 
     m3uPlaylists = await M3uStore.loadAll();
     scrapeSource = IptvSettings.defaultScrapeSource.value;
+    unawaited(_seedFreePlaylists());
 
     // Streams the player found dead have to be on the books before the first
     // hit list is ranked, and this controller is the only route into that
@@ -631,6 +633,41 @@ class IptvController extends ChangeNotifier {
   // ────────────────────────────────────────────────────────────────────────
   // M3U Playlist Management
   // ────────────────────────────────────────────────────────────────────────
+  /// Free, public channel lists Lumora starts with: Chinese-language channels
+  /// from iptv-org and vbskycn's daily-checked CN list. Added once; a viewer
+  /// who deletes one keeps it deleted.
+  static const freePlaylists = <(String, String)>[
+    ('中文频道 (iptv-org)', 'https://iptv-org.github.io/iptv/languages/zho.m3u'),
+    ('国内频道 (vbskycn)', 'https://live.zbds.top/tv/iptv4.m3u'),
+  ];
+
+  /// Set by builds that marked every list seeded before fetching any; those
+  /// installs are left as they are.
+  static const _seededKey = 'lumora_free_playlists_seeded_v1';
+
+  /// The lists' URLs that have been added once. Each is marked only after it
+  /// is added, so a first launch offline tries again on the next.
+  static const _seededUrlsKey = 'lumora_free_playlists_seeded_urls_v2';
+
+  Future<void> _seedFreePlaylists() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_seededKey) ?? false) return;
+    final seeded = {...?prefs.getStringList(_seededUrlsKey)};
+    for (final (name, url) in freePlaylists) {
+      if (seeded.contains(url)) continue;
+      if (!m3uPlaylists.any((p) => p.sourceUrl == url)) {
+        try {
+          await addM3uFromUrl(name, url);
+        } catch (e) {
+          debugPrint('[IptvController] free playlist $name: $e');
+          continue;
+        }
+      }
+      seeded.add(url);
+      await prefs.setStringList(_seededUrlsKey, seeded.toList());
+    }
+  }
+
   Future<void> addM3uFromUrl(String name, String url) async {
     isM3uLoading = true;
     notifyListeners();

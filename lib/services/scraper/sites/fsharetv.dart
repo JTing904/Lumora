@@ -54,7 +54,7 @@ class FshareTvScraper extends StreamScraper {
         // This fetch only bridges a TMDb id to an IMDb one. Without a key the
         // `?api_key=` request is malformed, so skip it rather than swallow the
         // failure and pretend the bridge is coming.
-        if (tmdbId != null && TmdbService.hasScraperKey) {
+        if (tmdbId != null && TmdbService.hasDirectScraperKey) {
           try {
             final uri = Uri.parse(
               'https://api.themoviedb.org/3/movie/$tmdbId?api_key=${TmdbService.scraperKey}',

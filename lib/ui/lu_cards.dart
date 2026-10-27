@@ -1,7 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+import '../services/layout/form_factor.dart';
 import '../services/storage/app_image_cache.dart';
+import 'lu_confirm.dart';
 import 'lu_focusable.dart';
 import 'lu_theme.dart';
 
@@ -80,6 +83,7 @@ class LuPosterCard extends StatelessWidget {
     this.badge,
     this.rating,
     this.width = 160,
+    this.onLongPress,
   });
 
   final String title;
@@ -90,7 +94,16 @@ class LuPosterCard extends StatelessWidget {
   final VoidCallback onTap;
   final double width;
 
-  static double heightFor(double width) => width * 1.5 + 54;
+  /// The card's second action (Remove...): a long press, a right click, the
+  /// menu key or a held Select. See [LuFocusable.onLongPress].
+  final VoidCallback? onLongPress;
+
+  /// The card's height: the poster, then two lines of text that grow with
+  /// the viewer's text size ([scaler], `MediaQuery.textScalerOf`).
+  static double heightFor(
+    double width, [
+    TextScaler scaler = TextScaler.noScaling,
+  ]) => width * 1.5 + 8 + scaler.scale(46);
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +111,7 @@ class LuPosterCard extends StatelessWidget {
       width: width,
       child: LuFocusable(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: LuRadius.poster,
         semanticLabel: title,
         builder: (context, highlighted) => Column(
@@ -192,14 +206,38 @@ class LuContinueCard extends StatelessWidget {
   final String? removeLabel;
   final double width;
 
-  static double heightFor(double width) => width * 9 / 16 + 50;
+  /// The card's height: the still, then a line of text that grows with the
+  /// viewer's text size ([scaler], `MediaQuery.textScalerOf`).
+  static double heightFor(
+    double width, [
+    TextScaler scaler = TextScaler.noScaling,
+  ]) => width * 9 / 16 + 10 + scaler.scale(40);
+
+  /// Remove, asked first: what a long press, a right click, the menu key or a
+  /// held Select opens, so every input can remove a title, not just a
+  /// pointer hovering the corner button.
+  Future<void> _askRemove(BuildContext context) async {
+    final remove = onRemove;
+    if (remove == null) return;
+    final l10n = l10nOf(context);
+    final ok = await showLuConfirm(
+      context,
+      title: removeLabel ?? l10n.cwRemove,
+      confirmLabel: l10n.listRemove,
+    );
+    if (ok) remove();
+  }
 
   @override
   Widget build(BuildContext context) {
+    // The corner button is for a pointer; a remote reaches Remove through the
+    // card's own second action instead.
+    final pointerRemove = onRemove != null && !FormFactorService.hasRemoteInput;
     return SizedBox(
       width: width,
       child: LuFocusable(
         onTap: onTap,
+        onLongPress: onRemove == null ? null : () => _askRemove(context),
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         builder: (context, highlighted) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,20 +264,22 @@ class LuContinueCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (onRemove != null && highlighted)
+                    if (pointerRemove && highlighted)
                       Positioned(
                         right: 6,
                         top: 6,
-                        child: IconButton(
-                          tooltip: removeLabel,
-                          onPressed: onRemove,
-                          style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xB30A0A0C),
-                          ),
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            size: 18,
-                            color: LuColors.text,
+                        child: ExcludeFocus(
+                          child: IconButton(
+                            tooltip: removeLabel,
+                            onPressed: onRemove,
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xB30A0A0C),
+                            ),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: LuColors.text,
+                            ),
                           ),
                         ),
                       ),

@@ -1,4 +1,6 @@
+import '../../services/player/playable_url.dart';
 import '../../models/movie/episode_order.dart';
+import '../account/login_page.dart' show SignInRequired;
 import '../../l10n/l10n.dart';
 import 'dart:io';
 import 'dart:async';
@@ -83,7 +85,51 @@ class _PlayerDismissIntent extends Intent {
   const _PlayerDismissIntent();
 }
 
-class PlayerScreen extends StatefulWidget {
+/// [_PlayerScreenBody] for a signed-in viewer; the sign-in page for anyone else.
+class PlayerScreen extends StatelessWidget {
+  const PlayerScreen({
+    super.key,
+    required this.source,
+    required this.title,
+    this.backdropUrl,
+    this.logoUrl,
+    this.detail,
+    this.episode,
+    this.initialPosition,
+    this.initialSubtitles,
+    this.alternatives,
+    this.autoPicked = false,
+  });
+
+  final StreamSource source;
+  final String title;
+  final String? backdropUrl;
+  final String? logoUrl;
+  final MovieDetail? detail;
+  final Video? episode;
+  final Duration? initialPosition;
+  final List<SubtitleVariant>? initialSubtitles;
+  final List<StreamSource>? alternatives;
+  final bool autoPicked;
+
+  @override
+  Widget build(BuildContext context) => SignInRequired(
+    child: _PlayerScreenBody(
+      source: source,
+      title: title,
+      backdropUrl: backdropUrl,
+      logoUrl: logoUrl,
+      detail: detail,
+      episode: episode,
+      initialPosition: initialPosition,
+      initialSubtitles: initialSubtitles,
+      alternatives: alternatives,
+      autoPicked: autoPicked,
+    ),
+  );
+}
+
+class _PlayerScreenBody extends StatefulWidget {
   final StreamSource source;
   final String title;
   final String? backdropUrl;
@@ -108,8 +154,7 @@ class PlayerScreen extends StatefulWidget {
   /// a resume uses, instead of waiting for the viewer to give up on it.
   final bool autoPicked;
 
-  const PlayerScreen({
-    super.key,
+  const _PlayerScreenBody({
     required this.source,
     required this.title,
     this.backdropUrl,
@@ -123,10 +168,10 @@ class PlayerScreen extends StatefulWidget {
   });
 
   @override
-  State<PlayerScreen> createState() => _PlayerScreenState();
+  State<_PlayerScreenBody> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen> {
+class _PlayerScreenState extends State<_PlayerScreenBody> {
   late final Player _player = Player(
     configuration: PlayerSettings.getMediaKitPlayerConfiguration(),
   );
@@ -552,6 +597,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       } catch (e) {
         print('[PlayerScreen] Warning setting native header properties: $e');
       }
+    }
+    if (!isPlayableUrl(request.url)) {
+      throw StateError('Not a stream address');
     }
     await _player.open(
       Media(

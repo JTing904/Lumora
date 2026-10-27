@@ -665,6 +665,8 @@ class _SearchPageState extends State<SearchPage> {
         _magnetQuery = trimmed;
         _isLoading = false;
         _results.clear();
+        // Abandons the text search, so its late sections are dropped.
+        _lastQuery = '';
       });
       return;
     } else if (_isMagnetMode) {
@@ -705,6 +707,8 @@ class _SearchPageState extends State<SearchPage> {
         _magnetQuery = trimmed;
         _isLoading = false;
         _results.clear();
+        // Abandons the text search, so its late sections are dropped.
+        _lastQuery = '';
       });
       return;
     }
@@ -725,6 +729,9 @@ class _SearchPageState extends State<SearchPage> {
 
     final currentQuery = trimmed;
     final l10n = l10nOf(context);
+    // A leg that fails after the viewer moved on blames this query, not the
+    // one now on screen.
+    final recordFailure = _sourceErrorRecorderFor(currentQuery);
 
     void addSection(
       MovieSection section, {
@@ -769,7 +776,7 @@ class _SearchPageState extends State<SearchPage> {
             onSourceError: _sourceErrorRecorderFor(currentQuery),
           )
           .catchError((e) {
-            _recordSourceFailure('Addons', e);
+            recordFailure('Addons', e);
             return <MovieSection>[];
           });
 
@@ -850,7 +857,7 @@ class _SearchPageState extends State<SearchPage> {
                     )
                   : Future.value(<String, List<Map<String, dynamic>>>{}))
               .catchError((e) {
-                _recordSourceFailure('CloudStream', e);
+                recordFailure('CloudStream', e);
                 return <String, List<Map<String, dynamic>>>{};
               });
 
@@ -879,7 +886,7 @@ class _SearchPageState extends State<SearchPage> {
                 );
               })
               .catchError((e) {
-                _recordSourceFailure(l10n.searchSourceTitleLookup, e);
+                recordFailure(l10n.searchSourceTitleLookup, e);
               });
 
       // 4. TMDb in Chinese, for a query typed in Chinese: the addons know
@@ -907,7 +914,7 @@ class _SearchPageState extends State<SearchPage> {
                   );
                 })
                 .catchError((e) {
-                  _recordSourceFailure('TMDb', e);
+                  recordFailure('TMDb', e);
                 })
           : Future<void>.value();
 
@@ -915,7 +922,7 @@ class _SearchPageState extends State<SearchPage> {
     } catch (e) {
       // A leg that throws synchronously, or a Future.wait rejection that
       // outran the handlers above, is still a source that did not answer.
-      _recordSourceFailure('Search', e);
+      recordFailure('Search', e);
     }
 
     if (mounted && _lastQuery == currentQuery) {

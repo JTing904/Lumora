@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../account/library_sync.dart';
+import '../account/account_scope.dart';
 
 /// What makes a title the kind of title it is, for taste: where it is from,
 /// whether it is animated, and whether it is a series or a film.
@@ -149,18 +151,41 @@ abstract final class TasteStore {
   static final ValueNotifier<Map<String, TasteEntry>> entries =
       ValueNotifier<Map<String, TasteEntry>>(const {});
 
+  /// Loads the signed-in account's history (see [AccountScope]).
   static Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
-      if (raw == null) return;
-      final list = jsonDecode(raw);
-      if (list is! List) return;
-      entries.value = {
-        for (final e in list.map(TasteEntry.fromJson).whereType<TasteEntry>())
-          e.id: e,
-      };
+      final raw = prefs.getString(AccountScope.key(_storageKey));
+      if (raw == null) {
+        entries.value = const {};
+        return;
+      }
+      _apply(jsonDecode(raw));
     } catch (_) {}
+  }
+
+  static void _apply(Object? list) {
+    if (list is! List) return;
+    entries.value = {
+      for (final e in list.map(TasteEntry.fromJson).whereType<TasteEntry>())
+        e.id: e,
+    };
+  }
+
+  /// The history as the account keeps it on the server.
+  static Object? exportDocument() => [
+    for (final e in entries.value.values) e.toJson(),
+  ];
+
+  /// Takes the account's history from the server.
+  static Future<void> importDocument(Object? data) async {
+    if (data is! List) return;
+    _apply(data);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      AccountScope.key(_storageKey),
+      jsonEncode(exportDocument()),
+    );
   }
 
   /// Applies [change] to the entry for [id], creating it if it is new.
@@ -259,8 +284,9 @@ abstract final class TasteStore {
       for (final e in entries.value.values) e.toJson(),
     ]);
     SharedPreferences.getInstance()
-        .then((prefs) => prefs.setString(_storageKey, encoded))
-        .catchError((_) => false);
+        .then((prefs) => prefs.setString(AccountScope.key(_storageKey), encoded))
+        .then((_) => LibrarySync.changed('taste'))
+        .catchError((_) {});
   }
 
   @visibleForTesting

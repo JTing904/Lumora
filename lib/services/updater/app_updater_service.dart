@@ -8,6 +8,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'release_signature.dart';
+
 class AppUpdaterService {
   /// This fork's own release feed. Do NOT point this back at the upstream
   /// project: the updater downloads and installs whatever it finds here, so
@@ -114,13 +116,31 @@ class AppUpdaterService {
     return null;
   }
 
+  /// The manifest's signature, `SHA256SUMS.sig`.
+  String? _findSignatureAsset(List assets) {
+    for (final asset in assets) {
+      final name = (asset['name'] as String? ?? '').toLowerCase();
+      if (name == 'sha256sums.sig' || name == 'sha256sums.txt.sig') {
+        return asset['browser_download_url'] as String?;
+      }
+    }
+    return null;
+  }
+
+  /// The asset's checksum, only from a manifest Lumora's release key signed:
+  /// a checksum published next to the file by whoever published the file
+  /// proves only that the download was not corrupted. Unsigned, the update
+  /// is offered as a release page to open, never as a file to run.
   Future<String?> _fetchExpectedChecksum(
     List assets,
     String downloadUrl,
   ) async {
     final checksumUrl = _findChecksumAsset(assets);
+    final signatureUrl = _findSignatureAsset(assets);
     final assetName = _assetNameFromUrl(downloadUrl);
-    if (checksumUrl == null || assetName.isEmpty) return null;
+    if (checksumUrl == null || signatureUrl == null || assetName.isEmpty) {
+      return null;
+    }
 
     try {
       final response = await http.get(
@@ -131,6 +151,12 @@ class AppUpdaterService {
         debugPrint(
           '[AppUpdaterService] Checksum manifest returned ${response.statusCode}',
         );
+        return null;
+      }
+      final signature = await http.get(Uri.parse(signatureUrl));
+      if (signature.statusCode != 200 ||
+          !releaseManifestSigned(response.bodyBytes, signature.body)) {
+        debugPrint('[AppUpdaterService] Release manifest is not signed');
         return null;
       }
       return checksumForAsset(response.body, assetName);

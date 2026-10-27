@@ -128,9 +128,9 @@ void main() {
     expect(find.textContaining('共 2 条'), findsOneWidget);
   });
 
-  test('a fresh install opens in Chinese', () async {
+  test('a fresh install opens in English', () async {
     await LocaleSettings.initialize();
-    expect(LocaleSettings.locale.value, _zh);
+    expect(LocaleSettings.locale.value, const Locale('en'));
   });
 
   test('LocaleSettings persists each choice and initialize restores it', () async {

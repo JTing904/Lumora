@@ -7,6 +7,8 @@ import '../continue_watching/continue_watching_service.dart';
 import '../storage/json_document_store.dart';
 import '../trakt/trakt_service.dart';
 import '../simkl/simkl_service.dart';
+import '../account/library_sync.dart';
+import '../account/account_scope.dart';
 
 abstract final class MyListService {
   static const _storageKey = 'my_list_v1';
@@ -16,9 +18,9 @@ abstract final class MyListService {
   /// The list used to be one bare JSON string decoded at startup; a decode
   /// failure reset it to empty. The store keeps the last valid copy and
   /// migrates the existing string in place.
-  static final JsonDocumentStore<List<MyListItem>> _store =
+  static JsonDocumentStore<List<MyListItem>> get _store =>
       JsonDocumentStore<List<MyListItem>>(
-        key: _storageKey,
+        key: AccountScope.key(_storageKey),
         version: 1,
         decode: (value) => (value as List)
             .map((entry) => MyListItem.fromJson(entry as Map<String, dynamic>))
@@ -82,9 +84,23 @@ abstract final class MyListService {
   /// running app now needs to show.
   static Future<void> reloadLocal() async {
     final stored = await _store.read();
-    if (stored != null) {
-      items.value = stored;
-    }
+    // Null: an account with nothing saved yet on this device.
+    items.value = stored ?? [];
+  }
+
+  /// The list as the account keeps it on the server.
+  static Object? exportDocument() =>
+      items.value.map((item) => item.toJson()).toList();
+
+  /// Takes the account's list from the server.
+  static Future<void> importDocument(Object? data) async {
+    if (data is! List) return;
+    final list = data
+        .whereType<Map>()
+        .map((m) => MyListItem.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+    await _store.write(list);
+    items.value = list;
   }
 
   static Future<void> syncAll() async {
@@ -181,6 +197,7 @@ abstract final class MyListService {
 
   static Future<void> _persist() async {
     await _store.write(items.value);
+    LibrarySync.changed('my_list');
   }
 
   static bool isInList(MyListItem item) {

@@ -306,6 +306,9 @@ class MetadataService {
 
   // ── Meta (full details) ───────────────────────────────────────────────
 
+  /// One meta read's limit, so a stalled addon cannot hold Details open.
+  static const Duration _metaTimeout = Duration(seconds: 12);
+
   /// Fetch detailed metadata (background, description, rating, genres, etc.)
   static Future<MovieDetail?> fetchMeta({
     required String baseUrl,
@@ -329,7 +332,7 @@ class MetadataService {
 
     http.Response? response;
     try {
-      response = await client.get(Uri.parse(url));
+      response = await client.get(Uri.parse(url)).timeout(_metaTimeout);
     } catch (_) {}
 
     // Fallback 1: If 404 and baseUrl lacks config prefix, retry with /%7B%7D
@@ -338,7 +341,7 @@ class MetadataService {
         !effectiveBaseUrl.contains('/{}')) {
       try {
         final configUrl = '$effectiveBaseUrl/%7B%7D/meta/$type/$encodedId.json';
-        final configResp = await client.get(Uri.parse(configUrl));
+        final configResp = await client.get(Uri.parse(configUrl)).timeout(_metaTimeout);
         if (configResp.statusCode == 200) {
           response = configResp;
         }
@@ -350,12 +353,12 @@ class MetadataService {
         (type == 'collections' || type == 'collection')) {
       try {
         final movieUrl = '$effectiveBaseUrl/meta/movie/$encodedId.json';
-        var movieResp = await client.get(Uri.parse(movieUrl));
+        var movieResp = await client.get(Uri.parse(movieUrl)).timeout(_metaTimeout);
         if (movieResp.statusCode == 404 &&
             !effectiveBaseUrl.contains('/%7B') &&
             !effectiveBaseUrl.contains('/{}')) {
           final configMovieUrl = '$effectiveBaseUrl/%7B%7D/meta/movie/$encodedId.json';
-          movieResp = await client.get(Uri.parse(configMovieUrl));
+          movieResp = await client.get(Uri.parse(configMovieUrl)).timeout(_metaTimeout);
         }
         if (movieResp.statusCode == 200) {
           response = movieResp;
@@ -369,12 +372,12 @@ class MetadataService {
         imdbId.startsWith('ctmdb.')) {
       try {
         final collUrl = '$effectiveBaseUrl/meta/collections/$encodedId.json';
-        var collResp = await client.get(Uri.parse(collUrl));
+        var collResp = await client.get(Uri.parse(collUrl)).timeout(_metaTimeout);
         if (collResp.statusCode == 404 &&
             !effectiveBaseUrl.contains('/%7B') &&
             !effectiveBaseUrl.contains('/{}')) {
           final configCollUrl = '$effectiveBaseUrl/%7B%7D/meta/collections/$encodedId.json';
-          collResp = await client.get(Uri.parse(configCollUrl));
+          collResp = await client.get(Uri.parse(configCollUrl)).timeout(_metaTimeout);
         }
         if (collResp.statusCode == 200) {
           response = collResp;

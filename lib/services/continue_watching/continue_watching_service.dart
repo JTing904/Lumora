@@ -29,15 +29,18 @@ import '../trakt/trakt_service.dart';
 import '../trakt/trakt_continue_watching_service.dart';
 import '../simkl/simkl_service.dart';
 import '../simkl/simkl_continue_watching_service.dart';
+import '../account/library_sync.dart';
+import '../account/account_scope.dart';
 
 class ContinueWatchingService {
   static const _storageKey = 'continue_watching_sessions_v1';
 
-  /// One durable document for the resume list. The previous format was a bare
-  /// JSON array; the store migrates it and keeps the last valid copy.
-  static final JsonDocumentStore<List<ContinueWatchingItem>> _store =
+  /// One durable document for the resume list, per account (see
+  /// [AccountScope]). The previous format was a bare JSON array; the store
+  /// migrates it and keeps the last valid copy.
+  static JsonDocumentStore<List<ContinueWatchingItem>> get _store =>
       JsonDocumentStore<List<ContinueWatchingItem>>(
-        key: _storageKey,
+        key: AccountScope.key(_storageKey),
         version: 1,
         decode: (value) => (value as List)
             .whereType<Map<String, dynamic>>()
@@ -103,10 +106,28 @@ class ContinueWatchingService {
         final items = deduped.values.toList();
         items.sort((a, b) => b.lastWatchedAt.compareTo(a.lastWatchedAt));
         activeItems.value = items;
+      } else {
+        // An account with nothing saved yet on this device.
+        activeItems.value = [];
       }
     } catch (e) {
       debugPrint('[ContinueWatchingService] Failed to load sessions: $e');
     }
+  }
+
+  /// The resume list as the account keeps it on the server.
+  static Object? exportDocument() =>
+      activeItems.value.map((item) => item.toJson()).toList();
+
+  /// Takes the account's resume list from the server.
+  static Future<void> importDocument(Object? data) async {
+    if (data is! List) return;
+    final items = data
+        .whereType<Map>()
+        .map((m) => ContinueWatchingItem.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+    await _store.write(items);
+    await reloadLocal();
   }
 
   /// Syncs continue watching entries from Trakt and Simkl
@@ -443,6 +464,7 @@ class ContinueWatchingService {
     // Persist the trimmed list through the durable store.
     try {
       await _store.write(trimmed);
+      LibrarySync.changed('continue_watching');
     } catch (e) {
       debugPrint('[ContinueWatchingService] Failed to persist session: $e');
     }
@@ -554,6 +576,7 @@ class ContinueWatchingService {
 
     try {
       await _store.write(current);
+      LibrarySync.changed('continue_watching');
     } catch (e) {
       debugPrint('[ContinueWatchingService] Failed to remove session: $e');
     }

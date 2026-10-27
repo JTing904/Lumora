@@ -1,4 +1,5 @@
 import '../../services/metadata/title_kind_service.dart';
+import '../account/login_page.dart' show SignInRequired;
 import '../../services/player/source_pick_settings.dart';
 import '../../services/stream/network_speed.dart';
 import '../../services/stream/auto_source_picker.dart';
@@ -43,18 +44,24 @@ import '../../services/storage/app_image_cache.dart';
 // ---------------------------------------------------------------------------
 // WatchScreen
 // ---------------------------------------------------------------------------
-class WatchScreen extends StatefulWidget {
+/// [_WatchScreenBody] for a signed-in viewer; the sign-in page for anyone else.
+class WatchScreen extends StatelessWidget {
+  const WatchScreen({
+    super.key,
+    required this.detail,
+    this.selectedEpisode,
+    required this.type,
+    this.initialPosition,
+    this.isCollection = false,
+    this.autoPick = false,
+  });
+
   final MovieDetail detail;
   final Video? selectedEpisode;
   final String type;
   final Duration? initialPosition;
-
   final bool isCollection;
-
-  /// Play the fastest working source as soon as the scrapers answer, instead
-  /// of waiting for the viewer to pick one. See [AutoSourcePicker].
   final bool autoPick;
-
   /// Stands in for the player route in tests.
   ///
   /// `PlayerScreen` owns a `media_kit` `Player`, which no widget test can build,
@@ -69,8 +76,33 @@ class WatchScreen extends StatefulWidget {
   @visibleForTesting
   static Future<bool> Function(StreamSource source)? debugProbeForTesting;
 
-  const WatchScreen({
-    super.key,
+  @override
+  Widget build(BuildContext context) => SignInRequired(
+    child: _WatchScreenBody(
+      detail: detail,
+      selectedEpisode: selectedEpisode,
+      type: type,
+      initialPosition: initialPosition,
+      isCollection: isCollection,
+      autoPick: autoPick,
+    ),
+  );
+}
+
+class _WatchScreenBody extends StatefulWidget {
+  final MovieDetail detail;
+  final Video? selectedEpisode;
+  final String type;
+  final Duration? initialPosition;
+
+  final bool isCollection;
+
+  /// Play the fastest working source as soon as the scrapers answer, instead
+  /// of waiting for the viewer to pick one. See [AutoSourcePicker].
+  final bool autoPick;
+
+
+  const _WatchScreenBody({
     required this.detail,
     this.selectedEpisode,
     required this.type,
@@ -80,10 +112,10 @@ class WatchScreen extends StatefulWidget {
   });
 
   @override
-  State<WatchScreen> createState() => _WatchScreenState();
+  State<_WatchScreenBody> createState() => _WatchScreenState();
 }
 
-class _WatchScreenState extends State<WatchScreen>
+class _WatchScreenState extends State<_WatchScreenBody>
     with SingleTickerProviderStateMixin {
   bool get _isCollection =>
       widget.isCollection ||

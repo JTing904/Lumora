@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../l10n/l10n.dart';
 import '../../models/movie/movie.dart';
+import '../../models/movie/movie_detail.dart';
+import '../../models/movie/video.dart';
 import 'tmdb_service.dart';
 
 /// One TMDb list: an endpoint and its query.
@@ -120,9 +122,13 @@ abstract final class TmdbCatalog {
         ...query.params,
         'language': _language,
       });
+      // A failed read is not cached, so the next ask (Home's Retry) reads
+      // again instead of serving the empty row for ten minutes.
+      if (body == null) return const [];
       final results = [
-        for (final r in body?['results'] as List? ?? const [])
+        for (final r in body['results'] as List? ?? const [])
           if (r is Map &&
+              _isTitle(r) &&
               (AdultGuard.allowed ||
                   !AdultGuard.looksAdult([
                     r['title']?.toString(),
@@ -130,10 +136,9 @@ abstract final class TmdbCatalog {
                     r['original_title']?.toString(),
                     r['original_name']?.toString(),
                   ], flagged: r['adult'] == true)))
-          if (!query.liveActionOnly ||
-              !(r['genre_ids'] as List? ?? const [])
-                  .contains(16))
-            r,
+            if (!query.liveActionOnly ||
+                !(r['genre_ids'] as List? ?? const []).contains(16))
+              r,
       ];
       final movies = await Future.wait([
         for (final r in results.take(limit + 6))
@@ -144,12 +149,23 @@ abstract final class TmdbCatalog {
         for (final m in movies)
           if (m != null) m,
       ].take(limit).toList();
-      _rows[key] = (DateTime.now(), row);
+      // Titles listed but none resolved means the id lookups failed: leave
+      // that uncached too.
+      if (row.isNotEmpty || results.isEmpty) {
+        _rows[key] = (DateTime.now(), row);
+      }
       return row.where((m) => !exclude.contains(m.id)).toList();
     } catch (e) {
       debugPrint('[TmdbCatalog] ${query.path}: $e');
       return const [];
     }
+  }
+
+  /// Whether a result is a film or a series: /search/multi and
+  /// /trending/all also answer people (and could answer collections).
+  static bool _isTitle(Map r) {
+    final mediaType = r['media_type']?.toString();
+    return mediaType == null || mediaType == 'movie' || mediaType == 'tv';
   }
 
   static bool _isSeries(Map r, TmdbQuery query) {
@@ -197,7 +213,9 @@ abstract final class TmdbCatalog {
     final idKey = '$kind/$tmdbId';
     if (_imdbIds.containsKey(idKey)) return _imdbIds[idKey];
     final ids = await TmdbService.getScraperJson('/$kind/$tmdbId/external_ids');
-    final imdb = ids?['imdb_id']?.toString();
+    // A failed read says nothing about the title: only an answer is cached.
+    if (ids == null) return null;
+    final imdb = ids['imdb_id']?.toString();
     final valid = imdb != null && imdb.startsWith('tt') ? imdb : null;
     _imdbIds[idKey] = valid;
     return valid;
@@ -205,13 +223,12 @@ abstract final class TmdbCatalog {
 
   /// [movie] with its IMDb id, when it still has the `tmdb:kind:id` one a
   /// lazily built row gives it. Null when TMDb lists no IMDb id, which the
-  /// app cannot play.
+  /// app cannot play, or when a `tmdb:` id is malformed.
   static Future<Movie?> resolve(Movie movie) async {
-    final parts = movie.id.split(':');
-    if (parts.length != 3 || parts[0] != 'tmdb') return movie;
-    final tmdbId = int.tryParse(parts[2]);
-    if (tmdbId == null) return null;
-    final imdb = await _imdbFor(parts[1], tmdbId);
+    if (!movie.id.startsWith('tmdb:')) return movie;
+    final ref = tmdbRef(movie);
+    if (ref == null) return null;
+    final imdb = await _imdbFor(ref.kind, ref.id);
     if (imdb == null) return null;
     return Movie(
       id: imdb,
@@ -224,6 +241,117 @@ abstract final class TmdbCatalog {
       backdrop: movie.backdrop,
       trailerKey: movie.trailerKey,
       description: movie.description,
+    );
+  }
+
+  /// The kind ('movie' or 'tv') and TMDb id a `tmdb:` id names, or null when
+  /// it is malformed. A bare `tmdb:123` (older My List rows) takes its kind
+  /// from [Movie.type] when that says which; otherwise it cannot be told.
+  @visibleForTesting
+  static ({String kind, int id})? tmdbRef(Movie movie) {
+    final parts = movie.id.split(':');
+    if (parts.isEmpty || parts[0] != 'tmdb') return null;
+    if (parts.length == 3) {
+      final tmdbId = int.tryParse(parts[2]);
+      if (tmdbId == null || (parts[1] != 'movie' && parts[1] != 'tv')) {
+        return null;
+      }
+      return (kind: parts[1], id: tmdbId);
+    }
+    if (parts.length == 2) {
+      final tmdbId = int.tryParse(parts[1]);
+      final kind = switch (movie.type) {
+        'movie' => 'movie',
+        'series' || 'tv' => 'tv',
+        _ => null,
+      };
+      if (tmdbId == null || kind == null) return null;
+      return (kind: kind, id: tmdbId);
+    }
+    return null;
+  }
+
+  /// Details for a `tmdb:kind:id` title straight from TMDb, in the viewer's
+  /// language: for a title TMDb lists no IMDb id for (new donghua and short
+  /// dramas often have none), which the addons cannot describe. Series come
+  /// with their seasons' episodes. Null when TMDb does not answer.
+  static Future<MovieDetail?> detailFromTmdb(Movie row) async {
+    final ref = tmdbRef(row);
+    if (ref == null) return null;
+    final kind = ref.kind;
+    final tmdbId = ref.id;
+    final rowId = 'tmdb:$kind:$tmdbId';
+    final body = await TmdbService.getScraperJson('/$kind/$tmdbId', {
+      'language': _language,
+    });
+    if (body == null) return null;
+    final series = kind == 'tv';
+    final videos = <Video>[];
+    if (series) {
+      final seasons = [
+        for (final s in body['seasons'] as List? ?? const [])
+          if (s is Map && s['season_number'] is int) s['season_number'] as int,
+      ];
+      final pages = await Future.wait([
+        for (final n in seasons.take(12))
+          TmdbService.getScraperJson('/tv/$tmdbId/season/$n', {
+            'language': _language,
+          }),
+      ]);
+      for (final page in pages) {
+        for (final e in page?['episodes'] as List? ?? const []) {
+          if (e is! Map) continue;
+          final s = e['season_number'] as int?;
+          final n = e['episode_number'] as int?;
+          if (s == null || n == null) continue;
+          final still = e['still_path']?.toString();
+          final name = (e['name'] ?? '').toString();
+          videos.add(
+            Video(
+              id: '$rowId:$s:$n',
+              title: name.isEmpty ? 'Episode $n' : name,
+              season: s,
+              episode: n,
+              released: e['air_date']?.toString(),
+              thumbnail: still == null
+                  ? null
+                  : 'https://image.tmdb.org/t/p/w300$still',
+              overview: (e['overview']?.toString() ?? '').isEmpty
+                  ? null
+                  : e['overview'].toString(),
+            ),
+          );
+        }
+      }
+    }
+    final date = (body['first_air_date'] ?? body['release_date'] ?? '')
+        .toString();
+    final poster = body['poster_path']?.toString();
+    final backdrop = body['backdrop_path']?.toString();
+    final vote = (body['vote_average'] as num?)?.toDouble();
+    final minutes = series
+        ? ((body['episode_run_time'] as List?)?.firstOrNull as num?)?.toInt()
+        : (body['runtime'] as num?)?.toInt();
+    return MovieDetail(
+      id: rowId,
+      type: series ? 'series' : 'movie',
+      name: (body['name'] ?? body['title'] ?? row.name).toString(),
+      poster: poster == null
+          ? row.poster
+          : 'https://image.tmdb.org/t/p/w500$poster',
+      background: backdrop == null
+          ? row.backdrop
+          : 'https://image.tmdb.org/t/p/w1280$backdrop',
+      description: body['overview']?.toString(),
+      year: date.length >= 4 ? date.substring(0, 4) : row.year,
+      imdbRating: vote == null || vote == 0 ? null : vote.toStringAsFixed(1),
+      genres: [
+        for (final g in body['genres'] as List? ?? const [])
+          if (g is Map && g['name'] != null) g['name'].toString(),
+      ],
+      runtime: minutes == null || minutes == 0 ? null : '$minutes min',
+      videos: videos,
+      tmdbId: '$tmdbId',
     );
   }
 }

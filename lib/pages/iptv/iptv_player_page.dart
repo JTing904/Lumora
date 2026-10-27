@@ -1,4 +1,6 @@
+import '../../services/player/playable_url.dart';
 import '../../l10n/l10n.dart';
+import '../account/login_page.dart' show SignInRequired;
 import 'dart:async';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -23,13 +25,8 @@ import '../../widgets/player/player_aspect_menu.dart';
 import '../../widgets/player/player_volume_control.dart';
 import '../../services/storage/app_image_cache.dart';
 
-class IptvPlayerPage extends StatefulWidget {
-  final HardcodedChannel channel;
-  final List<ChannelHit> hits;
-  final int initialHitIndex;
-  final bool? isLive;
-  final String? categoryTitle;
-
+/// [_IptvPlayerPageBody] for a signed-in viewer; the sign-in page for anyone else.
+class IptvPlayerPage extends StatelessWidget {
   const IptvPlayerPage({
     super.key,
     required this.channel,
@@ -39,11 +36,44 @@ class IptvPlayerPage extends StatefulWidget {
     this.categoryTitle,
   });
 
+  final HardcodedChannel channel;
+  final List<ChannelHit> hits;
+  final int initialHitIndex;
+  final bool? isLive;
+  final String? categoryTitle;
+
   @override
-  State<IptvPlayerPage> createState() => _IptvPlayerPageState();
+  Widget build(BuildContext context) => SignInRequired(
+    child: _IptvPlayerPageBody(
+      channel: channel,
+      hits: hits,
+      initialHitIndex: initialHitIndex,
+      isLive: isLive,
+      categoryTitle: categoryTitle,
+    ),
+  );
 }
 
-class _IptvPlayerPageState extends State<IptvPlayerPage>
+class _IptvPlayerPageBody extends StatefulWidget {
+  final HardcodedChannel channel;
+  final List<ChannelHit> hits;
+  final int initialHitIndex;
+  final bool? isLive;
+  final String? categoryTitle;
+
+  const _IptvPlayerPageBody({
+    required this.channel,
+    required this.hits,
+    this.initialHitIndex = 0,
+    this.isLive,
+    this.categoryTitle,
+  });
+
+  @override
+  State<_IptvPlayerPageBody> createState() => _IptvPlayerPageState();
+}
+
+class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
     with SingleTickerProviderStateMixin {
   late final Player _player = Player(configuration: PlayerSettings.getMediaKitPlayerConfiguration());
   late final VideoController _videoController = VideoController(
@@ -271,6 +301,9 @@ class _IptvPlayerPageState extends State<IptvPlayerPage>
         const {'User-Agent': 'VLC/3.0.20 LibVLC/3.0.20'},
       );
 
+      if (!isPlayableUrl(streamUrl)) {
+        throw StateError('Not a stream address');
+      }
       await _player.open(
         Media(streamUrl, httpHeaders: headers),
         play: true,

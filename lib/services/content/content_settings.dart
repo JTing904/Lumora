@@ -28,8 +28,11 @@ abstract final class ContentSettings {
   /// Nobody is an admin at startup, so the switch starts off whatever was
   /// stored; [setAdmin] restores the stored preference once the account is
   /// known.
+  ///
+  /// Only while no admin is known: the account check starts before this runs
+  /// and may already have restored an admin's switch.
   static Future<void> initialize() async {
-    adultEnabled.value = false;
+    if (!isAdmin.value) adultEnabled.value = false;
   }
 
   /// Called by the auth layer whenever the signed-in account changes.

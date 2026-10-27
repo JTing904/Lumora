@@ -231,6 +231,10 @@ class _AppShellState extends State<AppShell> {
   /// - costs the bar nothing while the user works.
   final ValueNotifier<double> _slotScrollOffset = ValueNotifier<double>(0);
 
+  /// Each slot's last scroll offset. The stack keeps a page's scroll while it
+  /// is hidden, so coming back to it has to bring its offset back too.
+  final Map<ShellSlot, double> _offsets = {};
+
   /// The desktop keyboard map: the conventional desktop chords plus fullscreen.
   ///
   /// Plain letters are deliberately absent. The player and the music surface
@@ -323,11 +327,10 @@ class _AppShellState extends State<AppShell> {
     _slot.value = slot;
     // The offset belongs to the page being left, so it cannot describe the one
     // arriving: a scrolled Home must not leave the bar opaque over a Browse that
-    // is at its top. The tracked offset goes back to 0, which is the blended end
-    // - a slot that does not scroll, or is already at its top, shows the
-    // transparent bar over its own canvas - and the first scroll of the new slot
-    // corrects it if that page did come back scrolled.
-    _slotScrollOffset.value = 0;
+    // is at its top, and a Home left scrolled must not come back under a
+    // see-through bar (its buttons showed through the nav). The arriving slot
+    // gets the offset it was left at; one never scrolled is at its top.
+    _slotScrollOffset.value = _offsets[slot] ?? 0;
     setState(() {});
     return true;
   }
@@ -373,6 +376,7 @@ class _AppShellState extends State<AppShell> {
     if (notification.depth != 0) return false;
     if (notification.metrics.axis != Axis.vertical) return false;
     _slotScrollOffset.value = notification.metrics.pixels;
+    _offsets[_slot.value] = notification.metrics.pixels;
     return false;
   }
 

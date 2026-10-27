@@ -215,7 +215,19 @@ class _DetailsPageState extends State<DetailsPage> {
     );
   }
 
+  /// [_loadDetails], never leaving the page loading: a throw or a path
+  /// that returns without a detail ends on the unavailable state.
   Future<void> _fetchDetails() async {
+    try {
+      await _loadDetails();
+    } catch (e) {
+      debugPrint('[Details] ${widget.movie.id}: $e');
+    } finally {
+      if (mounted && _isLoading) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadDetails() async {
     String effectiveBaseUrl = widget.movie.addonBaseUrl;
     String effectiveType = widget.movie.type;
     String effectiveId = widget.movie.id;
@@ -225,7 +237,17 @@ class _DetailsPageState extends State<DetailsPage> {
     if (effectiveId.startsWith('tmdb:')) {
       final resolved = await TmdbCatalog.resolve(widget.movie);
       if (!mounted) return;
-      if (resolved != null) effectiveId = resolved.id;
+      if (resolved != null) {
+        effectiveId = resolved.id;
+      } else {
+        // No IMDb id: the addons cannot describe it, TMDb can.
+        final fromTmdb = await TmdbCatalog.detailFromTmdb(widget.movie);
+        if (!mounted) return;
+        if (fromTmdb != null) {
+          _showDetail(fromTmdb);
+          return;
+        }
+      }
     }
 
     // Handle direct CloudStream detail resolution
@@ -322,6 +344,16 @@ class _DetailsPageState extends State<DetailsPage> {
       }
     }
 
+    // A TMDb row whose IMDb id the addons do not know: TMDb describes it.
+    if (meta == null && widget.movie.id.startsWith('tmdb:')) {
+      final fromTmdb = await TmdbCatalog.detailFromTmdb(widget.movie);
+      if (!mounted) return;
+      if (fromTmdb != null) {
+        _showDetail(fromTmdb);
+        return;
+      }
+    }
+
     if (meta != null && meta.type.isNotEmpty) {
       _resolvedType = meta.type;
     }
@@ -353,6 +385,27 @@ class _DetailsPageState extends State<DetailsPage> {
       // Fire off similar content fetch in background
       _fetchSimilarContent();
     }
+  }
+
+  /// Shows [meta] the way a fetched detail is shown: opening season, focus,
+  /// then the similar titles.
+  void _showDetail(MovieDetail meta) {
+    _resolvedType = meta.type;
+    setState(() {
+      _detail = meta;
+      _isLoading = false;
+      final seasons = <int?>[
+        ...meta.videos.map((v) => v.season).whereType<int>().toSet(),
+      ]..sort((a, b) => a!.compareTo(b!));
+      if (seasons.isNotEmpty) {
+        _selectedSeason = _openingSeason(seasons);
+        _updateEpisodesForSeason();
+      } else {
+        _currentSeasonEpisodes = List.from(meta.videos);
+      }
+    });
+    _claimPrimaryActionFocus();
+    _fetchSimilarContent();
   }
 
   /// Resolves a `bestsimilar_` row to real details.
@@ -1026,8 +1079,12 @@ class _DetailsPageState extends State<DetailsPage> {
     final width = _episodeWidth(context);
     final target = _currentEpisodeTarget;
     final fallback = _detail?.background ?? _detail?.poster;
+    // The still, the list's padding (12) and the gap under it (8), then the
+    // label and title lines at the viewer's text size, with a little slack.
+    final scaler = MediaQuery.textScalerOf(context);
+    final lines = (scaler.scale(16) + scaler.scale(13)) * 1.6;
     return SizedBox(
-      height: width * 9 / 16 + 64,
+      height: width * 9 / 16 + 20 + lines + 2,
       child: ListView.separated(
         key: ValueKey(_selectedSeason),
         controller: _episodeScroll,

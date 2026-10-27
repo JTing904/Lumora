@@ -1,5 +1,6 @@
 import '../../services/account/account_service.dart';
 import '../account/invite_codes_page.dart';
+import '../account/login_page.dart';
 import '../../shell/app_shell_scope.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +14,7 @@ import '../../services/addon/addon_manager.dart';
 import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../ui/lu_focusable.dart';
+import '../../ui/lu_language_toggle.dart';
 import '../../ui/lu_theme.dart';
 import '../../services/debrid/debrid_service.dart';
 import '../../services/theme/glass_settings.dart';
@@ -46,7 +48,6 @@ import '../../services/discord/discord_rpc_service.dart';
 import '../../services/backup/backup_restore_service.dart';
 import '../../services/home/home_page_settings.dart';
 import '../../services/content/content_settings.dart';
-
 
 /// Third-party brand hues. These identify an external service, so they stay
 /// outside the palette-derived token layer.
@@ -823,9 +824,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           child: Padding(
             padding: const EdgeInsets.all(4),
-            child: Column(
-              children: _dividerSeparated(rows, LuColors.lineSoft),
-            ),
+            child: Column(children: _dividerSeparated(rows, LuColors.lineSoft)),
           ),
         ),
       ],
@@ -925,48 +924,89 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (AccountService.configured &&
-                          AccountService.email != null) ...[
-                        const _ProfileCard(),
-                        const SizedBox(height: 32),
-                      ],
+                      const Align(
+                        alignment: Alignment.centerRight,
+                        child: LuLanguageToggle(),
+                      ),
+                      const SizedBox(height: ZplaySpacing.s16),
+                      // Signed in: who, sign out, invites. Signed out: the
+                      // way in, since browsing needs no account.
                       if (AccountService.configured)
-                        _buildSection(
-                          context,
-                          'ACCOUNT',
-                          first: true,
-                          rows: [
-                            _SettingsNavRow(
-                              icon: Icons.account_circle_rounded,
-                              iconColor: tokens.accent,
-                              title: l10nOf(
+                        ValueListenableBuilder(
+                          valueListenable: AccountService.session,
+                          builder: (context, session, _) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (session != null) ...[
+                                const _ProfileCard(),
+                                const SizedBox(height: 32),
+                              ],
+                              _buildSection(
                                 context,
-                              ).accountSignedInAs(AccountService.email ?? ''),
-                              subtitle: l10nOf(context).accountSignOutSubtitle,
-                              valueText: l10nOf(context).accountSignOut,
-                              onTap: () => _confirmSignOut(context),
-                            ),
-                            ValueListenableBuilder<bool>(
-                              valueListenable: ContentSettings.isAdmin,
-                              builder: (context, admin, _) => admin
-                                  ? _SettingsNavRow(
-                                      icon: Icons.confirmation_number_outlined,
-                                      iconColor: tokens.accent,
-                                      title: l10nOf(context).inviteManage,
-                                      subtitle: l10nOf(
-                                        context,
-                                      ).inviteManageSubtitle,
-                                      valueText: l10nOf(context).accountAdmin,
-                                      onTap: () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              const InviteCodesPage(),
+                                'ACCOUNT',
+                                first: true,
+                                rows: session == null
+                                    ? [
+                                        _SettingsNavRow(
+                                          icon: Icons.login_rounded,
+                                          iconColor: tokens.accent,
+                                          title: l10nOf(context).authSignIn,
+                                          subtitle: l10nOf(
+                                            context,
+                                          ).authSignInSubtitle,
+                                          valueText: l10nOf(context).authSignUp,
+                                          onTap: () => LoginPage.open(context),
                                         ),
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                          ],
+                                      ]
+                                    : [
+                                        _SettingsNavRow(
+                                          icon: Icons.account_circle_rounded,
+                                          iconColor: tokens.accent,
+                                          title: l10nOf(context)
+                                              .accountSignedInAs(
+                                                AccountService.email ?? '',
+                                              ),
+                                          subtitle: l10nOf(
+                                            context,
+                                          ).accountSignOutSubtitle,
+                                          valueText: l10nOf(
+                                            context,
+                                          ).accountSignOut,
+                                          onTap: () => _confirmSignOut(context),
+                                        ),
+                                        ValueListenableBuilder<bool>(
+                                          valueListenable:
+                                              ContentSettings.isAdmin,
+                                          builder: (context, admin, _) => admin
+                                              ? _SettingsNavRow(
+                                                  icon: Icons
+                                                      .confirmation_number_outlined,
+                                                  iconColor: tokens.accent,
+                                                  title: l10nOf(
+                                                    context,
+                                                  ).inviteManage,
+                                                  subtitle: l10nOf(
+                                                    context,
+                                                  ).inviteManageSubtitle,
+                                                  valueText: l10nOf(
+                                                    context,
+                                                  ).accountAdmin,
+                                                  onTap: () =>
+                                                      Navigator.of(
+                                                        context,
+                                                      ).push(
+                                                        MaterialPageRoute<void>(
+                                                          builder: (_) =>
+                                                              const InviteCodesPage(),
+                                                        ),
+                                                      ),
+                                                )
+                                              : const SizedBox.shrink(),
+                                        ),
+                                      ],
+                              ),
+                            ],
+                          ),
                         ),
                       _buildSection(
                         context,
@@ -1291,27 +1331,36 @@ class _SettingsPageState extends State<SettingsPage> {
                             builder: (context, isAdmin, _) => !isAdmin
                                 ? const SizedBox.shrink()
                                 : ValueListenableBuilder<bool>(
-                            valueListenable: ContentSettings.adultEnabled,
-                            builder: (context, isAdultOn, _) {
-                              return _SettingsSwitchRow(
-                                icon: Icons.eighteen_up_rating_rounded,
-                                iconColor: isAdultOn
-                                    ? tokens.danger
-                                    : tokens.textSecondary,
-                                title: l10nOf(context).settingsAdultTitle,
-                                subtitle: isAdultOn
-                                    ? l10nOf(context).settingsAdultOnSubtitle
-                                    : l10nOf(context).settingsAdultOffSubtitle,
-                                valueText: isAdultOn
-                                    ? l10nOf(context).stateOn
-                                    : l10nOf(context).stateOff,
-                                value: isAdultOn,
-                                onChanged: (val) async {
-                                  await ContentSettings.setAdultEnabled(val);
-                                },
-                              );
-                            },
-                          ),
+                                    valueListenable:
+                                        ContentSettings.adultEnabled,
+                                    builder: (context, isAdultOn, _) {
+                                      return _SettingsSwitchRow(
+                                        icon: Icons.eighteen_up_rating_rounded,
+                                        iconColor: isAdultOn
+                                            ? tokens.danger
+                                            : tokens.textSecondary,
+                                        title: l10nOf(
+                                          context,
+                                        ).settingsAdultTitle,
+                                        subtitle: isAdultOn
+                                            ? l10nOf(
+                                                context,
+                                              ).settingsAdultOnSubtitle
+                                            : l10nOf(
+                                                context,
+                                              ).settingsAdultOffSubtitle,
+                                        valueText: isAdultOn
+                                            ? l10nOf(context).stateOn
+                                            : l10nOf(context).stateOff,
+                                        value: isAdultOn,
+                                        onChanged: (val) async {
+                                          await ContentSettings.setAdultEnabled(
+                                            val,
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
                           ),
                         ],
                       ),

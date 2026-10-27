@@ -208,7 +208,7 @@ class VideasyScraper extends StreamScraper {
       int? mediaYear = year;
       String targetImdb = imdbId ?? '';
 
-      if (TmdbService.hasScraperKey) {
+      if (TmdbService.hasDirectScraperKey) {
         try {
           final metaPath = isTv
               ? '/tv/$tmdbId?api_key=${TmdbService.scraperKey}'

@@ -88,16 +88,19 @@ class _IptvPageState extends State<IptvPage> {
 
   Future<void> _loadQuickChannels() async {
     final channels = await IptvQuickChannelStore.load();
+    if (!mounted) return;
     setState(() => _quickChannels = channels);
   }
 
   Future<void> _addQuickChannel(QuickChannel channel) async {
     await IptvQuickChannelStore.add(channel);
+    if (!mounted) return;
     setState(() => _quickChannels.add(channel));
   }
 
   Future<void> _removeQuickChannel(String id) async {
     await IptvQuickChannelStore.remove(id);
+    if (!mounted) return;
     setState(() => _quickChannels.removeWhere((c) => c.id == id));
   }
 

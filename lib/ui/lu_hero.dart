@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 import '../models/continue_watching/continue_watching_item.dart';
@@ -16,6 +17,11 @@ import 'lu_theme.dart';
 
 /// A full-bleed carousel of titles, one every eight seconds, each with 播放,
 /// 加入收藏 and 详情; a remote or a pointer pauses it while on its controls.
+///
+/// A remote pages it from its buttons: Left on the first button shows the
+/// previous title, Right on the last the next one, and focus lands on the
+/// same button of the new slide. Anywhere else Left and Right move between
+/// the buttons as usual.
 /// Home's 今日热门 and the top of 电视剧 / 电影 / 动漫.
 class LuHeroCarousel extends StatefulWidget {
   const LuHeroCarousel({
@@ -43,6 +49,7 @@ class _LuHeroCarouselState extends State<LuHeroCarousel> {
   int _index = 0;
   Timer? _timer;
   bool _paused = false;
+  final _focus = FocusNode(debugLabel: 'hero', skipTraversal: true);
 
   @override
   void initState() {
@@ -53,19 +60,81 @@ class _LuHeroCarouselState extends State<LuHeroCarousel> {
     });
   }
 
-  void _go(int i) {
+  Future<void> _go(int i) async {
     if (!_pages.hasClients) return;
     final next = i % widget.movies.length;
-    _pages.animateToPage(
+    await _pages.animateToPage(
       next < 0 ? next + widget.movies.length : next,
       duration: const Duration(milliseconds: 700),
       curve: Curves.easeInOutCubic,
     );
   }
 
+  /// The focusable controls of the slide on screen, in reading order: the
+  /// nodes inside the carousel that lie within its bounds (a slide leaving
+  /// or arriving mid-swipe is outside them).
+  List<FocusNode> _controls() {
+    final bounds = _focus.rect.inflate(1);
+    final nodes = [
+      for (final n in _focus.traversalDescendants)
+        if (n.context != null &&
+            n.canRequestFocus &&
+            bounds.contains(n.rect.center))
+          n,
+    ];
+    nodes.sort((a, b) {
+      final dy = a.rect.center.dy - b.rect.center.dy;
+      if (dy.abs() > 8) return dy.sign.toInt();
+      return a.rect.center.dx.compareTo(b.rect.center.dx);
+    });
+    return nodes;
+  }
+
+  /// Left on the slide's first control pages back, Right on its last pages
+  /// on; every other key, and Left/Right between the controls, are left to
+  /// the normal traversal.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final dir = key == LogicalKeyboardKey.arrowLeft
+        ? -1
+        : key == LogicalKeyboardKey.arrowRight
+        ? 1
+        : 0;
+    if (dir == 0 || widget.movies.length < 2) return KeyEventResult.ignored;
+    final focused = FocusManager.instance.primaryFocus;
+    if (focused == null) return KeyEventResult.ignored;
+    final controls = _controls();
+    final at = controls.indexOf(focused);
+    if (at < 0) return KeyEventResult.ignored;
+    // The edges in reading order, so a row of buttons that wraps still has
+    // one first and one last.
+    if (at != (dir < 0 ? 0 : controls.length - 1)) {
+      return KeyEventResult.ignored;
+    }
+    _page(dir, at);
+    return KeyEventResult.handled;
+  }
+
+  /// Shows the slide [dir] away and puts focus on its control [at], the
+  /// one the viewer was on.
+  Future<void> _page(int dir, int at) async {
+    await _go(_index + dir);
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controls = _controls();
+      if (controls.isEmpty) return;
+      controls[at.clamp(0, controls.length - 1)].requestFocus();
+    });
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
+    _focus.dispose();
     _pages.dispose();
     super.dispose();
   }
@@ -81,7 +150,8 @@ class _LuHeroCarouselState extends State<LuHeroCarousel> {
       onEnter: (_) => _paused = true,
       onExit: (_) => _paused = false,
       child: Focus(
-        skipTraversal: true,
+        focusNode: _focus,
+        onKeyEvent: _onKey,
         onFocusChange: (f) => _paused = f,
         child: SizedBox(
           height: height,

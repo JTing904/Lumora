@@ -37,7 +37,12 @@ abstract final class PlayLauncher {
 
   static Future<void> play(BuildContext context, Movie row) async {
     final movie = await playable(row);
-    if (!context.mounted || movie == null) return;
+    if (!context.mounted) return;
+    if (movie == null) {
+      // No IMDb id: the details page shows it from TMDb and plays from there.
+      openDetails(context, row);
+      return;
+    }
     // An unfinished session resumes at its position, by the same path as the
     // Continue Watching card.
     final session = ContinueWatchingService.activeItems.value
@@ -84,8 +89,10 @@ abstract final class PlayLauncher {
   }
 
   static Future<void> openDetails(BuildContext context, Movie row) async {
-    final movie = await TmdbCatalog.resolve(row);
-    if (!context.mounted || movie == null) return;
+    // Without an IMDb id the details page builds the title from TMDb alone,
+    // so the row still opens rather than doing nothing.
+    final movie = await TmdbCatalog.resolve(row) ?? row;
+    if (!context.mounted) return;
     Navigator.push(
       context,
       CinematicSlideRoute(page: DetailsPage(movie: movie)),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
 import '../../models/continue_watching/continue_watching_item.dart';
 import '../../models/movie/movie.dart';
@@ -12,6 +13,7 @@ import '../../services/metadata/tmdb_catalog.dart';
 import '../../services/p2p/p2p_settings_service.dart';
 import '../../services/playback/play_launcher.dart';
 import '../../services/recommend/recommender.dart';
+import '../../services/settings/locale_settings.dart';
 import '../../ui/lu_button.dart';
 import '../../ui/lu_cards.dart';
 import '../../ui/lu_hero.dart';
@@ -22,10 +24,13 @@ import '../../widgets/home/continue_watching_slider.dart'
 import '../../widgets/p2p/p2p_warning_dialog.dart';
 
 /// One row of the home page: its title and its titles.
+///
+/// The title is read in build, in the page's language at that moment, so a
+/// switch of language renames the row at once.
 class _Row {
   const _Row(this.title, this.movies);
 
-  final String title;
+  final String Function(AppLocalizations l10n) title;
   final List<Movie> movies;
 }
 
@@ -49,9 +54,14 @@ class _LuHomePageState extends State<LuHomePage> {
   List<_Row> _rows = const [];
   bool _loading = true;
 
+  /// Bumped on every load, so one overtaken by a newer (a new language,
+  /// Retry) is dropped.
+  int _generation = 0;
+
   @override
   void initState() {
     super.initState();
+    LocaleSettings.locale.addListener(_onLocaleChanged);
     // After the first frame: loading reads the page's language, which
     // initState may not.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -59,6 +69,18 @@ class _LuHomePageState extends State<LuHomePage> {
       _load();
       _p2pNotice();
     });
+  }
+
+  @override
+  void dispose() {
+    LocaleSettings.locale.removeListener(_onLocaleChanged);
+    super.dispose();
+  }
+
+  /// TMDb and the recommender answer in the viewer's language, so a new one
+  /// reads the page again. What is on screen stays until it is replaced.
+  void _onLocaleChanged() {
+    if (mounted) _load();
   }
 
   /// The torrent notice, once ever (see [P2pSettingsService]).
@@ -84,29 +106,32 @@ class _LuHomePageState extends State<LuHomePage> {
   }
 
   Future<void> _load() async {
-    final l10n = l10nOf(context);
+    final generation = ++_generation;
     final hero = await _list(const TmdbQuery('/trending/all/day'), limit: 8);
-    if (!mounted) return;
+    if (!mounted || generation != _generation) return;
     setState(
       () => _hero = hero.where((m) => m.backdrop != null).take(6).toList(),
     );
 
-    final specs = <(String, TmdbQuery)>[
-      (l10n.catTrendingSeries, const TmdbQuery('/trending/tv/week', {}, true)),
+    final specs = <(String Function(AppLocalizations), TmdbQuery)>[
       (
-        l10n.catRecentlyUpdated,
+        (l) => l.catTrendingSeries,
+        const TmdbQuery('/trending/tv/week', {}, true),
+      ),
+      (
+        (l) => l.catRecentlyUpdated,
         TmdbQuery.recentlyUpdated(series: true, animated: false),
       ),
       (
-        l10n.catTrendingMovies,
+        (l) => l.catTrendingMovies,
         const TmdbQuery('/trending/movie/week', {}, true),
       ),
       (
-        l10n.catTrendingAnime,
+        (l) => l.catTrendingAnime,
         TmdbQuery.discover(series: true, region: 'CN|JP|KR', animated: true),
       ),
       (
-        l10n.catChineseMovies,
+        (l) => l.catChineseMovies,
         TmdbQuery.discover(series: false, language: 'zh', animated: false),
       ),
     ];
@@ -116,12 +141,14 @@ class _LuHomePageState extends State<LuHomePage> {
     ]);
     List<_Row> taste = const [];
     try {
+      // The recommender names its rows in the language of the moment; a
+      // switch reloads the page, which names them again.
       taste = [
         for (final s in await Recommender.sections())
-          _Row(s.title, AdultGuard.filter(s.movies)),
+          _Row((_) => s.title, AdultGuard.filter(s.movies)),
       ];
     } catch (_) {}
-    if (!mounted) return;
+    if (!mounted || generation != _generation) return;
     setState(() {
       _top = results.first;
       _rows = [
@@ -143,6 +170,7 @@ class _LuHomePageState extends State<LuHomePage> {
     final posterW = phone ? 116.0 : (tv ? 150.0 : 160.0);
     final continueW = phone ? 240.0 : 320.0;
     final rankW = phone ? 104.0 : 150.0;
+    final scaler = MediaQuery.textScalerOf(context);
 
     return Theme(
       data: luTheme(),
@@ -177,7 +205,7 @@ class _LuHomePageState extends State<LuHomePage> {
                     child: LuRail(
                       title: l10n.homeContinueWatching,
                       padding: pad,
-                      height: LuContinueCard.heightFor(continueW),
+                      height: LuContinueCard.heightFor(continueW, scaler) + 8,
                       itemCount: items.length,
                       itemBuilder: (context, i) {
                         final s = items[i];
@@ -233,9 +261,9 @@ class _LuHomePageState extends State<LuHomePage> {
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 36),
                   child: LuRail(
-                    title: row.title,
+                    title: row.title(l10n),
                     padding: pad,
-                    height: LuPosterCard.heightFor(posterW) + 8,
+                    height: LuPosterCard.heightFor(posterW, scaler) + 8,
                     itemCount: row.movies.length,
                     itemBuilder: (context, i) {
                       final m = row.movies[i];

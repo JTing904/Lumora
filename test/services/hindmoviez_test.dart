@@ -18,7 +18,7 @@ void main() {
 
     test('BuiltinProvidersSettingsService includes hindmoviez in defaultProviders', () {
       const providers = BuiltinProvidersSettingsService.defaultProviders;
-      expect(providers.length, equals(46));
+      expect(providers.length, equals(47));
       final hind = providers.firstWhere((p) => p.id == 'hindmoviez');
       expect(hind.name, equals('HindMoviez'));
       expect(hind.description, contains('Bollywood'));

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../account/account_service.dart';
 import '../config/env_service.dart';
 import '../storage/secret_keys.dart';
 import '../storage/secure_store.dart';
@@ -62,7 +63,25 @@ abstract final class TmdbService {
 
   /// Whether [scraperKey] can be sent. False means the caller resolves nothing
   /// rather than issuing a keyed request with an empty credential.
-  static bool get hasScraperKey => scraperKey.isNotEmpty;
+  static bool get hasScraperKey => scraperKey.isNotEmpty || hasProxy;
+
+  /// Whether [scraperKey] itself is set, for the few scrapers that put the
+  /// key straight into a TMDb URL rather than asking through [getScraperJson].
+  static bool get hasDirectScraperKey => scraperKey.isNotEmpty;
+
+  /// Lumora's TMDb proxy (a Supabase Edge Function holding the key), used
+  /// when this build carries no key of its own.
+  static String? get proxyBase {
+    if (proxyBaseOverrideForTesting != null) return proxyBaseOverrideForTesting;
+    final url = AccountService.projectUrl;
+    if (!AccountService.configured || url == null || url.isEmpty) return null;
+    return '${url.replaceAll(RegExp(r'/+$'), '')}/functions/v1/tmdb';
+  }
+
+  @visibleForTesting
+  static String? proxyBaseOverrideForTesting;
+
+  static bool get hasProxy => proxyBase != null;
 
   /// The read currently in flight, so a caller that arrives while one is
   /// running waits on it instead of starting a second one. Two interleaved
@@ -156,9 +175,37 @@ abstract final class TmdbService {
     Map<String, String> params = const {},
   ]) async {
     final key = scraperKey;
-    if (key.isEmpty) return null;
+    if (key.isEmpty) return _proxyJson(path, params);
     final outcome = await _request(key, path, params);
     return outcome.status == TmdbKeyResult.ok ? outcome.body : null;
+  }
+
+  /// A GET through [proxyBase], signed in as the current user. Null when
+  /// there is no proxy or it does not answer.
+  static Future<Map<String, dynamic>?> _proxyJson(
+    String path,
+    Map<String, String> params,
+  ) async {
+    final base = proxyBase;
+    if (base == null) return null;
+    final uri = Uri.parse(
+      '$base$path',
+    ).replace(queryParameters: params.isEmpty ? null : params);
+    final headers = <String, String>{'Accept': 'application/json'};
+    final publishable = AccountService.publishableKey;
+    if (publishable != null) headers['apikey'] = publishable;
+    final token = AccountService.accessToken;
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+    try {
+      final response = await client
+          .get(uri, headers: headers)
+          .timeout(_timeout);
+      if (response.statusCode != 200) return null;
+      final decoded = jsonDecode(response.body);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Top `limit` films of one genre in one decade, most voted first, imdb ids

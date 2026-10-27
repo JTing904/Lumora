@@ -56,6 +56,15 @@ class AniDbExtractor {
 
   /// Fetches URL via curl subprocess on desktop or http.Client on mobile/web.
   Future<String> _fetch(String url) async {
+    // Embed links come from the site's JSON. Only a web address goes to curl:
+    // anything else (`-K file`, `file://`) would be read as a curl option or
+    // a local path.
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        (uri.scheme != 'https' && uri.scheme != 'http') ||
+        uri.host.isEmpty) {
+      return '';
+    }
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       try {
         final curlCmd = Platform.isWindows ? 'curl.exe' : 'curl';
@@ -69,6 +78,9 @@ class AniDbExtractor {
             '$baseUrl/',
             '--max-time',
             '10',
+            '--proto',
+            '=http,https',
+            '--',
             url,
           ],
         );

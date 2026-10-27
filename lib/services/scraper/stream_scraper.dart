@@ -4,6 +4,7 @@ import '../../models/stream/stream_model.dart';
 import '../debrid/debrid_service.dart';
 import '../p2p/p2p_settings_service.dart';
 import 'builtin_providers_settings_service.dart';
+import 'sites/maccms.dart';
 
 abstract class StreamScraper {
   String get name;
@@ -94,6 +95,10 @@ class ScraperManager {
     int? episode,
     String? imdbId,
     bool skipTmdbNumbered = false,
+    // `tmdb:kind:id` for a title TMDb lists without an IMDb id. Only the
+    // Chinese sites, which search by name, can use it: they look the Chinese
+    // name up by it. Everything else keys on IMDb and gets nothing.
+    String? tmdbRef,
   }) {
     final controller = StreamController<StreamSource>();
 
@@ -176,7 +181,7 @@ class ScraperManager {
         year: year,
         season: season,
         episode: episode,
-        imdbId: imdbId,
+        imdbId: imdbId ?? (scraper is MacCmsScraper ? tmdbRef : null),
       )
           .listen(
         (rawSource) {

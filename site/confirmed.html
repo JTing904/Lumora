@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumora · Email confirmed</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --card: #141418;
+    --edge: rgba(255, 255, 255, 0.08);
+    --gold: #f2b544;
+    --text: #f4f1ea;
+    --soft: #b4afa5;
+    --danger: #ff7a6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(242, 181, 68, 0.16), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+  }
+  .card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--card);
+    border: 1px solid var(--edge);
+    border-radius: 24px;
+    padding: 36px 32px 32px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .brand img { width: 36px; height: 36px; border-radius: 8px; }
+  .brand span { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+  .mark {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgba(242, 181, 68, 0.14); color: var(--gold);
+    font-size: 30px; margin-bottom: 18px;
+  }
+  .mark.bad { background: rgba(255, 122, 107, 0.14); color: var(--danger); }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 18px; margin: 0 0 18px; color: var(--soft); font-weight: 500; }
+  p { color: var(--soft); line-height: 1.7; margin: 0 0 10px; font-size: 15px; }
+  .zh { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--edge); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand"><img src="icon.png" alt=""><span>Lumora</span></div>
+
+    <section id="ok">
+      <div class="mark">✓</div>
+      <h1>Email confirmed</h1>
+      <p>Your Lumora account is ready. Go back to the Lumora app and sign in with your email and password.</p>
+      <p>You can close this page.</p>
+      <div class="zh">
+        <h2>邮箱已确认</h2>
+        <p>你的 Lumora 帐号已经可以用了。回到 Lumora，用邮箱和密码登录就行。</p>
+        <p>这个页面可以关掉了。</p>
+      </div>
+    </section>
+
+    <section id="bad" hidden>
+      <div class="mark bad">!</div>
+      <h1>This link didn't work</h1>
+      <p>It may have expired or already been used. If you can sign in to Lumora, your email is already confirmed. If not, sign up again to get a new link.</p>
+      <div class="zh">
+        <h2>这个链接无效</h2>
+        <p>链接可能已过期，或已经用过了。如果在 Lumora 能登录，就表示邮箱已经确认好了；登录不了的话，请重新注册，拿一封新的确认信。</p>
+      </div>
+    </section>
+  </main>
+<script>
+  // Supabase sends the viewer here after confirming; a failed link carries
+  // ?error=... or #error=... instead of a code.
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var h = new URLSearchParams(location.hash.replace(/^#/, ''));
+    if (q.get('error') || h.get('error') || q.get('error_code') || h.get('error_code')) {
+      document.getElementById('ok').hidden = true;
+      document.getElementById('bad').hidden = false;
+    }
+    if (navigator.language && navigator.language.toLowerCase().indexOf('zh') === 0) {
+      document.documentElement.lang = 'zh';
+    }
+  })();
+</script>
+</body>
+</html>

@@ -8538,4 +8538,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveCatNewsShort => 'News';
+
+  @override
+  String get authWithGoogle => 'Continue with Google';
+
+  @override
+  String get authWithFacebook => 'Continue with Facebook';
+
+  @override
+  String get authOr => 'or';
+
+  @override
+  String get authRedeemTitle => 'One invite code, once';
+
+  @override
+  String get authRedeemBody =>
+      'Lumora is invite-only. The first time you sign in with GitHub or Discord, enter the invite code a friend gave you.';
+
+  @override
+  String get authRedeemAction => 'Continue';
+
+  @override
+  String get authRedeemSwitch => 'Use another account';
+
+  @override
+  String get authOAuthFailed => 'Couldn\'t open the sign-in page.';
+
+  @override
+  String get authWithGithub => 'Continue with GitHub';
+
+  @override
+  String get authWithDiscord => 'Continue with Discord';
+
+  @override
+  String get authForgot => 'Forgot password?';
+
+  @override
+  String get authForgotNeedEmail => 'Enter your email above first.';
+
+  @override
+  String authForgotSent(String email) {
+    return 'A reset link is on its way to $email. Open it on this device to set a new password.';
+  }
+
+  @override
+  String get authNewPasswordTitle => 'Set a new password';
+
+  @override
+  String authNewPasswordBody(String email) {
+    return 'Choose a new password for $email.';
+  }
+
+  @override
+  String get authNewPasswordAction => 'Save password';
+
+  @override
+  String get authNewPasswordSaved => 'Password changed.';
+
+  @override
+  String get authResetCodeTitle => 'Check your email';
+
+  @override
+  String authResetCodeBody(String email) {
+    return 'We sent a code to $email. Enter it here, on any device you read the email on.';
+  }
+
+  @override
+  String get authResetCode => 'Code';
+
+  @override
+  String get authResetCodeHint => 'The digits in the email';
+
+  @override
+  String get authResetVerify => 'Continue';
+
+  @override
+  String get authResetWrongCode =>
+      'That code is wrong or has expired. Send a new one.';
+
+  @override
+  String get authResetResend => 'Send again';
+
+  @override
+  String get authResetBack => 'Back to sign in';
+
+  @override
+  String get authErrSamePassword =>
+      'That\'s your current password. Choose a different one.';
+
+  @override
+  String get authNewPasswordKeep => 'Keep my current password';
+
+  @override
+  String get filterLoading => 'Loading…';
+
+  @override
+  String get filterEmptyOrFailed =>
+      'Nothing to show. These filters may have no matches, or the list couldn\'t load.';
+
+  @override
+  String get filterMoreFailed => 'Couldn\'t load more.';
 }

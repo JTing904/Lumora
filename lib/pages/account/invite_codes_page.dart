@@ -63,6 +63,7 @@ class _InviteCodesPageState extends State<InviteCodesPage> {
         howMany,
         note: note.isEmpty ? null : note,
       );
+      if (!mounted) return;
       _note.clear();
       if (made.length == 1) await _copy(made.first);
       await _load();

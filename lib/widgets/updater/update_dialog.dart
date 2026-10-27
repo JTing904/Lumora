@@ -718,6 +718,18 @@ class _UpdateDialogState extends State<UpdateDialog> {
               ElevatedButton(
                 onPressed: () async {
                   if (Platform.isWindows) {
+                    // The installer sat in Downloads since it was checked:
+                    // check it again right before it runs.
+                    final now = (await sha256.bind(installer.openRead()).first)
+                        .toString()
+                        .toLowerCase();
+                    if (now != checksum) {
+                      try {
+                        await installer.delete();
+                      } catch (_) {}
+                      if (context.mounted) Navigator.of(context).pop();
+                      return;
+                    }
                     await Process.start(
                       installer.path,
                       const [],

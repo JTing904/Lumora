@@ -4,6 +4,7 @@
 #include <shobjidl.h>
 #include <windows.h>
 
+#include "app_links/app_links_plugin_c_api.h"
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -86,6 +87,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+  // A Google or Facebook sign-in comes back as a lumora:// link that Windows
+  // opens in a new process. Hand it to the copy already running and leave.
+  if (command_line != nullptr &&
+      wcsstr(command_line, L"io.github.jting904.lumora://") != nullptr &&
+      SendAppLinkToInstance()) {
+    return EXIT_SUCCESS;
+  }
 
   // Give this process its own shell identity.
   //

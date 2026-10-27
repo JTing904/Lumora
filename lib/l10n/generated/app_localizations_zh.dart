@@ -8224,4 +8224,101 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get liveCatNewsShort => '新闻';
+
+  @override
+  String get authWithGoogle => '用 Google 登录';
+
+  @override
+  String get authWithFacebook => '用 Facebook 登录';
+
+  @override
+  String get authOr => '或';
+
+  @override
+  String get authRedeemTitle => '输入一次邀请码';
+
+  @override
+  String get authRedeemBody =>
+      'Lumora 是邀请制。第一次用 GitHub 或 Discord 登录，需要输入朋友给你的邀请码，以后就不用了。';
+
+  @override
+  String get authRedeemAction => '确认';
+
+  @override
+  String get authRedeemSwitch => '换个账号';
+
+  @override
+  String get authOAuthFailed => '打不开登录页面，请再试一次。';
+
+  @override
+  String get authWithGithub => '用 GitHub 登录';
+
+  @override
+  String get authWithDiscord => '用 Discord 登录';
+
+  @override
+  String get authForgot => '忘记密码？';
+
+  @override
+  String get authForgotNeedEmail => '先在上面填你的邮箱。';
+
+  @override
+  String authForgotSent(String email) {
+    return '重设密码的邮件已寄到 $email。在这台装置上点邮件里的链接，就会回到 Lumora 设新密码。';
+  }
+
+  @override
+  String get authNewPasswordTitle => '设置新密码';
+
+  @override
+  String authNewPasswordBody(String email) {
+    return '为 $email 设一个新密码。';
+  }
+
+  @override
+  String get authNewPasswordAction => '保存密码';
+
+  @override
+  String get authNewPasswordSaved => '密码已更新。';
+
+  @override
+  String get authResetCodeTitle => '查看邮箱';
+
+  @override
+  String authResetCodeBody(String email) {
+    return '验证码已寄到 $email。在哪个装置看邮件都可以，把邮件里的验证码填在这里。';
+  }
+
+  @override
+  String get authResetCode => '验证码';
+
+  @override
+  String get authResetCodeHint => '邮件里的数字';
+
+  @override
+  String get authResetVerify => '下一步';
+
+  @override
+  String get authResetWrongCode => '验证码不对或已过期，请重新寄一封。';
+
+  @override
+  String get authResetResend => '重新寄';
+
+  @override
+  String get authResetBack => '返回登录';
+
+  @override
+  String get authErrSamePassword => '这是你现在的密码，请换一个新的。';
+
+  @override
+  String get authNewPasswordKeep => '保留现在的密码';
+
+  @override
+  String get filterLoading => '正在加载…';
+
+  @override
+  String get filterEmptyOrFailed => '这里暂时没有内容：可能没有符合条件的结果，也可能没能加载。';
+
+  @override
+  String get filterMoreFailed => '没能加载更多。';
 }
