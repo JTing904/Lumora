@@ -4480,7 +4480,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stgaDebridToggleNote =>
-      'When enabled, all torrents from ZPlay and Stremio addons are resolved exclusively through your active Debrid provider without touching the local torrent engine.';
+      'When enabled, all torrents from Lumora and Stremio addons are resolved exclusively through your active Debrid provider without touching the local torrent engine.';
 
   @override
   String get stgaActiveProvider => 'ACTIVE PROVIDER';
@@ -4490,7 +4490,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stgaDebridProviderNote =>
-      'ZPlay will send requests to this provider when streaming.';
+      'Lumora will send requests to this provider when streaming.';
 
   @override
   String get stgaProviderCredentials => 'PROVIDER CREDENTIALS';
@@ -7311,7 +7311,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stgcServiceKeysIntro =>
-      'ZPlay talks to several third-party services. Any key you save here replaces the one this build uses and takes effect immediately, with no restart.';
+      'Lumora talks to several third-party services. Any key you save here replaces the one this build uses and takes effect immediately, with no restart.';
 
   @override
   String get stgcServiceKeysUnobtainable =>
@@ -8324,4 +8324,218 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get invitesCreateFailed => 'Couldn\'t make codes.';
+
+  @override
+  String get authWelcomeBack => 'Welcome back';
+
+  @override
+  String get authCreateAccount => 'Create your account';
+
+  @override
+  String get authSignInSubtitle =>
+      'Sign in to pick up your list and what you were watching.';
+
+  @override
+  String get authSignUpSubtitle =>
+      'Use the invite code a friend gave you. Each code works once.';
+
+  @override
+  String get authFirstTime => 'New here?';
+
+  @override
+  String get authUseInvite => 'Sign up with an invite code';
+
+  @override
+  String get authHaveAccount => 'Already have an account?';
+
+  @override
+  String get authSignInInstead => 'Sign in';
+
+  @override
+  String get authDragToTurn => 'Drag to turn';
+
+  @override
+  String authSwitchFigure(String name) {
+    return 'Show $name';
+  }
+
+  @override
+  String get authEmailHint => 'you@example.com';
+
+  @override
+  String get authPasswordHint => 'At least 6 characters';
+
+  @override
+  String get authInviteFieldHint => 'ABCD-2345';
+
+  @override
+  String get splashLoading => 'Starting';
+
+  @override
+  String homeTodayTop(int rank) {
+    return 'Top $rank today';
+  }
+
+  @override
+  String get homeKindSeries => 'Series';
+
+  @override
+  String get homeKindMovie => 'Film';
+
+  @override
+  String get homeHeroNext => 'Next';
+
+  @override
+  String get homeHeroPrevious => 'Previous';
+
+  @override
+  String homeHeroSlide(int index) {
+    return 'Slide $index';
+  }
+
+  @override
+  String get moreAiPicks => 'AI picks';
+
+  @override
+  String get moreCalendar => 'Airing calendar';
+
+  @override
+  String get browseMoviesTv => 'Movies & TV';
+
+  @override
+  String get browseCollections => 'Collections';
+
+  @override
+  String get browseManga => 'Manga';
+
+  @override
+  String get browseBooks => 'Books';
+
+  @override
+  String get browseAudiobooks => 'Audiobooks';
+
+  @override
+  String get browseMusic => 'Music';
+
+  @override
+  String get liveCatPremier => 'Premier Live Broadcasts';
+
+  @override
+  String get liveCatEspn => 'ESPN & College Basketball (NCAA)';
+
+  @override
+  String get liveCatUsSports => 'US Major Leagues & Sports';
+
+  @override
+  String get liveCatSoccer => 'Global Football & Soccer';
+
+  @override
+  String get liveCatBoxing => 'Boxing';
+
+  @override
+  String get liveCatCombat => 'Combat & Martial Arts';
+
+  @override
+  String get liveCatRacing => 'Motorsport & Racing';
+
+  @override
+  String get liveCatMovies => 'Movies & Premium Networks';
+
+  @override
+  String get liveCatNews => '24/7 Global News Networks';
+
+  @override
+  String get liveCatArabic => 'Arabic & Regional Hub';
+
+  @override
+  String get liveCatDiscovery => 'Discovery & Documentaries';
+
+  @override
+  String get liveCatKids => 'Kids & Family';
+
+  @override
+  String get liveCatUs => 'US Region';
+
+  @override
+  String get liveCatUk => 'UK Region';
+
+  @override
+  String get liveCatCanada => 'Canada Region';
+
+  @override
+  String get liveCatBayArea => 'Bay Area';
+
+  @override
+  String get liveCatIntlSports => 'International Sports';
+
+  @override
+  String get liveSubtitle => 'Live channels from your sources';
+
+  @override
+  String listSummary(int count) {
+    return '$count saved';
+  }
+
+  @override
+  String get dscRequired => 'Required';
+
+  @override
+  String get dscEnter => 'Enter';
+
+  @override
+  String get dscTypeTv => 'TV';
+
+  @override
+  String get dscTypeChannel => 'Channels';
+
+  @override
+  String get tvStatusStopped => 'Stopped.';
+
+  @override
+  String get tvStatusDiscovering => 'Discovering fresh portals…';
+
+  @override
+  String get tvStatusNoMore => 'No more portals available.';
+
+  @override
+  String tvStatusVerifying(int count) {
+    return 'Verifying $count portals…';
+  }
+
+  @override
+  String tvStatusVerifyingProgress(int done, int total, int active) {
+    return 'Verifying portals $done/$total · $active active';
+  }
+
+  @override
+  String tvStatusScanning(int count) {
+    return 'Scanning $count portals in parallel…';
+  }
+
+  @override
+  String tvStatusFound(int count) {
+    return 'Found $count streams · verifying health…';
+  }
+
+  @override
+  String tvStatusSniffing(int checked, int total, int live) {
+    return 'Sniffing $checked/$total · $live verified live';
+  }
+
+  @override
+  String tvGuideFromPanel(String channel) {
+    return 'Programme data comes from the channel\'s own panel, so it appears once one of your portals has a verified live feed for $channel.';
+  }
+
+  @override
+  String get liveCatSports => 'Sports';
+
+  @override
+  String get liveCatSoccerShort => 'Soccer';
+
+  @override
+  String get liveCatMoviesShort => 'Movies';
+
+  @override
+  String get liveCatNewsShort => 'News';
 }

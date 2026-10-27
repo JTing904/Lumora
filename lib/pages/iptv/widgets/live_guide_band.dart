@@ -1,6 +1,9 @@
 import '../../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
+import '../../../services/iptv/channel_category_l10n.dart';
+import '../../../widgets/iptv/iptv_slider_section.dart' show iptvPagePadding;
+
 import '../../../models/iptv/iptv_models.dart';
 import '../../../services/iptv/hardcoded_channels.dart';
 import '../../../services/iptv/iptv_controller.dart';
@@ -153,9 +156,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
     final guide = _guidePane(context, channel, isCompact);
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? ZplaySpacing.s12 : ZplaySpacing.s24,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: iptvPagePadding(context)),
       child: isCompact
           // A phone scrolls the whole guide with the page; a nested scroller
           // inside a nested scroller is a scroll trap on touch.
@@ -198,7 +199,10 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
     if (isCompact) {
       // On a phone the rows scroll with the page: a nested scroller inside a
       // nested scroller is a scroll trap on touch.
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      );
     }
 
     return DecoratedBox(
@@ -272,7 +276,9 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          now.title.isEmpty ? l10nCurrent().tvLiveBroadcast : now.title,
+                          now.title.isEmpty
+                              ? l10nCurrent().tvLiveBroadcast
+                              : now.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: ZplayType.title.toStyle(
@@ -387,9 +393,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
         ),
         const SizedBox(height: ZplaySpacing.s4),
         Text(
-          'Programme data comes from the channel\'s own panel, so it appears '
-          'once one of your portals has a verified live feed for '
-          '${channel.name}.',
+          l10nCurrent().tvGuideFromPanel(channel.name),
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
           style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
@@ -404,9 +408,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
               duration: ZplayMotion.fast,
               curve: ZplayMotion.standard,
               height: height,
-              padding: const EdgeInsets.symmetric(
-                horizontal: ZplaySpacing.s16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: state.highlighted
@@ -425,9 +427,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
                   const SizedBox(width: ZplaySpacing.s8),
                   Text(
                     l10nCurrent().tvFindLiveStreams,
-                    style: ZplayType.label.toStyle(
-                      color: tokens.textEmphasis,
-                    ),
+                    style: ZplayType.label.toStyle(color: tokens.textEmphasis),
                   ),
                 ],
               ),
@@ -463,7 +463,12 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
         ? 0
         : ((clamped.inSeconds / total.inSeconds) * 100).round().clamp(0, 100);
 
-    return l10nCurrent().tv2GuideProgress(_clock(entry.start), _clock(entry.stop), minutes, percent);
+    return l10nCurrent().tv2GuideProgress(
+      _clock(entry.start),
+      _clock(entry.stop),
+      minutes,
+      percent,
+    );
   }
 
   static String _clock(DateTime time) =>
@@ -502,9 +507,7 @@ class _GuideChannelRow extends StatelessWidget {
         child: AnimatedContainer(
           duration: ZplayMotion.fast,
           curve: ZplayMotion.standard,
-          constraints: BoxConstraints(
-            minHeight: isCompact ? 48.0 : 56.0,
-          ),
+          constraints: BoxConstraints(minHeight: isCompact ? 48.0 : 56.0),
           padding: const EdgeInsets.symmetric(
             horizontal: ZplaySpacing.s12,
             vertical: ZplaySpacing.s8,
@@ -512,7 +515,9 @@ class _GuideChannelRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? tokens.accentSubtle
-                : (state.highlighted ? tokens.borderDefault : Colors.transparent),
+                : (state.highlighted
+                      ? tokens.borderDefault
+                      : Colors.transparent),
             borderRadius: ZplayRadius.smAll,
           ),
           child: Row(
@@ -551,7 +556,7 @@ class _GuideChannelRow extends StatelessWidget {
                     ),
                     const SizedBox(height: ZplaySpacing.s2),
                     Text(
-                      channel.category,
+                      localizedChannelCategory(channel.category),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: ZplayType.caption.toStyle(color: tokens.textMuted),
@@ -687,7 +692,9 @@ class _UpcomingRow extends StatelessWidget {
             const SizedBox(width: ZplaySpacing.s8),
             Expanded(
               child: Text(
-                entry.title.isEmpty ? l10nCurrent().tvScheduledProgramme : entry.title,
+                entry.title.isEmpty
+                    ? l10nCurrent().tvScheduledProgramme
+                    : entry.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: ZplayType.bodySmall

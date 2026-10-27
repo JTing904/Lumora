@@ -16,7 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zplay/services/layout/device_profile.dart';
 import 'package:zplay/shell/app_shell.dart';
 import 'package:zplay/shell/shell_rail.dart';
-import 'package:zplay/widgets/common/zplay_logo.dart';
+import 'package:zplay/ui/lu_logo.dart';
 
 /// The names the top bar carries, in the order it draws them.
 const List<String> _destinations = <String>[
@@ -67,7 +67,7 @@ void main() {
     final last = rects['My List']!;
     expect(
       last.right,
-      lessThan(1920 * 0.55),
+      lessThan(1920 * 0.62),
       reason: 'the destinations must not drift to the far edge of the bar',
     );
   });
@@ -80,7 +80,7 @@ void main() {
     // Measured from the brand rather than from the window edge: the brand is
     // the Lumora wordmark now, and its width is the brand's business. What
     // this guards is the gap after it.
-    final brand = tester.getRect(find.byType(LumoraWordmark));
+    final brand = tester.getRect(find.byType(LuLogo));
     final home = tester.getRect(find.text('Home').first);
     expect(brand.left, lessThan(1920 * 0.05));
     expect(

@@ -12,7 +12,8 @@ import '../../l10n/l10n.dart';
 import '../../services/addon/addon_manager.dart';
 import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
-import '../../widgets/common/focusable_card.dart';
+import '../../ui/lu_focusable.dart';
+import '../../ui/lu_theme.dart';
 import '../../services/debrid/debrid_service.dart';
 import '../../services/theme/glass_settings.dart';
 import '../../services/trakt/trakt_service.dart';
@@ -46,7 +47,6 @@ import '../../services/backup/backup_restore_service.dart';
 import '../../services/home/home_page_settings.dart';
 import '../../services/content/content_settings.dart';
 
-import '../../widgets/common/animated_ambient_background.dart';
 
 /// Third-party brand hues. These identify an external service, so they stay
 /// outside the palette-derived token layer.
@@ -797,16 +797,37 @@ class _SettingsPageState extends State<SettingsPage> {
     required List<Widget> rows,
     bool first = false,
   }) {
-    final tokens = context.tokens;
     final title = _sectionLabel(l10nOf(context), label);
     return Column(
       key: _sectionKeys[label],
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!first) const SizedBox(height: ZplaySpacing.s24),
-        Text(title, style: ZplayType.overline.toStyle(color: tokens.textMuted)),
-        const SizedBox(height: ZplaySpacing.s12),
-        Column(children: _dividerSeparated(rows, tokens.borderSubtle)),
+        if (!first) const SizedBox(height: 32),
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Text(
+            title,
+            style: LuText.label.copyWith(
+              color: LuColors.textFaint,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // One rounded card per group, its rows divided inside it.
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: LuColors.surface,
+            borderRadius: const BorderRadius.all(Radius.circular(18)),
+            border: Border.all(color: LuColors.lineSoft),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Column(
+              children: _dividerSeparated(rows, LuColors.lineSoft),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -846,9 +867,11 @@ class _SettingsPageState extends State<SettingsPage> {
       scrolledUnderElevation: 0,
       // No explicit leading: the framework already gates the back button on canPop,
       // so it vanishes in the shell and returns if this page is pushed.
+      toolbarHeight: 72,
+      titleSpacing: MediaQuery.sizeOf(context).width < 600 ? 16 : 32,
       title: Text(
-        l10nOf(context).settingsTitle,
-        style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
+        l10nOf(context).navMe,
+        style: LuText.title.copyWith(fontSize: 30),
       ),
     );
 
@@ -870,9 +893,10 @@ class _SettingsPageState extends State<SettingsPage> {
     // The canvas wraps the `Scaffold`, not its `body`, so it paints behind the
     // (now transparent) header too: the nav bar rests on it and the title sits
     // on the same surface as the rows instead of on a strip of its own.
-    return AnimatedAmbientBackground(
+    return Theme(
+      data: luTheme(),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: LuColors.bg,
         appBar: _appBar(context, tokens),
         body: LayoutBuilder(
           builder: (context, constraints) {
@@ -901,6 +925,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (AccountService.configured &&
+                          AccountService.email != null) ...[
+                        const _ProfileCard(),
+                        const SizedBox(height: 32),
+                      ],
                       if (AccountService.configured)
                         _buildSection(
                           context,
@@ -1404,104 +1433,128 @@ class _SettingsNavRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    // `FocusableCard`, not a bare `InkWell`.
-    //
-    // An `InkWell` is pointer-only: it is not a `Focus` widget, so no key, remote
-    // or D-pad event can reach it and it draws no focus indicator. Every other
-    // surface in the app was converted to `FocusableCard` for exactly this, and
-    // Settings was missed - which is why a television could open the page and
-    // then not be able to enter anything. The focus tree showed the nodes
-    // existing 40-odd in the shell scope while nothing on the page was
-    // reachable, because the rows that looked like controls were not focus
-    // nodes at all.
-    //
-    // **The ring is the row's own rect, not the content inside its padding.**
-    //
-    // A device sweep measured the first content row's ring at 671 x 62 dp and
-    // read it as "the widest focus rect in the app, and a different control from
-    // every other focus target". The rectangles differ because the targets do,
-    // and this target is a full-width list row: a ring drawn around the row's
-    // *text* would mark a region a press does not have to land in, because the
-    // whole row activates - its 16 dp gutter included. On a television the ring
-    // is the only thing that says what a press does, so it draws the edge of
-    // what a press hits. Every full-width row surface in the app answers the
-    // same way, and says so: `_buildActiveCard` in `downloads_page.dart` - "the
-    // row is spacing over the page surface, and the only edge it ever draws is
-    // the focus ring" - and the sidebar beside this page, which wraps its own
-    // `Padding` in the ring rather than insetting it. So does every settings row,
-    // nav or switch.
-    //
-    // The layout is identical either way: the `Padding` stays inside the ring, so
-    // the row's box, its content and the ring's radius all sit where they sat.
-    // This is a decision about the mark, not about the box.
-    return FocusableCard(
+    // The whole row is the control and the ring is the row's own rect: on a
+    // television the ring says what a press hits, and the whole row does.
+    return LuFocusable(
       onTap: onTap,
-      builder: (context, state) => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: CardFocusRing(
-            focused: state.focused,
-            radius: ZplayRadius.smAll,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: ZplaySpacing.s16,
-                vertical: ZplaySpacing.s12,
-              ),
-              child: Row(
-                children: [
-                  Icon(icon, size: 20, color: iconColor),
-                  const SizedBox(width: ZplaySpacing.s16),
+      lift: 1,
+      borderRadius: const BorderRadius.all(Radius.circular(14)),
+      builder: (context, hi) => _SettingsRowBody(
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        valueText: valueText,
+        highlighted: hi,
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          size: 22,
+          color: LuColors.textFaint,
+        ),
+      ),
+    );
+  }
+}
 
-                  // Title and Subtitle
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          title,
-                          style: ZplayType.subtitle.toStyle(
-                            color: tokens.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: ZplaySpacing.s2),
-                        Text(
-                          subtitle,
-                          style: ZplayType.bodySmall.toStyle(
-                            color: tokens.textSecondary,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
+/// One settings row's anatomy: a gold glyph in a soft disc, the name and what
+/// it does, the value it holds, and the trailing control.
+class _SettingsRowBody extends StatelessWidget {
+  const _SettingsRowBody({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.highlighted,
+    required this.trailing,
+    this.valueText,
+    this.titleTrailing,
+  });
 
-                  if (valueText != null) ...[
-                    const SizedBox(width: ZplaySpacing.s12),
-                    Text(
-                      valueText!,
-                      style: ZplayType.caption.toStyle(color: tokens.textMuted),
-                      maxLines: 1,
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool highlighted;
+  final Widget trailing;
+  final String? valueText;
+  final Widget? titleTrailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: LuMotion.focus,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: highlighted ? const Color(0x0FFFFFFF) : Colors.transparent,
+        borderRadius: const BorderRadius.all(Radius.circular(14)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0x1FF2B544),
+            ),
+            child: Icon(icon, size: 19, color: LuColors.gold),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: LuText.body.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: highlighted
+                              ? LuColors.goldLight
+                              : LuColors.text,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                    if (titleTrailing != null) ...[
+                      const SizedBox(width: 6),
+                      titleTrailing!,
+                    ],
                   ],
-
-                  const SizedBox(width: ZplaySpacing.s8),
-
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 14,
-                    color: tokens.textDisabled,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: LuText.caption.copyWith(color: LuColors.textMuted),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
-        ),
+          if (valueText != null) ...[
+            const SizedBox(width: 12),
+            // Capped, so on a narrow phone it gives way to the title rather
+            // than pushing it to nothing.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width < 600 ? 72 : 220,
+              ),
+              child: Text(
+                valueText!,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: LuText.caption.copyWith(
+                  color: highlighted ? LuColors.text : LuColors.textMuted,
+                ),
+                maxLines: 1,
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
+          trailing,
+        ],
       ),
     );
   }
@@ -1536,138 +1589,51 @@ class _SettingsSwitchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // `FocusableCard`, for the same reason [_SettingsNavRow] uses it, and for
-    // the defect that conversion left behind on this row.
-    //
-    // The switch used to be the only focus node here, so a remote landed on a
-    // 40 px thumb at the far edge of the surface, `CardFocusRing` never drew,
-    // and this - the row a person reaches specifically to ask "is adult content
-    // on?" - was the one row focus could not mark. Activation is the row's, via
-    // `ActivateIntent`, and runs the same [onChanged] the switch runs, so the
-    // remote's centre key and a pointer change the setting identically. The ring
-    // is the whole row, for the reason [_SettingsNavRow] writes down.
-    return FocusableCard(
+    // The row is the focus target and its activation runs the same
+    // [onChanged] the switch runs, so a remote and a pointer change the setting
+    // identically.
+    return LuFocusable(
       onTap: () => onChanged(!value),
-      builder: (context, state) => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onChanged(!value),
-          child: CardFocusRing(
-            focused: state.focused,
-            radius: ZplayRadius.smAll,
-            child: _row(context, highlighted: state.highlighted),
+      lift: 1,
+      borderRadius: const BorderRadius.all(Radius.circular(14)),
+      builder: (context, hi) => _SettingsRowBody(
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        valueText: valueText,
+        highlighted: hi,
+        titleTrailing: onInfoTap == null
+            ? null
+            : IconButton(
+                icon: const Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: LuColors.textMuted,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                style: IconButton.styleFrom(
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                tooltip: l10nOf(context).settingsP2pInfoTooltip,
+                onPressed: onInfoTap,
+              ),
+        // `ExcludeFocus`: the row is the focus target; a pointer still lands
+        // on the switch itself.
+        trailing: ExcludeFocus(
+          child: Transform.scale(
+            scale: 0.9,
+            child: Switch.adaptive(
+              value: value,
+              activeThumbColor: LuColors.onGold,
+              activeTrackColor: LuColors.gold,
+              inactiveThumbColor: LuColors.textMuted,
+              inactiveTrackColor: const Color(0x1FFFFFFF),
+              onChanged: onChanged,
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  /// The row's anatomy: leading icon, title and subtitle, the value the setting
-  /// currently holds, then the switch.
-  ///
-  /// [highlighted] brightens that value. On a television the ring says where
-  /// focus is; the value has to be legible in the same glance, and it was
-  /// `textMuted` whether or not the row was the target - which is why "Adult
-  /// Content" could be focused and still not say On or Off.
-  Widget _row(BuildContext context, {required bool highlighted}) {
-    final tokens = context.tokens;
-    final valueColor = highlighted ? tokens.textPrimary : tokens.textMuted;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: ZplaySpacing.s16,
-        vertical: ZplaySpacing.s12,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(width: ZplaySpacing.s16),
-
-          // Title and Subtitle
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: ZplayType.subtitle.toStyle(
-                          color: tokens.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (onInfoTap != null) ...[
-                      const SizedBox(width: ZplaySpacing.s4),
-                      IconButton(
-                        icon: Icon(
-                          Icons.info_outline_rounded,
-                          size: 16,
-                          color: tokens.textSecondary,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: l10nOf(context).settingsP2pInfoTooltip,
-                        onPressed: onInfoTap,
-                        style: _iconButtonFocusStyle(tokens),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: ZplaySpacing.s2),
-                Text(
-                  subtitle,
-                  style: ZplayType.bodySmall.toStyle(
-                    color: tokens.textSecondary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-
-          if (valueText != null) ...[
-            const SizedBox(width: ZplaySpacing.s12),
-            Text(
-              valueText!,
-              style: ZplayType.caption.toStyle(color: valueColor),
-              maxLines: 1,
-            ),
-          ],
-
-          const SizedBox(width: ZplaySpacing.s8),
-
-          // `ExcludeFocus`, because the row is the focus target.
-          //
-          // Material's `Switch` is focusable in its own right, and it was the
-          // only focus node in this row: a remote landed on the thumb, the row
-          // stayed unmarked, and the framework's 12% tint under a 36 px
-          // control is not a focus state anyone reads at ten feet. The row
-          // above runs the same [onChanged], so nothing becomes unreachable -
-          // and a pointer still lands on the switch itself, which is the whole
-          // reason it is drawn there.
-          ExcludeFocus(
-            child: Transform.scale(
-              scale: 0.9,
-              child: Switch.adaptive(
-                value: value,
-                activeColor: tokens.accent,
-                activeTrackColor: tokens.accent.withValues(
-                  alpha: ZplayOpacity.textMuted,
-                ),
-                inactiveThumbColor: tokens.textSecondary,
-                inactiveTrackColor: Colors.white.withValues(
-                  alpha: ZplayOpacity.borderMedium,
-                ),
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1741,22 +1707,19 @@ class _SettingsSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
-    return Container(
+    return SizedBox(
       width: 240,
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border(right: tokens.hairline),
-      ),
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s16),
+        padding: const EdgeInsets.fromLTRB(24, 24, 8, 24),
         children: [
           for (final section in sections)
-            _SettingsSidebarItem(
-              label: section.label,
-              selected: section.id == active,
-              onTap: () => onSelected(section.id),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: _SettingsSidebarItem(
+                label: section.label,
+                selected: section.id == active,
+                onTap: () => onSelected(section.id),
+              ),
             ),
         ],
       ),
@@ -1764,12 +1727,7 @@ class _SettingsSidebar extends StatelessWidget {
   }
 }
 
-/// One section name in [_SettingsSidebar].
-///
-/// `FocusableCard`, like every other control on the page: a sidebar a remote
-/// cannot enter would leave the index visible and unusable, which is the
-/// pointer-only defect this file has been fixing since the rows were `InkWell`s.
-/// The 16 dp vertical padding keeps the target above the 48 dp ten-foot floor.
+/// One section name in [_SettingsSidebar]: gold when current.
 class _SettingsSidebarItem extends StatelessWidget {
   const _SettingsSidebarItem({
     required this.label,
@@ -1783,47 +1741,99 @@ class _SettingsSidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
-    return FocusableCard(
+    return LuFocusable(
       onTap: onTap,
-      builder: (context, state) => Container(
+      lift: 1,
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
+      builder: (context, hi) => AnimatedContainer(
+        duration: LuMotion.focus,
+        // 48 dp and up: the ten-foot floor.
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? tokens.surfaceRaised : Colors.transparent,
-          // The prototype marks the current item with an accent edge rather
-          // than a fill, so the fill can stay the hover/selection surface.
-          border: Border(
-            left: BorderSide(
-              color: selected ? tokens.accent : Colors.transparent,
-              width: 3,
-            ),
+          color: selected
+              ? const Color(0x1FF2B544)
+              : (hi ? const Color(0x0FFFFFFF) : Colors.transparent),
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: LuText.body.copyWith(
+            fontSize: 15,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? LuColors.gold : LuColors.textSoft,
           ),
         ),
-        child: CardFocusRing(
-          focused: state.focused,
-          radius: ZplayRadius.xsAll,
-          child: Padding(
-            // 20, not 16: `ZplayType.label` is 15.6 dp of line box, so 16 dp of
-            // padding is a 47.6 dp target - a tenth of a dp under the ten-foot
-            // floor, which is exactly the kind of miss a remote exposes.
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s20,
+      ),
+    );
+  }
+}
+
+/// Who is signed in: the gold initial, the account and, for an admin, the
+/// badge.
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final email = AccountService.email ?? '';
+    final initial = email.isEmpty ? '?' : email.characters.first.toUpperCase();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0x26F2B544), Color(0x0AF2B544)],
+        ),
+        borderRadius: const BorderRadius.all(Radius.circular(20)),
+        border: Border.all(color: const Color(0x33F2B544)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: LuColors.gold,
             ),
             child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: ZplayType.label
-                  .copyWith(
-                    weight: selected ? FontWeight.w700 : FontWeight.w500,
-                  )
-                  .toStyle(
-                    color: selected ? tokens.textPrimary : tokens.textSecondary,
-                  ),
+              initial,
+              style: const TextStyle(
+                fontFamily: LuFonts.display,
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: LuColors.onGold,
+              ),
             ),
           ),
-        ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LuText.heading,
+                ),
+                const SizedBox(height: 4),
+                ValueListenableBuilder<bool>(
+                  valueListenable: ContentSettings.isAdmin,
+                  builder: (context, admin, _) => Text(
+                    admin ? l10nOf(context).accountAdmin : 'Lumora',
+                    style: LuText.caption.copyWith(
+                      color: admin ? LuColors.gold : LuColors.textMuted,
+                      fontWeight: admin ? FontWeight.w700 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

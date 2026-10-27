@@ -1,5 +1,7 @@
 import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
+
+import '../../services/iptv/channel_category_l10n.dart';
 import '../../models/iptv/iptv_models.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/iptv/hardcoded_channels.dart';
@@ -268,7 +270,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                ch.category,
+                                localizedChannelCategory(ch.category),
                                 style: ZplayType.caption.toStyle(color: tokens.textSecondary),
                               ),
                             ],

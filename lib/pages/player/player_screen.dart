@@ -1758,7 +1758,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       'resume.advance',
       title: nextSource.displayTitle,
       addon:
-          '${nextSource.addonName} ($_resumeAttempts/$_resumeAdvanceMaxAttempts)',
+          '${displayAddonName(nextSource.addonName)} ($_resumeAttempts/$_resumeAdvanceMaxAttempts)',
     );
 
     // Everything the abandoned attempt left running is dropped, the same way
@@ -3537,13 +3537,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final dur = _durationValue;
     if (dur <= const Duration(minutes: 2)) return null;
     for (final seg in _skipSegments) {
-      if (seg.type == 'credits') return seg.start;
+      // Closing credits sit in the back half. A credits mark near the start
+      // (a bad IntroDB entry, or a mark saved against another cut) would
+      // otherwise put 下一集 up seconds into the episode.
+      if (seg.type == 'credits' && seg.start * 2 >= dur) return seg.start;
     }
     return dur - const Duration(seconds: 20);
   }
 
   void _maybeShowUpNext(Duration pos) {
     if (_leavingForNext || _upNextDismissed || _nextEpisode == null) return;
+    // Never in the opening minutes, whatever the marks say.
+    if (pos < const Duration(minutes: 2)) return;
     final at = _upNextAt;
     if (at == null) return;
     if (!_upNextShown && pos >= at) {

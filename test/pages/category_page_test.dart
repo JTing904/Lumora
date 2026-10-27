@@ -7,7 +7,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zplay/pages/category/category_page.dart';
 import 'package:zplay/services/metadata/tmdb_service.dart';
-import 'package:zplay/widgets/movie/movie_slider_section.dart';
+import 'package:zplay/ui/lu_cards.dart';
 
 /// Every TMDb list answers with the same eight titles.
 List<Map<String, Object?>> _results() => [
@@ -57,7 +57,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    expect(find.byType(MovieSliderSection), findsWidgets);
+    expect(find.byType(LuRail), findsWidgets);
     expect(find.text('Trending series'), findsOneWidget);
     // The featured title: name, synopsis and its two actions.
     expect(find.text('港剧 1'), findsWidgets);

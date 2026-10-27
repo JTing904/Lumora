@@ -304,7 +304,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           (name) => name.trim().isNotEmpty && name != 'skip',
         );
     if (required.isEmpty) return l10nCurrent().dscCustom;
-    return required.join(' + ');
+    return required.map(_extraLabel).join(' + ');
   }
 
   void _onTypeChanged(String type) {
@@ -981,8 +981,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final isRequired = extra.isRequired;
     final isSelected = currentVal != null && currentVal.isNotEmpty;
     final label = extra.options.isNotEmpty
-        ? '${extra.name}: ${currentVal ?? 'All'}'
-        : '${extra.name.toUpperCase()}: ${currentVal ?? (isRequired ? 'Required' : 'Enter')}';
+        ? '${_extraLabel(extra.name)}: ${currentVal ?? l10nCurrent().subAll}'
+        : '${_extraLabel(extra.name)}: ${currentVal ?? (isRequired ? l10nCurrent().dscRequired : l10nCurrent().dscEnter)}';
 
     return Padding(
       padding: const EdgeInsets.only(right: ZplaySpacing.s8),
@@ -1277,7 +1277,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 // Type selector popup/dropdown
                 if (_availableTypes.isNotEmpty) ...[
                   _DiscoverPill(
-                    label: '${_selectedType[0].toUpperCase()}${_selectedType.substring(1)}',
+                    label: _typeLabel(_selectedType),
                     trailing: Icons.arrow_drop_down,
                     height: television ? selectorH : null,
                     onActivate: (pill) => _openPillMenu<String>(
@@ -1287,7 +1287,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                             (t) => PopupMenuItem<String>(
                               value: t,
                               child: Text(
-                                '${t[0].toUpperCase()}${t.substring(1)}',
+                                _typeLabel(t),
                                 style: ZplayType.body.toStyle(
                                   color: t == _selectedType
                                       ? tokens.accent
@@ -1426,7 +1426,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       padding: const EdgeInsets.only(right: ZplaySpacing.s8),
                       child: _DiscoverPill(
                         label:
-                            '${extra.name.toUpperCase()}: ${currentVal ?? (isReq ? "Required *" : "All")}',
+                            '${_extraLabel(extra.name)}: ${currentVal ?? (isReq ? '${l10nCurrent().dscRequired} *' : l10nCurrent().subAll)}',
                         trailing: Icons.arrow_drop_down,
                         required: isReq,
                         attention: isReq && !isSelected,
@@ -1471,7 +1471,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     padding: const EdgeInsets.only(right: ZplaySpacing.s8),
                     child: _DiscoverPill(
                       label:
-                          '${extra.name.toUpperCase()}: ${currentVal ?? (isReq ? "Required *" : "Enter")}',
+                          '${_extraLabel(extra.name)}: ${currentVal ?? (isReq ? '${l10nCurrent().dscRequired} *' : l10nCurrent().dscEnter)}',
                       trailing: Icons.edit_rounded,
                       required: isReq,
                       attention: isReq && !isSelected,
@@ -1747,4 +1747,30 @@ class _DiscoverPill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A catalog type in the viewer's language: 电影, 剧集, 动漫, 电视, 频道.
+String _typeLabel(String type) {
+  final l10n = l10nCurrent();
+  return switch (type) {
+    'movie' => l10n.typeMovies,
+    'series' => l10n.typeSeries,
+    'anime' => l10n.navAnime,
+    'tv' => l10n.dscTypeTv,
+    'channel' => l10n.dscTypeChannel,
+    _ when type.isEmpty => type,
+    _ => '${type[0].toUpperCase()}${type.substring(1)}',
+  };
+}
+
+/// A catalog filter's name in the viewer's language: 类型, 年份, 搜索.
+String _extraLabel(String name) {
+  final l10n = l10nCurrent();
+  return switch (name) {
+    'genre' => l10n.filterGenre,
+    'year' => l10n.filterYear,
+    'search' => l10n.navSearch,
+    _ when name.isEmpty => name,
+    _ => '${name[0].toUpperCase()}${name.substring(1)}',
+  };
 }

@@ -395,7 +395,9 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  l10nOf(context).panelAllProviders(widget.currentAddonName),
+                  l10nOf(context).panelAllProviders(
+                    displayAddonName(widget.currentAddonName),
+                  ),
                   style: ZplayType.bodySmall
                       .copyWith(weight: FontWeight.w500)
                       .toStyle(color: tokens.textSecondary),
@@ -682,7 +684,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
                           if (source.name != null && source.name!.isNotEmpty) ...[
                             Flexible(
                               child: Text(
-                                source.name!,
+                                displayAddonName(source.name!),
                                 style: ZplayType.caption.toStyle(color: tokens.textSecondary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

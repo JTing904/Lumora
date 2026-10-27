@@ -8381,7 +8381,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgaDebridToggleNote.
   ///
   /// In en, this message translates to:
-  /// **'When enabled, all torrents from ZPlay and Stremio addons are resolved exclusively through your active Debrid provider without touching the local torrent engine.'**
+  /// **'When enabled, all torrents from Lumora and Stremio addons are resolved exclusively through your active Debrid provider without touching the local torrent engine.'**
   String get stgaDebridToggleNote;
 
   /// No description provided for @stgaActiveProvider.
@@ -8399,7 +8399,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgaDebridProviderNote.
   ///
   /// In en, this message translates to:
-  /// **'ZPlay will send requests to this provider when streaming.'**
+  /// **'Lumora will send requests to this provider when streaming.'**
   String get stgaDebridProviderNote;
 
   /// No description provided for @stgaProviderCredentials.
@@ -12760,7 +12760,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgcServiceKeysIntro.
   ///
   /// In en, this message translates to:
-  /// **'ZPlay talks to several third-party services. Any key you save here replaces the one this build uses and takes effect immediately, with no restart.'**
+  /// **'Lumora talks to several third-party services. Any key you save here replaces the one this build uses and takes effect immediately, with no restart.'**
   String get stgcServiceKeysIntro;
 
   /// No description provided for @stgcServiceKeysUnobtainable.
@@ -14418,6 +14418,390 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t make codes.'**
   String get invitesCreateFailed;
+
+  /// No description provided for @authWelcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back'**
+  String get authWelcomeBack;
+
+  /// No description provided for @authCreateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your account'**
+  String get authCreateAccount;
+
+  /// No description provided for @authSignInSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to pick up your list and what you were watching.'**
+  String get authSignInSubtitle;
+
+  /// No description provided for @authSignUpSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the invite code a friend gave you. Each code works once.'**
+  String get authSignUpSubtitle;
+
+  /// No description provided for @authFirstTime.
+  ///
+  /// In en, this message translates to:
+  /// **'New here?'**
+  String get authFirstTime;
+
+  /// No description provided for @authUseInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up with an invite code'**
+  String get authUseInvite;
+
+  /// No description provided for @authHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account?'**
+  String get authHaveAccount;
+
+  /// No description provided for @authSignInInstead.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get authSignInInstead;
+
+  /// No description provided for @authDragToTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to turn'**
+  String get authDragToTurn;
+
+  /// No description provided for @authSwitchFigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {name}'**
+  String authSwitchFigure(String name);
+
+  /// No description provided for @authEmailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'you@example.com'**
+  String get authEmailHint;
+
+  /// No description provided for @authPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 6 characters'**
+  String get authPasswordHint;
+
+  /// No description provided for @authInviteFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'ABCD-2345'**
+  String get authInviteFieldHint;
+
+  /// No description provided for @splashLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting'**
+  String get splashLoading;
+
+  /// No description provided for @homeTodayTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top {rank} today'**
+  String homeTodayTop(int rank);
+
+  /// No description provided for @homeKindSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get homeKindSeries;
+
+  /// No description provided for @homeKindMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Film'**
+  String get homeKindMovie;
+
+  /// No description provided for @homeHeroNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get homeHeroNext;
+
+  /// No description provided for @homeHeroPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get homeHeroPrevious;
+
+  /// No description provided for @homeHeroSlide.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide {index}'**
+  String homeHeroSlide(int index);
+
+  /// No description provided for @moreAiPicks.
+  ///
+  /// In en, this message translates to:
+  /// **'AI picks'**
+  String get moreAiPicks;
+
+  /// No description provided for @moreCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Airing calendar'**
+  String get moreCalendar;
+
+  /// No description provided for @browseMoviesTv.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies & TV'**
+  String get browseMoviesTv;
+
+  /// No description provided for @browseCollections.
+  ///
+  /// In en, this message translates to:
+  /// **'Collections'**
+  String get browseCollections;
+
+  /// No description provided for @browseManga.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga'**
+  String get browseManga;
+
+  /// No description provided for @browseBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Books'**
+  String get browseBooks;
+
+  /// No description provided for @browseAudiobooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Audiobooks'**
+  String get browseAudiobooks;
+
+  /// No description provided for @browseMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get browseMusic;
+
+  /// No description provided for @liveCatPremier.
+  ///
+  /// In en, this message translates to:
+  /// **'Premier Live Broadcasts'**
+  String get liveCatPremier;
+
+  /// No description provided for @liveCatEspn.
+  ///
+  /// In en, this message translates to:
+  /// **'ESPN & College Basketball (NCAA)'**
+  String get liveCatEspn;
+
+  /// No description provided for @liveCatUsSports.
+  ///
+  /// In en, this message translates to:
+  /// **'US Major Leagues & Sports'**
+  String get liveCatUsSports;
+
+  /// No description provided for @liveCatSoccer.
+  ///
+  /// In en, this message translates to:
+  /// **'Global Football & Soccer'**
+  String get liveCatSoccer;
+
+  /// No description provided for @liveCatBoxing.
+  ///
+  /// In en, this message translates to:
+  /// **'Boxing'**
+  String get liveCatBoxing;
+
+  /// No description provided for @liveCatCombat.
+  ///
+  /// In en, this message translates to:
+  /// **'Combat & Martial Arts'**
+  String get liveCatCombat;
+
+  /// No description provided for @liveCatRacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Motorsport & Racing'**
+  String get liveCatRacing;
+
+  /// No description provided for @liveCatMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies & Premium Networks'**
+  String get liveCatMovies;
+
+  /// No description provided for @liveCatNews.
+  ///
+  /// In en, this message translates to:
+  /// **'24/7 Global News Networks'**
+  String get liveCatNews;
+
+  /// No description provided for @liveCatArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic & Regional Hub'**
+  String get liveCatArabic;
+
+  /// No description provided for @liveCatDiscovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Discovery & Documentaries'**
+  String get liveCatDiscovery;
+
+  /// No description provided for @liveCatKids.
+  ///
+  /// In en, this message translates to:
+  /// **'Kids & Family'**
+  String get liveCatKids;
+
+  /// No description provided for @liveCatUs.
+  ///
+  /// In en, this message translates to:
+  /// **'US Region'**
+  String get liveCatUs;
+
+  /// No description provided for @liveCatUk.
+  ///
+  /// In en, this message translates to:
+  /// **'UK Region'**
+  String get liveCatUk;
+
+  /// No description provided for @liveCatCanada.
+  ///
+  /// In en, this message translates to:
+  /// **'Canada Region'**
+  String get liveCatCanada;
+
+  /// No description provided for @liveCatBayArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Bay Area'**
+  String get liveCatBayArea;
+
+  /// No description provided for @liveCatIntlSports.
+  ///
+  /// In en, this message translates to:
+  /// **'International Sports'**
+  String get liveCatIntlSports;
+
+  /// No description provided for @liveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live channels from your sources'**
+  String get liveSubtitle;
+
+  /// No description provided for @listSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} saved'**
+  String listSummary(int count);
+
+  /// No description provided for @dscRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get dscRequired;
+
+  /// No description provided for @dscEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter'**
+  String get dscEnter;
+
+  /// No description provided for @dscTypeTv.
+  ///
+  /// In en, this message translates to:
+  /// **'TV'**
+  String get dscTypeTv;
+
+  /// No description provided for @dscTypeChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels'**
+  String get dscTypeChannel;
+
+  /// No description provided for @tvStatusStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped.'**
+  String get tvStatusStopped;
+
+  /// No description provided for @tvStatusDiscovering.
+  ///
+  /// In en, this message translates to:
+  /// **'Discovering fresh portals…'**
+  String get tvStatusDiscovering;
+
+  /// No description provided for @tvStatusNoMore.
+  ///
+  /// In en, this message translates to:
+  /// **'No more portals available.'**
+  String get tvStatusNoMore;
+
+  /// No description provided for @tvStatusVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying {count} portals…'**
+  String tvStatusVerifying(int count);
+
+  /// No description provided for @tvStatusVerifyingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying portals {done}/{total} · {active} active'**
+  String tvStatusVerifyingProgress(int done, int total, int active);
+
+  /// No description provided for @tvStatusScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning {count} portals in parallel…'**
+  String tvStatusScanning(int count);
+
+  /// No description provided for @tvStatusFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} streams · verifying health…'**
+  String tvStatusFound(int count);
+
+  /// No description provided for @tvStatusSniffing.
+  ///
+  /// In en, this message translates to:
+  /// **'Sniffing {checked}/{total} · {live} verified live'**
+  String tvStatusSniffing(int checked, int total, int live);
+
+  /// No description provided for @tvGuideFromPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Programme data comes from the channel\'s own panel, so it appears once one of your portals has a verified live feed for {channel}.'**
+  String tvGuideFromPanel(String channel);
+
+  /// No description provided for @liveCatSports.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports'**
+  String get liveCatSports;
+
+  /// No description provided for @liveCatSoccerShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Soccer'**
+  String get liveCatSoccerShort;
+
+  /// No description provided for @liveCatMoviesShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get liveCatMoviesShort;
+
+  /// No description provided for @liveCatNewsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'News'**
+  String get liveCatNewsShort;
 }
 
 class _AppLocalizationsDelegate

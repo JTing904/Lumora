@@ -111,7 +111,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcutsLeaveFullscreenNote => '不会自己离开当前页面';
 
   @override
-  String get shortcutsMyList => '我的片单和下载';
+  String get shortcutsMyList => '我的收藏和下载';
 
   @override
   String get shortcutsSearchMacNote => 'macOS 上是 Cmd + K';
@@ -261,7 +261,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTraktTitle => 'Trakt.tv 同步';
 
   @override
-  String get settingsTraktSubtitle => '跨设备同步片单、观看记录和播放进度';
+  String get settingsTraktSubtitle => '跨设备同步收藏、观看记录和播放进度';
 
   @override
   String get settingsSimklTitle => 'Simkl 同步';
@@ -345,7 +345,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsBackupDescription =>
-      '导出你的设置、主题、片单和观看进度。不填密码会导出精简版，账号密码、IPTV 门户和插件网址都只留在这台设备上。填了密码会把完整资料（包括这些）加密导出。';
+      '导出你的设置、主题、收藏和观看进度。不填密码会导出精简版，账号密码、IPTV 门户和插件网址都只留在这台设备上。填了密码会把完整资料（包括这些）加密导出。';
 
   @override
   String get settingsPassphraseOptional => '密码（可不填）';
@@ -401,14 +401,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsClearCacheTitle => '清除缓存';
 
   @override
-  String get settingsClearCacheSubtitle => '删除缓存的图片和影片资料。登录、插件、片单和观看记录都会保留';
+  String get settingsClearCacheSubtitle => '删除缓存的图片和影片资料。登录、插件、收藏和观看记录都会保留';
 
   @override
   String get settingsClearCacheConfirmTitle => '要清除缓存吗？';
 
   @override
   String get settingsClearCacheConfirmBody =>
-      '会删除缓存的图片和影片资料，之后重新下载。不会让你退出登录，也不会删除插件，你的资料、片单、观看记录和设置都保持不变。';
+      '会删除缓存的图片和影片资料，之后重新下载。不会让你退出登录，也不会删除插件，你的资料、收藏、观看记录和设置都保持不变。';
 
   @override
   String get settingsClear => '清除';
@@ -437,7 +437,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsCacheClearedSuffix => '你仍然保持登录，插件、片单、观看记录和设置都没有变动。';
+  String get settingsCacheClearedSuffix => '你仍然保持登录，插件、收藏、观看记录和设置都没有变动。';
 
   @override
   String get settingsUpdatesTitle => '应用更新';
@@ -660,7 +660,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get emptyMyList => '片单还是空的';
+  String get emptyMyList => '收藏还是空的';
 
   @override
   String get emptyMyListBody => '把喜欢的电影和剧集加进来，想看随时看';
@@ -723,7 +723,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String homeBecauseOnList(String title) {
-    return '因为你片单里有「$title」';
+    return '因为你收藏了「$title」';
   }
 
   @override
@@ -825,10 +825,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get detailsLibrary => '片单';
+  String get detailsLibrary => '收藏';
 
   @override
-  String get detailsInLibrary => '已在片单';
+  String get detailsInLibrary => '已收藏';
 
   @override
   String detailsSeasonCount(int count) {
@@ -1539,7 +1539,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncSave => '保存时间';
 
   @override
-  String get listRemoveConfirm => '从片单里移除？';
+  String get listRemoveConfirm => '从收藏里移除？';
 
   @override
   String get commonCancel => '取消';
@@ -1548,7 +1548,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get listRemove => '移除';
 
   @override
-  String get listTitle => '片单';
+  String get listTitle => '我的收藏';
 
   @override
   String get listSyncing => '正在同步……';
@@ -1557,7 +1557,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get listSynced => '已同步';
 
   @override
-  String get listFilter => '筛选片单';
+  String get listFilter => '筛选收藏';
 
   @override
   String get listSortRecent => '最近加入';
@@ -1569,16 +1569,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get listSortYear => '按年份';
 
   @override
-  String get listSearch => '搜索片单……';
+  String get listSearch => '搜索收藏……';
 
   @override
-  String get listEmpty => '片单还是空的';
+  String get listEmpty => '收藏还是空的';
 
   @override
   String get listNoMatch => '没有符合的片';
 
   @override
-  String get listEmptyBody => '把喜欢的电影和剧集加进片单，随时回来看';
+  String get listEmptyBody => '把喜欢的电影和剧集加进收藏，随时回来看';
 
   @override
   String get listNoMatchBody => '换个关键词或筛选条件试试';
@@ -1773,7 +1773,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get animeMovies => '动画电影';
 
   @override
-  String get animeAddToList => '加进片单';
+  String get animeAddToList => '加入收藏';
 
   @override
   String get animeCast => '角色与声优';
@@ -1828,7 +1828,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutTechSync => 'Trakt 与云端同步';
 
   @override
-  String get aboutTechSyncBody => '跨设备同步片单、追剧进度和观看记录。';
+  String get aboutTechSyncBody => '跨设备同步收藏、追剧进度和观看记录。';
 
   @override
   String get aboutCredits => '致谢与许可';
@@ -1963,10 +1963,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navAnime => '动漫';
 
   @override
-  String get navMyList => '我的片单';
+  String get navMyList => '我的收藏';
 
   @override
-  String get navMyListShort => '片单';
+  String get navMyListShort => '收藏';
 
   @override
   String get navDownloads => '下载';
@@ -2044,7 +2044,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get catTopAnime => '高分动漫';
 
   @override
-  String get catAddToList => '加入片单';
+  String get catAddToList => '加入收藏';
 
   @override
   String get catDetails => '详情';
@@ -4314,7 +4314,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stgaDebridToggleNote =>
-      '开启后，来自 ZPlay 和 Stremio 插件的所有种子都只通过当前 Debrid 服务解析，不使用本地种子引擎。';
+      '开启后，来自 Lumora 和 Stremio 插件的所有种子都只通过当前 Debrid 服务解析，不使用本地种子引擎。';
 
   @override
   String get stgaActiveProvider => '当前服务';
@@ -4323,7 +4323,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgaSelectDefaultDebrid => '选择默认 Debrid 服务';
 
   @override
-  String get stgaDebridProviderNote => '播放时 ZPlay 会向此服务发送请求。';
+  String get stgaDebridProviderNote => '播放时 Lumora 会向此服务发送请求。';
 
   @override
   String get stgaProviderCredentials => '服务凭据';
@@ -4636,7 +4636,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgbHomeUiThemes => '首页界面与主题';
 
   @override
-  String get stgbHomeUiThemesDesc => '配色方案、“因为你的片单中有”智能轮播、焦点大图和卡片密度';
+  String get stgbHomeUiThemesDesc => '配色方案、“因为你收藏了”智能轮播、焦点大图和卡片密度';
 
   @override
   String get stgbLiveTvSportsUi => '电视直播与体育界面';
@@ -5110,7 +5110,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgbUploadOrChooseWallpaper => '上传照片或选择精选深色壁纸';
 
   @override
-  String get stgbSmartRecsCaps => '智能推荐（“因为你的片单中有”）';
+  String get stgbSmartRecsCaps => '智能推荐（“因为你收藏了”）';
 
   @override
   String get stgbCuratedCollections => '精选合集';
@@ -5149,10 +5149,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgbSmartRecommendationsDesc => '配置个性化和算法推荐轮播';
 
   @override
-  String get stgbBecauseYouHave => '“因为你有...”（我的片单）';
+  String get stgbBecauseYouHave => '“因为你收藏了…”（我的收藏）';
 
   @override
-  String get stgbBecauseYouHaveDesc => '根据“我的片单”中保存的作品提供 BestSimilar 推荐';
+  String get stgbBecauseYouHaveDesc => '根据“我的收藏”中的作品提供 BestSimilar 推荐';
 
   @override
   String get stgbBecauseYoureWatching => '“因为你正在看...”';
@@ -7027,7 +7027,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stgcServiceKeysIntro =>
-      'ZPlay 会连接多个第三方服务。你在这里保存的密钥会替换此版本内置的密钥，并立即生效，无需重启。';
+      'Lumora 会连接多个第三方服务。你在这里保存的密钥会替换此版本内置的密钥，并立即生效，无需重启。';
 
   @override
   String get stgcServiceKeysUnobtainable =>
@@ -8012,4 +8012,216 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get invitesCreateFailed => '邀请码生成失败。';
+
+  @override
+  String get authWelcomeBack => '欢迎回来';
+
+  @override
+  String get authCreateAccount => '创建账号';
+
+  @override
+  String get authSignInSubtitle => '登录后继续看你的收藏和观看记录。';
+
+  @override
+  String get authSignUpSubtitle => '用朋友给你的邀请码注册，一个码只能用一次。';
+
+  @override
+  String get authFirstTime => '第一次来？';
+
+  @override
+  String get authUseInvite => '用邀请码注册';
+
+  @override
+  String get authHaveAccount => '已经有账号了？';
+
+  @override
+  String get authSignInInstead => '直接登录';
+
+  @override
+  String get authDragToTurn => '拖动旋转';
+
+  @override
+  String authSwitchFigure(String name) {
+    return '换成$name';
+  }
+
+  @override
+  String get authEmailHint => 'you@example.com';
+
+  @override
+  String get authPasswordHint => '至少 6 位';
+
+  @override
+  String get authInviteFieldHint => 'ABCD-2345';
+
+  @override
+  String get splashLoading => '正在启动';
+
+  @override
+  String homeTodayTop(int rank) {
+    return '今日 Top $rank';
+  }
+
+  @override
+  String get homeKindSeries => '剧集';
+
+  @override
+  String get homeKindMovie => '电影';
+
+  @override
+  String get homeHeroNext => '下一个';
+
+  @override
+  String get homeHeroPrevious => '上一个';
+
+  @override
+  String homeHeroSlide(int index) {
+    return '第 $index 个';
+  }
+
+  @override
+  String get moreAiPicks => 'AI 选片';
+
+  @override
+  String get moreCalendar => '追剧日历';
+
+  @override
+  String get browseMoviesTv => '影视';
+
+  @override
+  String get browseCollections => '合集';
+
+  @override
+  String get browseManga => '漫画';
+
+  @override
+  String get browseBooks => '书籍';
+
+  @override
+  String get browseAudiobooks => '有声书';
+
+  @override
+  String get browseMusic => '音乐';
+
+  @override
+  String get liveCatPremier => '精选直播';
+
+  @override
+  String get liveCatEspn => 'ESPN 与大学篮球';
+
+  @override
+  String get liveCatUsSports => '美国职业联赛';
+
+  @override
+  String get liveCatSoccer => '足球';
+
+  @override
+  String get liveCatBoxing => '拳击';
+
+  @override
+  String get liveCatCombat => '格斗';
+
+  @override
+  String get liveCatRacing => '赛车';
+
+  @override
+  String get liveCatMovies => '电影与付费频道';
+
+  @override
+  String get liveCatNews => '新闻';
+
+  @override
+  String get liveCatArabic => '阿拉伯频道';
+
+  @override
+  String get liveCatDiscovery => '纪录片';
+
+  @override
+  String get liveCatKids => '少儿与家庭';
+
+  @override
+  String get liveCatUs => '美国频道';
+
+  @override
+  String get liveCatUk => '英国频道';
+
+  @override
+  String get liveCatCanada => '加拿大频道';
+
+  @override
+  String get liveCatBayArea => '旧金山湾区';
+
+  @override
+  String get liveCatIntlSports => '国际体育';
+
+  @override
+  String get liveSubtitle => '来自你的片源的直播频道';
+
+  @override
+  String listSummary(int count) {
+    return '共 $count 部';
+  }
+
+  @override
+  String get dscRequired => '必选';
+
+  @override
+  String get dscEnter => '输入';
+
+  @override
+  String get dscTypeTv => '电视';
+
+  @override
+  String get dscTypeChannel => '频道';
+
+  @override
+  String get tvStatusStopped => '已停止。';
+
+  @override
+  String get tvStatusDiscovering => '正在寻找新的门户…';
+
+  @override
+  String get tvStatusNoMore => '没有更多可用的门户。';
+
+  @override
+  String tvStatusVerifying(int count) {
+    return '正在验证 $count 个门户…';
+  }
+
+  @override
+  String tvStatusVerifyingProgress(int done, int total, int active) {
+    return '验证门户 $done/$total · $active 个可用';
+  }
+
+  @override
+  String tvStatusScanning(int count) {
+    return '正在并行扫描 $count 个门户…';
+  }
+
+  @override
+  String tvStatusFound(int count) {
+    return '找到 $count 个直播流 · 正在检查可用性…';
+  }
+
+  @override
+  String tvStatusSniffing(int checked, int total, int live) {
+    return '检测 $checked/$total · $live 个可直播';
+  }
+
+  @override
+  String tvGuideFromPanel(String channel) {
+    return '节目单来自频道自己的面板，等你的片源里有一个确认能播的「$channel」直播流后就会显示。';
+  }
+
+  @override
+  String get liveCatSports => '体育';
+
+  @override
+  String get liveCatSoccerShort => '足球';
+
+  @override
+  String get liveCatMoviesShort => '电影';
+
+  @override
+  String get liveCatNewsShort => '新闻';
 }

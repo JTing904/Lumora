@@ -1,15 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../l10n/generated/app_localizations.dart';
+import '../../l10n/l10n.dart';
 import '../../services/content/content_settings.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../shell/app_shell_scope.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_theme.dart';
 import '../../widgets/common/tab_strip.dart';
 import '../adult/adult_page.dart';
+import '../ai/wewatch_quiz_page.dart';
 import '../anime/anime_page.dart';
 import '../audiobooks/audiobooks_page.dart';
 import '../books/books_page.dart';
+import '../calendar/tv_calendar_page.dart';
 import '../collections/collections_page.dart';
 import '../discover/discover_page.dart';
 import '../iptv/iptv_page.dart';
@@ -36,24 +42,24 @@ enum BrowseVertical {
 }
 
 extension BrowseVerticalX on BrowseVertical {
-  String get label {
+  String label(AppLocalizations l10n) {
     switch (this) {
       case BrowseVertical.moviesAndTv:
-        return 'Movies & TV';
+        return l10n.browseMoviesTv;
       case BrowseVertical.collections:
-        return 'Collections';
+        return l10n.browseCollections;
       case BrowseVertical.liveTv:
-        return 'Live TV';
+        return l10n.navLiveTv;
       case BrowseVertical.anime:
-        return 'Anime';
+        return l10n.navAnime;
       case BrowseVertical.manga:
-        return 'Manga';
+        return l10n.browseManga;
       case BrowseVertical.books:
-        return 'Books';
+        return l10n.browseBooks;
       case BrowseVertical.audiobooks:
-        return 'Audiobooks';
+        return l10n.browseAudiobooks;
       case BrowseVertical.music:
-        return 'Music';
+        return l10n.browseMusic;
       case BrowseVertical.adult:
         return '18+';
     }
@@ -121,7 +127,7 @@ extension BrowseVerticalX on BrowseVertical {
 /// off the enum. An enum index is wrong twice over once a vertical is gated:
 /// it addresses a child that is not in the list at all.
 ({List<BrowseVertical> verticals, List<TabStripOption<BrowseVertical>> options, List<Widget> pages})
-    _buildVerticals({required bool adultEnabled}) {
+    _buildVerticals(AppLocalizations l10n, {required bool adultEnabled}) {
   // `BrowseVertical.values` minus the verticals the current settings do not
   // offer. Only [BrowseVertical.adult] is conditional today; the filter is
   // written as a per-vertical rule so adding another gated vertical does not
@@ -140,7 +146,7 @@ extension BrowseVerticalX on BrowseVertical {
       for (final vertical in visible)
         TabStripOption<BrowseVertical>(
           value: vertical,
-          label: vertical.label,
+          label: vertical.label(l10n),
           icon: vertical.icon,
         ),
     ],
@@ -236,7 +242,10 @@ class _BrowsePageState extends State<BrowsePage> {
     // the stack's `index` read the same element of the same list, so they
     // cannot name different verticals even while the visible set is changing
     // underneath them.
-  final verticals = _buildVerticals(adultEnabled: adultEnabled);
+  final verticals = _buildVerticals(
+    l10nOf(context),
+    adultEnabled: adultEnabled,
+  );
   // `_onAdultContentChanged` moves the selection off a vertical that has just
   // stopped being offered, so the lookup succeeds. The clamp is the index
   // guard for [IndexedStack], which throws on an out-of-range index, and it
@@ -251,7 +260,12 @@ class _BrowsePageState extends State<BrowsePage> {
     // rail's own pointer row so the two read as one chrome.
     final television =
         FormFactorService.of(context) == FormFactor.television;
-    final double gutter = television ? ZplaySpacing.s32 : ZplaySpacing.s20;
+    // The page gutter every Lumora page uses. The verticals keep their own
+    // 16 dp inset, so the stack below is indented by the difference.
+    final double gutter = MediaQuery.sizeOf(context).width < 600
+        ? 16
+        : (television ? 48 : LuSpace.page);
+    final double verticalInset = (gutter - 16).clamp(0, 64).toDouble();
     // The band pays for the chrome above this slot out of its own gutter rather
     // than into it: `paddingOf(context).top` is the shell's top bar on tablet,
     // desktop and television - the bar is painted over this page, so the page is
@@ -294,13 +308,44 @@ class _BrowsePageState extends State<BrowsePage> {
             right: gutter + inset.right,
             bottom: television ? ZplaySpacing.s16 : ZplaySpacing.s12,
           ),
-          child: TabStrip<BrowseVertical>(
-            options: verticals.options,
-            selected: selected,
-            onSelected: (vertical) =>
-                setState(() => _vertical = vertical),
-            semanticsLabel: 'Browse verticals',
-            height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
+          // The verticals, then the two pages that left Home: AI 选片 and
+          // 追剧日历 open over the shell with their own back.
+          child: Wrap(
+            spacing: ZplaySpacing.s12,
+            runSpacing: ZplaySpacing.s12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TabStrip<BrowseVertical>(
+                options: verticals.options,
+                selected: selected,
+                onSelected: (vertical) =>
+                    setState(() => _vertical = vertical),
+                semanticsLabel: 'Browse verticals',
+                height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
+              ),
+              LuButton(
+                label: l10nOf(context).moreAiPicks,
+                icon: Icons.auto_awesome_rounded,
+                kind: LuButtonKind.secondary,
+                compact: true,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const WeWatchQuizPage(),
+                  ),
+                ),
+              ),
+              LuButton(
+                label: l10nOf(context).moreCalendar,
+                icon: Icons.calendar_month_rounded,
+                kind: LuButtonKind.secondary,
+                compact: true,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TvCalendarPage(),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -323,9 +368,12 @@ class _BrowsePageState extends State<BrowsePage> {
             child: MediaQuery.removePadding(
               context: context,
               removeTop: true,
-              child: IndexedStack(
-                index: selectedIndex,
-                children: verticals.pages,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: verticalInset),
+                child: IndexedStack(
+                  index: selectedIndex,
+                  children: verticals.pages,
+                ),
               ),
             ),
           ),

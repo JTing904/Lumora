@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/l10n.dart';
 import '../../models/movie/video.dart';
-import '../../services/theme/design_tokens.dart';
-import '../../widgets/common/focusable_card.dart';
+import '../../ui/lu_focusable.dart';
+import '../../ui/lu_theme.dart';
 
 /// 选集 for a long season: the episode numbers as a grid, thirty to a page.
 ///
@@ -57,7 +57,6 @@ class _EpisodeNumberGridState extends State<EpisodeNumberGrid> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
     final eps = widget.episodes;
     final pages = (eps.length / EpisodeNumberGrid.pageSize).ceil();
     final start = _page * EpisodeNumberGrid.pageSize;
@@ -68,8 +67,8 @@ class _EpisodeNumberGridState extends State<EpisodeNumberGrid> {
       children: [
         if (pages > 1) ...[
           Wrap(
-            spacing: ZplaySpacing.s8,
-            runSpacing: ZplaySpacing.s8,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               for (var p = 0; p < pages; p++)
                 _RangeTab(
@@ -79,11 +78,11 @@ class _EpisodeNumberGridState extends State<EpisodeNumberGrid> {
                 ),
             ],
           ),
-          const SizedBox(height: ZplaySpacing.s12),
+          const SizedBox(height: 12),
         ],
         Wrap(
-          spacing: ZplaySpacing.s8,
-          runSpacing: ZplaySpacing.s8,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             for (final ep in shown)
               _NumberCell(
@@ -95,7 +94,6 @@ class _EpisodeNumberGridState extends State<EpisodeNumberGrid> {
                     widget.current!.season == ep.season &&
                     widget.current!.episode == ep.episode,
                 onTap: () => widget.onTap(ep),
-                tokens: tokens,
               ),
           ],
         ),
@@ -128,32 +126,29 @@ class _RangeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
     return Semantics(
       selected: selected,
-      child: FocusableCard(
+      child: LuFocusable(
         onTap: onTap,
-        builder: (_, state) => CardFocusRing(
-          focused: state.focused,
-          radius: ZplayRadius.fullAll,
-          child: Container(
-            height: 32,
-            padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
-            decoration: BoxDecoration(
-              borderRadius: ZplayRadius.fullAll,
-              color: selected
-                  ? tokens.accent.withValues(alpha: 0.18)
-                  : (state.highlighted ? tokens.surface : Colors.transparent),
-            ),
-            // Sized to the label: a Wrap's loose width would stretch it.
-            child: Center(
-              widthFactor: 1,
-              child: Text(
-                label,
-                style: ZplayType.label.toStyle(
-                  color: selected ? tokens.accent : tokens.textSecondary,
-                  tabular: true,
-                ),
+        builder: (context, hi) => AnimatedContainer(
+          duration: LuMotion.focus,
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: LuRadius.pill,
+            color: selected
+                ? LuColors.text
+                : (hi ? const Color(0x1FFFFFFF) : Colors.transparent),
+            border: selected ? null : Border.all(color: LuColors.line),
+          ),
+          // Sized to the label: a Wrap's loose width would stretch it.
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              style: LuText.label.copyWith(
+                fontFamily: LuFonts.display,
+                color: selected ? LuColors.bg : LuColors.textSoft,
               ),
             ),
           ),
@@ -170,7 +165,6 @@ class _NumberCell extends StatelessWidget {
     required this.progress,
     required this.isCurrent,
     required this.onTap,
-    required this.tokens,
   });
 
   final int number;
@@ -178,75 +172,66 @@ class _NumberCell extends StatelessWidget {
   final double? progress;
   final bool isCurrent;
   final VoidCallback onTap;
-  final ZplayTokens tokens;
 
   @override
   Widget build(BuildContext context) {
     final l10n = l10nOf(context);
-    return Semantics(
-      button: true,
-      label: l10n.cwEpisode(number),
-      child: FocusableCard(
-        onTap: onTap,
-        builder: (_, state) => CardFocusRing(
-          focused: state.focused,
-          radius: ZplayRadius.smAll,
-          child: AnimatedScale(
-            scale: state.highlighted ? 1.05 : 1.0,
-            duration: ZplayMotion.fast,
-            child: Container(
-              width: 64,
-              height: 48,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                borderRadius: ZplayRadius.smAll,
-                color: isCurrent
-                    ? tokens.accent.withValues(alpha: 0.18)
-                    : tokens.surface.withValues(alpha: 0.7),
-                border: Border.all(
-                  color: isCurrent ? tokens.accent : tokens.borderSubtle,
-                  width: isCurrent ? 1.5 : 1,
+    return LuFocusable(
+      onTap: onTap,
+      semanticLabel: l10n.cwEpisode(number),
+      borderRadius: const BorderRadius.all(Radius.circular(10)),
+      builder: (context, hi) => Container(
+        width: 64,
+        height: 48,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+          color: isCurrent
+              ? const Color(0x29F2B544)
+              : (hi ? LuColors.surfaceHigh : LuColors.surface),
+          border: Border.all(
+            color: isCurrent ? LuColors.gold : LuColors.lineSoft,
+            width: isCurrent ? 1.5 : 1,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Text(
+                '$number',
+                style: TextStyle(
+                  fontFamily: LuFonts.display,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: isCurrent
+                      ? LuColors.gold
+                      : (watched ? LuColors.textFaint : LuColors.text),
                 ),
               ),
-              child: Stack(
-                children: [
-                  Center(
-                    child: Text(
-                      '$number',
-                      style: ZplayType.subtitle.toStyle(
-                        color: isCurrent
-                            ? tokens.accent
-                            : (watched ? tokens.textMuted : tokens.textPrimary),
-                        tabular: true,
-                      ),
-                    ),
-                  ),
-                  if (watched)
-                    Positioned(
-                      top: 3,
-                      right: 4,
-                      child: Icon(
-                        Icons.check_rounded,
-                        size: 12,
-                        color: tokens.textMuted,
-                      ),
-                    ),
-                  if (progress case final p? when p > 0)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: LinearProgressIndicator(
-                        value: p.clamp(0.0, 1.0),
-                        minHeight: 3,
-                        color: tokens.accent,
-                        backgroundColor: Colors.transparent,
-                      ),
-                    ),
-                ],
-              ),
             ),
-          ),
+            if (watched)
+              const Positioned(
+                top: 3,
+                right: 4,
+                child: Icon(
+                  Icons.check_rounded,
+                  size: 12,
+                  color: LuColors.textFaint,
+                ),
+              ),
+            if (progress case final p? when p > 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: LinearProgressIndicator(
+                  value: p.clamp(0.0, 1.0),
+                  minHeight: 3,
+                  color: LuColors.gold,
+                  backgroundColor: Colors.transparent,
+                ),
+              ),
+          ],
         ),
       ),
     );

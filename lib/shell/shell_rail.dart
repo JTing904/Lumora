@@ -1,5 +1,7 @@
+import '../services/account/account_service.dart';
+import '../ui/lu_logo.dart';
+import '../ui/lu_theme.dart';
 import 'package:flutter/material.dart';
-import '../../widgets/common/zplay_logo.dart';
 
 import '../l10n/l10n.dart';
 import '../services/layout/form_factor.dart';
@@ -111,7 +113,7 @@ class ShellRail extends StatelessWidget {
   /// 48 dp for the reason the row is: it is the accessibility floor for a
   /// remote's target, and the row fills the bar so the bar is never a smaller
   /// target than that.
-  static const double _barHeight = ZplaySpacing.s48;
+  static const double _barHeight = 64;
 
   /// The destinations named in the desktop and television bar, in order.
   /// Search and 我的 (settings) follow as glyphs at the trailing end.
@@ -147,7 +149,6 @@ class ShellRail extends StatelessWidget {
 
   /// Phone: the same five rows laid out horizontally.
   Widget _bottomBar(BuildContext context, EdgeInsets inset) {
-    final tokens = context.tokens;
     return SizedBox(
       // The shell places this flush with the bottom edge and does not wrap it in
       // a `SafeArea`, so the home indicator inset is added to the pinned 64 px
@@ -157,9 +158,8 @@ class ShellRail extends StatelessWidget {
         decoration: BoxDecoration(
           // The phone mockup's bar: near-black and nearly opaque, so the page
           // scrolling under it reads as under it.
-          color: tokens.bg.withValues(alpha: 0.97),
-          // The content is above the bar, so the hairline is on its top edge.
-          border: Border(top: tokens.hairline),
+          color: LuColors.bg.withValues(alpha: 0.97),
+          border: const Border(top: BorderSide(color: LuColors.lineSoft)),
         ),
         child: Padding(
           padding: EdgeInsets.fromLTRB(
@@ -233,43 +233,28 @@ class ShellRail extends StatelessWidget {
   ) {
     final tokens = context.tokens;
     final television = formFactor == FormFactor.television;
+    // A narrow window keeps the mark without the word and tighter margins,
+    // so six names still fit.
+    final narrow = MediaQuery.sizeOf(context).width < 900;
+    final side = narrow
+        ? ZplaySpacing.s16
+        : (television ? ZplaySpacing.s32 : ZplaySpacing.s48);
+    // Lumora's bar: the ground and no hairline; over art it gives up its
+    // fill to the page behind it while the page sits at its top.
     final Widget chrome = DecoratedBox(
-      decoration: blend <= 0
-          ? BoxDecoration(
-              color: tokens.surface,
-              // The content is below the bar, so the hairline is on its bottom
-              // edge.
-              border: Border(bottom: tokens.hairline),
-            )
-          // Over art, the fill and the hairline come off together. A bar that
-          // kept its hairline would draw a hard line across the hero for as
-          // long as the page sits at its top, which is the seam this whole
-          // change exists to remove - so the hairline keeps the fill's own
-          // opacity rather than a fade of its own. Both take the `surface`
-          // colour, so what fades over the art is the bar itself and not a
-          // second, tinted bar arriving.
-          : BoxDecoration(
-              color: tokens.surface.withValues(
-                alpha: tokens.surface.a * (1 - blend),
-              ),
-              border: Border(
-                bottom: tokens.hairline.copyWith(
-                  color: tokens.hairline.color.withValues(
-                    alpha: tokens.hairline.color.a * (1 - blend),
-                  ),
-                ),
-              ),
-            ),
+      decoration: BoxDecoration(
+        color: LuColors.bg.withValues(alpha: 0.96 * (1 - blend)),
+      ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          ZplaySpacing.s24 + inset.left,
+          side + inset.left,
           inset.top,
-          ZplaySpacing.s24 + inset.right,
+          side + inset.right,
           0,
         ),
         child: Row(
           children: <Widget>[
-            _brand(tokens),
+            _brand(tokens, narrow: narrow),
             const SizedBox(width: ZplaySpacing.s16),
             // Destinations lead from the left and share what is left of the
             // bar between them.
@@ -361,6 +346,21 @@ class ShellRail extends StatelessWidget {
             // have to guess what the glyph toggles.
             // Search and 我的 as glyphs at the trailing end, as in the
             // mockup: destinations by name on the left, tools on the right.
+            // Fullscreen, search and 我的 as discs at the trailing end, as in
+            // the mockup: destinations by name on the left, tools on the right.
+            Padding(
+              padding: const EdgeInsets.only(right: ZplaySpacing.s4),
+              child: SizedBox(
+                width: ZplaySpacing.s48,
+                child: _fullscreenRow(
+                  context,
+                  television: television,
+                  height: ZplaySpacing.s48,
+                  blend: blend,
+                  circle: true,
+                ),
+              ),
+            ),
             for (final slot in const [ShellSlot.search, ShellSlot.settings])
               Padding(
                 padding: const EdgeInsets.only(right: ZplaySpacing.s4),
@@ -372,16 +372,10 @@ class ShellRail extends StatelessWidget {
                     television: television,
                     height: ZplaySpacing.s48,
                     blend: blend,
+                    circle: true,
                   ),
                 ),
               ),
-            _fullscreenRow(
-              context,
-              television: television,
-              height: ZplaySpacing.s48,
-              showLabel: true,
-              blend: blend,
-            ),
           ],
         ),
       ),
@@ -430,9 +424,9 @@ class ShellRail extends StatelessWidget {
   /// It is not a control: the bar's own Home destination is already the way
   /// home, so the anchor stays decorative and adds no extra focus target for a
   /// remote to cross.
-  Widget _brand(ZplayTokens tokens) => const Padding(
-    padding: EdgeInsets.only(right: ZplaySpacing.s16),
-    child: LumoraWordmark(size: ZplaySpacing.s24),
+  Widget _brand(ZplayTokens tokens, {bool narrow = false}) => Padding(
+    padding: const EdgeInsets.only(right: ZplaySpacing.s16),
+    child: narrow ? const LuLogoMark(size: 30) : const LuLogo(size: 30),
   );
 
   Widget _row(
@@ -444,10 +438,19 @@ class ShellRail extends StatelessWidget {
     bool showLabel = false,
     bool stacked = false,
     bool liveTvRowDrawn = true,
+    bool circle = false,
   }) {
     final chrome = _slotChrome(context, slot);
     final marked = _marksSlot(slot, liveTvRowDrawn: liveTvRowDrawn);
+    // 我的 shows the account's initial on gold, as in the design.
+    final email = AccountService.email;
+    final initial =
+        slot == ShellSlot.settings && email != null && email.isNotEmpty
+        ? email.characters.first.toUpperCase()
+        : null;
     return _RailRow(
+      circle: circle,
+      initial: initial,
       label: chrome.label,
       icon: chrome.icon,
       selected: marked,
@@ -491,6 +494,7 @@ class ShellRail extends StatelessWidget {
     required double height,
     required double blend,
     bool showLabel = false,
+    bool circle = false,
   }) {
     final window = WindowService.instance;
     final l10n = l10nOf(context);
@@ -510,6 +514,7 @@ class ShellRail extends StatelessWidget {
         television: television,
         height: height,
         showLabel: showLabel,
+        circle: circle,
         blend: blend,
         onTap: window.toggleFullscreen,
       ),
@@ -537,7 +542,15 @@ class _RailRow extends StatelessWidget {
     this.showLabel = false,
     this.stacked = false,
     this.tooltip,
+    this.circle = false,
+    this.initial,
   });
+
+  /// Drawn as a 40 dp disc: the bar's search and 我的 tools.
+  final bool circle;
+
+  /// A letter on gold in place of the glyph (the account's initial).
+  final String? initial;
 
   final String label;
   final IconData icon;
@@ -701,9 +714,14 @@ class _RailRow extends StatelessWidget {
                               label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: ZplayType.label
-                                  .toStyle(color: _labelColor(tokens, state))
-                                  .copyWith(shadows: shadows),
+                              style: LuText.body.copyWith(
+                                fontSize: 16,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: _labelColor(tokens, state),
+                                shadows: shadows,
+                              ),
                             ),
                           ),
                           _underline(tokens, duration),
@@ -712,6 +730,8 @@ class _RailRow extends StatelessWidget {
                     )
                   : stacked
                   ? _stackedContent(tokens, state)
+                  : circle
+                  ? _disc(state)
                   : _icon(icon, tokens, state, shadows),
             ),
           ),
@@ -720,11 +740,44 @@ class _RailRow extends StatelessWidget {
     );
   }
 
+  /// Search and 我的 in the top bar: a glass disc with the glyph, or the
+  /// account's initial on gold.
+  Widget _disc(CardInteraction state) {
+    final me = initial;
+    return Center(
+      child: AnimatedContainer(
+        duration: LuMotion.focus,
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: me != null
+              ? (state.highlighted ? LuColors.goldLight : LuColors.gold)
+              : (state.highlighted
+                    ? const Color(0x29FFFFFF)
+                    : const Color(0x14FFFFFF)),
+        ),
+        child: me != null
+            ? Text(
+                me,
+                style: const TextStyle(
+                  fontFamily: LuFonts.display,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: LuColors.onGold,
+                ),
+              )
+            : Icon(icon, size: 20, color: LuColors.text),
+      ),
+    );
+  }
+
   /// The glyph over its name, for the phone's bottom bar.
   Widget _stackedContent(ZplayTokens tokens, CardInteraction state) {
     final color = selected
-        ? tokens.accent
-        : (state.highlighted ? tokens.textPrimary : tokens.textMuted);
+        ? LuColors.gold
+        : (state.highlighted ? LuColors.text : LuColors.textFaint);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -812,9 +865,9 @@ class _RailRow extends StatelessWidget {
           child: child,
         ),
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(color: tokens.accent),
-        child: const SizedBox(height: ZplaySpacing.s2),
+      child: const DecoratedBox(
+        decoration: BoxDecoration(color: LuColors.gold),
+        child: SizedBox(height: ZplaySpacing.s2),
       ),
     ),
   );
@@ -834,7 +887,7 @@ class _RailRow extends StatelessWidget {
   /// words. A pointed-at row reads like the current one, for the same reason
   /// the glyph does.
   Color _labelColor(ZplayTokens tokens, CardInteraction state) =>
-      selected || state.highlighted ? tokens.textPrimary : tokens.textSecondary;
+      selected || state.highlighted ? Colors.white : const Color(0xFFC9C4BA);
 }
 
 /// Label and icon per slot. Kept out of the enum: the enum is the shell's

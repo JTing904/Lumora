@@ -23,7 +23,10 @@ AppShellController _shell(WidgetTester tester) =>
     tester.widget<AppShellScope>(find.byType(AppShellScope)).controller;
 
 Future<void> _openLiveTv(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues(<String, Object>{});
+  SharedPreferences.setMockInitialValues(<String, Object>{
+    // The one-time torrent notice is Home's, not what this test is about.
+    'zplay_p2p_warning_never_show': true,
+  });
   DeviceProfile.debugSetTelevision(value: true);
   tester.view.devicePixelRatio = 2.0;
   tester.view.physicalSize = const Size(960, 540) * 2.0;

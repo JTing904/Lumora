@@ -7,6 +7,8 @@ class TitleKindFacts {
     this.localTitle,
     this.posterUrl,
     this.originalLanguage,
+    this.originalTitle,
+    this.adult = false,
   });
 
   /// Animated (anime, donghua, cartoons) as opposed to live action.
@@ -22,6 +24,12 @@ class TitleKindFacts {
 
   /// TMDb's `original_language` ('en', 'zh', 'ja', 'es' ...).
   final String? originalLanguage;
+
+  /// The title in its own language (変態王子と笑わない猫。).
+  final String? originalTitle;
+
+  /// TMDb's own adult flag.
+  final bool adult;
 }
 
 /// Looks up search results on TMDb by IMDb id, so the results page can label
@@ -76,6 +84,8 @@ class TitleKindService {
             ? null
             : 'https://image.tmdb.org/t/p/w342$posterPath',
         originalLanguage: hit['original_language']?.toString(),
+        originalTitle: original,
+        adult: hit['adult'] == true,
       );
     } catch (_) {
       return null;

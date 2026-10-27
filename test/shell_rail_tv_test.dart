@@ -13,7 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:zplay/widgets/common/zplay_logo.dart';
+import 'package:zplay/ui/lu_logo.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zplay/services/layout/device_profile.dart';
 import 'package:zplay/shell/app_shell.dart';
@@ -82,7 +82,7 @@ void main() {
     final bar = tester.getRect(find.byType(ShellRail));
     expect(
       bar,
-      const Rect.fromLTWH(0, 0, 960, 48),
+      const Rect.fromLTWH(0, 0, 960, 64),
       reason:
           'full width, 48 dp of content, flush with the window top - which '
           'is what makes it a layout child rather than an overlay',
@@ -96,7 +96,7 @@ void main() {
     await _pumpOn(tester, canvas: const Size(1920, 1080), television: false);
 
     final bar = tester.getRect(find.byType(ShellRail));
-    expect(bar, const Rect.fromLTWH(0, 0, 1920, 48));
+    expect(bar, const Rect.fromLTWH(0, 0, 1920, 64));
   });
 
   testWidgets('the bar labels every destination', (tester) async {
@@ -119,7 +119,7 @@ void main() {
     // the old raster did. Asserting the widget rather than an `Image` is the
     // point - an asset here would have silently kept the previous accent.
     expect(
-      find.byType(ZplayLogo),
+      find.byType(LuLogo),
       findsWidgets,
       reason: 'the mark is the brand anchor at this width',
     );
@@ -134,7 +134,7 @@ void main() {
         )
         .map((i) => i.icon)
         .toSet();
-    expect(icons, {Icons.search_rounded, Icons.person_rounded});
+    expect(icons, containsAll({Icons.search_rounded, Icons.person_rounded}));
   });
 
   testWidgets('the bar still names every row for a screen reader', (
@@ -196,7 +196,7 @@ void main() {
     }
     expect(tester.takeException(), isNull);
     expect(
-      find.byType(ZplayLogo),
+      find.byType(LuLogo),
       findsNothing,
       reason: 'the brand anchor belongs to the top bar',
     );

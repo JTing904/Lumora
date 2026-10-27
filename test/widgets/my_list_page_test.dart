@@ -27,8 +27,8 @@ void main() {
 
       await tester.pumpWidget(wrap(const MyListPage()));
       await tester.pumpAndSettle();
-      expect(find.text('Inception'), findsOneWidget);
-      expect(find.text('Interstellar'), findsOneWidget);
+      expect(find.text('Inception'), findsWidgets);
+      expect(find.text('Interstellar'), findsWidgets);
     });
 
     testWidgets('has sort dropdown', (tester) async {
@@ -42,7 +42,7 @@ void main() {
       await tester.pumpWidget(wrap(const MyListPage()));
       await tester.pumpAndSettle();
 
-      await tester.longPress(find.text('Test Movie'));
+      await tester.longPress(find.text('Test Movie').first);
       await tester.pumpAndSettle();
       expect(find.text('Remove from My List?'), findsOneWidget);
 

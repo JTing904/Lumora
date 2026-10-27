@@ -1,3 +1,4 @@
+import '../content/adult_guard.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -121,14 +122,22 @@ abstract final class TmdbCatalog {
       });
       final results = [
         for (final r in body?['results'] as List? ?? const [])
+          if (r is Map &&
+              (AdultGuard.allowed ||
+                  !AdultGuard.looksAdult([
+                    r['title']?.toString(),
+                    r['name']?.toString(),
+                    r['original_title']?.toString(),
+                    r['original_name']?.toString(),
+                  ], flagged: r['adult'] == true)))
           if (!query.liveActionOnly ||
-              !((r is Map ? r['genre_ids'] : null) as List? ?? const [])
+              !(r['genre_ids'] as List? ?? const [])
                   .contains(16))
             r,
       ];
       final movies = await Future.wait([
         for (final r in results.take(limit + 6))
-          if (r is Map && r['id'] is int)
+          if (r['id'] is int)
             toMovie(r, series: _isSeries(r, query), resolveImdb: resolveImdb),
       ]);
       final row = [

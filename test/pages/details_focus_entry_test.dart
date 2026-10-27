@@ -9,7 +9,7 @@
 /// On a television the ring is the *only* proof that a control is reachable, so
 /// these tests assert two things the widget tree cannot answer on its own:
 /// that the element holding primary focus actually paints a focused
-/// [CardFocusRing], and that the first activation runs the page's primary
+/// ring, and that the first activation runs the page's primary
 /// action rather than popping the route.
 library;
 
@@ -24,8 +24,9 @@ import 'package:zplay/pages/details/details_page.dart';
 import 'package:zplay/pages/player/watch_screen.dart';
 import 'package:zplay/services/layout/device_profile.dart';
 import 'package:zplay/services/metadata/metadata_service.dart';
-import 'package:zplay/widgets/common/focusable_card.dart';
-import 'package:zplay/widgets/common/pill_button.dart';
+import 'package:zplay/ui/lu_button.dart';
+import 'package:zplay/ui/lu_focusable.dart';
+import 'package:zplay/ui/lu_theme.dart';
 
 const _seriesMeta = '''
 {"meta":{"id":"tt0903747","type":"series","name":"Breaking Bad",
@@ -67,20 +68,22 @@ Future<void> _pumpTvDetails(WidgetTester tester, String type) async {
   }
 }
 
-/// Whether the element that holds primary focus paints a *focused* ring.
-///
-/// Walked down rather than looked up: `FocusableCard` installs the ring inside
-/// its own builder, so the ring is a descendant of the focused node and never
-/// an ancestor of it. A `find.byType(CardFocusRing)` here would find the rings
-/// of unfocused cards too, which is the assertion that passes while the screen
-/// shows nothing.
+/// Whether the element that holds primary focus paints the gold focus ring
+/// [LuFocusable] draws around a focused control.
 bool _focusIsRinged() {
   final context = FocusManager.instance.primaryFocus?.context;
   if (context == null) return false;
   var ringed = false;
   void walk(Element element) {
     final widget = element.widget;
-    if (widget is CardFocusRing && widget.focused) ringed = true;
+    if (widget is AnimatedContainer) {
+      final d = widget.decoration;
+      if (d is BoxDecoration &&
+          d.border is Border &&
+          (d.border! as Border).top.color == LuColors.gold) {
+        ringed = true;
+      }
+    }
     element.visitChildren(walk);
   }
 
@@ -94,7 +97,7 @@ Finder _focusedElement() => find.byElementPredicate(
   (element) => identical(element, FocusManager.instance.primaryFocus?.context),
 );
 
-/// The focus node a [FocusableCard] installs for itself.
+/// The focus node a [LuFocusable] installs for itself.
 ///
 /// Looked up rather than assumed: `FocusableActionDetector` is what creates the
 /// node, so the first `Focus` under the card owns it, and requesting focus on
@@ -251,7 +254,7 @@ void main() {
       // on. The sweep found two such stops on this page - the back control and
       // the genre pills - and neither is reachable by a fixed sequence of
       // presses that would keep working after the layout changes.
-      final cards = find.byType(FocusableCard).evaluate().toList();
+      final cards = find.byType(LuFocusable).evaluate().toList();
       expect(
         cards.length,
         greaterThanOrEqualTo(4),
@@ -294,6 +297,6 @@ void main() {
       reason: 'the ring is the television\'s model of "where am I"; a phone '
           'or a desktop window must not open with one drawn',
     );
-    expect(find.byType(PillButton), findsWidgets);
+    expect(find.byType(LuButton), findsWidgets);
   });
 }

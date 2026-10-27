@@ -90,6 +90,7 @@ import 'package:zplay/shell/app_shell.dart';
 import 'package:zplay/services/layout/form_factor.dart';
 import 'package:zplay/shell/app_shell_scope.dart';
 import 'package:zplay/shell/shell_rail.dart';
+import 'package:zplay/ui/lu_focusable.dart';
 import 'package:zplay/widgets/common/focusable_card.dart';
 import 'package:zplay/widgets/movie/movie_card.dart';
 import 'package:zplay/widgets/search/tv_on_screen_keyboard.dart';
@@ -915,16 +916,16 @@ void main() {
         );
         expect(
           tester
-              .widgetList<CardFocusRing>(
+              .widgetList<LuFocusRing>(
                 find.descendant(
                   of: find.ancestor(
                     of: mic,
-                    matching: find.byType(FocusableCard),
+                    matching: find.byType(LuFocusable),
                   ),
-                  matching: find.byType(CardFocusRing),
+                  matching: find.byType(LuFocusRing),
                 ),
               )
-              .any((CardFocusRing ring) => ring.focused),
+              .any((LuFocusRing ring) => ring.focused),
           isTrue,
           reason:
               'the ring the remote is standing on has to be drawn: on a '

@@ -1,6 +1,7 @@
 import '../../l10n/l10n.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../services/iptv/channel_category_l10n.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/iptv/iptv_settings.dart';
@@ -153,7 +154,7 @@ class IptvChannelCard extends StatelessWidget {
                                 top: 10,
                                 left: 10,
                                 child: CardTypeBadge(
-                                  label: ch.category.toUpperCase(),
+                                  label: localizedChannelCategory(ch.category),
                                 ),
                               ),
 
@@ -251,9 +252,13 @@ class IptvChannelCard extends StatelessWidget {
                 Row(
                   children: [
                     if (IptvSettings.showCategoryTag.value) ...[
-                      Text(
-                        ch.category,
-                        style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                      Flexible(
+                        child: Text(
+                          localizedChannelCategory(ch.category),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                        ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),

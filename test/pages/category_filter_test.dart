@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zplay/pages/category/category_filter.dart';
 import 'package:zplay/pages/category/category_page.dart';
 import 'package:zplay/services/metadata/tmdb_service.dart';
-import 'package:zplay/widgets/movie/movie_slider_section.dart';
+import 'package:zplay/ui/lu_cards.dart';
 
 void main() {
   final now = DateTime(2026, 10, 27);
@@ -90,7 +90,7 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.byType(MovieSliderSection), findsWidgets);
+    expect(find.byType(LuRail), findsWidgets);
 
     await tester.tap(find.text('Filter'));
     await tester.pump();
@@ -101,7 +101,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.byType(CategoryFilterResults), findsOneWidget);
-    expect(find.byType(MovieSliderSection), findsNothing);
+    expect(find.byType(LuRail), findsNothing);
     expect(
       queries.any((q) => q['with_origin_country'] == 'HK' && q['page'] == '1'),
       isTrue,

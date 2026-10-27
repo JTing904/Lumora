@@ -58,7 +58,7 @@ void main() {
           providerName: 'A111477',
           url: 'https://x.com',
         );
-        expect(source.providerLabel, 'ZPlayHTTP · A111477');
+        expect(source.providerLabel, 'Lumora · A111477');
       });
 
       test('keeps an addon stream name as it is', () {

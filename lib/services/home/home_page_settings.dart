@@ -113,8 +113,9 @@ abstract final class HomePageSettings {
   static final ValueNotifier<double> cardHoverZoom = ValueNotifier<double>(
     1.08,
   );
+  // Lumora's ground is flat; the glows are opt-in.
   static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(
-    true,
+    false,
   );
   static final ValueNotifier<AmbientLightPattern> ambientLightPattern =
       ValueNotifier<AmbientLightPattern>(AmbientLightPattern.dualOrbs);
@@ -183,7 +184,7 @@ abstract final class HomePageSettings {
     ambientGlow.value = prefs.getBool(_keyAmbientGlow) ?? true;
     cardHoverZoom.value = prefs.getDouble(_keyCardHoverZoom) ?? 1.08;
 
-    enableAmbientLights.value = prefs.getBool(_keyEnableAmbientLights) ?? true;
+    enableAmbientLights.value = prefs.getBool(_keyEnableAmbientLights) ?? false;
     final patternStr = prefs.getString(_keyAmbientPattern);
     ambientLightPattern.value = AmbientLightPattern.values.firstWhere(
       (p) => p.name == patternStr,

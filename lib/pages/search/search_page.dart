@@ -1,3 +1,4 @@
+import '../../services/content/adult_guard.dart';
 import '../../widgets/common/local_title_text.dart';
 import '../../services/metadata/tmdb_catalog.dart';
 import '../../services/continue_watching/continue_watching_service.dart';
@@ -20,15 +21,12 @@ import '../../services/home/home_page_settings.dart';
 import '../../services/metadata/metadata_service.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/platform/voice_search.dart';
-import '../../services/theme/app_theme_service.dart';
-import '../../services/theme/design_tokens.dart';
+import '../../services/playback/play_launcher.dart';
 import '../../shell/app_shell_scope.dart';
-import '../../widgets/common/animated_ambient_background.dart';
-import '../../widgets/common/error_view.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/section_header.dart';
-import '../../widgets/movie/movie_card.dart';
-import '../../widgets/movie/movie_slider_section.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_focusable.dart';
+import '../../ui/lu_theme.dart';
 import '../../widgets/search/magnet_files_view.dart';
 import '../../widgets/search/tv_on_screen_keyboard.dart';
 import '../ai/wewatch_quiz_page.dart';
@@ -183,6 +181,7 @@ class _SearchPageState extends State<SearchPage> {
   /// rails the page repeated each film once per source. Cinemeta's rail is
   /// first in [_results], so its row is the one that is kept.
   List<Movie> get _mergedResults {
+    if (AdultGuard.adultQuery(_lastQuery)) return const [];
     final seen = <String>{};
     final merged = <Movie>[];
     for (final section in _results) {
@@ -193,7 +192,15 @@ class _SearchPageState extends State<SearchPage> {
         if (seen.add(key)) merged.add(movie);
       }
     }
-    return merged;
+    // Adult titles are held back unless an admin asked for them.
+    return AdultGuard.filter(
+      merged,
+      extraNames: (m) => [
+        _kindFacts[m.id]?.localTitle,
+        _kindFacts[m.id]?.originalTitle,
+      ],
+      flagged: (m) => _kindFacts[m.id]?.adult ?? false,
+    );
   }
 
   SearchKind _kindOf(Movie movie) =>
@@ -214,8 +221,11 @@ class _SearchPageState extends State<SearchPage> {
       final batch = pending.skip(i).take(6).toList();
       final answers = await Future.wait(
         batch.map(
-          (m) =>
-              TitleKindService.forImdbId(m.id, type: m.type, language: language),
+          (m) => TitleKindService.forImdbId(
+            m.id,
+            type: m.type,
+            language: language,
+          ),
         ),
       );
       if (!mounted || _lastQuery != query) return;
@@ -226,6 +236,7 @@ class _SearchPageState extends State<SearchPage> {
       });
     }
   }
+
   String _lastQuery = '';
 
   /// Synthetic catalog id for the keyless title rail. There is no addon
@@ -541,7 +552,11 @@ class _SearchPageState extends State<SearchPage> {
       final sections = await AddonManager.instance.fetchAllHomeSections();
       if (mounted) {
         setState(() {
-          _suggestedSections = sections.take(4).toList();
+          _suggestedSections = sections
+              .map(AdultGuard.filterSection)
+              .where((s) => s.movies.isNotEmpty)
+              .take(4)
+              .toList();
           _isLoadingSuggestions = false;
         });
       }
@@ -661,14 +676,23 @@ class _SearchPageState extends State<SearchPage> {
 
     _debounce = Timer(const Duration(milliseconds: 600), () {
       if (trimmed != _lastQuery) {
-        _performSearch(trimmed);
+        // Typing searches, but only a search the viewer meant - Enter, a
+        // result opened, a hot or recent search tapped - is remembered:
+        // "hen", "hent", "henta" are not searches anybody made.
+        _performSearch(trimmed, remember: false);
       }
     });
   }
 
-  void _performSearch(String query) async {
+  void _performSearch(String query, {bool remember = true}) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
+
+    // Enter on what typing already searched: keep the results, remember it.
+    if (remember && trimmed == _lastQuery && _results.isNotEmpty) {
+      _saveSearchHistory(trimmed);
+      return;
+    }
 
     if (_isStreamLink(trimmed)) {
       _playDirectStream(trimmed);
@@ -685,7 +709,7 @@ class _SearchPageState extends State<SearchPage> {
       return;
     }
 
-    _saveSearchHistory(trimmed);
+    if (remember) _saveSearchHistory(trimmed);
 
     setState(() {
       _isLoading = true;
@@ -902,8 +926,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   /// Whether [text] holds Chinese, Japanese or Korean characters.
-  static bool _hasCjk(String text) =>
-      RegExp('[぀-ヿ㐀-鿿가-힯]').hasMatch(text);
+  static bool _hasCjk(String text) => RegExp('[぀-ヿ㐀-鿿가-힯]').hasMatch(text);
 
   void _pasteFromClipboard() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -938,7 +961,7 @@ class _SearchPageState extends State<SearchPage> {
             SnackBar(
               content: Text(l10nOf(context).searchVoiceDenied),
               behavior: SnackBarBehavior.floating,
-              backgroundColor: context.tokens.danger,
+              backgroundColor: LuColors.danger,
             ),
           );
         case 'unavailable':
@@ -1006,18 +1029,15 @@ class _SearchPageState extends State<SearchPage> {
     return Focus(
       canRequestFocus: false,
       skipTraversal: true,
-      child: FocusableCard(
+      child: LuFocusable(
         focusNode: _fieldNode,
         // The centre button on the box is "start typing". On a television that
         // is the app's own keyboard, never the platform's: a focused field
         // raises an IME the remote cannot drive at all (see
         // [TvOnScreenKeyboard]), so the field itself is never focused here.
         onTap: _openTvKeyboard,
-        builder: (context, state) => CardFocusRing(
-          focused: state.focused,
-          radius: ZplayRadius.smAll,
-          child: child,
-        ),
+        lift: 1,
+        builder: (context, _) => child,
       ),
     );
   }
@@ -1087,30 +1107,30 @@ class _SearchPageState extends State<SearchPage> {
   /// to the bar on its own, because the node it had landed on stopped accepting
   /// focus.
   Widget _buildMicrophone({bool standalone = false}) {
-    final tokens = context.tokens;
     final Widget icon = Padding(
-      padding: const EdgeInsets.all(ZplaySpacing.s8),
+      padding: const EdgeInsets.all(8),
       child: Semantics(
         button: true,
         label: l10nOf(context).searchVoice,
-        child: Icon(Icons.mic_rounded, size: 18, color: tokens.textSecondary),
+        child: const Icon(
+          Icons.mic_rounded,
+          size: 20,
+          color: LuColors.textSoft,
+        ),
       ),
     );
-    final Widget card = FocusableCard(
+    final Widget card = LuFocusable(
       // Named for the band's copy only: [_leaveField] hands BACK's ring to it,
       // and a node nobody can name cannot be handed anything.
       focusNode: standalone ? _micFocusNode : null,
       onTap: _startVoiceSearch,
-      builder: (context, state) => CardFocusRing(
-        focused: state.focused,
-        radius: ZplayRadius.fullAll,
-        // The band's copy stands beside a 42 dp field, so it is held to that
-        // height and to the 48 dp width floor a television control is held to
-        // here; the suffix copy is sized by its own padding, as it always was.
-        child: standalone
-            ? SizedBox(width: 48, height: 42, child: Center(child: icon))
-            : icon,
-      ),
+      lift: 1,
+      // The band's copy stands beside the field, so it is held to the field's
+      // height and to the 48 dp width floor a television control is held to;
+      // the suffix copy is sized by its own padding.
+      builder: (context, _) => standalone
+          ? SizedBox(width: 56, height: 56, child: Center(child: icon))
+          : icon,
     );
     if (!standalone) return card;
     return Focus(canRequestFocus: false, skipTraversal: true, child: card);
@@ -1192,285 +1212,202 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  /// The page's side gutter: the shell bar's, so the field lines up under the
+  /// brand.
+  double _side(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width < 600) return 16;
+    return FormFactorService.of(context) == FormFactor.television ? 32 : 48;
+  }
+
+  /// The band's height under the shell's own inset: the 56 dp field and its
+  /// breathing room.
+  static const double _bandHeight = 76;
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
-    final tokens = context.tokens;
-    // Resolved once: the field itself behaves differently on a television in
-    // two places, and both read better as one name than as the same expression
-    // written out twice.
     final isTelevision = FormFactorService.of(context) == FormFactor.television;
+    final side = _side(context);
 
-    // The bar's row handle is re-stated after every frame, for the same reason
-    // `HomePage` re-states its own: the handle is one field and a page that
-    // rebuilds does not mean to give it up. After the frame and not during it,
-    // because the answer is read off the built box - a node whose control has
-    // gone away has no context, and publishing it would hand the shell a node it
-    // cannot ask for a rect.
+    // The bar's row handle is re-stated after every frame: a node whose
+    // control has gone has no context, and publishing it would hand the shell
+    // a node it cannot ask for a rect.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _publishChromeEntry();
     });
 
-    return Scaffold(
-      backgroundColor: tokens.bg,
-      extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight + 10),
-        // The band is **transparent at rest and tinted once results scroll
-        // under it** - no opaque `tokens.bg` fill and no bottom hairline.
-        //
-        // An opaque band pinned above the content is the "different app" seam:
-        // the shell's nav bar blends into whatever the page paints beneath it,
-        // and a page that draws its own surface across the top re-creates the
-        // boundary the bar just stopped drawing. The field itself is a
-        // `tokens.surface` box, so it stays legible over the canvas; the tint
-        // exists for the gutter beside it, where a scrolling rail would
-        // otherwise slide past the field's edge.
-        //
-        // `Material`'s `AppBar` is deliberately not used here. It is a
-        // `Focus`-hosting widget whose toolbar is excluded from directional
-        // traversal, so a `TextField` placed in `appBar` is never a candidate for
-        // a D-pad press: the field renders, the user can see it, and a remote
-        // cannot reach it. Verified on a Chromecast with Google TV - the focus
-        // tree listed 21 focusables and the field was not one of them, so
-        // neither `right` nor the centre button could put a cursor in it and a
-        // television user could not search at all. `PreferredSize` is a plain
-        // layout contract and imposes nothing on focus.
-        child: ValueListenableBuilder<double>(
-          valueListenable: _bandTint,
-          // Fades the fill in behind the field over the first
-          // [_bandBlendThreshold] of scroll and leaves the field itself alone:
-          // it is the `child`, built once, so no scroll pixel rebuilds it.
-          builder: (context, tint, child) => DecoratedBox(
-            decoration: BoxDecoration(
-              color: tokens.bg.withValues(alpha: 0.82 * tint),
-            ),
-            child: child,
+    // The field, as designed: one long rounded bar, gold-edged while typing.
+    // It is a plain [PreferredSize] band rather than an `AppBar`, whose
+    // toolbar is excluded from directional traversal - a field there is one a
+    // remote can see and never reach.
+    final field = ListenableBuilder(
+      listenable: Listenable.merge([_focusNode, _fieldNode]),
+      builder: (context, child) => AnimatedContainer(
+        duration: LuMotion.focus,
+        width: double.infinity,
+        height: 56,
+        decoration: BoxDecoration(
+          color: const Color(0xFF17171B),
+          borderRadius: LuRadius.pill,
+          border: Border.all(
+            color: _focusNode.hasFocus || _fieldNode.hasFocus
+                ? LuColors.gold
+                : LuColors.line,
           ),
-          child: Padding(
-            padding: EdgeInsets.only(top: topPadding, bottom: ZplaySpacing.s8),
-            child: Row(
-              children: [
-                const SizedBox(width: ZplaySpacing.s8),
-                // Search is a shell slot, so it usually has nothing to pop back to
-                // and popping would dismiss the shell itself. Keeping the gate means a
-                // pushed SearchPage still shows the button and neither state shifts
-                // the field, since the inset above is unconditional.
-                if (Navigator.of(context).canPop())
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
-                    color: tokens.textPrimary,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                Expanded(
-                  // The prototype caps the field at 540 dp rather than letting it
-                  // run the full width of the canvas: a search box that wide on a
-                  // 960 dp television reads as a banner, and the caret ends up a
-                  // screen away from the icon it belongs to.
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 540),
-                      child: _fieldBox(
-                        isTelevision: isTelevision,
-                        child: Container(
-                          width: double.infinity,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: tokens.surface,
-                            borderRadius: ZplayRadius.smAll,
-                            border: Border.fromBorderSide(tokens.hairline),
-                          ),
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _focusNode,
-                            // Never on a television.
-                            //
-                            // A focused text field installs
-                            // `DirectionalFocusAction.forTextField()` (editable_text.dart),
-                            // which deliberately ignores arrow intents and keeps them
-                            // for caret movement inside the field. So a field that takes
-                            // focus on arrival is a trap: the remote can type, but every
-                            // arrow press is consumed moving a caret through empty text
-                            // and focus never leaves, so the whole catalogue behind the
-                            // field is unreachable without a pointer. Verified on a
-                            // Chromecast with Google TV - down and up did nothing at all.
-                            //
-                            // On a pointer device autofocus is the expected behaviour,
-                            // and it is kept there. The rail's own autofocus means the
-                            // remote still starts on a visible, ringed row of the bar,
-                            // and on a television the field is typed into through the
-                            // card [_fieldBox] puts around this box, which routes the
-                            // remote's presses to `TvOnScreenKeyboard` rather than to
-                            // the caret here.
-                            autofocus: !isTelevision,
-                            // No IME suggestion strip and no autocorrect, on a
-                            // television.
-                            //
-                            // The keyboard the remote drives is the app's own
-                            // ([TvOnScreenKeyboard]), but the field is still a
-                            // real text field: a voice remote's text path, a
-                            // paired keyboard, or any platform route that raises
-                            // the IME raises it for *this* field. When it does,
-                            // the platform's strip appears above the key grid as
-                            // soon as the field has text and re-flows it under
-                            // the D-pad - measured on a Chromecast with Google
-                            // TV, where one keystroke moved every key down and
-                            // the press after it landed on its neighbour.
-                            //
-                            // Flutter turns `enableSuggestions: false` into
-                            // `TYPE_TEXT_FLAG_NO_SUGGESTIONS` plus the visible
-                            // password variation on Android
-                            // (`TextInputPlugin.inputTypeFromTextInputType`), and
-                            // the engine sets both because some devices ignore the
-                            // first flag alone. It is the app's only lever on an
-                            // IME it does not own, and the strip has nothing to
-                            // offer this field: the field takes a film title, and
-                            // the strip predicts English prose.
-                            //
-                            // A pointer device keeps both, which is what a text
-                            // field on a desktop or a phone is expected to do and
-                            // is not what moves a television's keys.
-                            enableSuggestions: !isTelevision,
-                            autocorrect: !isTelevision,
-                            style: ZplayType.subtitle.toStyle(
-                              color: tokens.textPrimary,
-                            ),
-                            textInputAction: TextInputAction.search,
-                            onChanged: _onSearchChanged,
-                            onSubmitted: _performSearch,
-                            decoration: InputDecoration(
-                              // "or paste links" is advice for a keyboard. A
-                              // television has no clipboard on the remote, so it
-                              // names an action the viewer cannot take.
-                              hintText: DeviceProfile.isTelevision
-                                  ? l10nOf(context).searchHintTv
-                                  : l10nOf(context).searchHint,
-                              hintStyle: ZplayType.body.toStyle(
-                                color: tokens.textDisabled,
+        ),
+        child: child,
+      ),
+      child: Center(
+        child: TextField(
+          controller: _searchController,
+          focusNode: _focusNode,
+          // Never on a television: a focused text field keeps every arrow
+          // key for its caret, so a field that takes focus on arrival is a
+          // trap the remote cannot leave. The remote types through the card
+          // [_fieldBox] puts around this box instead.
+          autofocus: !isTelevision,
+          // No IME suggestion strip on a television: it re-flows the app's
+          // own key grid under the D-pad.
+          enableSuggestions: !isTelevision,
+          autocorrect: !isTelevision,
+          style: LuText.body.copyWith(fontSize: 18),
+          cursorColor: LuColors.gold,
+          textInputAction: TextInputAction.search,
+          onChanged: _onSearchChanged,
+          onSubmitted: _performSearch,
+          decoration: InputDecoration(
+            isCollapsed: true,
+            filled: false,
+            // "or paste links" is advice for a keyboard; a remote has no
+            // clipboard.
+            hintText: DeviceProfile.isTelevision
+                ? l10nOf(context).searchHintTv
+                : l10nOf(context).searchHint,
+            hintStyle: LuText.body.copyWith(
+              fontSize: 17,
+              color: LuColors.textFaint,
+            ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            prefixIcon: const Padding(
+              padding: EdgeInsets.only(left: 20, right: 12),
+              child: Icon(
+                Icons.search_rounded,
+                size: 22,
+                color: LuColors.textMuted,
+              ),
+            ),
+            prefixIconConstraints: const BoxConstraints(minHeight: 56),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            suffixIconConstraints: const BoxConstraints(minHeight: 56),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // On a pointer device the microphone lives in the field; on
+                  // a television it is the band's own control (below), since
+                  // a remote can never land inside the field's subtree.
+                  if (_voiceAvailable && !isTelevision) _buildMicrophone(),
+                  if (_searchController.text.isNotEmpty)
+                    _SuffixButton(
+                      icon: Icons.close_rounded,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).deleteButtonTooltip,
+                      onPressed: () {
+                        _searchController.clear();
+                        _onSearchChanged('');
+                      },
+                    )
+                  else ...[
+                    ValueListenableBuilder<bool>(
+                      valueListenable: HomePageSettings.enableAiQuiz,
+                      builder: (context, aiQuizEnabled, _) => aiQuizEnabled
+                          ? _SuffixButton(
+                              icon: Icons.auto_awesome_rounded,
+                              tooltip: l10nOf(context).searchAiQuiz,
+                              color: LuColors.gold,
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const WeWatchQuizPage(),
+                                ),
                               ),
-                              border: InputBorder.none,
-                              prefixIcon: Icon(
-                                Icons.search_rounded,
-                                size: 19,
-                                color: tokens.textMuted,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: ZplaySpacing.s12,
-                                vertical: ZplaySpacing.s12,
-                              ),
-                              suffixIcon: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Voice search, and always, not inside the
-                                  // text-present branch below: on a pointer device
-                                  // the field is usually empty when the user
-                                  // arrives, so a microphone that waited for text
-                                  // would be a control nobody could ever press -
-                                  // which is the whole reason it is here.
-                                  //
-                                  // **Pointer devices only.** A suffix lives inside
-                                  // the field's subtree, where a remote can never
-                                  // land; on a television the same control is the
-                                  // band's own, out in the row beside the field.
-                                  // [_buildMicrophone] is the one definition of
-                                  // it, in both homes.
-                                  if (_voiceAvailable && !isTelevision)
-                                    _buildMicrophone(),
-                                  if (_searchController.text.isNotEmpty)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.close_rounded,
-                                        size: 18,
-                                      ),
-                                      color: tokens.textSecondary,
-                                      splashRadius: 18,
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        _onSearchChanged('');
-                                      },
-                                    )
-                                  else ...[
-                                    ValueListenableBuilder<bool>(
-                                      valueListenable:
-                                          HomePageSettings.enableAiQuiz,
-                                      builder: (context, aiQuizEnabled, _) {
-                                        if (!aiQuizEnabled) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        return IconButton(
-                                          icon: Icon(
-                                            Icons.auto_awesome_rounded,
-                                            size: 17,
-                                            color: AppThemeService
-                                                .currentPalette
-                                                .value
-                                                .primaryColor,
-                                          ),
-                                          tooltip: l10nOf(context).searchAiQuiz,
-                                          splashRadius: 18,
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    const WeWatchQuizPage(),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.content_paste_rounded,
-                                        size: 17,
-                                      ),
-                                      tooltip: l10nOf(context).searchPaste,
-                                      color: tokens.textSecondary,
-                                      splashRadius: 18,
-                                      onPressed: _pasteFromClipboard,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                  ),
-                ),
-                // **The microphone, on a television, as the band's own control.**
-                //
-                // Inside the suffix - where it is on a pointer device, and where
-                // [_buildMicrophone] still puts it there - a remote can never
-                // reach it: the suffix is in the field's subtree, and the field
-                // answers every arrow key itself, so a microphone behind the
-                // field is a microphone only a user who is already stuck in the
-                // field could press.
-                //
-                // Out here it is an ordinary control of the band, standing beside
-                // the box that owns it: RIGHT from the field's card reaches it,
-                // BACK out of the field lands on it ([_leaveField]), and its ring
-                // is the same [CardFocusRing] as every other control on screen.
-                if (isTelevision && _voiceAvailable) ...[
-                  _buildMicrophone(standalone: true),
-                  const SizedBox(width: ZplaySpacing.s8),
+                    _SuffixButton(
+                      icon: Icons.content_paste_rounded,
+                      tooltip: l10nOf(context).searchPaste,
+                      onPressed: _pasteFromClipboard,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
       ),
-      // The body sits on Home's canvas - the shared ambient background - instead
-      // of a flat `tokens.bg` surface, and it feeds the band's tint from its own
-      // scroll. The listener has to be here rather than in the band: the two are
-      // different slots of this `Scaffold`, and the band cannot see a
-      // notification raised by a scrollable it is not an ancestor of.
-      body: NotificationListener<ScrollNotification>(
-        onNotification: _onBodyScroll,
-        child: AnimatedAmbientBackground(
+    );
+
+    return Theme(
+      data: luTheme(),
+      child: Scaffold(
+        backgroundColor: LuColors.bg,
+        extendBodyBehindAppBar: true,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(_bandHeight),
+          // Clear at rest, the ground fading in once results scroll under it.
+          child: ValueListenableBuilder<double>(
+            valueListenable: _bandTint,
+            builder: (context, tint, child) => DecoratedBox(
+              decoration: BoxDecoration(
+                color: LuColors.bg.withValues(alpha: 0.94 * tint),
+              ),
+              child: child,
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(side, topPadding + 8, side, 12),
+              child: Row(
+                children: [
+                  // Search is a shell slot and usually has nothing to pop to;
+                  // a pushed SearchPage still gets its back.
+                  if (Navigator.of(context).canPop()) ...[
+                    _SuffixButton(
+                      icon: Icons.arrow_back_ios_new_rounded,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).backButtonTooltip,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: _fieldBox(
+                          isTelevision: isTelevision,
+                          child: field,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (isTelevision && _voiceAvailable) ...[
+                    const SizedBox(width: 8),
+                    _buildMicrophone(standalone: true),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        body: NotificationListener<ScrollNotification>(
+          onNotification: _onBodyScroll,
           child: Stack(
             children: [
               if (_isMagnetMode && _magnetQuery.isNotEmpty)
@@ -1479,10 +1416,8 @@ class _SearchPageState extends State<SearchPage> {
                   magnet: _magnetQuery,
                 )
               else if (_isLoading && _results.isEmpty)
-                Center(
-                  child: CircularProgressIndicator(
-                    color: AppThemeService.currentPalette.value.primaryColor,
-                  ),
+                const Center(
+                  child: CircularProgressIndicator(color: LuColors.gold),
                 )
               else if (!_isLoading && _lastQuery.isNotEmpty && _results.isEmpty)
                 _buildSearchEmptyState(_outcome)
@@ -1499,30 +1434,24 @@ class _SearchPageState extends State<SearchPage> {
 
               if (_isLoading && _results.isNotEmpty)
                 Positioned(
-                  top: topPadding + kToolbarHeight + ZplaySpacing.s8,
+                  top: topPadding + _bandHeight,
                   left: 0,
                   right: 0,
-                  child: SizedBox(
+                  child: const SizedBox(
                     height: 2,
                     child: LinearProgressIndicator(
                       backgroundColor: Colors.transparent,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppThemeService.currentPalette.value.primaryColor,
-                      ),
+                      color: LuColors.gold,
                     ),
                   ),
                 ),
 
-              // The remote's keyboard. Hung off the body rather than the band
-              // because the band is a fixed-height `PreferredSize` slot: a
-              // keyboard inside it would be clipped at the toolbar's height.
-              // It sits left-aligned under the field it edits, capped to the
-              // same 540 dp the field is, so a ten-foot user reads one column
-              // - the query above and its keys below.
+              // The remote's keyboard, under the field it edits. Hung off the
+              // body: inside the fixed-height band it would be clipped.
               if (isTelevision && _tvKeyboardOpen)
                 Positioned(
-                  top: topPadding + kToolbarHeight + 10 + ZplaySpacing.s8,
-                  left: ZplaySpacing.s8,
+                  top: topPadding + _bandHeight + 8,
+                  left: side,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 540),
                     child: TvOnScreenKeyboard(
@@ -1531,16 +1460,11 @@ class _SearchPageState extends State<SearchPage> {
                       onChanged: _onSearchChanged,
                       onSubmitted: _performSearch,
                       onClose: _closeTvKeyboard,
-                      // UP off the top row is the same hand-off as BACK: close,
-                      // then the ring lands back on the box the keyboard was
-                      // opened from - which is what [_closeTvKeyboard] does
-                      // after the frame.
+                      // UP off the top row is the same hand-off as BACK.
                       onMoveUp: _closeTvKeyboard,
                       onMoveDown: () => _closeTvKeyboard(moveToResults: true),
-                      // Inside the shell the press is claimed there, because
-                      // `popRoute` reaches it whatever a key handler answers;
-                      // without a shell (a route of its own) nothing else
-                      // consumes it, so the key event is the only notice.
+                      // Inside the shell BACK is claimed there; without one
+                      // the key event is the only notice.
                       ownsBackKey: _shell == null,
                       onVoice: _voiceAvailable ? _startVoiceSearch : null,
                     ),
@@ -1572,19 +1496,15 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-  /// The finished-but-empty result area. A dead source and a real miss are
-  /// different answers, so they get different screens: only the genuine miss
-  /// may claim the title does not exist.
   /// The results: kind tabs, then one card per title in as many columns as
   /// the width takes, with the popular searches beside them on a wide screen.
   Widget _buildResults(double topPadding) {
-    final tokens = context.tokens;
     final l10n = l10nOf(context);
     final all = _mergedResults;
     final kinds = {for (final m in all) m.id: _kindOf(m)};
-    bool inFilter(Movie m) {
+    bool matches(Movie m, _ResultFilter f) {
       final k = kinds[m.id]!;
-      return switch (_filter) {
+      return switch (f) {
         _ResultFilter.all => true,
         _ResultFilter.anime => k.isAnimation,
         _ResultFilter.series => !k.isAnimation && k.isSeries,
@@ -1592,20 +1512,10 @@ class _SearchPageState extends State<SearchPage> {
       };
     }
 
-    final shown = all.where(inFilter).toList();
+    final shown = all.where((m) => matches(m, _filter)).toList();
     final counts = {
       for (final f in _ResultFilter.values)
-        f: f == _ResultFilter.all
-            ? all.length
-            : all.where((m) {
-                final k = kinds[m.id]!;
-                return switch (f) {
-                  _ResultFilter.all => true,
-                  _ResultFilter.anime => k.isAnimation,
-                  _ResultFilter.series => !k.isAnimation && k.isSeries,
-                  _ResultFilter.movies => !k.isAnimation && !k.isSeries,
-                };
-              }).length,
+        f: all.where((m) => matches(m, f)).length,
     };
     final sessions = {
       for (final item in ContinueWatchingService.activeItems.value)
@@ -1616,10 +1526,10 @@ class _SearchPageState extends State<SearchPage> {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final compact = width < 600;
-        final side = compact ? ZplaySpacing.s16 : ZplaySpacing.s48;
+        final side = _side(context);
         final hot = _hotSearches();
         final showHot = width >= 1100 && hot.isNotEmpty;
-        final listWidth = width - side * 2 - (showHot ? 320 + ZplaySpacing.s32 : 0);
+        final listWidth = width - side * 2 - (showHot ? 320 + 40 : 0);
         final columns = compact ? 1 : (listWidth / 440).floor().clamp(1, 3);
         final cardHeight = SearchResultCard.heightFor(compact: compact);
 
@@ -1627,7 +1537,7 @@ class _SearchPageState extends State<SearchPage> {
         for (var i = 0; i < shown.length; i += columns) {
           final cells = <Widget>[];
           for (var c = 0; c < columns; c++) {
-            if (c > 0) cells.add(const SizedBox(width: ZplaySpacing.s16));
+            if (c > 0) cells.add(const SizedBox(width: 20));
             final index = i + c;
             cells.add(
               Expanded(
@@ -1640,6 +1550,9 @@ class _SearchPageState extends State<SearchPage> {
                         posterUrl: _kindFacts[shown[index].id]?.posterUrl,
                         resume: sessions[shown[index].id],
                         compact: compact,
+                        // Opening a result is what makes a typed search one
+                        // worth remembering.
+                        onOpen: () => _saveSearchHistory(_lastQuery),
                       )
                     : const SizedBox.shrink(),
               ),
@@ -1647,8 +1560,11 @@ class _SearchPageState extends State<SearchPage> {
           }
           rows.add(
             Padding(
-              padding: const EdgeInsets.only(bottom: ZplaySpacing.s16),
-              child: SizedBox(height: cardHeight, child: Row(children: cells)),
+              padding: const EdgeInsets.only(bottom: 20),
+              child: SizedBox(
+                height: cardHeight,
+                child: Row(children: cells),
+              ),
             ),
           );
         }
@@ -1663,19 +1579,16 @@ class _SearchPageState extends State<SearchPage> {
                 children: [
                   for (final f in _ResultFilter.values) ...[
                     _buildFilterChip(f, counts[f]!),
-                    const SizedBox(width: ZplaySpacing.s8),
+                    const SizedBox(width: 8),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: ZplaySpacing.s20),
+            const SizedBox(height: 22),
             if (shown.isEmpty && !_isLoading)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s24),
-                child: Text(
-                  l10n.searchFilterEmpty,
-                  style: ZplayType.body.toStyle(color: tokens.textSecondary),
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(l10n.searchFilterEmpty, style: LuText.bodySoft),
               ),
             ...rows,
             if (_isLoading) _buildSearchingMore(),
@@ -1687,17 +1600,23 @@ class _SearchPageState extends State<SearchPage> {
           physics: const BouncingScrollPhysics(),
           padding: EdgeInsets.fromLTRB(
             side,
-            topPadding + kToolbarHeight + ZplaySpacing.s40,
+            topPadding + _bandHeight + 12,
             side,
-            ZplaySpacing.s40 + MediaQuery.paddingOf(context).bottom,
+            40 + MediaQuery.paddingOf(context).bottom,
           ),
           child: showHot
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: list),
-                    const SizedBox(width: ZplaySpacing.s32),
-                    SizedBox(width: 320, child: _buildHotSearches(hot)),
+                    const SizedBox(width: 40),
+                    SizedBox(
+                      width: 320,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 60),
+                        child: _buildHotSearches(hot),
+                      ),
+                    ),
                   ],
                 )
               : list,
@@ -1707,43 +1626,22 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildFilterChip(_ResultFilter filter, int count) {
-    final tokens = context.tokens;
     final l10n = l10nOf(context);
-    final selected = _filter == filter;
     final label = switch (filter) {
       _ResultFilter.all => l10n.searchFilterAll(count),
       _ResultFilter.anime => l10n.searchFilterAnime(count),
       _ResultFilter.series => l10n.searchFilterSeries(count),
       _ResultFilter.movies => l10n.searchFilterMovies(count),
     };
-    return FocusableCard(
+    return _Pill(
+      label: label,
+      selected: _filter == filter,
       onTap: () => setState(() => _filter = filter),
-      builder: (context, state) => CardFocusRing(
-        focused: state.focused,
-        radius: ZplayRadius.fullAll,
-        child: AnimatedContainer(
-          duration: ZplayMotion.fast,
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? tokens.textPrimary : Colors.transparent,
-            borderRadius: ZplayRadius.fullAll,
-            border: selected ? null : Border.all(color: tokens.borderStrong),
-          ),
-          child: Text(
-            label,
-            style: ZplayType.body
-                .copyWith(weight: selected ? FontWeight.w700 : FontWeight.w400)
-                .toStyle(color: selected ? tokens.bg : tokens.textEmphasis),
-          ),
-        ),
-      ),
     );
   }
 
-  /// What people are watching, from Home's first rail: the names only, each
-  /// one a search.
+  /// What people are watching, from the suggested rails: the names only,
+  /// each one a search.
   List<Movie> _hotSearches() {
     final picked = <Movie>[];
     for (final section in _suggestedSections) {
@@ -1755,68 +1653,59 @@ class _SearchPageState extends State<SearchPage> {
     return picked;
   }
 
-  /// Shown in Chinese where TMDb has the name; searched by the English one,
-  /// which every source knows.
+  /// 热门搜索: shown in Chinese where TMDb has the name, searched by the
+  /// English one, which every source knows.
   Widget _buildHotSearches(List<Movie> hot) {
-    final tokens = context.tokens;
     return Container(
-      padding: const EdgeInsets.all(ZplaySpacing.s20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: ZplayRadius.mdAll,
-        border: Border.all(color: tokens.borderSubtle),
+        color: LuColors.surface,
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+        border: Border.all(color: LuColors.lineSoft),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10nOf(context).searchHot,
-            style: ZplayType.subtitle
-                .copyWith(weight: FontWeight.w700)
-                .toStyle(color: tokens.textPrimary),
-          ),
-          const SizedBox(height: ZplaySpacing.s8),
+          Text(l10nOf(context).searchHot, style: LuText.heading),
+          const SizedBox(height: 8),
           for (var i = 0; i < hot.length; i++)
-            FocusableCard(
+            LuFocusable(
+              lift: 1,
+              borderRadius: const BorderRadius.all(Radius.circular(8)),
               onTap: () {
                 _searchController.text = hot[i].name;
                 _performSearch(hot[i].name);
               },
-              builder: (context, state) => CardFocusRing(
-                focused: state.focused,
-                radius: ZplayRadius.smAll,
-                child: SizedBox(
-                  height: 40,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 28,
-                        child: Text(
-                          '${i + 1}',
-                          style: ZplayType.subtitle
-                              .copyWith(weight: FontWeight.w700)
-                              .toStyle(
-                                color: i < 3 ? tokens.accent : tokens.textMuted,
-                              ),
+              builder: (context, hi) => SizedBox(
+                height: 40,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 30,
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          fontFamily: LuFonts.display,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: i < 3 ? LuColors.gold : LuColors.textFaint,
                         ),
                       ),
-                      Expanded(
-                        child: LocalTitleText(
-                          id: hot[i].id,
-                          fallback: hot[i].name,
-                          series:
-                              hot[i].type == 'series' || hot[i].type == 'tv',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: ZplayType.body.toStyle(
-                            color: state.highlighted
-                                ? tokens.textPrimary
-                                : tokens.textEmphasis,
-                          ),
+                    ),
+                    Expanded(
+                      child: LocalTitleText(
+                        id: hot[i].id,
+                        fallback: hot[i].name,
+                        series: hot[i].type == 'series' || hot[i].type == 'tv',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LuText.body.copyWith(
+                          fontSize: 15,
+                          color: hi ? LuColors.goldLight : LuColors.text,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1826,25 +1715,24 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildSearchingMore() {
-    final tokens = context.tokens;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s24),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
+            const SizedBox(
               width: 14,
               height: 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: AppThemeService.currentPalette.value.primaryColor,
+                color: LuColors.gold,
               ),
             ),
-            const SizedBox(width: ZplaySpacing.s8),
+            const SizedBox(width: 10),
             Text(
               l10nOf(context).searchingMoreSources,
-              style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
+              style: LuText.caption.copyWith(color: LuColors.textSoft),
             ),
           ],
         ),
@@ -1852,8 +1740,10 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  /// The finished-but-empty result area. A dead source and a real miss are
+  /// different answers, so they get different screens: only the genuine miss
+  /// may claim the title does not exist.
   Widget _buildSearchEmptyState(SearchOutcome outcome) {
-    final tokens = context.tokens;
     final l10n = l10nOf(context);
 
     switch (outcome) {
@@ -1862,32 +1752,29 @@ class _SearchPageState extends State<SearchPage> {
         final errors = _ledger.sourceErrors;
         final failed = errors.length > total ? total : errors.length;
         final detail = errors.isEmpty ? '' : ': ${errors.join(', ')}';
-        return ErrorView(
+        return _EmptyState(
+          icon: Icons.cloud_off_rounded,
           title: l10n.searchFailureTitle,
-          error:
+          body:
               '${l10n.searchFailureBody(failed, total)}$detail. '
               '${l10n.searchFailureAdvice}',
-          onRetry: () => _performSearch(_lastQuery),
-          secondaryActionLabel: l10n.actionCopyDiagnostic,
-          onSecondaryAction: _copyDiagnosticReport,
+          actions: [
+            LuButton(
+              label: l10n.actionRetry,
+              icon: Icons.refresh_rounded,
+              onPressed: () => _performSearch(_lastQuery),
+            ),
+            LuButton(
+              label: l10n.actionCopyDiagnostic,
+              kind: LuButtonKind.secondary,
+              onPressed: _copyDiagnosticReport,
+            ),
+          ],
         );
       case SearchOutcome.noResults:
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.search_off_rounded,
-                size: 64,
-                color: tokens.textDisabled,
-              ),
-              const SizedBox(height: ZplaySpacing.s16),
-              Text(
-                l10n.searchNoResults(_lastQuery),
-                style: ZplayType.subtitle.toStyle(color: tokens.textSecondary),
-              ),
-            ],
-          ),
+        return _EmptyState(
+          icon: Icons.search_off_rounded,
+          title: l10n.searchNoResults(_lastQuery),
         );
       case SearchOutcome.complete:
       case SearchOutcome.incomplete:
@@ -1898,82 +1785,45 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   /// The Failure Ledger: names the sources that died while the rest of the
-  /// search carried on.
-  ///
-  /// A partial list presented as a complete one is its own lie, so the failed
-  /// legs are named above the results instead of the results being taken away.
-  /// The names are real: `AddonManager.searchAll` reports the addon's own name,
-  /// `CloudStreamManager.searchExtensions` the extension's, and the title leg
-  /// reports itself, so this can say *which* provider is down rather than "some
-  /// sources".
-  ///
-  /// Two things it deliberately does not claim. A status code: the services
-  /// hand back the thrown error and the ledger keeps only the leg name, so
-  /// printing a `504` would be inventing a number the app never saw. And a
-  /// "N of M providers" count: `searchedSourceCount` counts legs (title lookup,
-  /// addons, CloudStream) while `sourceErrors` counts the addons and extensions
-  /// inside those legs, so subtracting one from the other would produce a
-  /// number that is simply wrong - two dead addons would read as two dead legs.
+  /// search carried on, above the results rather than instead of them.
   Widget _buildFailureLedger(double topPadding) {
-    final tokens = context.tokens;
     final l10n = l10nOf(context);
     final failed = _ledger.sourceErrors;
+    final side = _side(context);
 
     return Padding(
       padding: EdgeInsets.only(
-        top: topPadding + kToolbarHeight + ZplaySpacing.s8,
-        left: ZplaySpacing.s16,
-        right: ZplaySpacing.s16,
+        top: topPadding + _bandHeight + 4,
+        left: side,
+        right: side,
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: ZplaySpacing.s12,
-          vertical: ZplaySpacing.s8,
-        ),
+        padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
         decoration: BoxDecoration(
-          color: tokens.danger.withValues(alpha: 0.12),
-          borderRadius: ZplayRadius.smAll,
-          border: Border.all(color: tokens.danger.withValues(alpha: 0.35)),
+          color: LuColors.danger.withValues(alpha: 0.10),
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          border: Border.all(color: LuColors.danger.withValues(alpha: 0.35)),
         ),
         child: Row(
           children: [
-            Icon(Icons.error_outline_rounded, size: 16, color: tokens.danger),
-            const SizedBox(width: ZplaySpacing.s8),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 16,
+              color: LuColors.danger,
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 l10n.searchPartialFailure(failed.join(l10n.listSeparator)),
-                style: ZplayType.bodySmall.toStyle(color: tokens.danger),
+                style: LuText.caption.copyWith(color: LuColors.danger),
               ),
             ),
-            const SizedBox(width: ZplaySpacing.s12),
-            FocusableCard(
-              onTap: () => _performSearch(_lastQuery),
-              builder: (context, state) => CardFocusRing(
-                focused: state.focused,
-                radius: ZplayRadius.xsAll,
-                child: Container(
-                  // A television has to be able to hit this with a D-pad, and
-                  // the prototype's chip is 24 dp tall. The floor applies there
-                  // only; on a pointer device the compact chip is the design.
-                  constraints: BoxConstraints(
-                    minHeight: DeviceProfile.isTelevision ? 48 : 0,
-                    minWidth: 48,
-                  ),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: ZplaySpacing.s8,
-                    vertical: ZplaySpacing.s4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tokens.danger.withValues(alpha: 0.2),
-                    borderRadius: ZplayRadius.xsAll,
-                  ),
-                  child: Text(
-                    l10n.actionRetry,
-                    style: ZplayType.caption.toStyle(color: tokens.textPrimary),
-                  ),
-                ),
-              ),
+            const SizedBox(width: 12),
+            LuButton(
+              label: l10n.actionRetry,
+              kind: LuButtonKind.secondary,
+              compact: true,
+              onPressed: () => _performSearch(_lastQuery),
             ),
           ],
         ),
@@ -1982,177 +1832,180 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildDiscoveryEmptyState(double topPadding) {
-    final tokens = context.tokens;
     final l10n = l10nOf(context);
+    final side = _side(context);
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    final posterW = phone ? 116.0 : 150.0;
 
     return ListView(
       clipBehavior: Clip.none,
       padding: EdgeInsets.only(
-        top: topPadding + kToolbarHeight + ZplaySpacing.s12,
-        bottom: ZplaySpacing.s40 + MediaQuery.paddingOf(context).bottom,
+        top: topPadding + _bandHeight + 16,
+        bottom: 40 + MediaQuery.paddingOf(context).bottom,
       ),
       physics: const BouncingScrollPhysics(),
       children: [
-        // Recent Searches
+        // 最近搜索
         if (_searchHistory.isNotEmpty) ...[
-          const SizedBox(height: ZplaySpacing.s8),
-          SectionHeader(
-            title: l10n.searchRecent,
-            // The quiet page-level action the design contract asks for: a
-            // ringed [FocusableCard], not a bare text button - it used to be a
-            // focusable with no indicator at all, which a remote could reach
-            // with nothing on screen saying where it was.
-            trailing: FocusableCard(
-              onTap: _clearSearchHistory,
-              builder: (context, state) => CardFocusRing(
-                focused: state.focused,
-                radius: ZplayRadius.smAll,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: ZplaySpacing.s8,
-                    vertical: ZplaySpacing.s8,
-                  ),
-                  child: Text(
-                    l10n.searchClearAll,
-                    style: ZplayType.label.toStyle(color: tokens.textSecondary),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: ZplaySpacing.s8),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s16),
-            child: Wrap(
-              spacing: ZplaySpacing.s8,
-              runSpacing: ZplaySpacing.s8,
-              children: _searchHistory
-                  .map((query) => _buildHistoryChip(query, tokens))
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: ZplaySpacing.s12),
-        ],
-
-        // Discover / Trending Content
-        if (_suggestedSections.isNotEmpty) ...[
-          const SizedBox(height: ZplaySpacing.s8),
-          // One quiet section title rather than an eyebrow: the same
-          // [SectionHeader] the rails under it use, so the group label and the
-          // rail labels are one vocabulary instead of two.
-          SectionHeader(title: l10n.searchTrending),
-          const SizedBox(height: ZplaySpacing.s8),
-          // Posters with their names under them: someone on the search page
-          // is looking for a title, and a row of untitled stills made them
-          // guess which one was which.
-          ..._suggestedSections.map(
-            (sec) => MovieSliderSection(
-              section: sec,
-              artwork: CardArtwork.poster,
-            ),
-          ),
-        ] else if (_isLoadingSuggestions) ...[
-          const SizedBox(height: ZplaySpacing.s32),
-          Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppThemeService.currentPalette.value.primaryColor,
-            ),
-          ),
-        ],
-
-        // A void. With no search history and no suggestions, this rendered as a
-        // black rectangle with nothing in it, which on a television reads as a
-        // broken screen rather than an empty one - and there is no keyboard
-        // there to make the cause obvious.
-        if (_searchHistory.isEmpty &&
-            _suggestedSections.isEmpty &&
-            !_isLoadingSuggestions) ...[
-          const SizedBox(height: ZplaySpacing.s48),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            padding: EdgeInsets.symmetric(horizontal: side),
+            child: Row(
               children: [
-                Icon(
-                  Icons.search_rounded,
-                  size: 44,
-                  color: tokens.textDisabled,
-                ),
-                const SizedBox(height: ZplaySpacing.s16),
-                Text(
-                  l10n.searchNothingToSuggest,
-                  style: ZplayType.subtitle.toStyle(
-                    color: tokens.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: ZplaySpacing.s8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Text(
-                    l10n.searchNothingToSuggestBody,
-                    textAlign: TextAlign.center,
-                    style: ZplayType.bodySmall.toStyle(color: tokens.textMuted),
-                  ),
+                Expanded(child: Text(l10n.searchRecent, style: LuText.heading)),
+                LuButton(
+                  label: l10n.searchClearAll,
+                  kind: LuButtonKind.text,
+                  compact: true,
+                  onPressed: _clearSearchHistory,
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: side),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [for (final q in _searchHistory) _buildHistoryChip(q)],
+            ),
+          ),
+          const SizedBox(height: 32),
         ],
+
+        // 热门 rails, posters with their names: someone on the search page is
+        // looking for a title.
+        if (_suggestedSections.isNotEmpty)
+          for (final sec in _suggestedSections)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: LuRail(
+                title: sec.title,
+                padding: side,
+                height: LuPosterCard.heightFor(posterW),
+                itemCount: sec.movies.length,
+                itemBuilder: (context, i) {
+                  final m = sec.movies[i];
+                  return LuPosterCard(
+                    width: posterW,
+                    title: m.name,
+                    poster: m.poster,
+                    subtitle: m.year,
+                    rating: m.imdbRating,
+                    onTap: () => PlayLauncher.openDetails(context, m),
+                  );
+                },
+              ),
+            )
+        else if (_isLoadingSuggestions)
+          const Padding(
+            padding: EdgeInsets.only(top: 32),
+            child: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: LuColors.gold,
+              ),
+            ),
+          ),
+
+        // Nothing at all to show: say so rather than a black screen, which on
+        // a television reads as broken.
+        if (_searchHistory.isEmpty &&
+            _suggestedSections.isEmpty &&
+            !_isLoadingSuggestions)
+          Padding(
+            padding: const EdgeInsets.only(top: 48),
+            child: _EmptyState(
+              icon: Icons.search_rounded,
+              title: l10n.searchNothingToSuggest,
+              body: l10n.searchNothingToSuggestBody,
+            ),
+          ),
       ],
     );
   }
 
-  /// One recent search, as the app's quiet pill rather than a Material
-  /// [InputChip].
-  ///
-  /// A chip is a control a remote has to be able to land on, so it is a
-  /// [FocusableCard] wearing [CardFocusRing] like every other one, and it paints
-  /// the Browse pill's resting rule - a borderless wash - so a row of them is
-  /// not a row of boxes. `InputChip` also carried *two* actions on one focus
-  /// node (run the query, delete the entry), which is why a remote could never
-  /// delete a single entry: only the select action was reachable. The delete
-  /// stays where it always effectively was - a pointer affordance beside the
-  /// label - and `Clear All` above the row is the remote's way to empty it.
-  Widget _buildHistoryChip(String query, ZplayTokens tokens) {
-    return FocusableCard(
+  /// One recent search. The remote runs it; the × beside the label is a
+  /// pointer affordance, and 清除全部 above is the remote's way to empty it.
+  Widget _buildHistoryChip(String query) {
+    return LuFocusable(
       onTap: () {
         _searchController.text = query;
         _performSearch(query);
       },
-      builder: (context, state) => CardFocusRing(
-        focused: state.focused,
-        radius: ZplayRadius.fullAll,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(
-            ZplaySpacing.s12,
-            ZplaySpacing.s8,
-            ZplaySpacing.s8,
-            ZplaySpacing.s8,
-          ),
-          decoration: BoxDecoration(
-            color: tokens.borderDefault,
-            borderRadius: ZplayRadius.fullAll,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                query,
-                style: ZplayType.label.toStyle(color: tokens.textEmphasis),
-              ),
-              const SizedBox(width: ZplaySpacing.s4),
-              GestureDetector(
-                onTap: () => _removeSearchHistory(query),
-                child: Padding(
-                  padding: const EdgeInsets.all(ZplaySpacing.s2),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 14,
-                    color: tokens.textMuted,
-                  ),
+      builder: (context, hi) => AnimatedContainer(
+        duration: LuMotion.focus,
+        padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: hi ? const Color(0x24FFFFFF) : const Color(0x14FFFFFF),
+          borderRadius: LuRadius.pill,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              query,
+              style: LuText.body.copyWith(fontSize: 15, color: LuColors.text),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => _removeSearchHistory(query),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: LuColors.textFaint,
                 ),
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The kind tabs above the results.
+enum _ResultFilter { all, anime, series, movies }
+
+/// A tab-like pill: white when selected, outlined otherwise.
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      child: LuFocusable(
+        onTap: onTap,
+        builder: (context, hi) => AnimatedContainer(
+          duration: LuMotion.focus,
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? LuColors.text
+                : (hi ? const Color(0x1FFFFFFF) : Colors.transparent),
+            borderRadius: LuRadius.pill,
+            border: selected ? null : Border.all(color: LuColors.line),
+          ),
+          child: Text(
+            label,
+            style: LuText.body.copyWith(
+              fontSize: 15,
+              color: selected ? LuColors.bg : LuColors.textSoft,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            ),
           ),
         ),
       ),
@@ -2160,17 +2013,90 @@ class _SearchPageState extends State<SearchPage> {
   }
 }
 
-/// The `PINNED SPINE` tag above the canonical metadata rail.
-///
-/// Cinemeta is the one leg that answers for every install and the rail the
-/// other legs are ranked against, so it is labelled rather than left looking
-/// like one more addon's results. Not a control: nothing to focus, so it
-/// carries no focus node.
-///
-/// One accent line of type, no fill and no box. It used to be a
-/// `tokens.surfaceRaised` chip with a radius, which made the label read as a
-/// button the remote could not reach - and the page's only other boxes were
-/// the results, so the tag competed with them for attention it did not need.
+/// A round glyph button inside the field: clear, paste, AI 选片, back.
+class _SuffixButton extends StatelessWidget {
+  const _SuffixButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color = LuColors.textSoft,
+  });
 
-/// The kind tabs above the results.
-enum _ResultFilter { all, anime, series, movies }
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: LuFocusable(
+        onTap: onPressed,
+        semanticLabel: tooltip,
+        builder: (context, hi) => AnimatedContainer(
+          duration: LuMotion.focus,
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: hi ? const Color(0x24FFFFFF) : const Color(0x14FFFFFF),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+/// A quiet centred message, with actions when there is something to do.
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    this.body,
+    this.actions = const [],
+  });
+
+  final IconData icon;
+  final String title;
+  final String? body;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 52, color: LuColors.textFaint),
+              const SizedBox(height: 16),
+              Text(title, textAlign: TextAlign.center, style: LuText.heading),
+              if (body case final b?) ...[
+                const SizedBox(height: 8),
+                Text(
+                  b,
+                  textAlign: TextAlign.center,
+                  style: LuText.bodySoft.copyWith(fontSize: 15),
+                ),
+              ],
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 22),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: actions,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

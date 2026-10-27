@@ -23,73 +23,61 @@ import '../common/focusable_card.dart';
 /// token-backed colour has no compile-time value, so a call site that needs a
 /// constant must inline a literal instead.
 class PlayerTheme {
-  /// Memoised per palette value by [AppThemeService].
-  static ZplayTokens get _tokens => AppThemeService.currentTokens;
+  // Lumora's cinema palette, fixed: the player is the one screen that is all
+  // picture, and its chrome reads the same whatever accent the rest uses.
 
   // Backgrounds & Surfaces
   /// Page background behind the video.
-  static Color get canvas => _tokens.bg;
+  static Color get canvas => const Color(0xFF000000);
 
-  /// Glass panel over the video: the palette's overlay surface, kept at the
-  /// original 94% alpha so the backdrop blur still shows the picture through.
-  static Color get elevated => _tokens.surfaceOverlay.withValues(alpha: 0.94);
+  /// Glass panel over the video, as in the design's 片源 panel.
+  static Color get elevated => const Color(0xF0101013);
 
-  /// The 10% white pill/chip fill — the audit's [ZplayOpacity.borderMedium] step
-  /// used as a fill rather than a border.
-  static Color get raised =>
-      _tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium);
+  /// The 10% white pill/chip fill.
+  static Color get raised => const Color(0x1AFFFFFF);
 
   /// Hover / pressed wash on an interactive surface.
-  static Color get surfaceHover =>
-      _tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover);
+  static Color get surfaceHover => const Color(0x24FFFFFF);
 
   // Borders
   /// The strong hairline: raised surfaces that must stay separated over video.
-  static Color get edge => _tokens.borderStrong;
+  static Color get edge => const Color(0xFF2A2925);
 
   /// The default hairline on panels and menus.
-  static Color get edgeSoft => _tokens.borderDefault;
+  static Color get edgeSoft => const Color(0xFF24231F);
 
-  // Accents. Sourced from the palette rather than a literal: these were pinned
-  // to a hard-coded violet, which is only one palette's primary, so choosing any
-  // other palette left the whole player UI purple regardless.
-  static Color get accent => _tokens.accent;
-  static Color get accentSoft => _tokens.accent.withValues(alpha: 0.20);
-  static Color get accentGlow => _tokens.accent.withValues(alpha: 0.40);
-  static Color get danger => _tokens.danger;
-  static Color get success => _tokens.success;
-  static Color get warning => _tokens.warning;
+  // Accents: Lumora gold.
+  static Color get accent => const Color(0xFFF2B544);
+  static Color get accentSoft => const Color(0x33F2B544);
+  static Color get accentGlow => const Color(0x66F2B544);
+  static Color get danger => const Color(0xFFFF7A6B);
+  static Color get success => const Color(0xFF7FD6A4);
+  static Color get warning => const Color(0xFFFFD27A);
 
   // Typography / Text Colors
-  static Color get ink => _tokens.textPrimary;
-  static Color get inkMuted => _tokens.textEmphasis;
-  static Color get inkSubtle => _tokens.textMuted;
-  static Color get inkDisabled => _tokens.textDisabled;
+  static Color get ink => const Color(0xFFF4F1EA);
+  static Color get inkMuted => const Color(0xFFCFCAC0);
+  static Color get inkSubtle => const Color(0xFFA8A399);
+  static Color get inkDisabled => const Color(0xFF6E6A62);
 
-  // Shadows. The alphas are the original ones — a shadow over video is a scrim,
-  // not a surface — but the hue is the palette background, so a warm palette no
-  // longer casts a cold black shadow.
-  static List<BoxShadow> get menuShadow => [
+  // Shadows: a shadow over video is a scrim, not a surface.
+  static List<BoxShadow> get menuShadow => const [
     BoxShadow(
-      color: _tokens.bg.withValues(alpha: 0.80),
-      offset: const Offset(0, 24),
+      color: Color(0xCC000000),
+      offset: Offset(0, 24),
       blurRadius: 60,
       spreadRadius: -18,
     ),
     BoxShadow(
-      color: _tokens.bg.withValues(alpha: 0.25),
-      offset: const Offset(0, 10),
+      color: Color(0x40000000),
+      offset: Offset(0, 10),
       blurRadius: 30,
       spreadRadius: -5,
     ),
   ];
 
-  static List<BoxShadow> get buttonShadow => [
-    BoxShadow(
-      color: _tokens.bg.withValues(alpha: 0.30),
-      offset: const Offset(0, 4),
-      blurRadius: 16,
-    ),
+  static List<BoxShadow> get buttonShadow => const [
+    BoxShadow(color: Color(0x4D000000), offset: Offset(0, 4), blurRadius: 16),
   ];
 }
 

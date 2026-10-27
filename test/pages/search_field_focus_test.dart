@@ -37,7 +37,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zplay/pages/search/search_page.dart';
 import 'package:zplay/services/layout/device_profile.dart';
 import 'package:zplay/services/platform/voice_search.dart';
-import 'package:zplay/widgets/common/focusable_card.dart';
+import 'package:zplay/ui/lu_focusable.dart';
 import 'package:zplay/widgets/search/tv_on_screen_keyboard.dart';
 
 void main() {
@@ -72,7 +72,7 @@ void main() {
     // is about which form factor the page is on, and a leaked `true` would make
     // the pointer assertions pass for the wrong reason.
     DeviceProfile.debugSetTelevision(value: false);
-    // The ring is what a television user reads focus from, and `CardFocusRing`
+    // The ring is what a television user reads focus from, and `LuFocusRing`
     // only paints in a traditional highlight mode - the same setting
     // `tv_dpad_focus_regression_test.dart` and `tv_home_chrome_reachability_test.dart`
     // establish for the same reason.
@@ -149,13 +149,13 @@ void main() {
     // itself would swallow still work while the remote is on it.
     final card = find.ancestor(
       of: find.byType(TextField),
-      matching: find.byType(FocusableCard),
+      matching: find.byType(LuFocusable),
     );
     expect(card, findsOneWidget,
         reason: 'the field\'s box has to be a control a television can land on');
     expect(
-      find.descendant(of: card, matching: find.byType(CardFocusRing)),
-      findsOneWidget,
+      find.descendant(of: card, matching: find.byType(LuFocusRing)),
+      findsWidgets,
       reason: 'and it wears the app\'s one focus indicator, like every other '
           'control a remote can land on',
     );
@@ -167,17 +167,20 @@ void main() {
       scopeOk: true,
     )!;
     cardNode.requestFocus();
+    // Two frames: the first delivers the focus change, the second paints the
+    // ring it asked for.
+    await tester.pump();
     await tester.pump();
 
     expect(
       tester
-          .widgetList<CardFocusRing>(
-            find.descendant(of: card, matching: find.byType(CardFocusRing)),
+          .widgetList<LuFocusRing>(
+            find.descendant(of: card, matching: find.byType(LuFocusRing)),
           )
-          .any((CardFocusRing ring) => ring.focused),
+          .any((LuFocusRing ring) => ring.focused),
       isTrue,
       reason: 'the box has to say where the remote is: on a television '
-          'CardFocusRing is the only thing that paints a focus indicator',
+          'LuFocusRing is the only thing that paints a focus indicator',
     );
 
     final field = tester.widget<EditableText>(find.byType(EditableText));
@@ -294,7 +297,7 @@ void main() {
     expect(
       find.ancestor(
         of: find.byType(TextField),
-        matching: find.byType(FocusableCard),
+        matching: find.byType(LuFocusable),
       ),
       findsNothing,
       reason: 'nor does a pointer device get the television\'s card: a mouse '

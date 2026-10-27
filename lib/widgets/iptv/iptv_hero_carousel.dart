@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../../ui/lu_button.dart';
+import 'iptv_slider_section.dart' show iptvPagePadding;
 import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/home/home_page_settings.dart';
@@ -139,7 +142,8 @@ class _IptvHeroCarouselState extends State<IptvHeroCarousel> {
                     child: _HeroArrowButton(
                       icon: Icons.chevron_left_rounded,
                       onTap: () {
-                        final prev = (_currentIndex - 1 + widget.channels.length) %
+                        final prev =
+                            (_currentIndex - 1 + widget.channels.length) %
                             widget.channels.length;
                         _pageController.animateToPage(
                           prev,
@@ -158,7 +162,8 @@ class _IptvHeroCarouselState extends State<IptvHeroCarousel> {
                     child: _HeroArrowButton(
                       icon: Icons.chevron_right_rounded,
                       onTap: () {
-                        final next = (_currentIndex + 1) % widget.channels.length;
+                        final next =
+                            (_currentIndex + 1) % widget.channels.length;
                         _pageController.animateToPage(
                           next,
                           duration: const Duration(milliseconds: 500),
@@ -194,7 +199,9 @@ class _IptvHeroCarouselState extends State<IptvHeroCarousel> {
                             radius: ZplayRadius.xsAll,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 250),
-                              margin: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s4),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: ZplaySpacing.s4,
+                              ),
                               width: _currentIndex == index ? 26 : 7,
                               height: 7,
                               decoration: BoxDecoration(
@@ -205,10 +212,12 @@ class _IptvHeroCarouselState extends State<IptvHeroCarousel> {
                                 boxShadow: _currentIndex == index
                                     ? [
                                         BoxShadow(
-                                          color: tokens.accent.withValues(alpha: 0.6),
+                                          color: tokens.accent.withValues(
+                                            alpha: 0.6,
+                                          ),
                                           blurRadius: 8,
                                           spreadRadius: 1,
-                                        )
+                                        ),
                                       ]
                                     : null,
                               ),
@@ -241,11 +250,13 @@ class _IptvHeroSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final primaryColor =
-        channel.gradient.isNotEmpty ? channel.gradient.first : tokens.accent;
+    final primaryColor = channel.gradient.isNotEmpty
+        ? channel.gradient.first
+        : tokens.accent;
     // Second stop of a channel's data-driven gradient; falls back to the info hue.
-    final secondaryColor =
-        channel.gradient.length > 1 ? channel.gradient.last : tokens.info;
+    final secondaryColor = channel.gradient.length > 1
+        ? channel.gradient.last
+        : tokens.info;
 
     return Stack(
       fit: StackFit.expand,
@@ -311,8 +322,8 @@ class _IptvHeroSlide extends StatelessWidget {
 
         // Content
         Positioned(
-          left: 32,
-          right: 32,
+          left: iptvPagePadding(context),
+          right: iptvPagePadding(context),
           bottom: 44,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,7 +333,10 @@ class _IptvHeroSlide extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: tokens.danger.withValues(alpha: 0.9),
                       borderRadius: ZplayRadius.smAll,
@@ -337,28 +351,43 @@ class _IptvHeroSlide extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.sensors_rounded, color: tokens.textPrimary, size: 14),
+                        Icon(
+                          Icons.sensors_rounded,
+                          color: tokens.textPrimary,
+                          size: 14,
+                        ),
                         const SizedBox(width: 5),
                         Text(
                           l10nCurrent().wgIptvLiveBroadcast,
-                          style: ZplayType.caption.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong),
+                      color: tokens.textPrimary.withValues(
+                        alpha: ZplayOpacity.borderStrong,
+                      ),
                       borderRadius: ZplayRadius.smAll,
                       border: Border.all(
-                        color: tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
+                        color: tokens.textPrimary.withValues(
+                          alpha: ZplayOpacity.overlayHover,
+                        ),
                       ),
                     ),
                     child: Text(
                       channel.category,
-                      style: ZplayType.caption.toStyle(color: tokens.textEmphasis),
+                      style: ZplayType.caption.toStyle(
+                        color: tokens.textEmphasis,
+                      ),
                     ),
                   ),
                 ],
@@ -381,8 +410,11 @@ class _IptvHeroSlide extends StatelessWidget {
                     memCacheWidth: 512,
                     errorWidget: (_, __, ___) => Text(
                       channel.name,
-                      style: ZplayType.display.toStyle(color: tokens.textPrimary),
-                    )),
+                      style: ZplayType.display.toStyle(
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ),
                 )
               else
                 Text(
@@ -403,75 +435,20 @@ class _IptvHeroSlide extends StatelessWidget {
               const SizedBox(height: 18),
 
               // Action Buttons
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
                 children: [
-                  // Primary Watch Live Button
-                  FocusableCard(
-                    onTap: onWatchNow,
-                    builder: (context, state) => CardFocusRing(
-                      focused: state.focused,
-                      radius: ZplayRadius.mdAll,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: ZplaySpacing.s24,
-                          vertical: ZplaySpacing.s12,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: ZplayRadius.mdAll,
-                          gradient: LinearGradient(
-                            colors: [tokens.accent, tokens.info],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: tokens.accent.withValues(alpha: 0.5),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.play_arrow_rounded, color: tokens.onAccent, size: 22),
-                            const SizedBox(width: ZplaySpacing.s8),
-                            Text(
-                              l10nCurrent().wgIptvWatchLive,
-                              style: ZplayType.subtitle.toStyle(color: tokens.onAccent),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  LuButton(
+                    label: l10nCurrent().wgIptvWatchLive,
+                    icon: Icons.play_arrow_rounded,
+                    onPressed: onWatchNow,
                   ),
-
-                  const SizedBox(width: 14),
-
-                  // Sources / Stream Selector Pill
-                  FocusableCard(
-                    onTap: onSourcesTap,
-                    builder: (context, state) => CardFocusRing(
-                      focused: state.focused,
-                      radius: ZplayRadius.mdAll,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: ZplaySpacing.s12),
-                        decoration: BoxDecoration(
-                          color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
-                          borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(color: tokens.borderStrong),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.tune_rounded, color: tokens.textEmphasis, size: 18),
-                            const SizedBox(width: ZplaySpacing.s8),
-                            Text(
-                              l10nCurrent().wgIptvStreamFeeds,
-                              style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  LuButton(
+                    label: l10nCurrent().wgIptvStreamFeeds,
+                    icon: Icons.tune_rounded,
+                    kind: LuButtonKind.secondary,
+                    onPressed: onSourcesTap,
                   ),
                 ],
               ),
@@ -487,10 +464,7 @@ class _HeroArrowButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _HeroArrowButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _HeroArrowButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -511,9 +485,7 @@ class _HeroArrowButton extends StatelessWidget {
                 ? tokens.accent
                 : tokens.bg.withValues(alpha: 0.55),
             border: Border.all(
-              color: state.highlighted
-                  ? tokens.accent
-                  : tokens.borderStrong,
+              color: state.highlighted ? tokens.accent : tokens.borderStrong,
               width: 1.2,
             ),
             boxShadow: [
@@ -526,11 +498,7 @@ class _HeroArrowButton extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(
-            icon,
-            color: tokens.textPrimary,
-            size: 26,
-          ),
+          child: Icon(icon, color: tokens.textPrimary, size: 26),
         ),
       ),
     );

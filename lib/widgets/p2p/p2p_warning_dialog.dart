@@ -481,7 +481,13 @@ class _P2pWarningDialogState extends State<P2pWarningDialog> {
   Widget _buildHorizontalButtons(BuildContext context) {
     final tokens = ZplayTokens.of(context);
 
-    return Row(
+    // A Wrap so the three buttons drop to a second line on a narrow dialog
+    // (a television's 960 dp canvas) instead of overflowing.
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: ZplaySpacing.s12,
+      runSpacing: ZplaySpacing.s8,
       children: [
         // Exit button
         TextButton(
@@ -495,7 +501,6 @@ class _P2pWarningDialogState extends State<P2pWarningDialog> {
           ),
           child: Text(l10nOf(context).p2pExit, style: ZplayType.label.toStyle()),
         ),
-        const Spacer(),
 
         // Don't show again button (keeps P2P enabled)
         OutlinedButton(
@@ -516,7 +521,6 @@ class _P2pWarningDialogState extends State<P2pWarningDialog> {
           ),
           child: Text(l10nOf(context).p2pDontShowAgain, style: ZplayType.label.toStyle()),
         ),
-        const SizedBox(width: ZplaySpacing.s12),
 
         // Yes, Turn Off P2P button
         ElevatedButton.icon(

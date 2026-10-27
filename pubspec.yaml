@@ -201,6 +201,11 @@ flutter:
     # TMDb attribution mark, required by the TMDb terms for the About credits.
     # The rest of assets/branding holds source SVGs that are not shipped.
     - assets/branding/tmdb-logo.png
+    # The 3D figures of the sign-in page and splash: 72 frames a turn each,
+    # rendered by tool/figure_turntable.py.
+    - assets/figures/grey/
+    - assets/figures/beige/
+    - assets/figures/plaid/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -209,6 +214,26 @@ flutter:
   # https://flutter.dev/to/asset-from-package
 
   fonts:
+    # Lumora's type (OFL, licences beside the files): Noto Sans SC for text,
+    # cut to GB2312 and Latin; Outfit for the wordmark and numerals.
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/lumora/NotoSansSC-400.ttf
+          weight: 400
+        - asset: assets/fonts/lumora/NotoSansSC-500.ttf
+          weight: 500
+        - asset: assets/fonts/lumora/NotoSansSC-700.ttf
+          weight: 700
+        - asset: assets/fonts/lumora/NotoSansSC-900.ttf
+          weight: 900
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/lumora/Outfit-500.ttf
+          weight: 500
+        - asset: assets/fonts/lumora/Outfit-600.ttf
+          weight: 600
+        - asset: assets/fonts/lumora/Outfit-700.ttf
+          weight: 700
     - family: Poppins
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/theme/design_tokens.dart';
 import 'horizontal_edge_fade.dart';
 import 'focusable_card.dart';
+import '../../ui/lu_theme.dart';
 
 /// One option in a [TabStrip].
 @immutable
@@ -252,145 +253,43 @@ class _Pill<T> extends StatelessWidget {
       // either, and the tap action would be dropped along with them.
       excludeSemantics: true,
       onTap: onSelected,
+      // Lumora's pill: white when selected, outlined at rest. The border is
+      // always one pixel wide (transparent on the selected pill), so moving the
+      // selection never shifts the pills after it.
       child: FocusableCard(
         onTap: onSelected,
         builder: (context, state) => CardFocusRing(
           focused: state.focused,
           radius: ZplayRadius.fullAll,
-          child: Container(
+          child: AnimatedContainer(
+            duration: duration,
             height: height,
-            padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s16),
-            decoration: _surface,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (option.icon != null) ...[
-                  Icon(option.icon,
-                      size: ZplaySpacing.s16, color: _iconColor(state)),
-                  const SizedBox(width: ZplaySpacing.s8),
-                ],
-                // The label and its bar, in a `Stack` that holds nothing but
-                // `Positioned` children. The bar is anchored to the *label's*
-                // box rather than to the pill's, so it needs a parent with a
-                // box of its own: the label carries the bar, not the pill, which
-                // is what lets the selected pill keep exactly the resting pill's
-                // box and leaves the glyph where it was.
-                Stack(
-                  alignment: Alignment.bottomLeft,
-                  children: [
-                    // The label, with room below it for the bar. The padding is
-                    // what gives the bar somewhere to sit *inside* the stack: a
-                    // `Positioned` child never contributes to a `Stack`'s size,
-                    // so a bar hung below a text-only stack is drawn outside it
-                    // and clipped away. That is why the bar measured at exactly
-                    // the right rect and still never appeared.
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: ZplaySpacing.s4),
-                      child: Text(
-                        option.label,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        style: ZplayType.label.toStyle(
-                          color: _labelColor(state),
-                        ),
-                      ),
-                    ),
-                    _underline(),
-                  ],
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected
+                  ? LuColors.text
+                  : (state.highlighted
+                        ? const Color(0x1FFFFFFF)
+                        : Colors.transparent),
+              borderRadius: ZplayRadius.fullAll,
+              border: Border.all(
+                color: selected ? Colors.transparent : LuColors.line,
+              ),
+            ),
+            child: Text(
+              option.label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: LuText.body.copyWith(
+                fontSize: 15,
+                color: selected ? LuColors.bg : LuColors.textSoft,
+              ),
             ),
           ),
         ),
       ),
     );
   }
-
-  /// The pill's own surface: **nothing is painted, in either state.**
-  ///
-  /// One object, shared by every pill in every state, because nothing about it
-  /// depends on the selection - which is the point. The unselected pill was a
-  /// raised chip so it would stay legible on a page background that is not the
-  /// canvas, and the selected one was a block of accent; between them a strip of
-  /// verticals was the most button-like control in the app. The labels carry
-  /// that contrast on their own against the page, so the surface has nothing
-  /// to contribute and says nothing.
-  ///
-  /// The border is **reserved and never painted.** Flutter reserves a border's
-  /// width whether or not the border is painted, so a pill that dropped this
-  /// would be 2 dp narrower than one that keeps it - and every pill after it in
-  /// the row would slide sideways the moment its neighbour was selected.
-  ///
-  /// Drawing that width was also what made the switcher read as a row of
-  /// buttons: the prototype's own switcher pill is a filled chip with no
-  /// `border` rule at all, so a line here is a second edge the control never
-  /// needed. Transparent reserves the space and paints nothing, leaving
-  /// [CardFocusRing] the only line a pill draws; a border beside it is the ghost
-  /// border inside the shape.
-  static final BoxDecoration _surface = BoxDecoration(
-    color: Colors.transparent,
-    borderRadius: ZplayRadius.fullAll,
-    border: Border.all(color: Colors.transparent),
-  );
-
-  /// The selection mark: a short accent bar under the label.
-  ///
-  /// `Positioned`, so it is decoration over the label rather than part of it.
-  /// It cannot widen the label, push it off centre or move the glyph, which is
-  /// why it can exist on the selected pill without that pill changing shape. It
-  /// is full-bleed across the label's width - `bottom` is the only inset that
-  /// is not a zero - so a label that has been ellipsised brings its shorter bar
-  /// with it.
-  ///
-  /// [ZplayMotion] drives the change. Losing selection collapses the bar to
-  /// nothing and gaining it grows one out of the label's centre, so the accent
-  /// travels between pills instead of blinking out of one and back into
-  /// another. [duration] arrives already collapsed when the platform asks for
-  /// reduced motion, which keeps the curve and drops the wait.
-  Widget _underline() => Positioned(
-        left: ZplaySpacing.s0,
-        right: ZplaySpacing.s0,
-        bottom: ZplaySpacing.s0,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: selected ? 1 : 0),
-          duration: duration,
-          curve: ZplayMotion.emphasized,
-          builder: (context, t, child) => Opacity(
-            opacity: t,
-            child: Transform.scale(
-              scaleX: t,
-              alignment: Alignment.center,
-              child: child,
-            ),
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: tokens.accent),
-            child: const SizedBox(height: ZplaySpacing.s2),
-          ),
-        ),
-      );
-
-  /// The glyph is neutral in every state.
-  ///
-  /// It used to take [ZplayTokens.onAccent] on the selected pill, which needed
-  /// the accent fill underneath to be legible at all and marked the same pill
-  /// twice. The bar under the label is the mark now. A pill the pointer or the
-  /// remote is on still brightens, so both input families can see what they are
-  /// pointing at.
-  Color _iconColor(CardInteraction state) =>
-      state.highlighted ? tokens.textPrimary : tokens.textSecondary;
-
-  /// The label is the brightest thing on the selected pill and the dimmest on a
-  /// resting one: the accent says which option, the brightness says which words.
-  /// A pointed-at label reads like the selected one, for the same reason the
-  /// glyph does.
-  ///
-  /// **One weight in every state.** The selected label used to be w600 against
-  /// the resting w500, and the two have different advance widths, so the
-  /// selected pill is a fraction wider and every pill after it shifts by that
-  /// fraction when the selection moves. Selection is the bar and the brightness
-  /// now, and neither of those is a width.
-  Color _labelColor(CardInteraction state) =>
-      selected || state.highlighted ? tokens.textPrimary : tokens.textSecondary;
 }

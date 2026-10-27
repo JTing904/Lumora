@@ -233,7 +233,9 @@ abstract final class AppThemeService {
   /// `pubspec.yaml`; the bundle ships 400/500/600/700, which is exactly the
   /// set [ZplayTextToken.weight] is restricted to, so no token asks for a
   /// weight the family has to synthesise.
-  static const String _fontFamily = 'Poppins';
+  /// Lumora's face (bundled, subset to GB2312), so Chinese and Latin share
+  /// one design rather than Poppins beside a system CJK font.
+  static const String _fontFamily = 'NotoSansSC';
 
   /// Where Chinese text goes, since Poppins has no CJK glyphs: each platform's
   /// own UI face first (PingFang on Apple, YaHei on Windows, Noto CJK on

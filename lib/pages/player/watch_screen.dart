@@ -1097,7 +1097,7 @@ class _WatchScreenState extends State<WatchScreen>
 
         // Cast
         if (meta.cast.isNotEmpty) ...[
-          _buildLabelChips('CAST', meta.cast.take(8).toList()),
+          _buildLabelChips(l10nOf(context).detailsCast, meta.cast.take(8).toList()),
           const SizedBox(height: ZplaySpacing.s24),
         ],
 
@@ -2135,7 +2135,9 @@ class _WatchScreenState extends State<WatchScreen>
   Widget _buildAddonFilterDropdown() {
     final addons = _sources.map((e) => e.addonName).toSet().toList();
     if (addons.isEmpty) return const SizedBox.shrink();
-    final currentText = _selectedAddonFilter ?? l10nOf(context).watchAllSources;
+    final currentText = _selectedAddonFilter == null
+        ? l10nOf(context).watchAllSources
+        : displayAddonName(_selectedAddonFilter!);
 
     return Builder(
       builder: (buttonContext) {
@@ -2275,7 +2277,7 @@ class _WatchScreenState extends State<WatchScreen>
                                 color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
-                              ...addons.map((a) => _buildDropdownItem(a, a)),
+                              ...addons.map((a) => _buildDropdownItem(displayAddonName(a), a)),
                             ],
                           ),
                         ),
@@ -3133,7 +3135,7 @@ class _WatchScreenState extends State<WatchScreen>
                   ),
                   for (final addon in addons)
                     _buildBottomSheetItem(
-                      title: addon,
+                      title: displayAddonName(addon),
                       isSelected: _selectedAddonFilter == addon,
                       activeColor: context.tokens.textPrimary,
                       onTap: () {

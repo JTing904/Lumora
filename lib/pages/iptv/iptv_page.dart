@@ -1,12 +1,13 @@
 import '../../l10n/l10n.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/theme/app_theme_service.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_theme.dart';
 import '../../services/theme/design_tokens.dart';
-import '../../services/theme/glass_settings.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/iptv/iptv_controller.dart';
 import '../../services/iptv/iptv_settings.dart';
@@ -16,12 +17,9 @@ import '../../services/discord/discord_rpc_service.dart';
 import '../../shell/app_shell_scope.dart';
 import '../../utils/navigation/route_transitions.dart';
 import '../../services/layout/form_factor.dart';
-import '../../widgets/common/animated_ambient_background.dart';
-import '../../widgets/common/custom_scroll_track.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../../widgets/iptv/iptv_hero_carousel.dart';
 import '../../widgets/iptv/iptv_health_badge.dart';
-import '../../widgets/common/section_header.dart';
 import '../../widgets/iptv/iptv_slider_section.dart';
 import '../multinutz/multinutz_page.dart';
 import 'iptv_channel_sheet.dart';
@@ -30,19 +28,6 @@ import 'iptv_portals_modal.dart';
 import 'iptv_search_page.dart';
 import 'widgets/live_guide_band.dart';
 import '../../services/storage/app_image_cache.dart';
-
-/// Glyph shadow for a bare control sitting on the canvas.
-///
-/// At the top of the page nothing tints behind the controls, so the shadow is
-/// what keeps a white glyph legible over whatever the ambient background is
-/// doing. Constant rather than scroll-driven: harmless over the tinted bar, and
-/// one less thing rebuilding per scroll pixel. 0.6 black under the 0.9-white
-/// glyph clears WCAG AA over art - the same value Home's own control row uses.
-const _glyphShadow = Shadow(
-  color: Color(0x99000000),
-  blurRadius: 6,
-  offset: Offset(0, 1),
-);
 
 class IptvPage extends StatefulWidget {
   const IptvPage({super.key});
@@ -230,13 +215,13 @@ class _IptvPageState extends State<IptvPage> {
   /// snapshot up; `'Saved'` is the source the channel-results store records for
   /// every hit it persists.
   static String _portalKeyOf(StoredHit hit) => IptvAliveStore.portalKey(
-        IptvPortal(
-          url: hit.portalUrl,
-          username: hit.portalUser,
-          password: hit.portalPass,
-          source: 'Saved',
-        ),
-      );
+    IptvPortal(
+      url: hit.portalUrl,
+      username: hit.portalUser,
+      password: hit.portalPass,
+      source: 'Saved',
+    ),
+  );
 
   void _resolveBoxingHealth() {
     final health = <String, IptvHitHealth>{};
@@ -268,29 +253,14 @@ class _IptvPageState extends State<IptvPage> {
   /// source is not shopping, they are trying to be watching in five minutes.
   static const String _boxingCategory = 'Boxing';
 
-  /// Everything the page draws above its first pixel of content: the strip the
-  /// shell's blended nav rests on, plus the page's own control row.
-  ///
-  /// The shell paints its top bar *over* this slot rather than stacking above
-  /// it, so the page's box starts at the window's top edge and the bar is
-  /// charged through `MediaQuery` instead - which is zero inside Browse, whose
-  /// own band has already spent the strip (`MediaQuery.removePadding`) and whose
-  /// `ClipRect` the verticals scroll inside. Reading it here rather than
-  /// hardcoding a height is what keeps the sum equal to `_IptvGlassAppBar`'s own
-  /// height on every form factor: the space the chrome spends and the space the
-  /// scroll view reserves are one number.
-  static double _topInsetFor(BuildContext context) =>
-      MediaQuery.paddingOf(context).top + _IptvGlassAppBar.heightFor(context);
-
   Widget _buildLiveGuide(String title, List<HardcodedChannel> channels) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: ZplaySpacing.s8),
-        SectionHeader(
-          title: title,
-          subtitle: l10nCurrent().tvChannelListAndSchedule,
-          count: channels.length,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: iptvPagePadding(context)),
+          child: Text(title, style: LuText.heading),
         ),
         const SizedBox(height: ZplaySpacing.s12),
         LiveGuideBand(
@@ -351,21 +321,45 @@ class _IptvPageState extends State<IptvPage> {
     );
   }
 
+  /// A category's name in the viewer's language. The stored keys stay the
+  /// English names the user's order and visibility are saved under.
+  static String _categoryTitle(AppLocalizations l10n, String key) =>
+      switch (key) {
+        'Premier Live Broadcasts' => l10n.liveCatPremier,
+        'ESPN & College Basketball (NCAA)' => l10n.liveCatEspn,
+        'US Major Leagues & Sports' => l10n.liveCatUsSports,
+        'Global Football & Soccer' => l10n.liveCatSoccer,
+        'Boxing' => l10n.liveCatBoxing,
+        'Combat & Martial Arts' => l10n.liveCatCombat,
+        'Motorsport & Racing' => l10n.liveCatRacing,
+        'Movies & Premium Networks' => l10n.liveCatMovies,
+        '24/7 Global News Networks' => l10n.liveCatNews,
+        'Arabic & Regional Hub' => l10n.liveCatArabic,
+        'Discovery & Documentaries' => l10n.liveCatDiscovery,
+        'Kids & Family' => l10n.liveCatKids,
+        'US Region' => l10n.liveCatUs,
+        'UK Region' => l10n.liveCatUk,
+        'Canada Region' => l10n.liveCatCanada,
+        'Bay Area' => l10n.liveCatBayArea,
+        'International Sports' => l10n.liveCatIntlSports,
+        _ => key,
+      };
+
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    // The strip the shell's blended nav is resting on, handed to the page as
-    // its top `MediaQuery` padding. Charged to the scroll inset below, so the
-    // chrome never has content hidden behind it.
+    final l10n = l10nOf(context);
+    final size = MediaQuery.sizeOf(context);
+    final phone = size.width < 600;
+    final tv = FormFactorService.of(context) == FormFactor.television;
+    final pad = phone ? 16.0 : (tv ? 48.0 : LuSpace.page);
+    // The strip the shell's blended nav rests on, charged to this page as its
+    // top padding.
     final topPadding = MediaQuery.paddingOf(context).top;
     final spotlightEnabled = IptvSettings.enableSpotlight.value;
     final visibleCategories = IptvSettings.visibleCategories.value;
 
     final Map<String, (String, List<HardcodedChannel>)> categoryMap = {
-      'Premier Live Broadcasts': (
-        l10nCurrent().tvDescPremier,
-        _featured,
-      ),
+      'Premier Live Broadcasts': (l10n.tvDescPremier, _featured),
       'ESPN & College Basketball (NCAA)': (
         'ESPN+, ESPN, ESPN2, ESPNU, NCAA Men\'s & Women\'s CBB, SEC & ACC',
         _espnAndCollege,
@@ -378,10 +372,7 @@ class _IptvPageState extends State<IptvPage> {
         'UEFA Champions League, Premier League, beIN Sports, La Liga & Serie A',
         _soccer,
       ),
-      'Boxing': (
-        l10nCurrent().tvDescBoxing,
-        _boxing,
-      ),
+      'Boxing': (l10n.tvDescBoxing, _boxing),
       'Combat & Martial Arts': (
         'UFC Fight Pass, WWE, AEW, World Boxing & PPV',
         _combat,
@@ -410,14 +401,8 @@ class _IptvPageState extends State<IptvPage> {
         'Cartoon Network, Disney Channel, Nickelodeon & Spacetoon',
         _kids,
       ),
-      'US Region': (
-        l10nCurrent().tvDescUs,
-        HardcodedChannels.byCategory('US'),
-      ),
-      'UK Region': (
-        l10nCurrent().tvDescUk,
-        HardcodedChannels.byCategory('UK'),
-      ),
+      'US Region': (l10n.tvDescUs, HardcodedChannels.byCategory('US')),
+      'UK Region': (l10n.tvDescUk, HardcodedChannels.byCategory('UK')),
       'Canada Region': (
         'CBC News, CTV News, TSN Sportsnet, Crave & Global News',
         HardcodedChannels.byCategory('CA'),
@@ -427,477 +412,146 @@ class _IptvPageState extends State<IptvPage> {
         HardcodedChannels.byCategory('Bay Area'),
       ),
       'International Sports': (
-        l10nCurrent().tvDescIntlSports,
+        l10n.tvDescIntlSports,
         HardcodedChannels.byCategory('Int. Sports'),
       ),
     };
 
-    final listContent = RefreshIndicator(
-      color: tokens.accent,
-      backgroundColor: tokens.surface,
-      onRefresh: () async {
-        _ctrl.scrape();
-      },
-      child: ListView(
-        controller: _scrollController,
-        clipBehavior: Clip.none,
-        // The chrome is pinned over this list (`overlayChildren`), so the list
-        // reserves its full height here instead of carrying it as a first
-        // child: the inset is exactly what `_IptvGlassAppBar` spends, so the
-        // hero still starts directly under the chrome and a scrolled category
-        // heading can never draw through the controls.
-        padding: EdgeInsets.only(top: _topInsetFor(context)),
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
+    // 直播 and its count, then the page's tools: 多路直播, 片源, 搜索频道
+    // and 设置. In the shell's one focus tree, so UP from the content walks
+    // through them to the bar by geometry alone.
+    final actions = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        LuButton(
+          label: l10n.tvMultiStreams,
+          icon: Icons.dashboard_rounded,
+          kind: LuButtonKind.secondary,
+          compact: true,
+          onPressed: () => _navigateToMultiStreams(null),
         ),
-        children: [
-          // 1. Full Bleed Spotlight Hero Carousel
-          if (spotlightEnabled)
-            IptvHeroCarousel(
-              channels: _featured,
-              onWatchNow: _watchChannelNow,
-              onSourcesTap: _openChannel,
-            )
-          else
-            const SizedBox(height: ZplaySpacing.s24),
-
-          const SizedBox(height: ZplaySpacing.s20),
-
-          // Quick Channels row (below hero, above categories)
-          _QuickChannelsSlider(
-            channels: _quickChannels,
-            onChannelTap: _openChannel,
-            onAddTap: _showAddQuickChannelDialog,
-            onRemoveTap: _removeQuickChannel,
-          ),
-          const SizedBox(height: ZplaySpacing.s8),
-
-          // 2. The premier channels are the guide, not a poster rail: the
-          // prototype's Live TV pane is a channel list beside the schedule for
-          // the selected channel, and the same eight channels were already
-          // being listed twice - once as the top rail and once as cards. The
-          // category keeps its place in the user's own order and visibility,
-          // and every channel in it is still listed; it is the presentation
-          // that changes. Every other category keeps its rail.
-          //
-          // 3. Curated Slider Sections (driven by user-customized category
-          // visibility and order)
-          for (final catName in visibleCategories)
-            if (categoryMap.containsKey(catName) &&
-                categoryMap[catName]!.$2.isNotEmpty)
-              if (catName == _guideCategory)
-                _buildLiveGuide(catName, categoryMap[catName]!.$2)
-              else
-                IptvSliderSection(
-                  title: catName,
-                  subtitle: categoryMap[catName]!.$1,
-                  channels: categoryMap[catName]!.$2,
-                  healthByChannelId:
-                      catName == _boxingCategory ? _boxingHealth : null,
-                  onChannelTap: _openChannel,
-                ),
-
-          // Trailing gap only: the dock used to reserve 90 px of clearance here.
-          SizedBox(
-            height: ZplaySpacing.s24 + MediaQuery.paddingOf(context).bottom,
-          ),
-        ],
-      ),
+        LuButton(
+          label: l10n.tvManagePortalsPlaylists,
+          icon: Icons.settings_input_antenna_rounded,
+          kind: LuButtonKind.secondary,
+          compact: true,
+          onPressed: () => IptvPortalsModal.show(context),
+        ),
+        LuButton(
+          label: l10n.tvSearchChannels,
+          icon: Icons.search_rounded,
+          kind: LuButtonKind.secondary,
+          compact: true,
+          onPressed: () => _navigateToSearch(null),
+        ),
+        LuButton(
+          label: l10n.tvSettings,
+          icon: Icons.tune_rounded,
+          kind: LuButtonKind.text,
+          compact: true,
+          onPressed: _navigateToSettings,
+        ),
+      ],
     );
-    final backgroundContent = IptvSettings.enableAmbientLights.value
-        ? AnimatedAmbientBackground(child: listContent)
-        : Container(color: tokens.bg, child: listContent);
-
-    final overlayChildren = <Widget>[
-      // The page's own control row, pinned over the content: transparent at the
-      // top of the page and tinted once content scrolls under it, exactly as
-      // Home's row does. Pinned rather than in-flow because the row is chrome -
-      // a strip that scrolls away is a second header, and the tint below only
-      // has a job if something can travel under it.
-      //
-      // It stays in the shell's one focus tree: a `Positioned` child of the
-      // page's own stack, not a route and not a traversal scope, so D-pad UP
-      // runs from the content through these controls to the Browse pills and
-      // the shared menu by geometry alone, with nothing to trap.
-      Positioned(
-        top: 0,
-        left: 0,
-        right: 0,
-        child: _IptvGlassAppBar(
-          topPadding: topPadding,
-          scrollController: _scrollController,
-          onSearchTap: _navigateToSearch,
-          onSettingsTap: _navigateToSettings,
-          onMultiStreamsTap: _navigateToMultiStreams,
-          onSourcesTap: () => IptvPortalsModal.show(context),
+    final heading = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(l10n.navLiveTv, style: LuText.title.copyWith(fontSize: 34)),
+        const SizedBox(height: 4),
+        Text(
+          '${l10n.liveSubtitle} · ${l10n.tv2ChannelsCountCaps(HardcodedChannels.all.length)}',
+          style: LuText.caption.copyWith(color: LuColors.textMuted),
         ),
-      ),
+      ],
+    );
 
-      // Custom Scroll Track (Matching Home & Anime Page)
-      if (MediaQuery.sizeOf(context).width > 800)
-        Positioned(
-          right: ZplaySpacing.s24,
-          bottom: ZplaySpacing.s40,
-          child: CustomScrollTrack(controller: _scrollController),
-        ),
-    ];
+    return Theme(
+      data: luTheme(),
+      child: Scaffold(
+        backgroundColor: LuColors.bg,
+        body: RefreshIndicator(
+          color: LuColors.gold,
+          backgroundColor: LuColors.surface,
+          onRefresh: () async => _ctrl.scrape(),
+          child: ListView(
+            controller: _scrollController,
+            clipBehavior: Clip.none,
+            padding: EdgeInsets.only(
+              top: topPadding + (phone ? 16 : 28),
+              bottom: 48 + MediaQuery.paddingOf(context).bottom,
+            ),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: pad),
+                child: phone
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          heading,
+                          const SizedBox(height: 16),
+                          actions,
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(child: heading),
+                          const SizedBox(width: 24),
+                          Flexible(child: actions),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 28),
 
-    return Scaffold(
-      backgroundColor: tokens.bg,
-      body: ValueListenableBuilder<bool>(
-        valueListenable: GlassSettings.enabled,
-        builder: (context, enabled, _) {
-          final overlays = Stack(children: overlayChildren);
-          if (enabled) {
-            return LiquidGlassView(
-              realTimeCapture: true,
-              useSync: true,
-              pixelRatio: 0.85,
-              refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
-              regionCapture: true,
-              backgroundWidget: backgroundContent,
-              child: overlays,
-            );
-          }
-
-          return Container(
-            color: tokens.bg,
-            child: Stack(
-              children: [
-                RepaintBoundary(child: backgroundContent),
-                ...overlayChildren,
+              // The spotlight: the premier channels, full width.
+              if (spotlightEnabled) ...[
+                IptvHeroCarousel(
+                  channels: _featured,
+                  onWatchNow: _watchChannelNow,
+                  onSourcesTap: _openChannel,
+                ),
+                const SizedBox(height: 20),
               ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
 
-class _IptvGlassAppBar extends StatelessWidget {
-  final Function(Offset? tapPosition) onSearchTap;
-  final VoidCallback onSettingsTap;
-  final Function(Offset? tapPosition) onMultiStreamsTap;
-  final VoidCallback onSourcesTap;
-
-  /// The strip the shell's blended nav is resting on, charged to this page as
-  /// its top `MediaQuery` padding rather than stacked above it. Zero inside
-  /// Browse, whose own band has already spent it.
-  final double topPadding;
-
-  /// The page's own scroll, so the fill can follow it. The row sits in the
-  /// page's overlay rather than in the list, so it cannot read the offset from
-  /// inside the list - the controller is handed in instead.
-  final ScrollController? scrollController;
-
-  const _IptvGlassAppBar({
-    required this.onSearchTap,
-    required this.onSettingsTap,
-    required this.onMultiStreamsTap,
-    required this.onSourcesTap,
-    required this.topPadding,
-    this.scrollController,
-  });
-
-  /// How far the page scrolls before the row is fully filled.
-  ///
-  /// The shell's own nav blends over the same 32 dp, so the chrome band across
-  /// the window and this row inside the page settle together rather than one
-  /// trailing the other. Written out rather than shared for the same reason it
-  /// is written out there: a shared constant would couple two independently
-  /// mounted widgets.
-  static const double _scrollThreshold = 32.0;
-
-  /// The tallest control in the row, which is the height the row is built to.
-  ///
-  /// Every control here is a focus target, so on anything that is not a held
-  /// phone it takes the full 48 dp minimum: the bar's buttons were 36-40 dp,
-  /// which is under the size a five-way pad needs at ten feet.
-  static double buttonSizeFor(BuildContext context) {
-    final isSmall = MediaQuery.sizeOf(context).width < 420;
-    return FormFactorService.of(context) == FormFactor.compact
-        ? (isSmall ? ZplaySpacing.s40 : ZplaySpacing.s48 - ZplaySpacing.s4)
-        : kMinInteractiveDimension;
-  }
-
-  /// The row's own vertical padding, above and below its controls.
-  static double _rowPaddingFor(BuildContext context) =>
-      MediaQuery.sizeOf(context).width < 420
-      ? ZplaySpacing.s8
-      : ZplaySpacing.s12;
-
-  /// The chrome's height *below* [topPadding].
-  ///
-  /// A function rather than a constant because both the padding and the
-  /// controls move with the form factor, and the page's `_topInsetFor` reads
-  /// this same expression back as its scroll inset: the space the chrome spends
-  /// and the space the list reserves are one number.
-  static double heightFor(BuildContext context) =>
-      _rowPaddingFor(context) * 2 + buttonSizeFor(context);
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = scrollController;
-    if (controller == null) return _chrome(context, 0);
-    // Rebuilds the fill only, and only while it is changing. Scroll-driven rather
-    // than animated, so a reduced-motion user gets no fade choreography - just
-    // the offset-mapped tint, which is what Home's own row does.
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final offset = controller.hasClients ? controller.offset : 0.0;
-        return _chrome(context, (offset / _scrollThreshold).clamp(0.0, 1.0));
-      },
-    );
-  }
-
-  Widget _chrome(BuildContext context, double t) {
-    final tokens = context.tokens;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isExpanded = screenWidth >= 760;
-    final isSmall = screenWidth < 420;
-    final horizontalPadding = isSmall
-        ? ZplaySpacing.s12
-        : (screenWidth < 540 ? ZplaySpacing.s20 : ZplaySpacing.s24);
-    final rowPadding = _rowPaddingFor(context);
-    final buttonSize = buttonSizeFor(context);
-    final buttonSpacing = isSmall ? ZplaySpacing.s8 : ZplaySpacing.s12;
-
-    // The second chrome is gone: the shell's top bar plus the Browse band
-    // already name this destination, so this strip is the page's own controls
-    // under shared chrome, not a second header. Because the shell is one focus
-    // tree, D-pad UP runs from the content through these controls to the Browse
-    // pills to the shared menu by geometry alone - there is nothing to trap and
-    // no route for BACK to unwind.
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        horizontalPadding,
-        topPadding + rowPadding,
-        horizontalPadding,
-        rowPadding,
-      ),
-      // Transparent at the top of the page, where the canvas and the hero read
-      // full-bleed, and tinted past a nudge once content is under it so a
-      // category heading can never draw through the controls. No hairline: a
-      // fill with an edge across the top is the "different app" seam the shell's
-      // blended nav exists to remove. Height is exactly
-      // `heightFor + topPadding`, which is what the scroll inset reserves, so
-      // nothing hides behind the row at any offset.
-      decoration: BoxDecoration(color: tokens.bg.withValues(alpha: 0.82 * t)),
-      child: Row(
-        children: [
-          // The `LIVE TV` gradient badge that used to open this bar is gone:
-          // the shell's top bar already names this destination, so the page was
-          // drawing its own second copy of that chrome 48 dp below the real one.
-          // What is left is the count, on one muted line rather than in a filled
-          // chip - the chip was the only box in a row that carries no other, and
-          // a count is a caption, not a control.
-          Text(
-            l10nCurrent().tv2ChannelsCountCaps(HardcodedChannels.all.length),
-            style: ZplayType.overline.toStyle(color: tokens.textMuted),
-          ),
-
-          const Spacer(),
-
-          // Multi Streams Button
-          _MultiStreamsAppBarButton(
-            isExpanded: isExpanded,
-            size: buttonSize,
-            onTapWithPosition: onMultiStreamsTap,
-          ),
-
-          SizedBox(width: buttonSpacing),
-
-          // Sources / Xtream Panels button
-          _GlassActionButton(
-            size: buttonSize,
-            icon: Icons.settings_input_antenna_rounded,
-            tooltip: l10nCurrent().tvManagePortalsPlaylists,
-            onTap: onSourcesTap,
-          ),
-
-          SizedBox(width: buttonSpacing),
-
-          // Search button
-          _GlassActionButton(
-            size: buttonSize,
-            icon: Icons.search_rounded,
-            tooltip: l10nCurrent().tvSearchChannels,
-            onTapWithPosition: onSearchTap,
-          ),
-
-          SizedBox(width: buttonSpacing),
-          // Settings takes no reveal position, unlike Search: it is a shell slot.
-          _GlassActionButton(
-            size: buttonSize,
-            icon: Icons.settings_rounded,
-            tooltip: l10nCurrent().tvSettings,
-            onTap: onSettingsTap,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MultiStreamsAppBarButton extends StatefulWidget {
-  final bool isExpanded;
-  final double size;
-  final Function(Offset? position)? onTapWithPosition;
-
-  const _MultiStreamsAppBarButton({
-    required this.isExpanded,
-    this.size = ZplaySpacing.s40,
-    this.onTapWithPosition,
-  });
-
-  @override
-  State<_MultiStreamsAppBarButton> createState() =>
-      _MultiStreamsAppBarButtonState();
-}
-
-class _MultiStreamsAppBarButtonState extends State<_MultiStreamsAppBarButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final iconSize = (widget.size * 0.48).clamp(16.0, 19.0);
-
-    // Was a `MouseRegion` over a `GestureDetector` with no `Focus` node, so a
-    // remote could neither land on Multi Streams nor open it. Same shape and
-    // same fix as `_GlassActionButton` below.
-    return FocusableCard(
-      onTap: () => widget.onTapWithPosition?.call(null),
-      builder: (context, state) {
-        final highlighted = _hovered || state.focused;
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: CardFocusRing(
-            focused: state.focused,
-            radius: ZplayRadius.smAll,
-            child: Tooltip(
-              message: l10nCurrent().tvMultiStreamsTooltip,
-              child: SizedBox(
-                height: widget.size,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: widget.isExpanded
-                        ? ZplaySpacing.s12
-                        : ZplaySpacing.s0,
-                  ),
-                  child: widget.isExpanded
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.dashboard_rounded,
-                              color: highlighted
-                                  ? tokens.textPrimary
-                                  : tokens.textEmphasis,
-                              size: iconSize,
-                              shadows: const [_glyphShadow],
-                            ),
-                            const SizedBox(width: ZplaySpacing.s8),
-                            Text(
-                              l10nCurrent().tvMultiStreams,
-                              style: ZplayType.label.toStyle(
-                                color: tokens.textPrimary,
-                              ),
-                            ),
-                          ],
-                        )
-                      : SizedBox(
-                          width: widget.size,
-                          child: Center(
-                            child: Icon(
-                              Icons.dashboard_rounded,
-                              color: highlighted
-                                  ? tokens.textPrimary
-                                  : tokens.textEmphasis,
-                              size: iconSize,
-                              shadows: const [_glyphShadow],
-                            ),
-                          ),
-                        ),
-                ),
+              // The viewer's own quick channels.
+              _QuickChannelsSlider(
+                channels: _quickChannels,
+                onChannelTap: _openChannel,
+                onAddTap: _showAddQuickChannelDialog,
+                onRemoveTap: _removeQuickChannel,
               ),
-            ),
+              const SizedBox(height: 8),
+
+              // The premier channels are the guide (a channel list beside the
+              // selected channel's schedule); every other category is a rail,
+              // in the user's own order and visibility.
+              for (final catName in visibleCategories)
+                if (categoryMap.containsKey(catName) &&
+                    categoryMap[catName]!.$2.isNotEmpty)
+                  if (catName == _guideCategory)
+                    _buildLiveGuide(
+                      _categoryTitle(l10n, catName),
+                      categoryMap[catName]!.$2,
+                    )
+                  else
+                    IptvSliderSection(
+                      title: _categoryTitle(l10n, catName),
+                      subtitle: categoryMap[catName]!.$1,
+                      channels: categoryMap[catName]!.$2,
+                      healthByChannelId: catName == _boxingCategory
+                          ? _boxingHealth
+                          : null,
+                      onChannelTap: _openChannel,
+                    ),
+            ],
           ),
-        );
-      },
-    );
-  }
-}
-
-class _GlassActionButton extends StatefulWidget {
-  final IconData icon;
-  final String tooltip;
-  final double size;
-  final VoidCallback? onTap;
-  final Function(Offset? position)? onTapWithPosition;
-
-  const _GlassActionButton({
-    required this.icon,
-    required this.tooltip,
-    this.size = ZplaySpacing.s40,
-    this.onTap,
-    this.onTapWithPosition,
-  });
-
-  @override
-  State<_GlassActionButton> createState() => _GlassActionButtonState();
-}
-
-class _GlassActionButtonState extends State<_GlassActionButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    // Was a `MouseRegion` over a `GestureDetector` with no `Focus` node
-    // anywhere, so traversal skipped it and the centre button had nothing to
-    // activate. `FocusableCard` now owns activation and the highlight, so a
-    // remote lands on every control in this strip the same way a pointer does.
-    // The pointer hover is kept and simply joins the focus state, so the
-    // desktop look is unchanged and a remote gets the same feedback a mouse
-    // would.
-    return FocusableCard(
-      onTap: widget.onTapWithPosition != null
-          ? () => widget.onTapWithPosition!(null)
-          : widget.onTap,
-      builder: (context, state) {
-        final highlighted = _hovered || state.focused;
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: CardFocusRing(
-            focused: state.focused,
-            radius: ZplayRadius.smAll,
-            child: Tooltip(
-              message: widget.tooltip,
-              child: SizedBox(
-                width: widget.size,
-                height: widget.size,
-                child: Icon(
-                  widget.icon,
-                  // No fill and no glow. The box that used to sit here was a
-                  // second edge under the focus ring, which is the one outline
-                  // this design gives a control; the glyph carries the state,
-                  // over the shadow that keeps it readable at offset 0.
-                  color: highlighted ? tokens.textPrimary : tokens.textEmphasis,
-                  size: (widget.size * 0.5).clamp(16.0, 20.0),
-                  shadows: const [_glyphShadow],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -1001,114 +655,114 @@ class _QuickChannelsSliderState extends State<_QuickChannelsSlider> {
         if (isDesktop) setState(() => _isHovering = false);
       },
       child: Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: ZplaySpacing.s16,
-        vertical: ZplaySpacing.s4,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                l10nCurrent().tvQuickChannels,
-                style: ZplayType.title.toStyle(color: tokens.textPrimary),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-                color: tokens.accent,
-                tooltip: l10nCurrent().tvAddQuickChannel,
-                onPressed: widget.onAddTap,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: totalH,
-            child: Stack(
-              clipBehavior: Clip.none,
+        padding: EdgeInsets.symmetric(
+          horizontal: iptvPagePadding(context),
+          vertical: 4,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                ListView.separated(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  clipBehavior: Clip.none,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: ZplaySpacing.s4,
-                  ),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: widget.channels.length + 1,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(width: ZplaySpacing.s12),
-                  itemBuilder: (context, index) {
-                    if (index == widget.channels.length) {
-                      return SizedBox(
-                        width: cardWidth,
-                        child: _QuickAddCard(onTap: widget.onAddTap),
-                      );
-                    }
-                    final ch = widget.channels[index];
-                    return SizedBox(
-                      width: cardWidth,
-                      child: _QuickChannelCard(
-                        channel: ch,
-                        onTap: () {
-                          final hc = HardcodedChannel(
-                            id: 'qc_${ch.id}',
-                            name: ch.name,
-                            short: ch.short,
-                            category: ch.category,
-                            keywords: ch.keywords,
-                            gradient: ch.gradient,
-                            iconUrl: ch.iconUrl,
-                          );
-                          widget.onChannelTap(hc);
-                        },
-                        onRemove: () => widget.onRemoveTap(ch.id),
-                      ),
-                    );
-                  },
+                Text(
+                  l10nCurrent().tvQuickChannels,
+                  style: ZplayType.title.toStyle(color: tokens.textPrimary),
                 ),
-                // Desktop scroll arrows
-                if (isDesktop && _isHovering) ...[
-                  AnimatedPositioned(
-                    duration: ZplayMotion.fast,
-                    curve: ZplayMotion.standard,
-                    left: _canScrollLeft && _isHovering ? 2 : -50,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.chevron_left_rounded,
-                          color: tokens.textEmphasis,
-                        ),
-                        onPressed: _canScrollLeft ? () => _scroll(-1) : null,
-                      ),
-                    ),
-                  ),
-                  AnimatedPositioned(
-                    duration: ZplayMotion.fast,
-                    curve: ZplayMotion.standard,
-                    right: _canScrollRight && _isHovering ? 2 : -50,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.chevron_right_rounded,
-                          color: tokens.textEmphasis,
-                        ),
-                        onPressed: _canScrollRight ? () => _scroll(1) : null,
-                      ),
-                    ),
-                  ),
-                ],
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
+                  color: tokens.accent,
+                  tooltip: l10nCurrent().tvAddQuickChannel,
+                  onPressed: widget.onAddTap,
+                ),
               ],
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: totalH,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ListView.separated(
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.none,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ZplaySpacing.s4,
+                    ),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: widget.channels.length + 1,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: ZplaySpacing.s12),
+                    itemBuilder: (context, index) {
+                      if (index == widget.channels.length) {
+                        return SizedBox(
+                          width: cardWidth,
+                          child: _QuickAddCard(onTap: widget.onAddTap),
+                        );
+                      }
+                      final ch = widget.channels[index];
+                      return SizedBox(
+                        width: cardWidth,
+                        child: _QuickChannelCard(
+                          channel: ch,
+                          onTap: () {
+                            final hc = HardcodedChannel(
+                              id: 'qc_${ch.id}',
+                              name: ch.name,
+                              short: ch.short,
+                              category: ch.category,
+                              keywords: ch.keywords,
+                              gradient: ch.gradient,
+                              iconUrl: ch.iconUrl,
+                            );
+                            widget.onChannelTap(hc);
+                          },
+                          onRemove: () => widget.onRemoveTap(ch.id),
+                        ),
+                      );
+                    },
+                  ),
+                  // Desktop scroll arrows
+                  if (isDesktop && _isHovering) ...[
+                    AnimatedPositioned(
+                      duration: ZplayMotion.fast,
+                      curve: ZplayMotion.standard,
+                      left: _canScrollLeft && _isHovering ? 2 : -50,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.chevron_left_rounded,
+                            color: tokens.textEmphasis,
+                          ),
+                          onPressed: _canScrollLeft ? () => _scroll(-1) : null,
+                        ),
+                      ),
+                    ),
+                    AnimatedPositioned(
+                      duration: ZplayMotion.fast,
+                      curve: ZplayMotion.standard,
+                      right: _canScrollRight && _isHovering ? 2 : -50,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.chevron_right_rounded,
+                            color: tokens.textEmphasis,
+                          ),
+                          onPressed: _canScrollRight ? () => _scroll(1) : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1210,7 +864,8 @@ class _QuickChannelCard extends StatelessWidget {
                       width: FormFactorService.of(context) == FormFactor.compact
                           ? 40.0
                           : kMinInteractiveDimension,
-                      height: FormFactorService.of(context) == FormFactor.compact
+                      height:
+                          FormFactorService.of(context) == FormFactor.compact
                           ? 40.0
                           : kMinInteractiveDimension,
                       child: Center(
@@ -1372,8 +1027,9 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
                       borderSide: BorderSide(color: tokens.accent),
                     ),
                   ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? l10nCurrent().tvRequired : null,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? l10nCurrent().tvRequired
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -1449,8 +1105,9 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
                       borderSide: BorderSide(color: tokens.accent),
                     ),
                   ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? l10nCurrent().tvRequired : null,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? l10nCurrent().tvRequired
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 Align(
@@ -1474,11 +1131,13 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
                         radius: ZplayRadius.smAll,
                         child: Container(
                           width:
-                              FormFactorService.of(context) == FormFactor.compact
+                              FormFactorService.of(context) ==
+                                  FormFactor.compact
                               ? 36
                               : kMinInteractiveDimension,
                           height:
-                              FormFactorService.of(context) == FormFactor.compact
+                              FormFactorService.of(context) ==
+                                  FormFactor.compact
                               ? 36
                               : kMinInteractiveDimension,
                           decoration: BoxDecoration(

@@ -26,12 +26,12 @@ import 'package:zplay/services/hero/hero_media_resolver.dart';
 import 'package:zplay/services/metadata/metadata_service.dart';
 import 'package:zplay/services/metadata/tmdb_service.dart';
 import 'package:zplay/services/storage/app_image_cache.dart';
-import 'package:zplay/widgets/common/focusable_card.dart';
+import 'package:zplay/ui/lu_focusable.dart';
 
 /// The focusable row whose title is [title], the same shape the other settings
 /// tests use: a bare `InkWell` would be invisible to a remote.
 Finder _row(String title) =>
-    find.ancestor(of: find.text(title), matching: find.byType(FocusableCard));
+    find.ancestor(of: find.text(title), matching: find.byType(LuFocusable));
 
 Future<void> _pumpSettings(WidgetTester tester) async {
   // Tall enough that every section is in the tree, so the APP group's row is

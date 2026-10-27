@@ -497,10 +497,10 @@ class StreamSource {
     if (addonName.toLowerCase() == 'zplayhttp' &&
         providerName != null &&
         providerName!.isNotEmpty) {
-      return 'ZPlayHTTP · $providerName';
+      return 'Lumora · $providerName';
     }
     if (name != null && name!.isNotEmpty) return name!;
-    return addonName;
+    return displayAddonName(addonName);
   }
 
   /// Whether this source is a magnet link or torrent stream.
@@ -557,3 +557,8 @@ class StreamSource {
     return null;
   }
 }
+
+/// An addon's name as a viewer sees it: the built-in source is Lumora's own,
+/// whatever id it is stored under.
+String displayAddonName(String addonName) =>
+    addonName.toLowerCase() == 'zplayhttp' ? 'Lumora' : addonName;

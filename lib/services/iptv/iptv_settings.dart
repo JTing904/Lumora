@@ -89,7 +89,8 @@ abstract final class IptvSettings {
   /// claims something about a *source*, not about the channel: a user who
   /// wants the clean poster can drop this one and keep the other.
   static final ValueNotifier<bool> showHealthBadge = ValueNotifier<bool>(true);
-  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(true);
+  // Lumora's ground is flat; the glows are opt-in.
+  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(false);
   static final ValueNotifier<List<String>> visibleCategories =
       ValueNotifier<List<String>>(List.from(defaultCategories));
 
@@ -147,7 +148,7 @@ abstract final class IptvSettings {
     showHdBadge.value = prefs.getBool(_keyShowHdBadge) ?? true;
     showCategoryTag.value = prefs.getBool(_keyShowCategoryTag) ?? true;
     showHealthBadge.value = prefs.getBool(_keyShowHealthBadge) ?? true;
-    enableAmbientLights.value = prefs.getBool(_keyEnableAmbientLights) ?? true;
+    enableAmbientLights.value = prefs.getBool(_keyEnableAmbientLights) ?? false;
 
     final savedCats = prefs.getStringList(_keyVisibleCategories);
     if (savedCats != null && savedCats.isNotEmpty) {

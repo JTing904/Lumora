@@ -49,7 +49,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
 
     final bar = tester.getRect(find.byType(ShellRail));
-    expect(bar.height, 48.0);
+    expect(bar.height, 64.0);
     // The shell autofocuses the selected row on a television, so a cold launch
     // starts on the bar rather than nowhere.
     final start = _focusRect();

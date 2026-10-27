@@ -18,7 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zplay/pages/search/search_page.dart';
 import 'package:zplay/services/layout/device_profile.dart';
 import 'package:zplay/services/platform/voice_search.dart';
-import 'package:zplay/widgets/common/focusable_card.dart';
+import 'package:zplay/ui/lu_focusable.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -73,11 +73,11 @@ void main() {
 
     // The house treatment for anything a remote can land on, so it is neither
     // pointer-only nor the one focusable in the app without a ring.
-    final card = find.ancestor(of: mic, matching: find.byType(FocusableCard));
+    final card = find.ancestor(of: mic, matching: find.byType(LuFocusable));
     expect(card, findsOneWidget,
         reason: 'the microphone must be a control a remote can land on');
-    expect(tester.widget<FocusableCard>(card).onTap, isNotNull);
-    expect(find.descendant(of: card, matching: find.byType(CardFocusRing)),
+    expect(tester.widget<LuFocusable>(card).onTap, isNotNull);
+    expect(find.descendant(of: card, matching: find.byType(LuFocusRing)),
         findsOneWidget);
     expect(
         find.descendant(of: card, matching: find.byType(FocusableActionDetector)),
@@ -121,9 +121,9 @@ void main() {
 
     // A control of the page's own row, on the house treatment, so the ring a
     // remote looks for is drawn for it like for every other card.
-    final card = find.ancestor(of: mic, matching: find.byType(FocusableCard));
+    final card = find.ancestor(of: mic, matching: find.byType(LuFocusable));
     expect(card, findsOneWidget);
-    expect(find.descendant(of: card, matching: find.byType(CardFocusRing)),
+    expect(find.descendant(of: card, matching: find.byType(LuFocusRing)),
         findsOneWidget);
 
     // The remote's traverse-then-press, done on the microphone's own node

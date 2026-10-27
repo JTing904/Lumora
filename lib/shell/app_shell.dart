@@ -33,7 +33,7 @@ import '../pages/category/category_page.dart';
 import '../pages/downloads/downloads_page.dart';
 import '../pages/iptv/iptv_page.dart';
 import '../pages/browse/browse_page.dart';
-import '../pages/home/home_page.dart';
+import '../pages/home/lu_home_page.dart';
 import '../pages/library/library_page.dart';
 import '../pages/search/search_page.dart';
 import '../pages/settings/settings_page.dart';
@@ -380,7 +380,7 @@ class _AppShellState extends State<AppShell> {
   /// compile here until it has a destination, which is the only guard that keeps
   /// the enum and the stack in step.
   Widget _pageFor(ShellSlot slot) => switch (slot) {
-    ShellSlot.home => const HomePage(),
+    ShellSlot.home => const LuHomePage(),
     ShellSlot.series => const CategoryPage(
       kind: CategoryKind.series,
       slot: ShellSlot.series,

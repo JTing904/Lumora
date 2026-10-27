@@ -300,7 +300,13 @@ void main() {
 
       expect(tester.getRect(card), before,
           reason: 'focus must not move or resize the card');
-      expect(find.text('COMBAT'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(CardTypeBadge),
+          matching: find.text('Combat & Martial Arts'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 

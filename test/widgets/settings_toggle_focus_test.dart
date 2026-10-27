@@ -1,6 +1,6 @@
 /// Guards that a Settings toggle row says where focus is and what it is set to.
 ///
-/// Settings rows were converted to `FocusableCard` + `CardFocusRing` after a
+/// Settings rows were converted to `LuFocusable` + `LuFocusRing` after a
 /// television could open the page and not enter anything (the rows were bare
 /// `InkWell`s). The conversion covered the navigating rows and missed the
 /// toggles: `_SettingsSwitchRow` had no card around it, so the only focus node
@@ -24,31 +24,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zplay/pages/settings/settings_page.dart';
 import 'package:zplay/services/content/content_settings.dart';
 import 'package:zplay/services/layout/device_profile.dart';
-import 'package:zplay/services/theme/design_tokens.dart';
-import 'package:zplay/widgets/common/focusable_card.dart';
+import 'package:zplay/ui/lu_theme.dart';
+import 'package:zplay/ui/lu_focusable.dart';
 
-/// The ring [CardFocusRing] paints, and only that: the accent ring. Every
+/// The ring [LuFocusRing] paints, and only that: the accent ring. Every
 /// ordinary border and hairline on the page is 1 px, so the width separates the
 /// focus indicator from the surface's own outline.
-Finder _focusRings() => find.byWidgetPredicate(
-  (w) =>
-      w is DecoratedBox &&
-      w.decoration is BoxDecoration &&
-      ((w.decoration as BoxDecoration).border?.top.width ?? 0.0) > 1.0,
-);
+Finder _focusRings() =>
+    find.byWidgetPredicate((w) => w is LuFocusRing && w.focused);
 
 /// The focusable row whose title is [title].
 Finder _row(String title) =>
-    find.ancestor(of: find.text(title), matching: find.byType(FocusableCard));
+    find.ancestor(of: find.text(title), matching: find.byType(LuFocusable));
 
-/// The `FocusNode` a card installs. `FocusableActionDetector` passes its own
-/// node explicitly, so the outermost `Focus` inside the card is the card's.
-FocusNode _nodeOf(WidgetTester tester, Finder card) {
-  final focus = tester.widget<Focus>(
-    find.descendant(of: card, matching: find.byType(Focus)).first,
-  );
-  return focus.focusNode!;
-}
+/// The `FocusNode` a card installs: the nearest focus above the card's own
+/// gesture detector, which sits directly under its `FocusableActionDetector`.
+FocusNode _nodeOf(WidgetTester tester, Finder card) => Focus.of(
+  tester.element(
+    find.descendant(of: card, matching: find.byType(GestureDetector)).first,
+  ),
+);
 
 /// Walks down the page with the remote's own key until focus is on [row].
 ///
@@ -84,10 +79,10 @@ Future<void> _dpadToRow(WidgetTester tester, Finder row) async {
     return false;
   }
 
-  if (await walk(LogicalKeyboardKey.arrowDown, find.byType(FocusableCard).first)) {
+  if (await walk(LogicalKeyboardKey.arrowDown, find.byType(LuFocusable).first)) {
     return;
   }
-  if (await walk(LogicalKeyboardKey.arrowUp, find.byType(FocusableCard).last)) {
+  if (await walk(LogicalKeyboardKey.arrowUp, find.byType(LuFocusable).last)) {
     return;
   }
   fail('the D-pad never reached the row in either direction; it walked: '
@@ -162,10 +157,9 @@ void main() {
 
     final row = _row('Adult Content');
     expect(row, findsOneWidget, reason: 'the row is not a focusable card');
-    final tokens = ZplayTokens.of(tester.element(row));
 
     // Idle: the row carries its value, and nothing is drawn around it.
-    expect(_valueText(tester, row, 'Off').style!.color, tokens.textMuted);
+    expect(_valueText(tester, row, 'Off').style!.color, LuColors.textMuted);
     expect(find.descendant(of: row, matching: _focusRings()), findsNothing);
     expect(_switchValue(tester, row), isFalse);
 
@@ -178,7 +172,7 @@ void main() {
     );
     expect(
       _valueText(tester, row, 'Off').style!.color,
-      tokens.textPrimary,
+      LuColors.text,
       reason: 'the value has to be legible in the same glance as the ring',
     );
 
@@ -269,7 +263,7 @@ void main() {
     // one is inside a card.
     final sidebarItem = find.ancestor(
       of: find.text('APP'),
-      matching: find.byType(FocusableCard),
+      matching: find.byType(LuFocusable),
     );
     expect(
       sidebarItem,
@@ -285,7 +279,7 @@ void main() {
       reason: 'precondition: the APP group starts below the fold',
     );
 
-    tester.widget<FocusableCard>(sidebarItem).onTap?.call();
+    tester.widget<LuFocusable>(sidebarItem).onTap?.call();
     await tester.pump();
     // Past the scroll animation. Not `pumpAndSettle`: the ambient background
     // never settles, so waiting for it would time out rather than fail.
@@ -297,6 +291,16 @@ void main() {
       lessThan(before),
       reason: 'a sidebar item that does not move the hub is a dead control',
     );
-    expect(after, lessThan(540), reason: 'the group has to end up on screen');
+    // The group's own heading (not the sidebar's copy of its name) is on
+    // screen.
+    final heading = find.text('APP').evaluate().map(
+      (e) => tester.getTopLeft(find.byWidget(e.widget)),
+    ).where((o) => o.dx > 240);
+    expect(heading, isNotEmpty);
+    expect(
+      heading.first.dy,
+      lessThan(540),
+      reason: 'the group has to end up on screen',
+    );
   });
 }

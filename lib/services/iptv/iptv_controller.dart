@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../../l10n/l10n.dart';
 import '../../models/iptv/iptv_models.dart';
 import '../../models/iptv/m3u_models.dart';
 import 'hardcoded_channels.dart';
@@ -688,7 +689,7 @@ class IptvController extends ChangeNotifier {
     _channelCancel = true;
     _channelScanToken++;
     channelIsRunning = false;
-    channelStatus = 'Stopped.';
+    channelStatus = l10nCurrent().tvStatusStopped;
     notifyListeners();
   }
 
@@ -793,7 +794,7 @@ class IptvController extends ChangeNotifier {
 
       if (pendingQueue.isEmpty) {
         if (_channelScanToken != token || activeHardcoded?.id != ch.id) return;
-        channelStatus = 'Discovering fresh portals…';
+        channelStatus = l10nCurrent().tvStatusDiscovering;
         notifyListeners();
         try {
           final after = _channelCatalogAfter[ch.id];
@@ -816,7 +817,7 @@ class IptvController extends ChangeNotifier {
               channelResults.isEmpty) {
             if (_channelScanToken == token && activeHardcoded?.id == ch.id) {
               channelIsRunning = false;
-              channelStatus = 'No more portals available.';
+              channelStatus = l10nCurrent().tvStatusNoMore;
               notifyListeners();
             }
             return;
@@ -827,7 +828,7 @@ class IptvController extends ChangeNotifier {
       if (pendingQueue.isNotEmpty) {
         if (_channelScanToken != token || activeHardcoded?.id != ch.id) return;
         final snapshot = List<IptvPortal>.from(pendingQueue);
-        channelStatus = 'Verifying ${snapshot.length} portals…';
+        channelStatus = l10nCurrent().tvStatusVerifying(snapshot.length);
         notifyListeners();
         await IptvVerifier.verifyUntil(
           portals: snapshot,
@@ -850,7 +851,7 @@ class IptvController extends ChangeNotifier {
           },
           onProgress: (c, t, a) {
             if (_channelScanToken != token || activeHardcoded?.id != ch.id) return;
-            channelStatus = 'Verifying portals $c/$t · $a active';
+            channelStatus = l10nCurrent().tvStatusVerifyingProgress(c, t, a);
             notifyListeners();
           },
         );
@@ -860,7 +861,7 @@ class IptvController extends ChangeNotifier {
     if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) {
       if (_channelScanToken == token) {
         channelIsRunning = false;
-        channelStatus = 'Stopped.';
+        channelStatus = l10nCurrent().tvStatusStopped;
         notifyListeners();
       }
       return;
@@ -888,7 +889,7 @@ class IptvController extends ChangeNotifier {
     }
 
     if (toScan.isNotEmpty) {
-      channelStatus = 'Scanning ${toScan.length} portals in parallel…';
+      channelStatus = l10nCurrent().tvStatusScanning(toScan.length);
       notifyListeners();
     }
 
@@ -988,7 +989,7 @@ class IptvController extends ChangeNotifier {
     }
 
     final byUrl = {for (final c in newCandidates) c.url: c};
-    channelStatus = 'Found ${newCandidates.length} streams · verifying health…';
+    channelStatus = l10nCurrent().tvStatusFound(newCandidates.length);
     notifyListeners();
 
     await IptvAliveChecker.launchCheck(
@@ -1008,8 +1009,11 @@ class IptvController extends ChangeNotifier {
       },
       onProgress: (p) async {
         if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) return;
-        channelStatus = 'Sniffing ${p.checked}/${p.total} · '
-            '${channelResults.length} verified live';
+        channelStatus = l10nCurrent().tvStatusSniffing(
+          p.checked,
+          p.total,
+          channelResults.length,
+        );
         notifyListeners();
       },
       onDone: () async {

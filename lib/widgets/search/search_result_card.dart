@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/l10n.dart';
@@ -6,10 +5,10 @@ import '../../models/continue_watching/continue_watching_item.dart';
 import '../../models/movie/movie.dart';
 import '../../pages/details/details_page.dart';
 import '../../services/metadata/metahub_art.dart';
-import '../../services/storage/app_image_cache.dart';
-import '../../services/theme/design_tokens.dart';
 import '../../utils/navigation/route_transitions.dart';
-import '../common/focusable_card.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_focusable.dart';
+import '../../ui/lu_theme.dart';
 
 /// What a search result is, as the results page labels and filters it.
 ///
@@ -67,6 +66,7 @@ class SearchResultCard extends StatelessWidget {
     this.posterUrl,
     this.resume,
     this.compact = false,
+    this.onOpen,
   });
 
   final Movie movie;
@@ -98,7 +98,11 @@ class SearchResultCard extends StatelessWidget {
 
   static double heightFor({required bool compact}) => compact ? 132 : 182;
 
+  /// Told when the result is opened, before the details page.
+  final VoidCallback? onOpen;
+
   void _open(BuildContext context) {
+    onOpen?.call();
     Navigator.push(
       context,
       CinematicSlideRoute(page: DetailsPage(movie: movie)),
@@ -107,10 +111,9 @@ class SearchResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
     final l10n = l10nOf(context);
     final posterWidth = compact ? 72.0 : 100.0;
-    final pad = compact ? ZplaySpacing.s12 : ZplaySpacing.s16;
+    final pad = compact ? 12.0 : 14.0;
 
     final local = localTitle?.trim();
     final hasLocal =
@@ -127,11 +130,12 @@ class SearchResultCard extends StatelessWidget {
         '★ ${movie.imdbRating}',
     ];
 
+    // Animation in gold, live action in blue, as in the design.
     final kindColor = kind.isAnimation
-        ? tokens.accent
+        ? LuColors.gold
         : (kind == SearchKind.liveSeries
               ? const Color(0xFF7CC4FF)
-              : tokens.textSecondary);
+              : LuColors.textSoft);
 
     String? note;
     if (resume case final r?) {
@@ -140,117 +144,111 @@ class SearchResultCard extends StatelessWidget {
           : l10n.searchResumeMovie;
     }
 
-    return FocusableCard(
+    const radius = BorderRadius.all(Radius.circular(16));
+    return LuFocusable(
       onTap: () => _open(context),
-      builder: (context, state) => CardFocusRing(
-        focused: state.focused,
-        radius: ZplayRadius.mdAll,
-        child: AnimatedContainer(
-          duration: ZplayMotion.fast,
-          padding: EdgeInsets.all(pad),
-          decoration: BoxDecoration(
-            color: state.highlighted ? tokens.surfaceRaised : tokens.surface,
-            borderRadius: ZplayRadius.mdAll,
-            border: Border.all(color: tokens.borderSubtle),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: ZplayRadius.smAll,
-                child: SizedBox(
-                  width: posterWidth,
-                  height: posterWidth * 1.5,
-                  child: _poster != null
-                      ? CachedNetworkImage(
-                          imageUrl: _poster!,
-                          cacheManager: AppImageCache.manager,
-                          memCacheWidth: 240,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _noPoster(context),
-                        )
-                      : _noPoster(context),
-                ),
-              ),
-              SizedBox(width: pad),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: ZplayRadius.xsAll,
-                        border: Border.all(color: kindColor),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: ZplaySpacing.s8,
-                          vertical: 1,
-                        ),
-                        child: Text(
-                          kind.label(context),
-                          style: ZplayType.caption
-                              .copyWith(weight: FontWeight.w700)
-                              .toStyle(color: kindColor),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: compact ? ZplaySpacing.s4 : ZplaySpacing.s8),
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: (compact ? ZplayType.subtitle : ZplayType.title)
-                          .copyWith(weight: FontWeight.w700, height: 1.25)
-                          .toStyle(color: tokens.textPrimary),
-                    ),
-                    if (hasLocal)
-                      Text(
-                        movie.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: ZplayType.bodySmall.toStyle(
-                          color: tokens.textMuted,
-                        ),
-                      ),
-                    if (facts.isNotEmpty) ...[
-                      const SizedBox(height: ZplaySpacing.s4),
-                      Text(
-                        facts.join(' · '),
-                        style: ZplayType.bodySmall.toStyle(
-                          color: tokens.textSecondary,
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    if (note != null)
-                      Text(
-                        note,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: ZplayType.bodySmall.toStyle(
-                          color: tokens.accent,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+      borderRadius: radius,
+      lift: 1.02,
+      semanticLabel: title,
+      builder: (context, hi) => AnimatedContainer(
+        duration: LuMotion.focus,
+        padding: EdgeInsets.all(pad),
+        decoration: BoxDecoration(
+          color: hi ? LuColors.surfaceHigh : LuColors.surface,
+          borderRadius: radius,
+          border: Border.all(color: LuColors.lineSoft),
         ),
-      ),
-    );
-  }
-
-  Widget _noPoster(BuildContext context) {
-    final tokens = context.tokens;
-    return ColoredBox(
-      color: tokens.surfaceRaised,
-      child: Center(
-        child: Text(
-          l10nOf(context).searchNoPoster,
-          textAlign: TextAlign.center,
-          style: ZplayType.caption.toStyle(color: tokens.textMuted),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: LuRadius.poster,
+              child: SizedBox(
+                width: posterWidth,
+                height: posterWidth * 1.5,
+                child: LuImage(
+                  url: _poster,
+                  cacheWidth: 240,
+                  fallback: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Text(
+                      l10n.searchNoPoster,
+                      textAlign: TextAlign.center,
+                      style: LuText.caption.copyWith(
+                        color: LuColors.textFaint,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: pad + 4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.all(Radius.circular(6)),
+                      border: Border.all(color: kindColor),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 1,
+                      ),
+                      child: Text(
+                        kind.label(context),
+                        style: LuText.caption.copyWith(
+                          color: kindColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: compact ? 4 : 8),
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: LuText.heading.copyWith(
+                      fontSize: compact ? 16 : 20,
+                      height: 1.3,
+                      color: hi ? LuColors.goldLight : LuColors.text,
+                    ),
+                  ),
+                  if (hasLocal)
+                    Text(
+                      movie.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: LuText.caption.copyWith(color: LuColors.textFaint),
+                    ),
+                  if (facts.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      facts.join(' · '),
+                      style: LuText.caption.copyWith(
+                        fontSize: 14,
+                        color: LuColors.textSoft,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (note != null)
+                    Text(
+                      note,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: LuText.caption.copyWith(
+                        fontSize: 14,
+                        color: LuColors.gold,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -16,7 +16,7 @@ import 'package:zplay/pages/details/details_page.dart';
 import 'package:zplay/services/continue_watching/continue_watching_service.dart';
 import 'package:zplay/services/layout/device_profile.dart';
 import 'package:zplay/services/metadata/metadata_service.dart';
-import 'package:zplay/widgets/common/pill_button.dart';
+import 'package:zplay/ui/lu_button.dart';
 
 const _seriesMeta = '''
 {"meta":{"id":"tt0903747","type":"series","name":"Breaking Bad",
@@ -106,7 +106,7 @@ void main() {
 
     final label = find.text('Resume E3 · 12:40');
     expect(label, findsOneWidget);
-    final pill = find.ancestor(of: label, matching: find.byType(PillButton));
+    final pill = find.ancestor(of: label, matching: find.byType(LuButton));
     expect(tester.getRect(pill).bottom, lessThanOrEqualTo(540.0));
 
     // The episode it stopped on says so, and only that one.
@@ -132,6 +132,6 @@ void main() {
 
     expect(find.text('继续 第 3 集 · 12:40'), findsOneWidget);
     expect(find.text('看到 12:40'), findsOneWidget);
-    expect(find.text('片单'), findsOneWidget);
+    expect(find.text('加入收藏'), findsOneWidget);
   });
 }

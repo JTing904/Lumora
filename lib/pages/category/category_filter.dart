@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
 import '../../models/movie/movie.dart';
+import '../../services/content/adult_guard.dart';
 import '../../services/metadata/tmdb_catalog.dart';
-import '../../services/theme/design_tokens.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/rail_skeleton.dart';
-import '../../widgets/movie/movie_card.dart';
+import '../../services/playback/play_launcher.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_focusable.dart';
+import '../../ui/lu_theme.dart';
 import 'category_page.dart' show CategoryKind;
 
 /// One choice in a filter row: its label and what it puts on the query.
@@ -286,26 +288,24 @@ class _FilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = l10nOf(context);
-    final tokens = context.tokens;
     return SizedBox(
-      height: 44,
+      height: 48,
       child: Row(
         children: [
           SizedBox(
             width: 56,
             child: Text(
               label,
-              style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+              style: LuText.caption.copyWith(color: LuColors.textFaint),
             ),
           ),
           Expanded(
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
-              padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s4),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               itemCount: options.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(width: ZplaySpacing.s4),
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (context, i) => _FilterChip(
                 label: options[i].label(l10n),
                 selected: options[i].value == selected,
@@ -330,37 +330,29 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static const _radius = BorderRadius.all(Radius.circular(999));
-
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
     return Semantics(
       selected: selected,
-      button: true,
-      child: FocusableCard(
+      child: LuFocusable(
         onTap: onTap,
-        builder: (_, state) => CardFocusRing(
-          focused: state.focused,
-          radius: _radius,
-          child: AnimatedContainer(
-            duration: ZplayMotion.fast,
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: _radius,
-              color: selected
-                  ? tokens.accent.withValues(alpha: 0.18)
-                  : state.highlighted
-                  ? tokens.surface
-                  : Colors.transparent,
-            ),
-            child: Text(
-              label,
-              style: ZplayType.body.toStyle(
-                color: selected ? tokens.accent : tokens.textPrimary,
-              ),
+        builder: (context, hi) => AnimatedContainer(
+          duration: LuMotion.focus,
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: LuRadius.pill,
+            color: selected
+                ? const Color(0x29F2B544)
+                : (hi ? const Color(0x1AFFFFFF) : Colors.transparent),
+          ),
+          child: Text(
+            label,
+            style: LuText.body.copyWith(
+              fontSize: 15,
+              color: selected ? LuColors.gold : LuColors.textSoft,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
             ),
           ),
         ),
@@ -369,16 +361,18 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-/// The titles matching a filter, as a grid that loads more at its end.
+/// The titles matching a filter, as a poster grid that loads more at its end.
 class CategoryFilterResults extends StatefulWidget {
   const CategoryFilterResults({
     super.key,
     required this.kind,
     required this.filter,
+    this.padding = LuSpace.page,
   });
 
   final CategoryKind kind;
   final CategoryFilter filter;
+  final double padding;
 
   @override
   State<CategoryFilterResults> createState() => _CategoryFilterResultsState();
@@ -427,62 +421,70 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
       _loading = false;
       _page = next;
       final seen = _movies.map((m) => m.id).toSet();
-      final fresh = movies.where((m) => seen.add(m.id)).toList();
+      final fresh = AdultGuard.filter(
+        movies.where((m) => seen.add(m.id)).toList(),
+      );
       _movies.addAll(fresh);
       // TMDb pages are 20; a short or repeated page is the end.
-      if (fresh.length < 10 || next >= 10) _done = true;
+      if (movies.length < 10 || next >= 10) _done = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = l10nOf(context);
-    final tokens = context.tokens;
-    final sizing = MovieCardSizing.fromWidth(MediaQuery.sizeOf(context).width);
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    final cardWidth = phone ? 108.0 : 160.0;
     if (_movies.isEmpty && _loading) {
-      return RailSkeleton(sizing: sizing, showHeader: false);
+      return const Padding(
+        padding: EdgeInsets.all(48),
+        child: Center(child: CircularProgressIndicator(color: LuColors.gold)),
+      );
     }
     if (_movies.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.all(ZplaySpacing.s48),
+        padding: const EdgeInsets.all(48),
         child: Center(
-          child: Text(
-            l10n.filterNoResults,
-            style: ZplayType.body.toStyle(color: tokens.textSecondary),
-          ),
+          child: Text(l10n.filterNoResults, style: LuText.bodySoft),
         ),
       );
     }
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: sizing.sidePadding),
+      padding: EdgeInsets.symmetric(horizontal: widget.padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
-            spacing: sizing.spacing,
-            runSpacing: ZplaySpacing.s16,
+            spacing: phone ? 12 : 20,
+            runSpacing: 22,
             children: [
               for (final movie in _movies)
-                SizedBox(
-                  width: sizing.cardWidth,
-                  height: sizing.totalHeight,
-                  child: MovieCard(movie: movie, artwork: CardArtwork.poster),
+                LuPosterCard(
+                  width: cardWidth,
+                  title: movie.name,
+                  poster: movie.poster,
+                  subtitle: movie.year,
+                  rating: movie.imdbRating,
+                  onTap: () => PlayLauncher.openDetails(context, movie),
                 ),
             ],
           ),
           if (!_done)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s24),
+              padding: const EdgeInsets.symmetric(vertical: 28),
               child: Center(
                 child: _loading
                     ? const SizedBox.square(
                         dimension: 28,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: LuColors.gold,
+                        ),
                       )
-                    : _FilterChip(
+                    : LuButton(
                         label: l10n.filterLoadMore,
-                        selected: false,
-                        onTap: _more,
+                        kind: LuButtonKind.secondary,
+                        onPressed: _more,
                       ),
               ),
             ),

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zplay/pages/account/invite_codes_page.dart';
 import 'package:zplay/pages/account/login_page.dart';
 import 'package:zplay/services/account/account_service.dart';
+import 'package:zplay/ui/figure_turntable.dart';
 
 void main() {
   Future<void> pumpLogin(WidgetTester tester, LoginPage page) async {
@@ -11,6 +12,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(home: page));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   test('codes are read in any case, with or without the dash', () {
@@ -32,11 +34,14 @@ void main() {
     String? sent;
     await pumpLogin(
       tester,
-      LoginPage(signIn: (email, password) async => sent = '$email/$password'),
+      LoginPage(
+        figure: LuFigure.plaid,
+        signIn: (email, password) async => sent = '$email/$password',
+      ),
     );
     await tester.enterText(find.byType(TextField).at(0), ' me@lumora.app ');
     await tester.enterText(find.byType(TextField).at(1), 'secret123');
-    await tester.tap(find.byIcon(Icons.login_rounded));
+    await tester.tap(find.text('Sign in'));
     await tester.pump();
     expect(sent, 'me@lumora.app/secret123');
   });
@@ -46,25 +51,28 @@ void main() {
     await pumpLogin(
       tester,
       LoginPage(
+        figure: LuFigure.plaid,
         signUp: (email, password, code) async {
           calls++;
           throw const AccountException(AccountError.invalidInvite);
         },
       ),
     );
-    await tester.tap(find.text('Create account').first);
+    await tester.tap(find.text('Sign up with an invite code'));
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
     expect(find.text('Invite code'), findsOneWidget);
+    expect(find.text('Create your account'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).at(0), 'new@lumora.app');
     await tester.enterText(find.byType(TextField).at(1), 'secret123');
-    await tester.tap(find.byIcon(Icons.person_add_alt_1_rounded));
+    await tester.tap(find.text('Create account'));
     await tester.pump();
     expect(find.text('Enter your invite code.'), findsOneWidget);
     expect(calls, 0, reason: 'no request without a code');
 
     await tester.enterText(find.byType(TextField).at(2), 'nope-2345');
-    await tester.tap(find.byIcon(Icons.person_add_alt_1_rounded));
+    await tester.tap(find.text('Create account'));
     await tester.pump();
     await tester.pump();
     expect(calls, 1);
@@ -79,14 +87,18 @@ void main() {
   ) async {
     await pumpLogin(
       tester,
-      LoginPage(signUp: (_, __, ___) async => SignUpResult.confirmEmail),
+      LoginPage(
+        figure: LuFigure.plaid,
+        signUp: (_, __, ___) async => SignUpResult.confirmEmail,
+      ),
     );
-    await tester.tap(find.text('Create account').first);
+    await tester.tap(find.text('Sign up with an invite code'));
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
     await tester.enterText(find.byType(TextField).at(0), 'new@lumora.app');
     await tester.enterText(find.byType(TextField).at(1), 'secret123');
     await tester.enterText(find.byType(TextField).at(2), 'LUMO7K3P');
-    await tester.tap(find.byIcon(Icons.person_add_alt_1_rounded));
+    await tester.tap(find.text('Create account'));
     await tester.pump();
     await tester.pump();
     expect(

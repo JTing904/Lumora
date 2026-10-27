@@ -77,7 +77,7 @@ void main() {
     final context = tester.element(find.byType(ShellRail));
     expect(Directionality.of(context), TextDirection.ltr);
 
-    for (final label in <String>['首页', '电视剧', '电影', '动漫', '直播', '我的片单']) {
+    for (final label in <String>['首页', '电视剧', '电影', '动漫', '直播', '我的收藏']) {
       expect(
         find.text(label),
         findsOneWidget,
