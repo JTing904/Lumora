@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../pages/browse/browse_page.dart' show BrowseVertical;
 import '../../shell/app_shell_scope.dart';
 import '../music/music_player_controller.dart';
 import 'now_playing_service.dart';
@@ -114,9 +115,12 @@ class _MusicNowPlayingCommands implements NowPlayingCommands {
 
   /// Brings the music slot forward and asks it to expand, because the full size
   /// player is a state of the page rather than a route the bar could push.
+  ///
+  /// Music is one of Browse's verticals, so the slot alone is not enough: with
+  /// another vertical selected the page would expand behind it, out of sight.
   @override
   void openFullPlayer(BuildContext context) {
-    AppShellScope.of(context)?.go(ShellSlot.browse);
+    AppShellScope.of(context)?.goBrowseVertical(BrowseVertical.music);
     MusicNowPlayingBridge.expandRequests.value++;
   }
 }

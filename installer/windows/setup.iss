@@ -5,10 +5,10 @@
 
 #define MyAppName      "Lumora"
 #ifndef MyAppVersion
-#define MyAppVersion   "1.0.0"
+#define MyAppVersion   "1.0.1"
 #endif
 #define MyAppPublisher "JTing904"
-#define MyAppExeName   "zplay.exe"
+#define MyAppExeName   "Lumora.exe"
 #define MyAppURL       "https://github.com/JTing904/Lumora"
 
 [Setup]
@@ -44,6 +44,8 @@ Source: "..\..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ign
 ; Clean up old files that might conflict with new version
 Type: filesandordirs; Name: "{app}\data\flutter_assets\*"
 Type: files; Name: "{app}\*.dll.old"
+; The program was zplay.exe up to 1.0.0
+Type: files; Name: "{app}\zplay.exe"
 
 [Icons]
 Name: "{group}\{#MyAppName}";    Filename: "{app}\{#MyAppExeName}"

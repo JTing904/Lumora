@@ -335,7 +335,7 @@ class _AnimeStreamSheetState extends State<AnimeStreamSheet> {
                                               ),
                                               const SizedBox(height: 3),
                                               Text(
-                                                s.description ?? s.addonName,
+                                                s.description ?? displayAddonName(s.addonName),
                                                 style: ZplayType.caption
                                                     .toStyle(
                                                       color: tokens

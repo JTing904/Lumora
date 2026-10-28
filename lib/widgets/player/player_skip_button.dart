@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/player/skip_segment_model.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
 
 /// Ultra-sleek, responsive glassmorphism Skip Button with dynamic hover effects
 /// and a left-to-right sweep progress bar that auto-hides when complete.
@@ -65,7 +66,7 @@ class _PlayerSkipButtonState extends State<PlayerSkipButton>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isCompact = screenWidth < 640;
 

@@ -70,8 +70,10 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
 
   bool _isInstalled(CloudStreamSource plugin) {
     return _manager.installedExtensions.any(
-      (e) => e.name.toLowerCase() == plugin.name.toLowerCase() ||
-             (plugin.internalName != null && e.internalName == plugin.internalName),
+      (e) =>
+          e.name.toLowerCase() == plugin.name.toLowerCase() ||
+          (plugin.internalName != null &&
+              e.internalName == plugin.internalName),
     );
   }
 
@@ -139,7 +141,9 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
 
   Future<void> _installAll() async {
     final tokens = context.tokens;
-    final uninstalled = _filteredPlugins.where((p) => !_isInstalled(p)).toList();
+    final uninstalled = _filteredPlugins
+        .where((p) => !_isInstalled(p))
+        .toList();
     if (uninstalled.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -175,7 +179,9 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
 
   Future<void> _confirmUninstallAllInRepo() async {
     final tokens = context.tokens;
-    final installedList = _filteredPlugins.where((p) => _isInstalled(p)).toList();
+    final installedList = _filteredPlugins
+        .where((p) => _isInstalled(p))
+        .toList();
     if (installedList.isEmpty) return;
 
     final confirm = await showDialog<bool>(
@@ -207,9 +213,14 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
             style: ElevatedButton.styleFrom(
               backgroundColor: tokens.danger,
               foregroundColor: tokens.onAccent,
-              shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+              shape: const RoundedRectangleBorder(
+                borderRadius: ZplayRadius.smAll,
+              ),
             ),
-            child: Text(l10nCurrent().stgcRemoveAllListCount(installedList.length), style: ZplayType.label.toStyle()),
+            child: Text(
+              l10nCurrent().stgcRemoveAllListCount(installedList.length),
+              style: ZplayType.label.toStyle(),
+            ),
           ),
         ],
       ),
@@ -261,72 +272,95 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: ZplayOpacity.overlayHover),
+                    color: Colors.white.withValues(
+                      alpha: ZplayOpacity.overlayHover,
+                    ),
                     borderRadius: ZplayRadius.xsAll,
                   ),
                 ),
               ),
 
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isMobile = constraints.maxWidth < 600;
-                    final installedCount = filtered.where((p) => _isInstalled(p)).length;
+                    final installedCount = filtered
+                        .where((p) => _isInstalled(p))
+                        .length;
 
-                    Widget removeAllBtn(bool fullWidth) => ValueListenableBuilder<bool>(
-                          valueListenable: _manager.isBusy,
-                          builder: (context, busy, _) {
-                            return OutlinedButton.icon(
-                              onPressed: busy ? null : _confirmUninstallAllInRepo,
-                              icon: Icon(
-                                Icons.delete_sweep_rounded,
-                                size: 14,
-                                color: tokens.danger,
+                    Widget removeAllBtn(
+                      bool fullWidth,
+                    ) => ValueListenableBuilder<bool>(
+                      valueListenable: _manager.isBusy,
+                      builder: (context, busy, _) {
+                        return OutlinedButton.icon(
+                          onPressed: busy ? null : _confirmUninstallAllInRepo,
+                          icon: Icon(
+                            Icons.delete_sweep_rounded,
+                            size: 14,
+                            color: tokens.danger,
+                          ),
+                          label: Text(
+                            l10nCurrent().stgcRemoveAllCount(installedCount),
+                            style: ZplayType.caption.toStyle(
+                              color: tokens.danger,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: tokens.danger.withValues(
+                                alpha: ZplayOpacity.textSecondary,
                               ),
-                              label: Text(
-                                l10nCurrent().stgcRemoveAllCount(installedCount),
-                                style: ZplayType.caption.toStyle(color: tokens.danger),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: tokens.danger.withValues(
-                                    alpha: ZplayOpacity.textSecondary,
-                                  ),
-                                ),
-                                backgroundColor: tokens.danger.withValues(
-                                  alpha: ZplayOpacity.borderDefault,
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            );
-                          },
+                            ),
+                            backgroundColor: tokens.danger.withValues(
+                              alpha: ZplayOpacity.borderDefault,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: ZplayRadius.smAll,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                          ),
                         );
+                      },
+                    );
 
-                    Widget installAllBtn(bool fullWidth) => ValueListenableBuilder<bool>(
-                          valueListenable: _manager.isBusy,
-                          builder: (context, busy, _) {
-                            return ElevatedButton.icon(
-                              onPressed: busy ? null : _installAll,
-                              icon: const Icon(Icons.download_rounded, size: 14),
-                              label: Text(
-                                l10nCurrent().stgcInstallAllCount(uninstalledCount),
-                                style: ZplayType.caption.toStyle(),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: tokens.accent,
-                                foregroundColor: tokens.onAccent,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            );
-                          },
+                    Widget installAllBtn(
+                      bool fullWidth,
+                    ) => ValueListenableBuilder<bool>(
+                      valueListenable: _manager.isBusy,
+                      builder: (context, busy, _) {
+                        return ElevatedButton.icon(
+                          onPressed: busy ? null : _installAll,
+                          icon: const Icon(Icons.download_rounded, size: 14),
+                          label: Text(
+                            l10nCurrent().stgcInstallAllCount(uninstalledCount),
+                            style: ZplayType.caption.toStyle(),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: tokens.accent,
+                            foregroundColor: tokens.onAccent,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: ZplayRadius.smAll,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                          ),
                         );
+                      },
+                    );
 
                     if (isMobile) {
                       return Column(
@@ -337,12 +371,17 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
                               Expanded(
                                 child: Text(
                                   l10nCurrent().stgaAvailablePlugins,
-                                  style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                                  style: ZplayType.title.toStyle(
+                                    color: tokens.textPrimary,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               IconButton(
-                                icon: Icon(Icons.close_rounded, color: tokens.textEmphasis),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: tokens.textEmphasis,
+                                ),
                                 onPressed: () => Navigator.pop(context),
                               ),
                             ],
@@ -368,7 +407,9 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
                       children: [
                         Text(
                           l10nCurrent().stgaAvailableCsPlugins,
-                          style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.title.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const Spacer(),
                         if (installedCount > 0) ...[
@@ -380,7 +421,10 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
                           const SizedBox(width: 8),
                         ],
                         IconButton(
-                          icon: Icon(Icons.close_rounded, color: tokens.textEmphasis),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: tokens.textEmphasis,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
@@ -398,8 +442,14 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
                     valueListenable: _manager.busyMessage,
                     builder: (context, msg, _) {
                       return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 6,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: tokens.accentSubtle,
                           borderRadius: ZplayRadius.smAll,
@@ -414,13 +464,18 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
                             SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accent),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: tokens.accent,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 msg,
-                                style: ZplayType.bodySmall.toStyle(color: tokens.accent),
+                                style: ZplayType.bodySmall.toStyle(
+                                  color: tokens.accent,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -435,14 +490,19 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
 
               // Search box
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 6,
+                ),
                 child: TextField(
                   controller: _searchController,
                   style: ZplayType.body.toStyle(color: tokens.textPrimary),
                   onChanged: (val) => setState(() => _searchQuery = val),
                   decoration: InputDecoration(
                     hintText: l10nCurrent().stgaSearchPluginsHint,
-                    hintStyle: ZplayType.label.toStyle(color: tokens.textDisabled),
+                    hintStyle: ZplayType.label.toStyle(
+                      color: tokens.textDisabled,
+                    ),
                     prefixIcon: Icon(
                       Icons.search_rounded,
                       size: 18,
@@ -450,7 +510,10 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
                     ),
                     filled: true,
                     fillColor: tokens.surfaceRaised,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     border: const OutlineInputBorder(
                       borderRadius: ZplayRadius.smAll,
                       borderSide: BorderSide.none,
@@ -464,189 +527,234 @@ class _CloudStreamRepoModalState extends State<CloudStreamRepoModal> {
               // Plugins list
               Expanded(
                 child: _isLoading
-                    ? Center(child: CircularProgressIndicator(color: tokens.accent))
+                    ? Center(
+                        child: CircularProgressIndicator(color: tokens.accent),
+                      )
                     : filtered.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Text(
-                                _searchQuery.isEmpty
-                                    ? l10nCurrent().stgaNoPluginsInRepos
-                                    : l10nCurrent().stgcNoPluginsMatching(_searchQuery),
-                                textAlign: TextAlign.center,
-                                style: ZplayType.body.toStyle(color: tokens.textMuted),
-                              ),
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Text(
+                            _searchQuery.isEmpty
+                                ? l10nCurrent().stgaNoPluginsInRepos
+                                : l10nCurrent().stgcNoPluginsMatching(
+                                    _searchQuery,
+                                  ),
+                            textAlign: TextAlign.center,
+                            style: ZplayType.body.toStyle(
+                              color: tokens.textMuted,
                             ),
-                          )
-                        : ListView.separated(
-                            controller: scrollController,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
-                            itemBuilder: (context, idx) {
-                              final plugin = filtered[idx];
-                              final installed = _isInstalled(plugin);
-                              final id = plugin.internalName ?? plugin.name;
-                              final isProcessing = _installingIds.contains(id);
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, idx) {
+                          final plugin = filtered[idx];
+                          final installed = _isInstalled(plugin);
+                          final id = plugin.internalName ?? plugin.name;
+                          final isProcessing = _installingIds.contains(id);
 
-                              return Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  children: [
-                                    // Plugin logo
-                                    ClipRRect(
-                                      borderRadius: ZplayRadius.smAll,
-                                      child: SizedBox(
-                                        width: 40,
-                                        height: 40,
-                                        child: plugin.iconUrl != null && plugin.iconUrl!.isNotEmpty
-                                            ? CachedNetworkImage(
-                                                imageUrl: plugin.iconUrl!,
-                                                fit: BoxFit.cover,
-                                                errorWidget: (_, __, ___) => Icon(
-                                                  Icons.extension_rounded,
-                                                  color: tokens.textSecondary,
-                                                ),
-                                              )
-                                            : Icon(
-                                                Icons.extension_rounded,
-                                                color: tokens.textSecondary,
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 14),
+                          return Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                // Plugin logo
+                                ClipRRect(
+                                  borderRadius: ZplayRadius.smAll,
+                                  child: SizedBox(
+                                    width: 40,
+                                    height: 40,
+                                    child:
+                                        plugin.iconUrl != null &&
+                                            plugin.iconUrl!.isNotEmpty
+                                        ? CachedNetworkImage(
+                                            imageUrl: plugin.iconUrl!,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_, __, ___) => Icon(
+                                              Icons.extension_rounded,
+                                              color: tokens.textSecondary,
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.extension_rounded,
+                                            color: tokens.textSecondary,
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
 
-                                    // Info
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                // Info
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
                                         children: [
-                                          Row(
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  plugin.name,
-                                                  style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
+                                          Flexible(
+                                            child: Text(
+                                              plugin.name,
+                                              style: ZplayType.subtitle.toStyle(
+                                                color: tokens.textPrimary,
                                               ),
-                                              if (plugin.isNsfw) ...[
-                                                const SizedBox(width: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                                  decoration: BoxDecoration(
-                                                    color: tokens.danger.withValues(
-                                                      alpha: ZplayOpacity.borderStrong,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (plugin.isNsfw) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 5,
+                                                    vertical: 1.5,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: tokens.danger.withValues(
+                                                  alpha:
+                                                      ZplayOpacity.borderStrong,
+                                                ),
+                                                borderRadius: ZplayRadius.xsAll,
+                                              ),
+                                              child: Text(
+                                                '18+',
+                                                style: ZplayType.caption
+                                                    .toStyle(
+                                                      color: tokens.danger,
                                                     ),
-                                                    borderRadius: ZplayRadius.xsAll,
-                                                  ),
-                                                  child: Text(
-                                                    '18+',
-                                                    style: ZplayType.caption.toStyle(color: tokens.danger),
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: tokens.accent.withValues(
-                                                    alpha: ZplayOpacity.borderStrong,
-                                                  ),
-                                                  borderRadius: ZplayRadius.xsAll,
-                                                ),
-                                                child: Text(
-                                                  plugin.effectiveLanguage.toUpperCase(),
-                                                  style: ZplayType.caption.toStyle(color: tokens.accent),
-                                                ),
                                               ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'v${plugin.version ?? "1.0.0"}',
-                                                style: ZplayType.caption.toStyle(color: tokens.textMuted),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ],
                                       ),
-                                    ),
-
-                                    // Install / Installed button
-                                    if (isProcessing)
-                                      SizedBox(
-                                        width: 28,
-                                        height: 28,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accent),
-                                      )
-                                    else if (installed)
+                                      const SizedBox(height: 3),
                                       Row(
-                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                                            decoration: BoxDecoration(
-                                              color: tokens.success.withValues(
-                                                alpha: ZplayOpacity.borderStrong,
-                                              ),
-                                              borderRadius: ZplayRadius.smAll,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
                                             ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.check_rounded,
-                                                  size: 13,
-                                                  color: tokens.success,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  l10nCurrent().stgaInstalled,
-                                                  style: ZplayType.caption.toStyle(
-                                                    color: tokens.success,
-                                                  ),
-                                                ),
-                                              ],
+                                            decoration: BoxDecoration(
+                                              color: tokens.accent.withValues(
+                                                alpha:
+                                                    ZplayOpacity.borderStrong,
+                                              ),
+                                              borderRadius: ZplayRadius.xsAll,
+                                            ),
+                                            child: Text(
+                                              plugin.effectiveLanguage
+                                                  .toUpperCase(),
+                                              style: ZplayType.caption.toStyle(
+                                                color: tokens.accent,
+                                              ),
                                             ),
                                           ),
-                                          const SizedBox(width: 2),
-                                          IconButton(
-                                            icon: Icon(
-                                              Icons.delete_outline_rounded,
-                                              size: 18,
-                                              color: tokens.danger,
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'v${plugin.version ?? "1.0.0"}',
+                                            style: ZplayType.caption.toStyle(
+                                              color: tokens.textMuted,
                                             ),
-                                            onPressed: () => _uninstall(plugin),
-                                            tooltip: l10nCurrent().stgaUninstall,
-                                            visualDensity: VisualDensity.compact,
-                                            padding: const EdgeInsets.all(6),
-                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                           ),
                                         ],
-                                      )
-                                    else
-                                      ElevatedButton(
-                                        onPressed: () => _install(plugin),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: tokens.accent,
-                                          foregroundColor: tokens.onAccent,
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                          shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
-                                          visualDensity: VisualDensity.compact,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Install / Installed button
+                                if (isProcessing)
+                                  SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: tokens.accent,
+                                    ),
+                                  )
+                                else if (installed)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 5,
                                         ),
-                                        child: Text(
-                                          l10nCurrent().stgaInstall,
-                                          style: ZplayType.label.toStyle(),
+                                        decoration: BoxDecoration(
+                                          color: tokens.success.withValues(
+                                            alpha: ZplayOpacity.borderStrong,
+                                          ),
+                                          borderRadius: ZplayRadius.smAll,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.check_rounded,
+                                              size: 13,
+                                              color: tokens.success,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              l10nCurrent().stgaInstalled,
+                                              style: ZplayType.caption.toStyle(
+                                                color: tokens.success,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                      const SizedBox(width: 2),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 18,
+                                          color: tokens.danger,
+                                        ),
+                                        onPressed: () => _uninstall(plugin),
+                                        tooltip: l10nCurrent().stgaUninstall,
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(6),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  ElevatedButton(
+                                    onPressed: () => _install(plugin),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: tokens.accent,
+                                      foregroundColor: tokens.onAccent,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
+                                      ),
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: ZplayRadius.smAll,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    child: Text(
+                                      l10nCurrent().stgaInstall,
+                                      style: ZplayType.label.toStyle(),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),

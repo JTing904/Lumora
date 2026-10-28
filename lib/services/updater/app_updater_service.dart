@@ -10,6 +10,17 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'release_signature.dart';
 
+/// A manual update check that could not reach a verdict.
+class UpdateCheckException implements Exception {
+  const UpdateCheckException(this.reason);
+
+  /// Diagnostic detail for the log; not shown to the person.
+  final String reason;
+
+  @override
+  String toString() => 'UpdateCheckException: $reason';
+}
+
 class AppUpdaterService {
   /// This fork's own release feed. Do NOT point this back at the upstream
   /// project: the updater downloads and installs whatever it finds here, so
@@ -48,7 +59,17 @@ class AppUpdaterService {
     } catch (_) {}
   }
 
-  Future<UpdateInfo?> checkForUpdates({bool ignoreDismissed = false}) async {
+  /// The newer release, or null when there is none to offer.
+  ///
+  /// A check that could not be completed (GitHub unreachable, rate-limited,
+  /// or an unreadable response) also returns null by default, which is right
+  /// for the silent startup check. A check a person asked for passes
+  /// [throwOnFailure] so that failure surfaces as an [UpdateCheckException]
+  /// instead of reading as "up to date".
+  Future<UpdateInfo?> checkForUpdates({
+    bool ignoreDismissed = false,
+    bool throwOnFailure = false,
+  }) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
@@ -80,7 +101,12 @@ class AppUpdaterService {
           final downloadUrl = _findAssetForPlatform(assets);
           final expectedSha256 = downloadUrl == null
               ? null
-              : await _fetchExpectedChecksum(assets, downloadUrl);
+              : await _fetchExpectedChecksum(
+                  assets,
+                  downloadUrl,
+                  releaseVersion: latestVersion,
+                  installedVersion: currentVersion,
+                );
 
           return UpdateInfo(
             currentVersion: currentVersion,
@@ -94,10 +120,14 @@ class AppUpdaterService {
             isIOS: kIsWeb ? false : Platform.isIOS,
           );
         }
+        return null;
       }
-      return null;
+      throw UpdateCheckException('HTTP ${response.statusCode}');
     } catch (e) {
       debugPrint('Error checking for updates: $e');
+      if (throwOnFailure) {
+        throw e is UpdateCheckException ? e : UpdateCheckException('$e');
+      }
       return null;
     }
   }
@@ -131,10 +161,17 @@ class AppUpdaterService {
   /// a checksum published next to the file by whoever published the file
   /// proves only that the download was not corrupted. Unsigned, the update
   /// is offered as a release page to open, never as a file to run.
+  ///
+  /// The tag GitHub reports is not signed, so the signed manifest must also
+  /// name the version it belongs to (see [manifestAuthorizes]); otherwise an
+  /// older signed release re-published under a newer tag would install as a
+  /// downgrade.
   Future<String?> _fetchExpectedChecksum(
     List assets,
-    String downloadUrl,
-  ) async {
+    String downloadUrl, {
+    required String releaseVersion,
+    required String installedVersion,
+  }) async {
     final checksumUrl = _findChecksumAsset(assets);
     final signatureUrl = _findSignatureAsset(assets);
     final assetName = _assetNameFromUrl(downloadUrl);
@@ -159,6 +196,17 @@ class AppUpdaterService {
         debugPrint('[AppUpdaterService] Release manifest is not signed');
         return null;
       }
+      if (!manifestAuthorizes(
+        response.body,
+        releaseVersion: releaseVersion,
+        installedVersion: installedVersion,
+      )) {
+        debugPrint(
+          '[AppUpdaterService] Signed manifest names version '
+          '${manifestVersion(response.body)}, not a newer $releaseVersion',
+        );
+        return null;
+      }
       return checksumForAsset(response.body, assetName);
     } catch (e) {
       debugPrint('[AppUpdaterService] Could not read checksum manifest: $e');
@@ -170,6 +218,35 @@ class AppUpdaterService {
     final segments = Uri.tryParse(url)?.pathSegments;
     if (segments == null || segments.isEmpty) return '';
     return segments.last;
+  }
+
+  /// The first line of a signed `SHA256SUMS`, written by
+  /// tool/sign_release.dart: `# lumora-version X.Y.Z`. Clients up to 1.0.x
+  /// skip it as a line that is not a checksum.
+  static final RegExp _manifestVersionLine = RegExp(
+    r'^#\s*lumora-version\s+(\S+)\s*$',
+  );
+
+  /// The version a release manifest names on its first line, or null when it
+  /// names none.
+  static String? manifestVersion(String manifest) {
+    final lines = const LineSplitter().convert(manifest);
+    if (lines.isEmpty) return null;
+    final first = lines.first.replaceFirst('﻿', '').trim();
+    return _manifestVersionLine.firstMatch(first)?.group(1);
+  }
+
+  /// Whether a signed [manifest] may install as the release tagged
+  /// [releaseVersion] over [installedVersion]: it must name that same
+  /// version, and that version must be newer than the installed one.
+  static bool manifestAuthorizes(
+    String manifest, {
+    required String releaseVersion,
+    required String installedVersion,
+  }) {
+    final version = manifestVersion(manifest);
+    if (version == null || version != releaseVersion) return false;
+    return _isNewerVersion(installedVersion, version);
   }
 
   /// Parses one line of the `sha256sum` output format:
@@ -383,7 +460,7 @@ class AppUpdaterService {
     return null;
   }
 
-  bool _isNewerVersion(String current, String latest) {
+  static bool _isNewerVersion(String current, String latest) {
     // Strip any suffix like "-test" or "-beta" for comparison
     final currentClean = current.split('-').first;
     final latestClean = latest.split('-').first;

@@ -174,20 +174,34 @@ abstract final class TmdbService {
     String path, [
     Map<String, String> params = const {},
   ]) async {
+    return (await getScraperJsonWithStatus(path, params)).body;
+  }
+
+  /// [getScraperJson] plus the HTTP status TMDb (or the proxy) answered
+  /// with; null when nothing answered. Lets a caller tell "no such title"
+  /// (404) from a failed read.
+  static Future<({Map<String, dynamic>? body, int? status})>
+  getScraperJsonWithStatus(
+    String path, [
+    Map<String, String> params = const {},
+  ]) async {
     final key = scraperKey;
     if (key.isEmpty) return _proxyJson(path, params);
     final outcome = await _request(key, path, params);
-    return outcome.status == TmdbKeyResult.ok ? outcome.body : null;
+    return (
+      body: outcome.status == TmdbKeyResult.ok ? outcome.body : null,
+      status: outcome.code,
+    );
   }
 
-  /// A GET through [proxyBase], signed in as the current user. Null when
+  /// A GET through [proxyBase], signed in as the current user. No body when
   /// there is no proxy or it does not answer.
-  static Future<Map<String, dynamic>?> _proxyJson(
+  static Future<({Map<String, dynamic>? body, int? status})> _proxyJson(
     String path,
     Map<String, String> params,
   ) async {
     final base = proxyBase;
-    if (base == null) return null;
+    if (base == null) return (body: null, status: null);
     final uri = Uri.parse(
       '$base$path',
     ).replace(queryParameters: params.isEmpty ? null : params);
@@ -200,11 +214,15 @@ abstract final class TmdbService {
       final response = await client
           .get(uri, headers: headers)
           .timeout(_timeout);
-      if (response.statusCode != 200) return null;
+      final status = response.statusCode;
+      if (status != 200) return (body: null, status: status);
       final decoded = jsonDecode(response.body);
-      return decoded is Map<String, dynamic> ? decoded : null;
+      return (
+        body: decoded is Map<String, dynamic> ? decoded : null,
+        status: status,
+      );
     } catch (_) {
-      return null;
+      return (body: null, status: null);
     }
   }
 
@@ -313,15 +331,17 @@ abstract final class TmdbService {
     }
 
     if (response.statusCode == 401 || response.statusCode == 403) {
-      return const _HttpOutcome.rejected();
+      return _HttpOutcome.rejected(response.statusCode);
     }
-    if (response.statusCode != 200) return const _HttpOutcome.unreachable();
+    if (response.statusCode != 200) {
+      return _HttpOutcome.unreachable(response.statusCode);
+    }
 
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic>) return _HttpOutcome.ok(decoded);
     } catch (_) {}
-    return const _HttpOutcome.unreachable();
+    return const _HttpOutcome.unreachable(200);
   }
 
   static Future<http.Response?> _get(Uri uri, {String? bearer}) async {
@@ -383,12 +403,17 @@ class _Candidate {
 }
 
 class _HttpOutcome {
-  const _HttpOutcome.ok(this.body) : status = TmdbKeyResult.ok;
-  const _HttpOutcome.rejected() : body = null, status = TmdbKeyResult.rejected;
-  const _HttpOutcome.unreachable()
+  const _HttpOutcome.ok(this.body) : status = TmdbKeyResult.ok, code = 200;
+  const _HttpOutcome.rejected([this.code])
+    : body = null,
+      status = TmdbKeyResult.rejected;
+  const _HttpOutcome.unreachable([this.code])
     : body = null,
       status = TmdbKeyResult.unreachable;
 
   final TmdbKeyResult status;
   final Map<String, dynamic>? body;
+
+  /// The HTTP status answered with; null when nothing answered.
+  final int? code;
 }

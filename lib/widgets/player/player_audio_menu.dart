@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'player_glass.dart';
 import '../../services/theme/design_tokens.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 class PlayerAudioTrack {
   final int index;
@@ -81,7 +83,7 @@ class PlayerAudioMenu extends StatelessWidget {
     final screenWidth = size.width;
     final screenHeight = size.height;
     final isCompactH = screenHeight < 500;
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     final cardWidth = (370.0).clamp(270.0, screenWidth - 28);
     final maxTrackListHeight = isCompactH
@@ -163,7 +165,7 @@ class PlayerAudioMenu extends StatelessWidget {
                         final subtitle = _getTrackSubtitle(track);
 
                         return FocusableInkWell(
-                          borderRadius: ZplayRadius.smAll,
+                          borderRadius: LuRadius.field,
                           onTap: () {
                             onTrackSelected(track.index);
                           },
@@ -178,7 +180,7 @@ class PlayerAudioMenu extends StatelessWidget {
                             color: isSelected
                                 ? PlayerTheme.accent.withValues(alpha: 0.18)
                                 : tokens.textPrimary.withValues(alpha: 0.03),
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                             border: Border.all(
                               color: isSelected
                                   ? PlayerTheme.accent.withValues(alpha: 0.6)
@@ -295,7 +297,7 @@ class PlayerAudioMenu extends StatelessWidget {
               padding: EdgeInsets.all(isCompactH ? 6 : 9),
               decoration: BoxDecoration(
                 color: tokens.textPrimary.withValues(alpha: 0.04),
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 border: Border.all(color: tokens.borderSubtle),
               ),
               child: Column(

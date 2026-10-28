@@ -1,96 +1,86 @@
 import 'package:flutter/material.dart';
 
-import '../../../services/theme/app_theme_service.dart';
-import '../../../services/theme/design_tokens.dart';
+import '../../../ui/lu_theme.dart';
 
-/// Reader chrome vocabulary for the ZPlay Reader.
+/// Reader chrome vocabulary for the book reader.
 ///
-/// The reader family draws two different things: the *page* — paper surface, book
-/// text metrics, the light/sepia/dark/amoled swatches — and the *chrome* around
-/// it — bars, drawer, customisation sheet, zoom and focus controls. Page values
-/// are product data and stay on `ReaderSettingsData`; chrome follows the app
-/// palette through the shared contract tokens, so a palette switch restyles the
-/// reader with the rest of the shell.
-///
-/// This class is the reader's chrome bridge: the numeric scales are aliases of
-/// [ZplaySpacing]/[ZplayRadius], and the colour members are getters over
-/// [AppThemeService.currentTokens] — the same derivation as `context.tokens`,
-/// memoised on palette identity, so a reader helper without a `BuildContext` (an
-/// `IconButton` factory, a shadow, a `const` list) still resolves the active
-/// palette.
+/// The reader family draws two different things: the *page* - paper surface,
+/// book text metrics, the light/sepia/dark/amoled swatches - and the *chrome*
+/// around it - bars, drawer, customisation sheet, zoom and focus controls.
+/// Page values are product data and stay on `ReaderSettingsData`; the chrome
+/// wears Lumora's cinema look (`lib/ui/lu_theme.dart`): the near-black ground,
+/// glass surfaces and the one gold accent. This class is the bridge, so a
+/// reader helper without a `BuildContext` still reads the same colours.
 class ReaderTokens {
   ReaderTokens._();
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 1. PALETTE-FOLLOWING CHROME COLOURS
+  // 1. CHROME COLOURS (Lumora)
   // ──────────────────────────────────────────────────────────────────────────
-  /// The contract set for the active palette. Re-derived once per palette switch.
-  static ZplayTokens get _tokens => AppThemeService.currentTokens;
-
   /// Page background of reader chrome scrims and the comic/AMOLED backdrop.
-  static Color get bg => _tokens.bg;
+  static Color get bg => LuColors.bg;
 
   /// Recessed tiles inside chrome: chips, control fills, cover placeholders.
-  static Color get surface => _tokens.surface;
+  static Color get surface => LuColors.surfaceHigh;
 
   /// Bars sitting on top of the page (reader top/bottom chrome, drawer).
-  static Color get surfaceRaised => _tokens.surfaceRaised;
+  static Color get surfaceRaised => LuColors.surface;
 
   /// Floating chrome above the page: focus pills, zoom bar, customisation sheet.
-  static Color get surfaceOverlay => _tokens.surfaceOverlay;
+  static Color get surfaceOverlay => LuColors.surface;
 
-  static Color get borderSubtle => _tokens.borderSubtle;
-  static Color get borderDefault => _tokens.borderDefault;
-  static Color get borderStrong => _tokens.borderStrong;
+  static Color get borderSubtle => LuColors.lineSoft;
+  static Color get borderDefault => LuColors.line;
+  static Color get borderStrong => const Color(0xFF3A3832);
 
-  static Color get textPrimary => _tokens.textPrimary;
-  static Color get textEmphasis => _tokens.textEmphasis;
-  static Color get textSecondary => _tokens.textSecondary;
-  static Color get textMuted => _tokens.textMuted;
-  static Color get textDisabled => _tokens.textDisabled;
+  static Color get textPrimary => LuColors.text;
+  static Color get textEmphasis => LuColors.textSoft;
+  static Color get textSecondary => LuColors.textMuted;
+  static Color get textMuted => LuColors.textFaint;
+  static Color get textDisabled => const Color(0xFF5E5A53);
 
-  static Color get accent => _tokens.accent;
-  static Color get accentSubtle => _tokens.accentSubtle;
-  static Color get onAccent => _tokens.onAccent;
+  static Color get accent => LuColors.gold;
+  static Color get accentSubtle => const Color(0x29F2B544);
+  static Color get onAccent => LuColors.onGold;
 
-  static Color get success => _tokens.success;
-  static Color get danger => _tokens.danger;
+  static Color get success => LuColors.success;
+  static Color get danger => LuColors.danger;
 
   /// 1px hairline in the default border role, for `Border`/`Divider` sides.
-  static BorderSide get hairline => _tokens.hairline;
+  static BorderSide get hairline => const BorderSide(color: LuColors.line);
 
   /// 1px hairline in the strong divider role.
-  static BorderSide get hairlineStrong => _tokens.hairlineStrong;
+  static BorderSide get hairlineStrong =>
+      const BorderSide(color: Color(0xFF3A3832));
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 2. SPACING SCALE (4pt base, aliases of [ZplaySpacing])
+  // 2. SPACING SCALE (4pt base)
   // ──────────────────────────────────────────────────────────────────────────
-  static const double space4 = ZplaySpacing.s4;
-  static const double space8 = ZplaySpacing.s8;
-  static const double space12 = ZplaySpacing.s12;
-  static const double space16 = ZplaySpacing.s16;
-  static const double space24 = ZplaySpacing.s24;
-  static const double space32 = ZplaySpacing.s32;
-  static const double space48 = ZplaySpacing.s48;
-  static const double space64 = ZplaySpacing.s64;
+  static const double space4 = 4;
+  static const double space8 = 8;
+  static const double space12 = 12;
+  static const double space16 = 16;
+  static const double space24 = 24;
+  static const double space32 = 32;
+  static const double space48 = 48;
+  static const double space64 = 64;
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 3. RADIUS SCALE (aliases of [ZplayRadius], legacy buckets 4→xs, 8/12→sm,
-  //    16→md, 24→lg, 32→xl)
+  // 3. RADIUS SCALE (Lumora: 12 fields, 24 cards, pills)
   // ──────────────────────────────────────────────────────────────────────────
-  static const double radius4 = ZplayRadius.xs;
-  static const double radius8 = ZplayRadius.sm;
-  static const double radius12 = ZplayRadius.sm;
-  static const double radius16 = ZplayRadius.md;
-  static const double radius24 = ZplayRadius.lg;
-  static const double radius32 = ZplayRadius.xl;
+  static const double radius4 = 6;
+  static const double radius8 = 10;
+  static const double radius12 = 12;
+  static const double radius16 = 16;
+  static const double radius24 = 24;
+  static const double radius32 = 999;
 
-  static const BorderRadius rounded4 = ZplayRadius.xsAll;
-  static const BorderRadius rounded8 = ZplayRadius.smAll;
-  static const BorderRadius rounded12 = ZplayRadius.smAll;
-  static const BorderRadius rounded16 = ZplayRadius.mdAll;
-  static const BorderRadius rounded24 = ZplayRadius.lgAll;
-  static const BorderRadius rounded32 = ZplayRadius.xlAll;
+  static const BorderRadius rounded4 = BorderRadius.all(Radius.circular(6));
+  static const BorderRadius rounded8 = BorderRadius.all(Radius.circular(10));
+  static const BorderRadius rounded12 = LuRadius.field;
+  static const BorderRadius rounded16 = BorderRadius.all(Radius.circular(16));
+  static const BorderRadius rounded24 = LuRadius.card;
+  static const BorderRadius rounded32 = LuRadius.pill;
 
   // ──────────────────────────────────────────────────────────────────────────
   // 4. ELEVATION & CUSTOM SOFT SHADOWS
@@ -165,10 +155,12 @@ class ReaderTokens {
   static const String uiFont = 'Poppins';
   static const String defaultSerifFont = 'Georgia';
 
-  /// Chrome type roles — the shared scale, so reader chrome reads like the shell.
-  static TextStyle get caption => ZplayType.body.toStyle();
+  /// Chrome type roles - Lumora's, so reader chrome reads like the shell.
+  static TextStyle get caption => LuText.body.copyWith(fontSize: 14);
 
-  static TextStyle get primaryLabel => ZplayType.subtitle.toStyle();
+  static TextStyle get primaryLabel =>
+      LuText.body.copyWith(fontWeight: FontWeight.w600);
 
-  static TextStyle get tabLabel => ZplayType.label.toStyle();
+  static TextStyle get tabLabel =>
+      LuText.label.copyWith(fontWeight: FontWeight.w700);
 }

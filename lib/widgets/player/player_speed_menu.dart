@@ -2,6 +2,8 @@ import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Playback speed and sleep timer floating popover menu.
 class PlayerSpeedMenu extends StatefulWidget {
@@ -27,7 +29,7 @@ class _PlayerSpeedMenuState extends State<PlayerSpeedMenu> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return PlayerGlassCard(
       width: (320.0).clamp(240.0, screenWidth - 32),
@@ -69,7 +71,7 @@ class _PlayerSpeedMenuState extends State<PlayerSpeedMenu> {
             children: _presets.map((rate) {
               final isSelected = (widget.currentRate - rate).abs() < 0.01;
               return FocusableInkWell(
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 onTap: () {
                   widget.onRateSelected(rate);
                   widget.onClose();
@@ -78,10 +80,10 @@ class _PlayerSpeedMenuState extends State<PlayerSpeedMenu> {
                   height: 38,
                   padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
                   decoration: BoxDecoration(
-                    color: isSelected ? PlayerTheme.raised : Colors.transparent,
-                    borderRadius: ZplayRadius.smAll,
+                    color: isSelected ? LuPanel.selectedFill : Colors.transparent,
+                    borderRadius: LuRadius.field,
                     border: Border.all(
-                      color: isSelected ? PlayerTheme.edge : Colors.transparent,
+                      color: isSelected ? LuPanel.selectedEdge : Colors.transparent,
                       width: 1,
                     ),
                   ),
@@ -101,7 +103,7 @@ class _PlayerSpeedMenuState extends State<PlayerSpeedMenu> {
                             )
                             .toStyle(
                               color: isSelected
-                                  ? PlayerTheme.ink
+                                  ? PlayerTheme.accent
                                   : PlayerTheme.inkMuted,
                             ),
                       ),

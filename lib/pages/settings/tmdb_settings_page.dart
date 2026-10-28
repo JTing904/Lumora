@@ -11,6 +11,7 @@ import '../../services/theme/design_tokens.dart';
 import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/player/player_glass.dart';
 import '../../widgets/settings/settings_app_bar.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 
 /// Bring-your-own TMDb key page. The key is never echoed back into the field
 /// and is only persisted after TMDb accepts it.
@@ -161,60 +162,68 @@ class _TmdbSettingsPageState extends State<TmdbSettingsPage> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
 
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().stgcTmdbApiKey),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s20,
-            ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: ZplaySpacing.s20),
-                child: Text(
-                  l10nCurrent().stgcTmdbIntro,
-                  style: ZplayType.body.toStyle(color: tokens.textSecondary),
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().stgcTmdbApiKey),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s16,
+                  vertical: ZplaySpacing.s20,
                 ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: ZplaySpacing.s20),
+                    child: Text(
+                      l10nCurrent().stgcTmdbIntro,
+                      style: ZplayType.body.toStyle(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
+
+                  Text(
+                    l10nCurrent().stgbTmdbCredential,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+
+                  ListenableBuilder(
+                    listenable: TmdbService.apiKey,
+                    builder: (context, _) => _buildCredentialCard(context),
+                  ),
+
+                  const SizedBox(height: ZplaySpacing.s12),
+
+                  Text(
+                    l10nCurrent().stgcTmdbStoredLocally,
+                    style: ZplayType.bodySmall.toStyle(
+                      color: tokens.textDisabled,
+                    ),
+                  ),
+
+                  const SizedBox(height: ZplaySpacing.s24),
+
+                  Text(
+                    l10nCurrent().stgbCredits,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: ZplaySpacing.s12),
+
+                  _buildAttributionCard(context),
+
+                  const SizedBox(height: ZplaySpacing.s20),
+                ],
               ),
-
-              Text(
-                l10nCurrent().stgbTmdbCredential,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 10),
-
-              ListenableBuilder(
-                listenable: TmdbService.apiKey,
-                builder: (context, _) => _buildCredentialCard(context),
-              ),
-
-              const SizedBox(height: ZplaySpacing.s12),
-
-              Text(
-                l10nCurrent().stgcTmdbStoredLocally,
-                style: ZplayType.bodySmall.toStyle(color: tokens.textDisabled),
-              ),
-
-              const SizedBox(height: ZplaySpacing.s24),
-
-              Text(
-                l10nCurrent().stgbCredits,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: ZplaySpacing.s12),
-
-              _buildAttributionCard(context),
-
-              const SizedBox(height: ZplaySpacing.s20),
-            ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildCredentialCard(BuildContext context) {
@@ -238,7 +247,10 @@ class _TmdbSettingsPageState extends State<TmdbSettingsPage> {
               ),
               if (hasKey)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: tokens.accent.withValues(
                       alpha: ZplayOpacity.borderStrong,
@@ -306,7 +318,9 @@ class _TmdbSettingsPageState extends State<TmdbSettingsPage> {
                           ),
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(),
-                          tooltip: _obscured ? l10nCurrent().stgbShowKey : l10nCurrent().stgbHideKey,
+                          tooltip: _obscured
+                              ? l10nCurrent().stgbShowKey
+                              : l10nCurrent().stgbHideKey,
                           onPressed: () {
                             setState(() => _obscured = !_obscured);
                           },
@@ -352,7 +366,10 @@ class _TmdbSettingsPageState extends State<TmdbSettingsPage> {
                           color: tokens.onAccent,
                         ),
                       )
-                    : Text(l10nCurrent().stgbSaveAndTest, style: ZplayType.label.toStyle()),
+                    : Text(
+                        l10nCurrent().stgbSaveAndTest,
+                        style: ZplayType.label.toStyle(),
+                      ),
               ),
             ],
           ),
@@ -386,7 +403,10 @@ class _TmdbSettingsPageState extends State<TmdbSettingsPage> {
                     borderRadius: ZplayRadius.smAll,
                   ),
                 ),
-                child: Text(l10nCurrent().stgbClearKey, style: ZplayType.label.toStyle()),
+                child: Text(
+                  l10nCurrent().stgbClearKey,
+                  style: ZplayType.label.toStyle(),
+                ),
               ),
             ],
           ),

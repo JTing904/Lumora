@@ -54,12 +54,15 @@ import './services/profiles/windows_state_migration.dart';
 import './services/p2p/p2p_settings_service.dart';
 import './services/discord/discord_rpc_service.dart';
 import './services/diagnostics/crash_breadcrumbs.dart';
+import './services/diagnostics/crash_reporter.dart';
 import 'package:flutter/foundation.dart';
 import './services/diagnostics/perf_monitor.dart';
 import './services/diagnostics/renderer_backend.dart';
 import './widgets/debug/perf_hud.dart';
 import './services/scraper/builtin_providers_settings_service.dart';
 import './widgets/updater/update_dialog.dart';
+import './widgets/updater/whats_new.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import './services/account/library_sync.dart';
 import './services/account/account_scope.dart';
 
@@ -67,6 +70,9 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // First, so a startup failure is caught too. Reports only from a release
+  // build with a signed-in account; existing error handling is kept.
+  CrashReporter.install();
   MediaKit.ensureInitialized();
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
@@ -97,6 +103,11 @@ void main() async {
   } catch (e) {
     debugPrint('[Startup] Windows state migration failed: $e');
   }
+  // Before anything saves: an install with saved state is an update.
+  try {
+    WhatsNew.hadPrefs =
+        (await SharedPreferences.getInstance()).getKeys().isNotEmpty;
+  } catch (_) {}
   await EnvService.initialize();
   // Before the first frame: the frame shows the sign-in page or the app.
   await AccountService.initialize();

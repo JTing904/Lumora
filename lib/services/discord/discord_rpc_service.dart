@@ -148,13 +148,13 @@ class DiscordRpcService {
   // Status Helpers
   // ---------------------------------------------------------------------------
 
-  /// Set Idle / Browsing status: "browsing ZPlay"
+  /// Set Idle / Browsing status: "browsing Lumora"
   Future<void> setIdle() async {
     _currentKind = DiscordActivityKind.idle;
     final presence = DiscordPresence(
       type: DiscordActivityType.playing,
-      details: 'Browsing ZPlay',
-      largeAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+      details: 'Browsing Lumora',
+      largeAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
       timestamps: DiscordTimestamps.started(_sessionStartTime),
     );
     await _updatePresence(presence);
@@ -189,11 +189,11 @@ class DiscordRpcService {
       details: 'Watching $cleanTitle',
       state: isPaused
           ? 'Paused'
-          : (year != null && year.trim().isNotEmpty ? '($year)' : 'In ZPlay'),
+          : (year != null && year.trim().isNotEmpty ? '($year)' : 'In Lumora'),
       largeAsset: hasValidPoster
           ? DiscordAsset.fromUrl(posterUrl.trim(), text: cleanTitle)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
       timestamps: timestamps,
     );
 
@@ -242,8 +242,8 @@ class DiscordRpcService {
       state: stateText,
       largeAsset: hasValidPoster
           ? DiscordAsset.fromUrl(posterUrl.trim(), text: cleanTitle)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
       timestamps: timestamps,
     );
 
@@ -275,7 +275,7 @@ class DiscordRpcService {
         stateText = '$stateText - ${episodeTitle.trim()}';
       }
     } else {
-      stateText = 'Anime in ZPlay';
+      stateText = 'Anime in Lumora';
     }
     if (isPaused) stateText = '$stateText (Paused)';
 
@@ -297,8 +297,8 @@ class DiscordRpcService {
       state: stateText,
       largeAsset: hasValidPoster
           ? DiscordAsset.fromUrl(posterUrl.trim(), text: cleanTitle)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
       timestamps: timestamps,
     );
 
@@ -323,8 +323,8 @@ class DiscordRpcService {
       state: stateText,
       largeAsset: hasValidLogo
           ? DiscordAsset.fromUrl(logoUrl.trim(), text: stateText)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
       timestamps: DiscordTimestamps.started(DateTime.now()),
     );
 
@@ -350,7 +350,7 @@ class DiscordRpcService {
     } else if (chapter != null && chapter.trim().isNotEmpty) {
       stateText = chapter.trim();
     } else {
-      stateText = 'Audiobook in ZPlay';
+      stateText = 'Audiobook in Lumora';
     }
     if (isPaused) stateText = '$stateText (Paused)';
 
@@ -372,8 +372,8 @@ class DiscordRpcService {
       state: stateText,
       largeAsset: hasValidCover
           ? DiscordAsset.fromUrl(coverUrl.trim(), text: cleanTitle)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
       timestamps: timestamps,
     );
 
@@ -400,7 +400,7 @@ class DiscordRpcService {
     } else if (author != null && author.trim().isNotEmpty) {
       stateText = 'by ${author.trim()}';
     } else {
-      stateText = 'eBook in ZPlay';
+      stateText = 'eBook in Lumora';
     }
 
     final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty && coverUrl.startsWith('http');
@@ -411,8 +411,8 @@ class DiscordRpcService {
       state: stateText,
       largeAsset: hasValidCover
           ? DiscordAsset.fromUrl(coverUrl.trim(), text: cleanTitle)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
     );
 
     await _updatePresence(presence);
@@ -429,7 +429,7 @@ class DiscordRpcService {
 
     final stateText = (chapter != null && chapter.trim().isNotEmpty)
         ? (chapter.trim().toLowerCase().startsWith('chapter') ? chapter.trim() : 'Chapter ${chapter.trim()}')
-        : 'Manga in ZPlay';
+        : 'Manga in Lumora';
 
     final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty && coverUrl.startsWith('http');
 
@@ -439,8 +439,8 @@ class DiscordRpcService {
       state: stateText,
       largeAsset: hasValidCover
           ? DiscordAsset.fromUrl(coverUrl.trim(), text: cleanTitle)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
     );
 
     await _updatePresence(presence);
@@ -460,7 +460,7 @@ class DiscordRpcService {
     final cleanTitle = title.trim();
     final cleanArtist = artist.trim();
 
-    String stateText = cleanArtist.isNotEmpty ? 'by $cleanArtist' : 'Music in ZPlay';
+    String stateText = cleanArtist.isNotEmpty ? 'by $cleanArtist' : 'Music in Lumora';
     if (!isPlaying) stateText = '$stateText (Paused)';
 
     DiscordTimestamps? timestamps;
@@ -481,8 +481,8 @@ class DiscordRpcService {
       state: stateText,
       largeAsset: hasValidCover
           ? DiscordAsset.fromUrl(coverUrl.trim(), text: cleanTitle)
-          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
-      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'ZPlay'),
+          : const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
+      smallAsset: const DiscordAsset.fromKey(_defaultAssetKey, text: 'Lumora'),
       timestamps: timestamps,
     );
 

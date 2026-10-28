@@ -558,7 +558,11 @@ class StreamSource {
   }
 }
 
-/// An addon's name as a viewer sees it: the built-in source is Lumora's own,
-/// whatever id it is stored under.
-String displayAddonName(String addonName) =>
-    addonName.toLowerCase() == 'zplayhttp' ? 'Lumora' : addonName;
+/// An addon's name as a viewer sees it: the built-in sources are Lumora's own,
+/// whatever id they are stored under.
+String displayAddonName(String addonName) => switch (addonName.toLowerCase()) {
+  'zplayhttp' => 'Lumora',
+  'zplay' => 'Lumora P2P',
+  'zplay offline' => 'Lumora',
+  _ => addonName,
+};

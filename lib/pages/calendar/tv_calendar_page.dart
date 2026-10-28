@@ -1,24 +1,59 @@
 import '../../l10n/l10n.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../models/movie/movie.dart';
 import '../../services/calendar/tv_calendar_service.dart';
+import '../../services/content/content_settings.dart';
+import '../../services/my_list/my_list_service.dart';
+import '../../services/my_list/new_episode_service.dart';
 import '../../services/theme/app_theme_service.dart';
 import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../details/details_page.dart';
 import '../../services/storage/app_image_cache.dart';
 import '../../services/theme/design_tokens.dart';
+import '../../ui/lu_theme.dart';
 
-class TvCalendarPage extends StatefulWidget {
+/// 追剧日历: when the series in My List air, day by day for three weeks.
+///
+/// Only saved series are shown; the dates come from [NewEpisodeService],
+/// which asks TMDb in the background and caches for six hours.
+///
+/// The page runs under the Lumora theme: gold on near-black whatever accent
+/// palette an older install had picked. The inherited `ZplayTokens` widgets it
+/// still uses (`FocusableCard`, `CardFocusRing`, the ambient glow) read their
+/// accent from the theme, so a token set derived from the Lumora colours is
+/// installed alongside it.
+class TvCalendarPage extends StatelessWidget {
   const TvCalendarPage({super.key});
 
+  static ThemeData _theme() => luTheme().copyWith(
+    extensions: [
+      ZplayTokens.derive(
+        accent: LuColors.gold,
+        bg: LuColors.bg,
+        surface: LuColors.surface,
+        surfaceRaised: LuColors.surfaceHigh,
+      ),
+    ],
+  );
+
   @override
-  State<TvCalendarPage> createState() => _TvCalendarPageState();
+  Widget build(BuildContext context) =>
+      Theme(data: _theme(), child: const _TvCalendarBody());
 }
 
-class _TvCalendarPageState extends State<TvCalendarPage> {
+class _TvCalendarBody extends StatefulWidget {
+  const _TvCalendarBody();
+
+  @override
+  State<_TvCalendarBody> createState() => _TvCalendarPageState();
+}
+
+class _TvCalendarPageState extends State<_TvCalendarBody>
+    with WidgetsBindingObserver {
   final TvCalendarService _service = TvCalendarService.instance;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _dayScrollController = ScrollController();
@@ -26,6 +61,9 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
 
   List<DateTime> _availableDays = [];
   late DateTime _selectedDay;
+
+  /// The day [_availableDays] starts on (today when it was built).
+  late DateTime _windowStart;
   List<TvCalendarEntryModel> _allDayEpisodes = [];
 
   bool _isLoadingDays = true;
@@ -33,49 +71,113 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
   String _searchQuery = '';
   String _selectedNetwork = 'All';
 
-  static const _weekdaysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  static const _weekdaysFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  static const _monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  static const _monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _selectedDay = DateTime(now.year, now.month, now.day);
+    final today = _today();
+    _selectedDay = today;
+    _windowStart = today;
     _availableDays = _service.getAiringDays(daysAhead: 21);
     _isLoadingDays = false;
+    WidgetsBinding.instance.addObserver(this);
+    NewEpisodeService.ensureStarted();
+    _sources.addListener(_loadEpisodesForSelectedDay);
     _loadEpisodesForSelectedDay();
+  }
+
+  /// What the day's list is made from: the tracked shows, the list itself
+  /// (and what it may show), and whether a check is still running.
+  final Listenable _sources = Listenable.merge([
+    NewEpisodeService.info,
+    NewEpisodeService.checking,
+    MyListService.items,
+    ContentSettings.adultEnabled,
+  ]);
+
+  /// Whether My List holds any series the calendar could follow.
+  bool get _hasSeries =>
+      MyListService.visibleItems.any(NewEpisodeService.isSeries);
+
+  /// The saved series' episodes airing on [day].
+  List<TvCalendarEntryModel> _entriesFor(DateTime day) {
+    final entries = <TvCalendarEntryModel>[];
+    for (final show in NewEpisodeService.visibleShows()) {
+      final seen = <EpisodeRef>{};
+      for (final ep in [...show.upcoming, ?show.latest]) {
+        final at = ep.airDate;
+        if (at == null || !_isSameDay(at, day) || !seen.add(ep)) continue;
+        entries.add(
+          TvCalendarEntryModel(
+            showTitle: show.title,
+            episodeTitle: ep.name ?? '',
+            seasonNumber: ep.season,
+            episodeNumber: ep.episode,
+            airDateTimeLocal: at,
+            // The id the details page opens by (an IMDb id or tmdb:tv:N).
+            imdbId: show.detailsId,
+            posterUrl: show.poster,
+            network: show.network,
+          ),
+        );
+      }
+    }
+    entries.sort((a, b) => a.showTitle.compareTo(b.showTitle));
+    return entries;
+  }
+
+  bool _dayHasEpisodes(DateTime day) => _entriesFor(day).isNotEmpty;
+
+  static DateTime _today() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  /// When the date has changed since the day strip was built (the page left
+  /// open past midnight, the app resumed the next day), starts it from today
+  /// again; a selection that was on the old today, or is now past, moves to
+  /// today.
+  void _followToday() {
+    final today = _today();
+    if (_isSameDay(today, _windowStart)) return;
+    final wasToday = _isSameDay(_selectedDay, _windowStart);
+    _windowStart = today;
+    _availableDays = _service.getAiringDays(daysAhead: 21);
+    if (wasToday || _selectedDay.isBefore(today)) _selectedDay = today;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _loadEpisodesForSelectedDay();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sources.removeListener(_loadEpisodesForSelectedDay);
     _searchController.dispose();
     _dayScrollController.dispose();
     _networkScrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadEpisodesForSelectedDay({bool forceRefresh = false}) async {
-    setState(() => _isLoadingEpisodes = true);
+  /// Reads the selected day from the tracked shows; no network here.
+  void _loadEpisodesForSelectedDay() {
+    if (!mounted) return;
+    _followToday();
+    final episodes = _entriesFor(_selectedDay);
+    setState(() {
+      _allDayEpisodes = episodes;
+      _isLoadingEpisodes =
+          episodes.isEmpty && _hasSeries && NewEpisodeService.checking.value;
+    });
+  }
 
-    try {
-      final episodes = await _service.getEpisodesForDay(
-        _selectedDay,
-        forceRefresh: forceRefresh,
-      );
-
-      if (mounted) {
-        setState(() {
-          _allDayEpisodes = episodes;
-          _isLoadingEpisodes = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingEpisodes = false);
-      }
-    }
+  /// Pull to refresh: checks the shows whose dates are older than the cache
+  /// allows (the proxy's rate limit rules out asking again for all of them).
+  Future<void> _refresh() async {
+    await NewEpisodeService.refresh();
+    _loadEpisodesForSelectedDay();
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
@@ -178,13 +280,10 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
     );
   }
 
-  String _formatWeekdayShort(DateTime dt) => _weekdaysShort[dt.weekday - 1];
-  String _formatMonthShort(DateTime dt) => _monthsShort[dt.month - 1];
-  String _formatFullDate(DateTime dt) {
-    final weekday = _weekdaysFull[dt.weekday - 1];
-    final month = _monthsFull[dt.month - 1];
-    return '$weekday, $month ${dt.day}, ${dt.year}';
-  }
+  // In the app's language: 周一 / Mon, 10月 / Oct.
+  String get _localeTag => Localizations.localeOf(context).toLanguageTag();
+  String _formatWeekdayShort(DateTime dt) => DateFormat.E(_localeTag).format(dt);
+  String _formatMonthShort(DateTime dt) => DateFormat.MMM(_localeTag).format(dt);
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +298,7 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
         child: RefreshIndicator(
           color: tokens.accent,
           backgroundColor: tokens.surfaceRaised,
-          onRefresh: () => _loadEpisodesForSelectedDay(forceRefresh: true),
+          onRefresh: _refresh,
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
@@ -255,14 +354,14 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  l10nCurrent().calTitle,
+                  l10nCurrent().newEpCalTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
                 ),
                 if (!isMobile)
                   Text(
-                    l10nCurrent().calSubtitle,
+                    l10nCurrent().newEpCalSubtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: ZplayType.bodySmall.toStyle(color: tokens.textMuted),
@@ -359,8 +458,12 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
                         color: isSelected ? tokens.accentSubtle : tokens.surface,
                         borderRadius: BorderRadius.circular(ZplayRadius.md),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      // The whole stack scales down rather than overflow
+                      // the 78 dp row at a large text size.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             weekdayStr,
@@ -377,8 +480,12 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
                                 ),
                           ),
                           const SizedBox(height: 3),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          // Scales down rather than overflow at a large
+                          // text size.
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 dayNumStr,
@@ -396,7 +503,21 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
                               ),
                             ],
                           ),
+                          ),
+                          // A saved series airs this day.
+                          const SizedBox(height: 3),
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _dayHasEpisodes(day)
+                                  ? tokens.accent
+                                  : Colors.transparent,
+                            ),
+                          ),
                         ],
+                      ),
                       ),
                     ),
                   ),
@@ -444,7 +565,7 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
                 Icon(
                   Icons.tune_rounded,
                   size: 14,
-                  color: palette.primaryColor.withValues(alpha: 0.8),
+                  color: LuColors.gold.withValues(alpha: 0.8),
                 ),
                 if (!isMobile) ...[
                   const SizedBox(width: 4),
@@ -633,7 +754,17 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
         SliverFillRemaining(
           hasScrollBody: false,
           child: Center(
-            child: CircularProgressIndicator(color: tokens.accent),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: tokens.accent),
+                const SizedBox(height: 12),
+                Text(
+                  l10nCurrent().newEpCalChecking,
+                  style: ZplayType.label.toStyle(color: tokens.textMuted),
+                ),
+              ],
+            ),
           ),
         ),
       ];
@@ -643,6 +774,43 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
 
     if (episodes.isEmpty) {
       final isNetworkFiltered = _selectedNetwork != 'All';
+      // Nothing to follow yet: say how to fill the calendar.
+      if (!_hasSeries) {
+        return [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.bookmark_add_outlined,
+                      size: 48,
+                      color: tokens.textDisabled,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      l10nCurrent().newEpCalEmptyTitle,
+                      textAlign: TextAlign.center,
+                      style: ZplayType.title
+                          .copyWith(size: 16, weight: FontWeight.w700)
+                          .toStyle(color: tokens.textEmphasis),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      l10nCurrent().newEpCalEmptyBody,
+                      textAlign: TextAlign.center,
+                      style: ZplayType.label.toStyle(color: tokens.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ];
+      }
       return [
         SliverFillRemaining(
           hasScrollBody: false,
@@ -659,7 +827,7 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
                 Text(
                   isNetworkFiltered
                       ? l10nCurrent().cal2NoEpisodesOnNetwork(_selectedNetwork)
-                      : l10nCurrent().calNoEpisodesThisDay,
+                      : l10nCurrent().newEpCalNoneThisDay,
                   style: ZplayType.title
                       .copyWith(size: 16, weight: FontWeight.w700)
                       .toStyle(color: tokens.textEmphasis),
@@ -691,7 +859,7 @@ class _TvCalendarPageState extends State<TvCalendarPage> {
       ];
     }
 
-    final dateTitle = _formatFullDate(_selectedDay);
+    final dateTitle = MaterialLocalizations.of(context).formatFullDate(_selectedDay);
 
     return [
         // Day Header Summary

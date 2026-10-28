@@ -28,7 +28,6 @@ import '../../services/debrid/debrid_rejection_store.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/scraper/title_match.dart';
 import '../../services/stream/stream_service.dart';
-import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/theme/glass_settings.dart';
 import '../../services/scraper/builtin_providers_settings_service.dart';
@@ -40,6 +39,7 @@ import '../settings/settings_page.dart';
 import '../details/details_page.dart';
 import '../../utils/navigation/route_transitions.dart';
 import '../../services/storage/app_image_cache.dart';
+import '../../widgets/player/lu_player_style.dart';
 
 // ---------------------------------------------------------------------------
 // WatchScreen
@@ -756,7 +756,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
 
     final background = Stack(
       children: [
-        Positioned.fill(child: ColoredBox(color: context.tokens.bg)),
+        Positioned.fill(child: ColoredBox(color: luTokens.bg)),
         if (bgUrl != null) _buildBackdrop(bgUrl, screenSize, isDesktop),
       ],
     );
@@ -776,7 +776,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
     );
 
     return Scaffold(
-      backgroundColor: context.tokens.bg,
+      backgroundColor: luTokens.bg,
       body: ValueListenableBuilder<bool>(
         valueListenable: GlassSettings.enabled,
         builder: (context, enabled, _) {
@@ -809,7 +809,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
             imageUrl: url,
             cacheManager: AppImageCache.manager,
             fit: BoxFit.cover,
-            errorWidget: (_, __, ___) => ColoredBox(color: context.tokens.bg)),
+            errorWidget: (_, __, ___) => ColoredBox(color: luTokens.bg)),
           // Left-to-right dimming: dark on left (text side), lighter on right
           DecoratedBox(
             decoration: BoxDecoration(
@@ -817,9 +817,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  context.tokens.bg.withValues(alpha: isDesktop ? 0.92 : 0.88),
-                  context.tokens.bg.withValues(alpha: isDesktop ? 0.70 : 0.60),
-                  context.tokens.bg.withValues(alpha: isDesktop ? 0.20 : 0.15),
+                  luTokens.bg.withValues(alpha: isDesktop ? 0.92 : 0.88),
+                  luTokens.bg.withValues(alpha: isDesktop ? 0.70 : 0.60),
+                  luTokens.bg.withValues(alpha: isDesktop ? 0.20 : 0.15),
                 ],
                 stops: const [0.0, 0.5, 1.0],
               ),
@@ -833,8 +833,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  context.tokens.bg.withValues(alpha: 0.30),
-                  context.tokens.bg.withValues(alpha: 0.85),
+                  luTokens.bg.withValues(alpha: 0.30),
+                  luTokens.bg.withValues(alpha: 0.85),
                 ],
                 stops: const [0.0, 0.6, 1.0],
               ),
@@ -933,14 +933,14 @@ class _WatchScreenState extends State<_WatchScreenBody>
                           children: [
                             Icon(
                               Icons.stream_rounded,
-                              color: context.tokens.accent,
+                              color: luTokens.accent,
                               size: 20,
                             ),
                             const SizedBox(width: ZplaySpacing.s8),
                             Text(
                               l10nOf(context).watchSources,
                               style: ZplayType.title.toStyle(
-                                color: context.tokens.textPrimary,
+                                color: luTokens.textPrimary,
                               ),
                             ),
                           ],
@@ -952,7 +952,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                                   : l10nOf(context).watchFoundSearching(filtered.length))
                               : l10nOf(context).watchFound(filtered.length),
                           style: ZplayType.bodySmall.toStyle(
-                            color: context.tokens.textMuted,
+                            color: luTokens.textMuted,
                           ),
                         ),
                       ],
@@ -968,19 +968,19 @@ class _WatchScreenState extends State<_WatchScreenBody>
                             'debrid',
                             '⚡ ${l10nOf(context).watchFilterDebrid(_debridServiceName ?? 'Debrid', _sources.where(_isDebridSource).length)}',
                             Icons.bolt_rounded,
-                            context.tokens.info,
+                            luTokens.info,
                           ),
                           _buildTypeChip(
                             'torrent',
                             '🧲 ${l10nOf(context).watchFilterTorrents(_sources.where((s) => s.isTorrent).length)}',
                             Icons.share_rounded,
-                            context.tokens.accent,
+                            luTokens.accent,
                           ),
                           _buildTypeChip(
                             'direct',
                             '🌐 ${l10nOf(context).watchFilterDirect(_sources.where((s) => s.isHttpDirect).length)}',
                             Icons.link_rounded,
-                            context.tokens.success,
+                            luTokens.success,
                           ),
                         ],
                       ),
@@ -1073,9 +1073,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 6),
             decoration: BoxDecoration(
-              color: context.tokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
+              color: luTokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
               borderRadius: ZplayRadius.smAll,
-              border: Border.all(color: context.tokens.accent.withValues(alpha: 0.3)),
+              border: Border.all(color: luTokens.accent.withValues(alpha: 0.3)),
             ),
             child: Text(
               _isCollection
@@ -1083,7 +1083,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   : 'S${ep.season ?? '?' }E${ep.episode ?? '?' }',
               style: ZplayType.label
                   .copyWith(weight: FontWeight.w700, letterSpacing: 0.5)
-                  .toStyle(color: context.tokens.accent),
+                  .toStyle(color: luTokens.accent),
             ),
           ),
           const SizedBox(height: ZplaySpacing.s12),
@@ -1100,7 +1100,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
             child: Text(
               ep.title,
               style: ZplayType.title.toStyle(
-                color: context.tokens.textPrimary.withValues(alpha: 0.85),
+                color: luTokens.textPrimary.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -1172,7 +1172,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
       text,
       style: ZplayType.display
           .copyWith(size: isDesktop ? 36 : 28)
-          .toStyle(color: context.tokens.textPrimary)
+          .toStyle(color: luTokens.textPrimary)
           .copyWith(
             shadows: [
               Shadow(
@@ -1194,7 +1194,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
           meta.year!,
           style: ZplayType.body
               .copyWith(weight: FontWeight.w600)
-              .toStyle(color: context.tokens.textPrimary),
+              .toStyle(color: luTokens.textPrimary),
         ),
       );
     }
@@ -1202,9 +1202,14 @@ class _WatchScreenState extends State<_WatchScreenBody>
     if (meta.runtime != null && meta.runtime!.isNotEmpty) {
       items.add(
         Text(
-          meta.runtime!,
+          // Cinemeta writes English ("114 min", "1h 30min"); read the minutes
+          // out and say them in the UI's language, as the details page does.
+          switch (parseRuntime(meta.runtime)) {
+            final d? => l10nOf(context).detailsRuntimeMinutes(d.inMinutes),
+            null => meta.runtime!,
+          },
           style: ZplayType.body
-              .toStyle(color: context.tokens.textSecondary),
+              .toStyle(color: luTokens.textSecondary),
         ),
       );
     }
@@ -1214,20 +1219,20 @@ class _WatchScreenState extends State<_WatchScreenBody>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s8, vertical: 3),
           decoration: BoxDecoration(
-            color: context.tokens.warning.withValues(alpha: ZplayOpacity.overlayHover),
+            color: luTokens.warning.withValues(alpha: ZplayOpacity.overlayHover),
             borderRadius: ZplayRadius.xsAll,
-            border: Border.all(color: context.tokens.warning.withValues(alpha: 0.4)),
+            border: Border.all(color: luTokens.warning.withValues(alpha: 0.4)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.star_rounded, color: context.tokens.warning, size: 14),
+              Icon(Icons.star_rounded, color: luTokens.warning, size: 14),
               const SizedBox(width: 3),
               Text(
                 meta.imdbRating!,
                 style: ZplayType.bodySmall
                     .copyWith(weight: FontWeight.w700)
-                    .toStyle(color: context.tokens.warning),
+                    .toStyle(color: luTokens.warning),
               ),
             ],
           ),
@@ -1244,7 +1249,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
             padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s8),
             child: Text(
               '·',
-              style: ZplayType.body.toStyle(color: context.tokens.textMuted),
+              style: ZplayType.body.toStyle(color: luTokens.textMuted),
             ),
           ),
         );
@@ -1267,15 +1272,15 @@ class _WatchScreenState extends State<_WatchScreenBody>
             (g) => Container(
               padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 6),
               decoration: BoxDecoration(
-                color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault),
+                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault),
                 borderRadius: ZplayRadius.fullAll,
-                border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)),
+                border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)),
               ),
               child: Text(
                 g,
                 style: ZplayType.bodySmall
                     .copyWith(weight: FontWeight.w500)
-                    .toStyle(color: context.tokens.textSecondary),
+                    .toStyle(color: luTokens.textSecondary),
               ),
             ),
           )
@@ -1296,13 +1301,13 @@ class _WatchScreenState extends State<_WatchScreenBody>
             overflow: TextOverflow.ellipsis,
             style: ZplayType.body
                 .copyWith(height: 1.6)
-                .toStyle(color: context.tokens.textSecondary),
+                .toStyle(color: luTokens.textSecondary),
           ),
           secondChild: Text(
             text,
             style: ZplayType.body
                 .copyWith(height: 1.6)
-                .toStyle(color: context.tokens.textSecondary),
+                .toStyle(color: luTokens.textSecondary),
           ),
           crossFadeState: _synopsisExpanded
               ? CrossFadeState.showSecond
@@ -1330,7 +1335,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 _synopsisExpanded ? l10nOf(context).detailsShowLess : l10nOf(context).detailsReadMore,
                 style: ZplayType.label
                     .copyWith(weight: FontWeight.w600)
-                    .toStyle(color: context.tokens.accent),
+                    .toStyle(color: luTokens.accent),
               ),
             );
           },
@@ -1347,7 +1352,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
           label,
           style: ZplayType.caption
               .copyWith(weight: FontWeight.w600, letterSpacing: 1.0)
-              .toStyle(color: context.tokens.textMuted),
+              .toStyle(color: luTokens.textMuted),
         ),
         const SizedBox(height: ZplaySpacing.s8),
         Wrap(
@@ -1361,12 +1366,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: context.tokens.surfaceRaised,
+                    color: luTokens.surfaceRaised,
                     borderRadius: ZplayRadius.fullAll,
                   ),
                   child: Text(
                     name,
-                    style: ZplayType.bodySmall.toStyle(color: context.tokens.textSecondary),
+                    style: ZplayType.bodySmall.toStyle(color: luTokens.textSecondary),
                   ),
                 ),
               )
@@ -1441,18 +1446,18 @@ class _WatchScreenState extends State<_WatchScreenBody>
       builder: (context, _) => Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: context.tokens.surface.withValues(alpha: 0.6),
+          color: luTokens.surface.withValues(alpha: 0.6),
           borderRadius: ZplayRadius.smAll,
-          border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle)),
+          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: context.tokens.textSecondary, size: 22),
+            Icon(icon, color: luTokens.textSecondary, size: 22),
             const SizedBox(height: ZplaySpacing.s4),
             Text(
               label,
-              style: ZplayType.caption.toStyle(color: context.tokens.textSecondary),
+              style: ZplayType.caption.toStyle(color: luTokens.textSecondary),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1479,12 +1484,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.stream_rounded, color: context.tokens.accent, size: 20),
+                Icon(Icons.stream_rounded, color: luTokens.accent, size: 20),
                 const SizedBox(width: ZplaySpacing.s8),
                 Text(
                   l10nOf(context).watchSources,
                   style: ZplayType.title.toStyle(
-                    color: context.tokens.textPrimary,
+                    color: luTokens.textPrimary,
                   ),
                 ),
               ],
@@ -1496,7 +1501,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       : l10nOf(context).watchFoundSearching(filtered.length))
                   : l10nOf(context).watchFound(filtered.length),
               style: ZplayType.bodySmall.toStyle(
-                color: context.tokens.textMuted,
+                color: luTokens.textMuted,
               ),
             ),
           ],
@@ -1514,19 +1519,19 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 'debrid',
                 '⚡ ${l10nOf(context).watchFilterDebrid(_debridServiceName ?? 'Debrid', _sources.where(_isDebridSource).length)}',
                 Icons.bolt_rounded,
-                context.tokens.info,
+                luTokens.info,
               ),
               _buildTypeChip(
                 'torrent',
                 '🧲 ${l10nOf(context).watchFilterTorrents(_sources.where((s) => s.isTorrent).length)}',
                 Icons.share_rounded,
-                context.tokens.accent,
+                luTokens.accent,
               ),
               _buildTypeChip(
                 'direct',
                 '🌐 ${l10nOf(context).watchFilterDirect(_sources.where((s) => s.isHttpDirect).length)}',
                 Icons.link_rounded,
-                context.tokens.success,
+                luTokens.success,
               ),
             ],
           ),
@@ -1563,7 +1568,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
     Color? color,
   ) {
     final isSelected = _selectedTypeFilter == typeKey;
-    final activeColor = color ?? context.tokens.accent;
+    final activeColor = color ?? luTokens.accent;
 
     return FocusableCard(
       onTap: () {
@@ -1579,12 +1584,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
           decoration: BoxDecoration(
             color: isSelected
                 ? activeColor.withValues(alpha: 0.25)
-                : context.tokens.surface,
+                : luTokens.surface,
             borderRadius: ZplayRadius.smAll,
             border: Border.all(
               color: isSelected
                   ? activeColor
-                  : context.tokens.textPrimary
+                  : luTokens.textPrimary
                       .withValues(alpha: ZplayOpacity.borderMedium),
               width: isSelected ? 1.5 : 1.0,
             ),
@@ -1595,7 +1600,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? activeColor : context.tokens.textEmphasis,
+                color: isSelected ? activeColor : luTokens.textEmphasis,
               ),
               const SizedBox(width: 6),
               Text(
@@ -1606,8 +1611,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     )
                     .toStyle(
                       color: isSelected
-                          ? context.tokens.textPrimary
-                          : context.tokens.textEmphasis,
+                          ? luTokens.textPrimary
+                          : luTokens.textEmphasis,
                     ),
               ),
             ],
@@ -1619,7 +1624,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
 
   /// The "自动（推荐）" row above the list.
   Widget _buildAutoRow() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final l10n = l10nOf(context);
     final subtitle = _autoPicking
         ? l10n.watchAutoPicking
@@ -1748,7 +1753,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
               borderRadius: ZplayRadius.mdAll,
               boxShadow: [
                 BoxShadow(
-                  color: context.tokens.bg.withValues(alpha: 0.25),
+                  color: luTokens.bg.withValues(alpha: 0.25),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -1763,8 +1768,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   borderRadius: ZplayRadius.mdAll,
                   border: Border.all(
                     color: _selectedSeederFilter != 'all'
-                        ? context.tokens.success.withValues(alpha: 0.6)
-                        : context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
+                        ? luTokens.success.withValues(alpha: 0.6)
+                        : luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
                   ),
                 ),
                 child: Row(
@@ -1773,8 +1778,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     Icon(
                       Icons.people_alt_rounded,
                       color: _selectedSeederFilter != 'all'
-                          ? context.tokens.success
-                          : context.tokens.textEmphasis,
+                          ? luTokens.success
+                          : luTokens.textEmphasis,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
@@ -1784,14 +1789,14 @@ class _WatchScreenState extends State<_WatchScreenBody>
                           .copyWith(weight: FontWeight.w600)
                           .toStyle(
                             color: _selectedSeederFilter != 'all'
-                                ? context.tokens.success
-                                : context.tokens.textPrimary,
+                                ? luTokens.success
+                                : luTokens.textPrimary,
                           ),
                     ),
                     const SizedBox(width: ZplaySpacing.s4),
                     Icon(
                       Icons.arrow_drop_down,
-                      color: context.tokens.textEmphasis,
+                      color: luTokens.textEmphasis,
                       size: 20,
                     ),
                   ],
@@ -1858,7 +1863,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       borderRadius: ZplayRadius.mdAll,
                       boxShadow: [
                         BoxShadow(
-                          color: context.tokens.bg.withValues(alpha: 0.60),
+                          color: luTokens.bg.withValues(alpha: 0.60),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -1872,7 +1877,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         padding: const EdgeInsets.all(ZplaySpacing.s8),
                         decoration: BoxDecoration(
                           borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
                         ),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -1884,7 +1889,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
                               _buildSeederDropdownItem(l10nOf(context).watchSeedsMostLong, 'most'),
@@ -1923,7 +1928,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
               : Colors.transparent,
         ),
         child: Row(
@@ -1937,13 +1942,13 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     )
                     .toStyle(
                       color: isSelected
-                          ? context.tokens.textPrimary
-                          : context.tokens.textEmphasis,
+                          ? luTokens.textPrimary
+                          : luTokens.textEmphasis,
                     ),
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle, color: context.tokens.success, size: 18),
+              Icon(Icons.check_circle, color: luTokens.success, size: 18),
           ],
         ),
       ),
@@ -1964,7 +1969,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
               borderRadius: ZplayRadius.mdAll,
               boxShadow: [
                 BoxShadow(
-                  color: context.tokens.bg.withValues(alpha: 0.25),
+                  color: luTokens.bg.withValues(alpha: 0.25),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -1977,14 +1982,14 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.mdAll,
-                  border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                  border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.data_usage_rounded,
-                      color: context.tokens.textEmphasis,
+                      color: luTokens.textEmphasis,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
@@ -1992,12 +1997,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       currentText,
                       style: ZplayType.label
                           .copyWith(weight: FontWeight.w600)
-                          .toStyle(color: context.tokens.textPrimary),
+                          .toStyle(color: luTokens.textPrimary),
                     ),
                     const SizedBox(width: ZplaySpacing.s4),
                     Icon(
                       Icons.arrow_drop_down,
-                      color: context.tokens.textEmphasis,
+                      color: luTokens.textEmphasis,
                       size: 20,
                     ),
                   ],
@@ -2064,7 +2069,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       borderRadius: ZplayRadius.mdAll,
                       boxShadow: [
                         BoxShadow(
-                          color: context.tokens.bg.withValues(alpha: 0.60),
+                          color: luTokens.bg.withValues(alpha: 0.60),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -2078,7 +2083,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         padding: const EdgeInsets.all(ZplaySpacing.s8),
                         decoration: BoxDecoration(
                           borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
                         ),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -2090,7 +2095,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
                               _buildSizeDropdownItem('< 1 GB', '<1gb'),
@@ -2101,7 +2106,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
                               _buildSizeDropdownItem(l10nOf(context).watchSizeLargestFirst, 'largest'),
@@ -2137,7 +2142,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
               : Colors.transparent,
         ),
         child: Row(
@@ -2151,13 +2156,13 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     )
                     .toStyle(
                       color: isSelected
-                          ? context.tokens.textPrimary
-                          : context.tokens.textEmphasis,
+                          ? luTokens.textPrimary
+                          : luTokens.textEmphasis,
                     ),
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle, color: context.tokens.textPrimary, size: 18),
+              Icon(Icons.check_circle, color: luTokens.textPrimary, size: 18),
           ],
         ),
       ),
@@ -2182,7 +2187,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
               borderRadius: ZplayRadius.mdAll,
               boxShadow: [
                 BoxShadow(
-                  color: context.tokens.bg.withValues(alpha: 0.25),
+                  color: luTokens.bg.withValues(alpha: 0.25),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -2195,7 +2200,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.mdAll,
-                  border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                  border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2204,12 +2209,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       currentText,
                       style: ZplayType.label
                           .copyWith(weight: FontWeight.w600)
-                          .toStyle(color: context.tokens.textPrimary),
+                          .toStyle(color: luTokens.textPrimary),
                     ),
                     const SizedBox(width: ZplaySpacing.s4),
                     Icon(
                       Icons.arrow_drop_down,
-                      color: context.tokens.textEmphasis,
+                      color: luTokens.textEmphasis,
                       size: 20,
                     ),
                   ],
@@ -2280,7 +2285,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       borderRadius: ZplayRadius.mdAll,
                       boxShadow: [
                         BoxShadow(
-                          color: context.tokens.bg.withValues(alpha: 0.60),
+                          color: luTokens.bg.withValues(alpha: 0.60),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -2294,7 +2299,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         padding: const EdgeInsets.all(ZplaySpacing.s8),
                         decoration: BoxDecoration(
                           borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
                         ),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -2306,7 +2311,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
                               ...addons.map((a) => _buildDropdownItem(displayAddonName(a), a)),
@@ -2341,7 +2346,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
               : Colors.transparent,
         ),
         child: Row(
@@ -2355,13 +2360,13 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     )
                     .toStyle(
                       color: isSelected
-                          ? context.tokens.textPrimary
-                          : context.tokens.textEmphasis,
+                          ? luTokens.textPrimary
+                          : luTokens.textEmphasis,
                     ),
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle, color: context.tokens.textPrimary, size: 20),
+              Icon(Icons.check_circle, color: luTokens.textPrimary, size: 20),
           ],
         ),
       ),
@@ -2412,7 +2417,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
               borderRadius: ZplayRadius.mdAll,
               boxShadow: [
                 BoxShadow(
-                  color: context.tokens.bg.withValues(alpha: 0.25),
+                  color: luTokens.bg.withValues(alpha: 0.25),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -2427,8 +2432,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   borderRadius: ZplayRadius.mdAll,
                   border: Border.all(
                     color: isActive
-                        ? context.tokens.accent.withValues(alpha: 0.6)
-                        : context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
+                        ? luTokens.accent.withValues(alpha: 0.6)
+                        : luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
                   ),
                 ),
                 child: Row(
@@ -2436,7 +2441,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   children: [
                     Icon(
                       Icons.audiotrack_rounded,
-                      color: isActive ? context.tokens.accent : context.tokens.textEmphasis,
+                      color: isActive ? luTokens.accent : luTokens.textEmphasis,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
@@ -2445,13 +2450,13 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       style: ZplayType.label
                           .copyWith(weight: FontWeight.w600)
                           .toStyle(
-                            color: isActive ? context.tokens.accent : context.tokens.textPrimary,
+                            color: isActive ? luTokens.accent : luTokens.textPrimary,
                           ),
                     ),
                     const SizedBox(width: ZplaySpacing.s4),
                     Icon(
                       Icons.arrow_drop_down,
-                      color: context.tokens.textEmphasis,
+                      color: luTokens.textEmphasis,
                       size: 20,
                     ),
                   ],
@@ -2506,7 +2511,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     borderRadius: ZplayRadius.mdAll,
                     boxShadow: [
                       BoxShadow(
-                        color: context.tokens.bg.withValues(alpha: 0.40),
+                        color: luTokens.bg.withValues(alpha: 0.40),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -2520,7 +2525,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s8, horizontal: 6),
                       decoration: BoxDecoration(
                         borderRadius: ZplayRadius.mdAll,
-                        border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                        border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
                       ),
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
@@ -2532,7 +2537,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                             const SizedBox(height: ZplaySpacing.s4),
                             Container(
                               height: 1,
-                              color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                              color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
                             ),
                             const SizedBox(height: ZplaySpacing.s4),
                             _buildAudioDropdownItem(l10nOf(context).watchAudioMulti, 'multi'),
@@ -2576,7 +2581,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
               : Colors.transparent,
         ),
         child: Row(
@@ -2590,13 +2595,13 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     )
                     .toStyle(
                       color: isSelected
-                          ? context.tokens.textPrimary
-                          : context.tokens.textEmphasis,
+                          ? luTokens.textPrimary
+                          : luTokens.textEmphasis,
                     ),
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle, color: context.tokens.accent, size: 18),
+              Icon(Icons.check_circle, color: luTokens.accent, size: 18),
           ],
         ),
       ),
@@ -2613,11 +2618,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
         margin: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: ZplaySpacing.s12),
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.lgAll,
-          color: context.tokens.surfaceOverlay.withValues(alpha: 0.96),
-          border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+          color: luTokens.surfaceOverlay.withValues(alpha: 0.96),
+          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
           boxShadow: [
             BoxShadow(
-              color: context.tokens.bg.withValues(alpha: 0.5),
+              color: luTokens.bg.withValues(alpha: 0.5),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -2638,7 +2643,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       height: 4,
                       margin: const EdgeInsets.only(bottom: ZplaySpacing.s12),
                       decoration: BoxDecoration(
-                        color: context.tokens.textPrimary.withValues(alpha: 0.3),
+                        color: luTokens.textPrimary.withValues(alpha: 0.3),
                         borderRadius: ZplayRadius.xsAll,
                       ),
                     ),
@@ -2646,7 +2651,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   header,
                   const SizedBox(height: ZplaySpacing.s8),
                   Divider(
-                    color: context.tokens.textPrimary.withValues(
+                    color: luTokens.textPrimary.withValues(
                       alpha: ZplayOpacity.borderMedium,
                     ),
                     height: 1,
@@ -2698,8 +2703,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     )
                     .toStyle(
                       color: isSelected
-                          ? context.tokens.textPrimary
-                          : context.tokens.textEmphasis,
+                          ? luTokens.textPrimary
+                          : luTokens.textEmphasis,
                     ),
               ),
             ),
@@ -2724,12 +2729,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: context.tokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: luTokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
                   Icons.audiotrack_rounded,
-                  color: context.tokens.accent,
+                  color: luTokens.accent,
                   size: 20,
                 ),
               ),
@@ -2739,11 +2744,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   l10nCurrent().plyAudioDubLanguage,
                   style: ZplayType.subtitle
                       .copyWith(weight: FontWeight.w700)
-                      .toStyle(color: context.tokens.textPrimary),
+                      .toStyle(color: luTokens.textPrimary),
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: context.tokens.textSecondary, size: 20),
+                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -2760,7 +2765,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAllAudio,
                     isSelected: _selectedAudioFilter == 'all',
-                    activeColor: context.tokens.accent,
+                    activeColor: luTokens.accent,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'all');
                       Navigator.pop(ctx);
@@ -2769,7 +2774,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioMulti,
                     isSelected: _selectedAudioFilter == 'multi',
-                    activeColor: context.tokens.accent,
+                    activeColor: luTokens.accent,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'multi');
                       Navigator.pop(ctx);
@@ -2778,7 +2783,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioEnglish,
                     isSelected: _selectedAudioFilter == 'english',
-                    activeColor: context.tokens.accent,
+                    activeColor: luTokens.accent,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'english');
                       Navigator.pop(ctx);
@@ -2787,7 +2792,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioHindi,
                     isSelected: _selectedAudioFilter == 'hindi',
-                    activeColor: context.tokens.warning,
+                    activeColor: luTokens.warning,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'hindi');
                       Navigator.pop(ctx);
@@ -2796,7 +2801,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioGerman,
                     isSelected: _selectedAudioFilter == 'german',
-                    activeColor: context.tokens.warning,
+                    activeColor: luTokens.warning,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'german');
                       Navigator.pop(ctx);
@@ -2805,7 +2810,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioFrench,
                     isSelected: _selectedAudioFilter == 'french',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'french');
                       Navigator.pop(ctx);
@@ -2814,7 +2819,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioCastilian,
                     isSelected: _selectedAudioFilter == 'spanish_castilian',
-                    activeColor: context.tokens.warning,
+                    activeColor: luTokens.warning,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'spanish_castilian');
                       Navigator.pop(ctx);
@@ -2823,7 +2828,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioLatino,
                     isSelected: _selectedAudioFilter == 'spanish_latino',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'spanish_latino');
                       Navigator.pop(ctx);
@@ -2832,7 +2837,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioSpanish,
                     isSelected: _selectedAudioFilter == 'spanish',
-                    activeColor: context.tokens.warning,
+                    activeColor: luTokens.warning,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'spanish');
                       Navigator.pop(ctx);
@@ -2841,7 +2846,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioRussian,
                     isSelected: _selectedAudioFilter == 'russian',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'russian');
                       Navigator.pop(ctx);
@@ -2850,7 +2855,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioJapanese,
                     isSelected: _selectedAudioFilter == 'japanese',
-                    activeColor: context.tokens.danger,
+                    activeColor: luTokens.danger,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'japanese');
                       Navigator.pop(ctx);
@@ -2859,7 +2864,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAudioItalian,
                     isSelected: _selectedAudioFilter == 'italian',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedAudioFilter = 'italian');
                       Navigator.pop(ctx);
@@ -2887,12 +2892,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: context.tokens.success.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: luTokens.success.withValues(alpha: ZplayOpacity.overlayHover),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
                   Icons.people_alt_rounded,
-                  color: context.tokens.success,
+                  color: luTokens.success,
                   size: 20,
                 ),
               ),
@@ -2902,11 +2907,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   l10nOf(context).watchSeedersFilter,
                   style: ZplayType.subtitle
                       .copyWith(weight: FontWeight.w700)
-                      .toStyle(color: context.tokens.textPrimary),
+                      .toStyle(color: luTokens.textPrimary),
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: context.tokens.textSecondary, size: 20),
+                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -2923,7 +2928,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSeedsAll,
                     isSelected: _selectedSeederFilter == 'all',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedSeederFilter = 'all');
                       Navigator.pop(ctx);
@@ -2932,7 +2937,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSeedsMostLong,
                     isSelected: _selectedSeederFilter == 'most',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedSeederFilter = 'most');
                       Navigator.pop(ctx);
@@ -2941,7 +2946,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSeedsAtLeast(50),
                     isSelected: _selectedSeederFilter == '50+',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedSeederFilter = '50+');
                       Navigator.pop(ctx);
@@ -2950,7 +2955,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSeedsAtLeast(20),
                     isSelected: _selectedSeederFilter == '20+',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedSeederFilter = '20+');
                       Navigator.pop(ctx);
@@ -2959,7 +2964,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSeedsAtLeast(5),
                     isSelected: _selectedSeederFilter == '5+',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedSeederFilter = '5+');
                       Navigator.pop(ctx);
@@ -2968,7 +2973,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSeedsActiveLong,
                     isSelected: _selectedSeederFilter == '1+',
-                    activeColor: context.tokens.success,
+                    activeColor: luTokens.success,
                     onTap: () {
                       setState(() => _selectedSeederFilter = '1+');
                       Navigator.pop(ctx);
@@ -2996,12 +3001,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: context.tokens.info.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: luTokens.info.withValues(alpha: ZplayOpacity.overlayHover),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
                   Icons.folder_open_rounded,
-                  color: context.tokens.info,
+                  color: luTokens.info,
                   size: 20,
                 ),
               ),
@@ -3011,11 +3016,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   l10nOf(context).watchSizeFilter,
                   style: ZplayType.subtitle
                       .copyWith(weight: FontWeight.w700)
-                      .toStyle(color: context.tokens.textPrimary),
+                      .toStyle(color: luTokens.textPrimary),
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: context.tokens.textSecondary, size: 20),
+                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -3032,7 +3037,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSizeAll,
                     isSelected: _selectedSizeFilter == null,
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = null);
                       Navigator.pop(ctx);
@@ -3041,7 +3046,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSizeLargestFirst,
                     isSelected: _selectedSizeFilter == 'largest',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = 'largest');
                       Navigator.pop(ctx);
@@ -3050,7 +3055,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchSizeSmallestFirst,
                     isSelected: _selectedSizeFilter == 'smallest',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = 'smallest');
                       Navigator.pop(ctx);
@@ -3059,7 +3064,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: '< 1 GB',
                     isSelected: _selectedSizeFilter == '<1gb',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = '<1gb');
                       Navigator.pop(ctx);
@@ -3068,7 +3073,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: '1 - 5 GB',
                     isSelected: _selectedSizeFilter == '1-5gb',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = '1-5gb');
                       Navigator.pop(ctx);
@@ -3077,7 +3082,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: '5 - 15 GB',
                     isSelected: _selectedSizeFilter == '5-15gb',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = '5-15gb');
                       Navigator.pop(ctx);
@@ -3086,7 +3091,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: '15 - 30 GB',
                     isSelected: _selectedSizeFilter == '15-30gb',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = '15-30gb');
                       Navigator.pop(ctx);
@@ -3095,7 +3100,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: '> 30 GB',
                     isSelected: _selectedSizeFilter == '>30gb',
-                    activeColor: context.tokens.info,
+                    activeColor: luTokens.info,
                     onTap: () {
                       setState(() => _selectedSizeFilter = '>30gb');
                       Navigator.pop(ctx);
@@ -3123,12 +3128,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                  color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
                   Icons.extension_rounded,
-                  color: context.tokens.textPrimary,
+                  color: luTokens.textPrimary,
                   size: 20,
                 ),
               ),
@@ -3138,11 +3143,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   l10nOf(context).watchProviderFilter,
                   style: ZplayType.subtitle
                       .copyWith(weight: FontWeight.w700)
-                      .toStyle(color: context.tokens.textPrimary),
+                      .toStyle(color: luTokens.textPrimary),
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: context.tokens.textSecondary, size: 20),
+                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -3159,7 +3164,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   _buildBottomSheetItem(
                     title: l10nOf(context).watchAllSources,
                     isSelected: _selectedAddonFilter == null,
-                    activeColor: context.tokens.textPrimary,
+                    activeColor: luTokens.textPrimary,
                     onTap: () {
                       setState(() => _selectedAddonFilter = null);
                       Navigator.pop(ctx);
@@ -3169,7 +3174,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     _buildBottomSheetItem(
                       title: displayAddonName(addon),
                       isSelected: _selectedAddonFilter == addon,
-                      activeColor: context.tokens.textPrimary,
+                      activeColor: luTokens.textPrimary,
                       onTap: () {
                         setState(() => _selectedAddonFilter = addon);
                         Navigator.pop(ctx);
@@ -3212,15 +3217,15 @@ class _WatchScreenState extends State<_WatchScreenBody>
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: context.tokens.bg.withValues(alpha: 0.7),
+        color: luTokens.bg.withValues(alpha: 0.7),
         shape: BoxShape.circle,
-        border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+        border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
       ),
       child: IconButton(
         icon: Icon(
           Icons.arrow_back_ios_new_rounded,
           size: 18,
-          color: context.tokens.textPrimary,
+          color: luTokens.textPrimary,
         ),
         onPressed: () => Navigator.pop(context),
         padding: EdgeInsets.zero,
@@ -3384,7 +3389,7 @@ class _SourceCardState extends State<_SourceCard> {
           reason == SourceDeadReason.noSeeders
               ? l10nOf(context).watchDeadNoSeeds
               : l10nOf(context).watchDeadUnreachable,
-          context.tokens.textMuted,
+          luTokens.textMuted,
         ),
       );
     }
@@ -3394,26 +3399,26 @@ class _SourceCardState extends State<_SourceCard> {
       Color badgeColor;
       switch (s.quality) {
         case '4K':
-          badgeColor = context.tokens.accent;
+          badgeColor = luTokens.accent;
           break;
         case '1080p':
-          badgeColor = context.tokens.info;
+          badgeColor = luTokens.info;
           break;
         case '720p':
-          badgeColor = context.tokens.textSecondary;
+          badgeColor = luTokens.textSecondary;
           break;
         default:
-          badgeColor = context.tokens.danger;
+          badgeColor = luTokens.danger;
       }
       badges.add(_badge(s.quality!, badgeColor));
     }
 
-    if (s.isHDR) badges.add(_badge('HDR', context.tokens.warning));
+    if (s.isHDR) badges.add(_badge('HDR', luTokens.warning));
     if (widget.playsViaDebrid) {
       badges.add(
         _badge(
           '⚡ ${widget.debridServiceName ?? 'Debrid'}',
-          context.tokens.info,
+          luTokens.info,
         ),
       );
     }
@@ -3426,23 +3431,23 @@ class _SourceCardState extends State<_SourceCard> {
           reason.isNotEmpty &&
           reason.length <= _rejectionBadgeMaxChars;
       badges.add(
-        _badge(shortReason ? reason : l10nOf(context).watchUnavailable, context.tokens.textMuted),
+        _badge(shortReason ? reason : l10nOf(context).watchUnavailable, luTokens.textMuted),
       );
     }
-    if (s.codec != null) badges.add(_badge(s.codec!, context.tokens.textMuted));
+    if (s.codec != null) badges.add(_badge(s.codec!, luTokens.textMuted));
     badges.add(
       StreamBitrateBadge(
         source: s,
         runtimeMinutes: int.tryParse(widget.detail.runtime ?? ''),
       ),
     );
-    if (s.fileSize != null) badges.add(_badge(s.fileSize!, context.tokens.textMuted));
+    if (s.fileSize != null) badges.add(_badge(s.fileSize!, luTokens.textMuted));
     if (s.seeders != null) {
       final seederColor = s.seeders! >= 20
-          ? context.tokens.success
+          ? luTokens.success
           : (s.seeders! >= 5
-                ? context.tokens.warning
-                : context.tokens.danger);
+                ? luTokens.warning
+                : luTokens.danger);
       badges.add(_badge('👤 ${l10nOf(context).watchSeeds(s.seeders!)}', seederColor));
     }
 
@@ -3451,32 +3456,32 @@ class _SourceCardState extends State<_SourceCard> {
     if (audioBadge != null) {
       Color audioBadgeColor;
       if (audioBadge.contains('MULTI')) {
-        audioBadgeColor = context.tokens.accent;
+        audioBadgeColor = luTokens.accent;
       } else if (audioBadge.contains('HINDI') ||
           audioBadge.contains('TELUGU') ||
           audioBadge.contains('TAMIL') ||
           audioBadge.contains('MALAYALAM') ||
           audioBadge.contains('KANNADA') ||
           audioBadge.contains('PUNJABI')) {
-        audioBadgeColor = context.tokens.warning;
+        audioBadgeColor = luTokens.warning;
       } else if (audioBadge.contains('GER')) {
-        audioBadgeColor = context.tokens.warning;
+        audioBadgeColor = luTokens.warning;
       } else if (audioBadge.contains('FRE')) {
-        audioBadgeColor = context.tokens.info;
+        audioBadgeColor = luTokens.info;
       } else if (audioBadge.contains('CAST')) {
-        audioBadgeColor = context.tokens.warning;
+        audioBadgeColor = luTokens.warning;
       } else if (audioBadge.contains('LAT')) {
-        audioBadgeColor = context.tokens.success;
+        audioBadgeColor = luTokens.success;
       } else if (audioBadge.contains('SPA')) {
-        audioBadgeColor = context.tokens.warning;
+        audioBadgeColor = luTokens.warning;
       } else if (audioBadge.contains('RUS')) {
-        audioBadgeColor = context.tokens.info;
+        audioBadgeColor = luTokens.info;
       } else if (audioBadge.contains('JPN')) {
-        audioBadgeColor = context.tokens.danger;
+        audioBadgeColor = luTokens.danger;
       } else if (audioBadge.contains('ITA')) {
-        audioBadgeColor = context.tokens.success;
+        audioBadgeColor = luTokens.success;
       } else {
-        audioBadgeColor = context.tokens.textMuted;
+        audioBadgeColor = luTokens.textMuted;
       }
       badges.add(_badge(audioBadge, audioBadgeColor));
     }
@@ -3515,18 +3520,18 @@ class _SourceCardState extends State<_SourceCard> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: lit
-                    ? context.tokens.surfaceRaised.withValues(alpha: 0.9)
-                    : context.tokens.surface.withValues(alpha: 0.7),
+                    ? luTokens.surfaceRaised.withValues(alpha: 0.9)
+                    : luTokens.surface.withValues(alpha: 0.7),
                 borderRadius: ZplayRadius.smAll,
                 border: Border.all(
                   color: lit
-                      ? context.tokens.accent.withValues(alpha: 0.3)
-                      : context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle),
+                      ? luTokens.accent.withValues(alpha: 0.3)
+                      : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle),
                 ),
                 boxShadow: lit
                     ? [
                         BoxShadow(
-                          color: context.tokens.accent.withValues(alpha: ZplayOpacity.borderDefault),
+                          color: luTokens.accent.withValues(alpha: ZplayOpacity.borderDefault),
                           blurRadius: 16,
                         ),
                       ]
@@ -3549,13 +3554,13 @@ class _SourceCardState extends State<_SourceCard> {
                           s.providerLabel,
                           style: ZplayType.label
                               .copyWith(weight: FontWeight.w600)
-                              .toStyle(color: context.tokens.textPrimary),
+                              .toStyle(color: luTokens.textPrimary),
                         ),
                         if (s.title != null && s.title!.isNotEmpty) ...[
                           const SizedBox(height: ZplaySpacing.s4),
                           Text(
                             s.title!,
-                            style: ZplayType.bodySmall.toStyle(color: context.tokens.textMuted),
+                            style: ZplayType.bodySmall.toStyle(color: luTokens.textMuted),
                           ),
                         ],
                         if (s.description != null &&
@@ -3567,7 +3572,7 @@ class _SourceCardState extends State<_SourceCard> {
                             overflow: TextOverflow.ellipsis,
                             style: ZplayType.bodySmall
                                 .copyWith(height: 1.3)
-                                .toStyle(color: context.tokens.textSecondary),
+                                .toStyle(color: luTokens.textSecondary),
                           ),
                         ],
                         if (badges.isNotEmpty) ...[
@@ -3592,13 +3597,13 @@ class _SourceCardState extends State<_SourceCard> {
                     height: 36,
                     decoration: BoxDecoration(
                       color: lit
-                          ? context.tokens.accent.withValues(alpha: 0.2)
-                          : context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle),
+                          ? luTokens.accent.withValues(alpha: 0.2)
+                          : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.play_arrow_rounded,
-                      color: lit ? context.tokens.accent : context.tokens.textMuted,
+                      color: lit ? luTokens.accent : luTokens.textMuted,
                       size: 20,
                     ),
                   ),
@@ -3666,10 +3671,10 @@ class _AddonSourceIcon extends StatelessWidget {
         height: 40,
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+          color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
           borderRadius: ZplayRadius.smAll,
           border: Border.all(
-            color: context.tokens.accent.withValues(alpha: 0.25),
+            color: luTokens.accent.withValues(alpha: 0.25),
           ),
         ),
         child: const ZplayLogo(size: 30),
@@ -3686,9 +3691,9 @@ class _AddonSourceIcon extends StatelessWidget {
           height: 40,
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+            color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
             borderRadius: ZplayRadius.smAll,
-            border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+            border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
           ),
           child: ClipRRect(
             borderRadius: ZplayRadius.xsAll,
@@ -3707,9 +3712,9 @@ class _AddonSourceIcon extends StatelessWidget {
         height: 40,
         padding: const EdgeInsets.all(ZplaySpacing.s4),
         decoration: BoxDecoration(
-          color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+          color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
           borderRadius: ZplayRadius.smAll,
-          border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
         ),
         child: ClipRRect(
           borderRadius: ZplayRadius.xsAll,
@@ -3721,14 +3726,14 @@ class _AddonSourceIcon extends StatelessWidget {
             height: 32,
             fit: BoxFit.contain,
             placeholder: (context, url) => Container(
-              color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+              color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
               child: Center(
                 child: SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: context.tokens.accent,
+                    color: luTokens.accent,
                   ),
                 ),
               ),
@@ -3747,16 +3752,16 @@ class _AddonSourceIcon extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: AppThemeService.currentTokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
+        color: luTokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
         borderRadius: ZplayRadius.smAll,
-        border: Border.all(color: AppThemeService.currentTokens.accent.withValues(alpha: 0.3)),
+        border: Border.all(color: luTokens.accent.withValues(alpha: 0.3)),
       ),
       child: Center(
         child: Text(
           firstLetter,
           style: ZplayType.title
               .copyWith(weight: FontWeight.w700)
-              .toStyle(color: AppThemeService.currentTokens.accent),
+              .toStyle(color: luTokens.accent),
         ),
       ),
     );
@@ -3830,17 +3835,17 @@ class _CopyMagnetButtonState extends State<_CopyMagnetButton> {
         content: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle_rounded, color: context.tokens.success, size: 18),
+            Icon(Icons.check_circle_rounded, color: luTokens.success, size: 18),
             const SizedBox(width: ZplaySpacing.s8),
             Text(
               l10nOf(context).watchMagnetCopied,
               style: ZplayType.label
                   .copyWith(weight: FontWeight.w600)
-                  .toStyle(color: context.tokens.textPrimary),
+                  .toStyle(color: luTokens.textPrimary),
             ),
           ],
         ),
-        backgroundColor: context.tokens.surfaceRaised,
+        backgroundColor: luTokens.surfaceRaised,
         behavior: SnackBarBehavior.floating,
         shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
         duration: const Duration(seconds: 2),
@@ -3874,17 +3879,17 @@ class _CopyMagnetButtonState extends State<_CopyMagnetButton> {
                     height: 36,
                     decoration: BoxDecoration(
                       color: _copied
-                          ? context.tokens.success.withValues(alpha: 0.2)
+                          ? luTokens.success.withValues(alpha: 0.2)
                           : (_hovered
-                              ? context.tokens.info.withValues(alpha: 0.18)
-                              : context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle)),
+                              ? luTokens.info.withValues(alpha: 0.18)
+                              : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle)),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: _copied
-                            ? context.tokens.success.withValues(alpha: 0.5)
+                            ? luTokens.success.withValues(alpha: 0.5)
                             : (_hovered
-                                ? context.tokens.info.withValues(alpha: 0.4)
-                                : context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault)),
+                                ? luTokens.info.withValues(alpha: 0.4)
+                                : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault)),
                         width: 1,
                       ),
                     ),
@@ -3894,8 +3899,8 @@ class _CopyMagnetButtonState extends State<_CopyMagnetButton> {
                         _copied ? Icons.check_rounded : Icons.link_rounded,
                         key: ValueKey(_copied),
                         color: _copied
-                            ? context.tokens.success
-                            : (_hovered ? context.tokens.info : context.tokens.textSecondary),
+                            ? luTokens.success
+                            : (_hovered ? luTokens.info : luTokens.textSecondary),
                         size: 18,
                       ),
                     ),
@@ -3947,9 +3952,9 @@ class _ShimmerCardState extends State<_ShimmerCard>
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: context.tokens.surface.withValues(alpha: 0.5),
+            color: luTokens.surface.withValues(alpha: 0.5),
             borderRadius: ZplayRadius.smAll,
-            border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint)),
+            border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint)),
           ),
           child: Row(
             children: [
@@ -3996,9 +4001,9 @@ class _ShimmerCardState extends State<_ShimmerCard>
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            context.tokens.surfaceRaised.withValues(alpha: 0.5),
-            context.tokens.surfaceRaised.withValues(alpha: 0.8),
-            context.tokens.surfaceRaised.withValues(alpha: 0.5),
+            luTokens.surfaceRaised.withValues(alpha: 0.5),
+            luTokens.surfaceRaised.withValues(alpha: 0.8),
+            luTokens.surfaceRaised.withValues(alpha: 0.5),
           ],
           stops: [
             (gradientStart).clamp(0.0, 1.0),
@@ -4060,8 +4065,8 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
     final cardContent = Container(
       padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s48, horizontal: ZplaySpacing.s24),
       decoration: BoxDecoration(
-        color: context.tokens.surfaceRaised.withValues(alpha: 0.94),
-        border: Border.all(color: context.tokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault)),
+        color: luTokens.surfaceRaised.withValues(alpha: 0.94),
+        border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault)),
         borderRadius: ZplayRadius.lgAll,
       ),
       child: Column(
@@ -4071,14 +4076,14 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
             padding: const EdgeInsets.all(ZplaySpacing.s16),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: context.tokens.accent.withValues(alpha: ZplayOpacity.borderMedium),
+              color: luTokens.accent.withValues(alpha: ZplayOpacity.borderMedium),
               border: Border.all(
-                color: context.tokens.accent.withValues(alpha: 0.3),
+                color: luTokens.accent.withValues(alpha: 0.3),
               ),
             ),
             child: Icon(
               Icons.radar_rounded,
-              color: context.tokens.accent,
+              color: luTokens.accent,
               size: 40,
             ),
           ),
@@ -4087,7 +4092,7 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
             l10nOf(context).watchNoSources,
             style: ZplayType.title
                 .copyWith(weight: FontWeight.w500)
-                .toStyle(color: context.tokens.textPrimary),
+                .toStyle(color: luTokens.textPrimary),
           ),
           const SizedBox(height: ZplaySpacing.s12),
           ConstrainedBox(
@@ -4097,7 +4102,7 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
               textAlign: TextAlign.center,
               style: ZplayType.body
                   .copyWith(height: 1.5)
-                  .toStyle(color: context.tokens.textSecondary),
+                  .toStyle(color: luTokens.textSecondary),
             ),
           ),
           const SizedBox(height: ZplaySpacing.s32),
@@ -4119,12 +4124,12 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.xlAll,
                   gradient: LinearGradient(
-                    colors: [context.tokens.accent, context.tokens.success],
+                    colors: [luTokens.accent, luTokens.success],
                   ),
                   boxShadow: isHovering
                       ? [
                           BoxShadow(
-                            color: context.tokens.accent.withValues(alpha: 0.4),
+                            color: luTokens.accent.withValues(alpha: 0.4),
                             blurRadius: 16,
                             offset: const Offset(0, 4),
                           ),
@@ -4139,7 +4144,7 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
                     children: [
                       Icon(
                         Icons.extension_rounded,
-                        color: context.tokens.textPrimary,
+                        color: luTokens.textPrimary,
                         size: 18,
                       ),
                       const SizedBox(width: ZplaySpacing.s8),
@@ -4147,7 +4152,7 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
                         l10nOf(context).watchInstallAddons,
                         style: ZplayType.body
                             .copyWith(weight: FontWeight.w600)
-                            .toStyle(color: context.tokens.textPrimary),
+                            .toStyle(color: luTokens.textPrimary),
                       ),
                     ],
                   ),
@@ -4166,7 +4171,7 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
         borderRadius: ZplayRadius.lgAll,
         boxShadow: [
           BoxShadow(
-            color: context.tokens.bg.withValues(alpha: 0.3),
+            color: luTokens.bg.withValues(alpha: 0.3),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),

@@ -19,6 +19,7 @@ import '../../services/my_list/my_list_service.dart';
 import '../../services/player/source_pick_settings.dart';
 import '../../services/playback/play_launcher.dart';
 import '../../services/recommend/taste_store.dart';
+import '../../services/stream/auto_source_picker.dart' show parseRuntime;
 import '../../ui/lu_button.dart';
 import '../../ui/lu_cards.dart';
 import '../../ui/lu_focusable.dart';
@@ -839,7 +840,12 @@ class _DetailsPageState extends State<DetailsPage> {
           Text(l10n.detailsSeasonCount(n), style: LuText.bodySoft),
       if (!_isSeries)
         if (meta.runtime case final rt? when rt.isNotEmpty)
-          Text(rt, style: LuText.bodySoft),
+          // Cinemeta writes English ("114 min", "1h 30min"); read the
+          // minutes out and say them in the UI's language.
+          Text(switch (parseRuntime(rt)) {
+            final d? => l10n.detailsRuntimeMinutes(d.inMinutes),
+            null => rt,
+          }, style: LuText.bodySoft),
     ];
 
     return Column(
@@ -880,41 +886,115 @@ class _DetailsPageState extends State<DetailsPage> {
           ),
         ],
         SizedBox(height: short ? 14 : 22),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _buildPlayButton(),
-            _buildListButton(),
-            if (meta.trailerKey ?? widget.movie.trailerKey case final key?
-                when key.isNotEmpty)
-              LuButton(
-                label: l10n.homeTrailer,
-                icon: Icons.smart_display_outlined,
-                kind: LuButtonKind.secondary,
-                onPressed: () => TrailerModal.show(
-                  context,
-                  trailerKey: key,
-                  title: meta.displayName,
+        if (phone) ...[
+          _buildPlayButton(expand: true),
+          const SizedBox(height: 14),
+          _buildPhoneActions(meta),
+          const SizedBox(height: 14),
+          _buildSourceMode(),
+        ] else ...[
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildPlayButton(),
+              _buildListButton(),
+              if (meta.trailerKey ?? widget.movie.trailerKey case final key?
+                  when key.isNotEmpty)
+                LuButton(
+                  label: l10n.homeTrailer,
+                  icon: Icons.smart_display_outlined,
+                  kind: LuButtonKind.secondary,
+                  onPressed: () => TrailerModal.show(
+                    context,
+                    trailerKey: key,
+                    title: meta.displayName,
+                  ),
                 ),
-              ),
-            ..._buildRating(meta),
-            // A television keeps the source mode on the same line, so the
-            // episodes still start on the first screen.
-            if (short) _buildSourceMode(),
-          ],
-        ),
-        if (!short) ...[const SizedBox(height: 14), _buildSourceMode()],
+              ..._buildRating(meta),
+              // A television keeps the source mode on the same line, so the
+              // episodes still start on the first screen.
+              if (short) _buildSourceMode(),
+            ],
+          ),
+          if (!short) ...[const SizedBox(height: 14), _buildSourceMode()],
+        ],
       ],
     );
   }
 
+  /// A phone's second row: My List, the trailer and 👍 / 👎 as equal
+  /// icon-over-label buttons, so the row is balanced whatever is present.
+  Widget _buildPhoneActions(MovieDetail meta) {
+    final l10n = l10nOf(context);
+    final trailer = meta.trailerKey ?? widget.movie.trailerKey;
+    final id = meta.id;
+    return ValueListenableBuilder<List<MyListItem>>(
+      valueListenable: MyListService.items,
+      builder: (context, _, __) =>
+          ValueListenableBuilder<Map<String, TasteEntry>>(
+            valueListenable: TasteStore.entries,
+            builder: (context, entries, _) {
+              final d = _detail;
+              final inList = d != null && MyListService.isInList(_listItem(d));
+              final rating = entries[id]?.rating ?? 0;
+              void rate(int value) => TasteStore.recordRating(
+                id,
+                title: meta.name,
+                series: _isSeries,
+                rating: rating == value ? 0 : value,
+              );
+              final actions = <Widget>[
+                _PhoneAction(
+                  icon: inList ? Icons.check_rounded : Icons.add_rounded,
+                  label: inList ? l10n.detailsInLibrary : l10n.catAddToList,
+                  active: inList,
+                  onTap: _toggleMyList,
+                ),
+                if (trailer != null && trailer.isNotEmpty)
+                  _PhoneAction(
+                    icon: Icons.smart_display_outlined,
+                    label: l10n.homeTrailer,
+                    onTap: () => TrailerModal.show(
+                      context,
+                      trailerKey: trailer,
+                      title: meta.displayName,
+                    ),
+                  ),
+                if (id.startsWith('tt')) ...[
+                  _PhoneAction(
+                    icon: rating == 1
+                        ? Icons.thumb_up_rounded
+                        : Icons.thumb_up_outlined,
+                    label: l10n.detailsLike,
+                    active: rating == 1,
+                    onTap: () => rate(1),
+                  ),
+                  _PhoneAction(
+                    icon: rating == -1
+                        ? Icons.thumb_down_rounded
+                        : Icons.thumb_down_outlined,
+                    label: l10n.detailsDislike,
+                    active: rating == -1,
+                    onTap: () => rate(-1),
+                  ),
+                ],
+              ];
+              return Row(
+                children: [for (final a in actions) Expanded(child: a)],
+              );
+            },
+          ),
+    );
+  }
+
   /// 播放 / 继续 第 3 集 · 12:40, with the session's progress under it.
-  Widget _buildPlayButton() {
+  Widget _buildPlayButton({bool expand = false}) {
     final resume = _resumeItem;
     final button = LuButton(
       label: _playLabel,
       icon: Icons.play_arrow_rounded,
+      expand: expand,
       focusNode: _primaryActionFocus,
       onPressed: _playPrimary,
     );
@@ -1044,7 +1124,8 @@ class _DetailsPageState extends State<DetailsPage> {
                   border: on ? null : Border.all(color: LuColors.line),
                 ),
                 child: Text(
-                  l10n.detailsSeason(s),
+                  // Season 0 is TMDb's specials, not a season.
+                  s == 0 ? l10n.detailsSpecials : l10n.detailsSeason(s),
                   style: LuText.body.copyWith(
                     fontSize: 15,
                     color: on ? LuColors.bg : LuColors.textSoft,
@@ -1319,6 +1400,56 @@ class _Disc extends StatelessWidget {
             size: 20,
             color: active ? LuColors.gold : LuColors.text,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One of a phone's equal action buttons: an icon over its label.
+class _PhoneAction extends StatelessWidget {
+  const _PhoneAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return LuFocusable(
+      onTap: onTap,
+      lift: 1,
+      semanticLabel: label,
+      borderRadius: const BorderRadius.all(Radius.circular(14)),
+      builder: (context, hi) => AnimatedContainer(
+        duration: LuMotion.focus,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: hi ? const Color(0x1AFFFFFF) : Colors.transparent,
+          borderRadius: const BorderRadius.all(Radius.circular(14)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 24, color: active ? LuColors.gold : LuColors.text),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: LuText.caption.copyWith(
+                fontSize: 12,
+                color: active ? LuColors.gold : LuColors.textSoft,
+              ),
+            ),
+          ],
         ),
       ),
     );

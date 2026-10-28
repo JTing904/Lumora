@@ -458,7 +458,7 @@ void main() {
           'user does not need to identify the card',
     );
     expect(
-      find.textContaining('2024 · Movie · 1h 40m'),
+      find.textContaining('2024 · Movie · 100 min'),
       findsOneWidget,
       reason: 'the year, the type and the runtime are not what gets dropped',
     );

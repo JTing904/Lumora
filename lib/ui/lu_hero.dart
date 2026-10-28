@@ -247,14 +247,37 @@ class _HeroSlideState extends State<_HeroSlide> {
   /// The title under its IMDb id, for 继续 and 片单; null until known.
   Movie? _resolved;
 
+  /// Whether the lookup has finished, found or not. Until it has, 片单 is
+  /// drawn ready (not greyed) and a press waits for the answer.
+  bool _settled = false;
+
+  /// A 片单 press made before the title resolved, run when it does.
+  bool _pendingToggle = false;
+
   @override
   void initState() {
     super.initState();
     TmdbCatalog.resolve(widget.movie)
+        .then<Movie?>((m) => m)
+        .catchError((_) => null)
         .then((m) {
-          if (mounted && m != null) setState(() => _resolved = m);
-        })
-        .catchError((_) {});
+          if (!mounted) return;
+          final run = _pendingToggle && m != null;
+          setState(() {
+            _resolved = m;
+            _settled = true;
+            _pendingToggle = false;
+          });
+          if (run) _toggleList();
+        });
+  }
+
+  /// What 片单's button does: toggle once the title is known, wait for it
+  /// while it is still resolving, and nothing once it is known to be missing.
+  VoidCallback? get _listPress {
+    if (_resolved != null) return _toggleList;
+    if (_settled) return null;
+    return () => setState(() => _pendingToggle = true);
   }
 
   String _playLabel(List<ContinueWatchingItem> sessions) {
@@ -333,11 +356,12 @@ class _HeroSlideState extends State<_HeroSlide> {
             ),
           ),
         ),
+        // The text keeps a readable measure; the buttons may use the whole
+        // width, or three of them wrap onto a second line on a wide window.
         Positioned(
           left: widget.pad,
-          right: phone ? widget.pad : null,
+          right: widget.pad,
           bottom: phone ? 48 : 84,
-          width: phone ? null : 600,
           child: FocusTraversalGroup(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,67 +384,126 @@ class _HeroSlideState extends State<_HeroSlide> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  m.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: LuText.hero.copyWith(fontSize: phone ? 34 : 64),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: phone ? double.infinity : 600,
+                  ),
+                  child: Text(
+                    m.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: LuText.hero.copyWith(fontSize: phone ? 34 : 64),
+                  ),
                 ),
                 if ((m.description ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  Text(
-                    m.description!.trim(),
-                    maxLines: phone ? 2 : 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: LuText.body.copyWith(
-                      fontSize: phone ? 14 : 17,
-                      color: LuColors.textSoft,
-                      height: 1.7,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: phone ? double.infinity : 600,
+                    ),
+                    child: Text(
+                      m.description!.trim(),
+                      maxLines: phone ? 2 : 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: LuText.body.copyWith(
+                        fontSize: phone ? 14 : 17,
+                        color: LuColors.textSoft,
+                        height: 1.7,
+                      ),
                     ),
                   ),
                 ],
                 const SizedBox(height: 22),
-                Wrap(
-                  spacing: 14,
-                  runSpacing: 10,
-                  children: [
-                    ValueListenableBuilder<List<ContinueWatchingItem>>(
-                      valueListenable: ContinueWatchingService.activeItems,
-                      builder: (context, sessions, _) => LuButton(
-                        label: _playLabel(sessions),
-                        icon: Icons.play_arrow_rounded,
-                        compact: phone,
-                        onPressed: () => PlayLauncher.play(context, m),
+                // A phone gives the two actions the row in equal halves; a
+                // wider screen keeps them at their own width, left-aligned.
+                if (phone)
+                  Row(
+                    children: [
+                      Expanded(
+                        child:
+                            ValueListenableBuilder<List<ContinueWatchingItem>>(
+                              valueListenable:
+                                  ContinueWatchingService.activeItems,
+                              builder: (context, sessions, _) => LuButton(
+                                label: _playLabel(sessions),
+                                icon: Icons.play_arrow_rounded,
+                                compact: phone,
+                                expand: phone,
+                                onPressed: () => PlayLauncher.play(context, m),
+                              ),
+                            ),
                       ),
-                    ),
-                    ValueListenableBuilder<List<MyListItem>>(
-                      valueListenable: MyListService.items,
-                      builder: (context, items, _) {
-                        final inList =
-                            _resolved != null &&
-                            items.any((i) => i.imdbId == _resolved!.id);
-                        return LuButton(
-                          label: inList
-                              ? l10n.detailsInLibrary
-                              : l10n.catAddToList,
-                          icon: inList
-                              ? Icons.check_rounded
-                              : Icons.add_rounded,
-                          kind: LuButtonKind.secondary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ValueListenableBuilder<List<MyListItem>>(
+                          valueListenable: MyListService.items,
+                          builder: (context, items, _) {
+                            final inList =
+                                _resolved != null &&
+                                items.any((i) => i.imdbId == _resolved!.id);
+                            return LuButton(
+                              label: inList
+                                  ? l10n.detailsInLibrary
+                                  : l10n.catAddToList,
+                              icon: inList
+                                  ? Icons.check_rounded
+                                  : Icons.add_rounded,
+                              kind: LuButtonKind.secondary,
+                              compact: phone,
+                              expand: phone,
+                              busy: _pendingToggle,
+                              onPressed: _listPress,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 10,
+                    children: [
+                      ValueListenableBuilder<List<ContinueWatchingItem>>(
+                        valueListenable: ContinueWatchingService.activeItems,
+                        builder: (context, sessions, _) => LuButton(
+                          label: _playLabel(sessions),
+                          icon: Icons.play_arrow_rounded,
                           compact: phone,
-                          onPressed: _resolved == null ? null : _toggleList,
-                        );
-                      },
-                    ),
-                    if (!phone)
-                      LuButton(
-                        label: l10n.homeMoreInfo,
-                        icon: Icons.info_outline_rounded,
-                        kind: LuButtonKind.secondary,
-                        onPressed: () => PlayLauncher.openDetails(context, m),
+                          expand: phone,
+                          onPressed: () => PlayLauncher.play(context, m),
+                        ),
                       ),
-                  ],
-                ),
+                      ValueListenableBuilder<List<MyListItem>>(
+                        valueListenable: MyListService.items,
+                        builder: (context, items, _) {
+                          final inList =
+                              _resolved != null &&
+                              items.any((i) => i.imdbId == _resolved!.id);
+                          return LuButton(
+                            label: inList
+                                ? l10n.detailsInLibrary
+                                : l10n.catAddToList,
+                            icon: inList
+                                ? Icons.check_rounded
+                                : Icons.add_rounded,
+                            kind: LuButtonKind.secondary,
+                            compact: phone,
+                            expand: phone,
+                            busy: _pendingToggle,
+                            onPressed: _listPress,
+                          );
+                        },
+                      ),
+                      if (!phone)
+                        LuButton(
+                          label: l10n.homeMoreInfo,
+                          icon: Icons.info_outline_rounded,
+                          kind: LuButtonKind.secondary,
+                          onPressed: () => PlayLauncher.openDetails(context, m),
+                        ),
+                    ],
+                  ),
               ],
             ),
           ),

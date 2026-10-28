@@ -2,9 +2,10 @@ import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import '../../services/player/player_settings.dart';
-import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Responsive, rich Subtitle Customization Modal with live preview,
 /// presets, typography, colors, background boxes, outlines, shadows, and libass options.
@@ -55,6 +56,40 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
     {'name': 'Crimson', 'hex': '#FFE11D48', 'color': Color(0xFFE11D48)},
     {'name': 'Neon Cyan', 'hex': '#FF00E5FF', 'color': Color(0xFF00E5FF)},
   ];
+
+  /// Display name for a palette or box entry. The English 'name' / 'desc'
+  /// stay the lookup keys; what the viewer reads comes from l10n.
+  static String _localizedName(String name) {
+    final l10n = l10nCurrent();
+    return switch (name) {
+      'White' => l10n.wgPlySubColorWhite,
+      'Cinema Yellow' => l10n.wgPlySubColorCinemaYellow,
+      'Amber Gold' => l10n.wgPlySubColorAmberGold,
+      'Electric Cyan' => l10n.wgPlySubColorElectricCyan,
+      'Neon Green' => l10n.wgPlySubColorNeonGreen,
+      'Vibrant Orange' => l10n.wgPlySubColorVibrantOrange,
+      'Soft Rose' => l10n.wgPlySubColorSoftRose,
+      'Light Gray' => l10n.wgPlySubColorLightGray,
+      'Black' => l10n.wgPlySubColorBlack,
+      'Dark Slate' => l10n.wgPlySubColorDarkSlate,
+      'Gold' => l10n.wgPlySubColorGold,
+      'Crimson' => l10n.wgPlySubColorCrimson,
+      'Neon Cyan' => l10n.wgPlySubColorNeonCyan,
+      'None' => l10n.wgPlySubBoxNone,
+      '25% Dark' => l10n.wgPlySubBoxDark('25'),
+      '50% Dark' => l10n.wgPlySubBoxDark('50'),
+      '75% Dark' => l10n.wgPlySubBoxDark('75'),
+      '100% Solid' => l10n.wgPlySubBoxSolid,
+      '50% Indigo' => l10n.wgPlySubBoxIndigo,
+      'Transparent' => l10n.wgPlySubBoxDescTransparent,
+      'Subtle' => l10n.wgPlySubBoxDescSubtle,
+      'Standard Box' => l10n.wgPlySubBoxDescStandard,
+      'High Contrast' => l10n.wgPlySubBoxDescHighContrast,
+      'Opaque Black' => l10n.wgPlySubBoxDescOpaque,
+      'Slate Tint' => l10n.wgPlySubBoxDescSlate,
+      _ => name,
+    };
+  }
 
   @override
   void initState() {
@@ -156,7 +191,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context, bool isSmall) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -176,7 +211,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
                 height: isSmall ? 28 : 34,
                 decoration: BoxDecoration(
                   color: PlayerTheme.accentSoft,
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.field,
                 ),
                 child: Icon(
                   Icons.subtitles_rounded,
@@ -231,7 +266,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildLivePreview(bool isLandscapeMobile) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     if (isLandscapeMobile) return const SizedBox.shrink();
 
@@ -291,7 +326,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
               borderRadius: ZplayRadius.xsAll,
             ),
             child: Text(
-              'ZPlay • Sample Subtitle Preview',
+              l10nCurrent().playerSubPreviewSample,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: fontName,
@@ -326,7 +361,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildPresetsBar() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final activePreset = PlayerSettings.subStylePreset.value;
 
     return Container(
@@ -344,13 +379,13 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
               padding: const EdgeInsets.only(right: ZplaySpacing.s8),
               child: FocusableInkWell(
                 onTap: () => PlayerSettings.setSubStylePreset(preset, player: widget.player),
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: isSelected ? PlayerTheme.accent : PlayerTheme.raised,
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                     border: Border.all(
                       color: isSelected ? PlayerTheme.accentGlow : PlayerTheme.edgeSoft,
                     ),
@@ -395,7 +430,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildTabBar() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return Container(
       decoration: BoxDecoration(
@@ -428,7 +463,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildTypographyTab() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return ListView(
       padding: const EdgeInsets.all(ZplaySpacing.s16),
@@ -441,7 +476,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
           padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: ZplaySpacing.s4),
           decoration: BoxDecoration(
             color: PlayerTheme.raised,
-            borderRadius: ZplayRadius.smAll,
+            borderRadius: LuRadius.field,
             border: Border.all(color: PlayerTheme.edgeSoft),
           ),
           child: DropdownButtonHideUnderline(
@@ -551,7 +586,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildColorsAndBoxTab() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final activeColor = PlayerSettings.subColor.value;
     final activeBox = PlayerSettings.subBackColor.value;
 
@@ -569,12 +604,12 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
             final isSelected = activeColor.toLowerCase() == (item['hex'] as String).toLowerCase();
             return FocusableInkWell(
               onTap: () => PlayerSettings.setSubColor(item['hex'], player: widget.player),
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: LuRadius.field,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
                   color: isSelected ? PlayerTheme.accent : PlayerTheme.raised,
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.field,
                   border: Border.all(
                     color: isSelected ? PlayerTheme.accentGlow : PlayerTheme.edgeSoft,
                   ),
@@ -596,7 +631,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
                     ),
                     const SizedBox(width: ZplaySpacing.s8),
                     Text(
-                      item['name'] as String,
+                      _localizedName(item['name'] as String),
                       style: ZplayType.caption
                           .copyWith(weight: FontWeight.w600)
                           .toStyle(
@@ -622,12 +657,12 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
               padding: const EdgeInsets.only(bottom: 6),
               child: FocusableInkWell(
                 onTap: () => PlayerSettings.setSubBackColor(opt['hex'], player: widget.player),
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected ? PlayerTheme.accentSoft : PlayerTheme.raised,
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                     border: Border.all(
                       color: isSelected ? PlayerTheme.accent : PlayerTheme.edgeSoft,
                     ),
@@ -648,13 +683,13 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
                           ),
                           const SizedBox(width: ZplaySpacing.s12),
                           Text(
-                            opt['name'] as String,
+                            _localizedName(opt['name'] as String),
                             style: ZplayType.label.copyWith(weight: FontWeight.w600).toStyle(color: tokens.textPrimary),
                           ),
                         ],
                       ),
                       Text(
-                        opt['desc'] as String,
+                        _localizedName(opt['desc'] as String),
                         style: ZplayType.caption.toStyle(color: PlayerTheme.inkSubtle),
                       ),
                     ],
@@ -673,7 +708,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildOutlinesAndShadowsTab() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final activeBorderColor = PlayerSettings.subBorderColor.value;
 
     return ListView(
@@ -690,12 +725,12 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
             final isSelected = activeBorderColor.toLowerCase() == (item['hex'] as String).toLowerCase();
             return FocusableInkWell(
               onTap: () => PlayerSettings.setSubBorderColor(item['hex'], player: widget.player),
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: LuRadius.field,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
                   color: isSelected ? PlayerTheme.accent : PlayerTheme.raised,
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.field,
                   border: Border.all(
                     color: isSelected ? PlayerTheme.accentGlow : PlayerTheme.edgeSoft,
                   ),
@@ -717,7 +752,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
                     ),
                     const SizedBox(width: ZplaySpacing.s8),
                     Text(
-                      item['name'] as String,
+                      _localizedName(item['name'] as String),
                       style: ZplayType.caption
                           .copyWith(weight: FontWeight.w600)
                           .toStyle(
@@ -820,17 +855,17 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   }
 
   Widget _buildAlignButton(String title, String alignVal, IconData icon) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final isSelected = PlayerSettings.subAlignX.value == alignVal;
     return Expanded(
       child: FocusableInkWell(
         onTap: () => PlayerSettings.setSubAlignX(alignVal, player: widget.player),
-        borderRadius: ZplayRadius.smAll,
+        borderRadius: LuRadius.field,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected ? PlayerTheme.accent : PlayerTheme.raised,
-            borderRadius: ZplayRadius.smAll,
+            borderRadius: LuRadius.field,
             border: Border.all(
               color: isSelected ? PlayerTheme.accentGlow : PlayerTheme.edgeSoft,
             ),
@@ -864,7 +899,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildAdvancedTab() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final activeOverride = PlayerSettings.subAssOverride.value;
 
     final overrideModes = [
@@ -904,12 +939,12 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
           padding: const EdgeInsets.only(bottom: ZplaySpacing.s8),
           child: FocusableInkWell(
             onTap: () => PlayerSettings.setUseLibass(false, player: widget.player),
-            borderRadius: ZplayRadius.smAll,
+            borderRadius: LuRadius.field,
             child: Container(
               padding: const EdgeInsets.all(ZplaySpacing.s12),
               decoration: BoxDecoration(
                 color: !useLibass ? PlayerTheme.accentSoft : PlayerTheme.raised,
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 border: Border.all(
                   color: !useLibass ? PlayerTheme.accent : PlayerTheme.edgeSoft,
                 ),
@@ -953,12 +988,12 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
           padding: const EdgeInsets.only(bottom: ZplaySpacing.s16),
           child: FocusableInkWell(
             onTap: () => PlayerSettings.setUseLibass(true, player: widget.player),
-            borderRadius: ZplayRadius.smAll,
+            borderRadius: LuRadius.field,
             child: Container(
               padding: const EdgeInsets.all(ZplaySpacing.s12),
               decoration: BoxDecoration(
                 color: useLibass ? PlayerTheme.accentSoft : PlayerTheme.raised,
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 border: Border.all(
                   color: useLibass ? PlayerTheme.accent : PlayerTheme.edgeSoft,
                 ),
@@ -1005,12 +1040,12 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
             padding: const EdgeInsets.only(bottom: ZplaySpacing.s8),
             child: FocusableInkWell(
               onTap: () => PlayerSettings.setSubAssOverride(m['val']!, player: widget.player),
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: LuRadius.field,
               child: Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s12),
                 decoration: BoxDecoration(
                   color: isSelected ? PlayerTheme.accentSoft : PlayerTheme.raised,
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.field,
                   border: Border.all(
                     color: isSelected ? PlayerTheme.accent : PlayerTheme.edgeSoft,
                   ),
@@ -1072,7 +1107,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -1081,7 +1116,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
       ),
       decoration: BoxDecoration(
         color: PlayerTheme.raised,
-        borderRadius: ZplayRadius.smAll,
+        borderRadius: LuRadius.field,
         border: Border.all(color: PlayerTheme.edgeSoft),
       ),
       child: Row(
@@ -1108,7 +1143,7 @@ class _PlayerSubStyleModalState extends State<PlayerSubStyleModal>
   }
 
   SliderThemeData _sliderTheme() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return SliderTheme.of(context).copyWith(
       trackHeight: 3.5,
@@ -1125,7 +1160,7 @@ class _VideoGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppThemeService.currentTokens.textPrimary.withValues(alpha: 0.24)
+      ..color = luTokens.textPrimary.withValues(alpha: 0.24)
       ..strokeWidth = 0.5;
 
     for (double i = 0; i < size.width; i += 20) {

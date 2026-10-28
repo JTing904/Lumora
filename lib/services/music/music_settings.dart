@@ -1,29 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_page_settings.dart';
+import '../../l10n/option_labels.dart';
 
 enum MusicFullscreenPreset {
-  vinylStudio('Vinyl Turntable Studio', 'Rotating 33rpm vinyl disc with tonearm and warm studio atmosphere'),
-  cyberWaveform('Cyberpunk Wave Visualizer', 'Real-time animated audio visualizer canvas with neon glow'),
-  liquidGlassNeo('Liquid Glass Sanctuary', 'Deep optical refraction glass sheets powered by liquid_glass_easy'),
-  cinematicArtwork('Cinematic Poster Focus', 'Massive edge-to-edge immersive album art with blurred atmosphere'),
-  customStudio('Custom Drag & Drop Full Player', 'Your fully customized, arranged and styled fullscreen player');
+  vinylStudio(
+    'Vinyl Turntable Studio',
+    'Rotating 33rpm vinyl disc with tonearm and warm studio atmosphere',
+  ),
+  cyberWaveform(
+    'Cyberpunk Wave Visualizer',
+    'Real-time animated audio visualizer canvas with neon glow',
+  ),
+  liquidGlassNeo(
+    'Liquid Glass Sanctuary',
+    'Deep optical refraction glass sheets powered by liquid_glass_easy',
+  ),
+  cinematicArtwork(
+    'Cinematic Poster Focus',
+    'Massive edge-to-edge immersive album art with blurred atmosphere',
+  ),
+  customStudio(
+    'Custom Drag & Drop Full Player',
+    'Your fully customized, arranged and styled fullscreen player',
+  );
 
-  final String label;
-  final String description;
-  const MusicFullscreenPreset(this.label, this.description);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  final String descriptionEn;
+  String get description => localizedOptionLabel(descriptionEn);
+  const MusicFullscreenPreset(this.labelEn, this.descriptionEn);
 }
 
 enum MusicSeekbarStyle {
-  waveformEqualizer('Dynamic Audio Waveform Canvas', 'Procedural animated waveform bars with live equalizer scrubbing'),
-  neonGradient('Neon Gradient Progress Bar', 'Multi-color vibrant linear gradient scrubber with glowing tip'),
-  liquidGlassSlider('Liquid Glass Track Slider', 'Refractive frosted glass slider track with smooth thumb'),
-  standardSlider('Precision Tactile Slider', 'Tactile interactive glass track with timecode readouts'),
-  radialDial('Radial Circular Ring Dial', 'Radial circular dial scrubber for compact modern interfaces');
+  waveformEqualizer(
+    'Dynamic Audio Waveform Canvas',
+    'Procedural animated waveform bars with live equalizer scrubbing',
+  ),
+  neonGradient(
+    'Neon Gradient Progress Bar',
+    'Multi-color vibrant linear gradient scrubber with glowing tip',
+  ),
+  liquidGlassSlider(
+    'Liquid Glass Track Slider',
+    'Refractive frosted glass slider track with smooth thumb',
+  ),
+  standardSlider(
+    'Precision Tactile Slider',
+    'Tactile interactive glass track with timecode readouts',
+  ),
+  radialDial(
+    'Radial Circular Ring Dial',
+    'Radial circular dial scrubber for compact modern interfaces',
+  );
 
-  final String label;
-  final String description;
-  const MusicSeekbarStyle(this.label, this.description);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  final String descriptionEn;
+  String get description => localizedOptionLabel(descriptionEn);
+  const MusicSeekbarStyle(this.labelEn, this.descriptionEn);
 }
 
 enum MusicPlayButtonStyle {
@@ -32,8 +67,9 @@ enum MusicPlayButtonStyle {
   neonSquare('Neon Glass Square'),
   pillPulse('Wide Accent Pill');
 
-  final String label;
-  const MusicPlayButtonStyle(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const MusicPlayButtonStyle(this.labelEn);
 }
 
 enum MusicHoverEffect {
@@ -42,8 +78,9 @@ enum MusicHoverEffect {
   glassRipple('Liquid Glass Ripple'),
   tilt3D('3D Subtle Tilt Perspective');
 
-  final String label;
-  const MusicHoverEffect(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const MusicHoverEffect(this.labelEn);
 }
 
 enum MusicArtworkStyle {
@@ -52,8 +89,9 @@ enum MusicArtworkStyle {
   square3D('Rounded Neomorphic Square with Glow'),
   glowSphere('Atmospheric Glow Orb');
 
-  final String label;
-  const MusicArtworkStyle(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const MusicArtworkStyle(this.labelEn);
 }
 
 enum MusicCardDensity {
@@ -61,9 +99,10 @@ enum MusicCardDensity {
   standard('Standard (Balanced)', 1.0),
   spacious('Spacious (Large Covers)', 1.15);
 
-  final String label;
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
   final double scale;
-  const MusicCardDensity(this.label, this.scale);
+  const MusicCardDensity(this.labelEn, this.scale);
 }
 
 abstract final class MusicSettings {
@@ -81,29 +120,40 @@ abstract final class MusicSettings {
   static const _keyCardHoverGlow = 'music_card_hover_glow';
 
   // Fullscreen Player Keys
-  static const _keySelectedFullscreenPreset = 'music_selected_fullscreen_preset';
+  static const _keySelectedFullscreenPreset =
+      'music_selected_fullscreen_preset';
   static const _keyCustomSeekbarStyle = 'music_custom_seekbar_style';
   static const _keyCustomPlayButtonStyle = 'music_custom_play_button_style';
   static const _keyCustomHoverEffect = 'music_custom_hover_effect';
   static const _keyCustomArtworkStyle = 'music_custom_artwork_style';
-  static const _keyComponentOrderFullscreen = 'music_component_order_fullscreen';
+  static const _keyComponentOrderFullscreen =
+      'music_component_order_fullscreen';
   static const _keyEnableLiquidGlass = 'music_enable_liquid_glass';
   static const _keyShowLyricsDrawer = 'music_show_lyrics_drawer';
   static const _keyShowQueueDrawer = 'music_show_queue_drawer';
 
   // Atmosphere Notifiers
-  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<AmbientLightPattern> ambientLightPattern =
       ValueNotifier<AmbientLightPattern>(AmbientLightPattern.dualOrbs);
-  static final ValueNotifier<double> ambientLightIntensity = ValueNotifier<double>(0.22);
-  static final ValueNotifier<double> ambientLightSpeed = ValueNotifier<double>(1.0);
+  static final ValueNotifier<double> ambientLightIntensity =
+      ValueNotifier<double>(0.22);
+  static final ValueNotifier<double> ambientLightSpeed = ValueNotifier<double>(
+    1.0,
+  );
 
   // Discovery Notifiers
   static final ValueNotifier<bool> enableSpotlight = ValueNotifier<bool>(true);
-  static final ValueNotifier<bool> showTrendingArtists = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> showTrendingArtists = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<MusicCardDensity> cardDensity =
       ValueNotifier<MusicCardDensity>(MusicCardDensity.standard);
-  static final ValueNotifier<bool> showLosslessBadge = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> showLosslessBadge = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<bool> cardHoverGlow = ValueNotifier<bool>(true);
 
   // Fullscreen Player Notifiers
@@ -117,18 +167,21 @@ abstract final class MusicSettings {
       ValueNotifier<MusicHoverEffect>(MusicHoverEffect.glassRipple);
   static final ValueNotifier<MusicArtworkStyle> customArtworkStyle =
       ValueNotifier<MusicArtworkStyle>(MusicArtworkStyle.vinylSpinningDisc);
-  static final ValueNotifier<bool> enableLiquidGlass = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> enableLiquidGlass = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<bool> showLyricsDrawer = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> showQueueDrawer = ValueNotifier<bool>(true);
-  static final ValueNotifier<List<String>> componentOrderFullscreen = ValueNotifier<List<String>>([
-    'artwork',
-    'title',
-    'qualityBadge',
-    'seekbar',
-    'mainControls',
-    'secondaryControls',
-    'extraActions',
-  ]);
+  static final ValueNotifier<List<String>> componentOrderFullscreen =
+      ValueNotifier<List<String>>([
+        'artwork',
+        'title',
+        'qualityBadge',
+        'seekbar',
+        'mainControls',
+        'secondaryControls',
+        'extraActions',
+      ]);
 
   static final ValueNotifier<int> changeNotifier = ValueNotifier<int>(0);
 
@@ -202,7 +255,9 @@ abstract final class MusicSettings {
     _notify();
   }
 
-  static Future<void> setAmbientLightPattern(AmbientLightPattern pattern) async {
+  static Future<void> setAmbientLightPattern(
+    AmbientLightPattern pattern,
+  ) async {
     ambientLightPattern.value = pattern;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyAmbientPattern, pattern.name);
@@ -251,7 +306,9 @@ abstract final class MusicSettings {
     _notify();
   }
 
-  static Future<void> setSelectedFullscreenPreset(MusicFullscreenPreset preset) async {
+  static Future<void> setSelectedFullscreenPreset(
+    MusicFullscreenPreset preset,
+  ) async {
     selectedFullscreenPreset.value = preset;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keySelectedFullscreenPreset, preset.name);
@@ -265,7 +322,9 @@ abstract final class MusicSettings {
     _notify();
   }
 
-  static Future<void> setCustomPlayButtonStyle(MusicPlayButtonStyle style) async {
+  static Future<void> setCustomPlayButtonStyle(
+    MusicPlayButtonStyle style,
+  ) async {
     customPlayButtonStyle.value = style;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCustomPlayButtonStyle, style.name);
@@ -293,7 +352,10 @@ abstract final class MusicSettings {
     _notify();
   }
 
-  static Future<void> reorderFullscreenComponents(int oldIndex, int newIndex) async {
+  static Future<void> reorderFullscreenComponents(
+    int oldIndex,
+    int newIndex,
+  ) async {
     var index = newIndex;
     if (oldIndex < index) {
       index -= 1;

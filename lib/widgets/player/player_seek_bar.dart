@@ -6,6 +6,7 @@ import '../../l10n/l10n.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
 
 /// Timeline scrubber with buffered progress and interactive hover / drag preview.
 class PlayerSeekBar extends StatefulWidget {
@@ -138,7 +139,7 @@ class _PlayerSeekBarState extends State<PlayerSeekBar> {
     Duration currentPosition,
     Duration? currentBuffered,
   ) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final l10n = l10nOf(context);
     final totalMs = widget.duration.inMilliseconds;
     final currentMs = currentPosition.inMilliseconds;

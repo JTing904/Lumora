@@ -335,6 +335,7 @@ class LuRankCard extends StatelessWidget {
     required this.onTap,
     this.badge,
     this.posterWidth = 150,
+    this.numeralScale = 1,
   });
 
   final int rank;
@@ -344,11 +345,16 @@ class LuRankCard extends StatelessWidget {
   final VoidCallback onTap;
   final double posterWidth;
 
+  /// The numeral's size as a share of [posterWidth]. A full-size numeral is
+  /// the look on a wide screen; a phone shrinks it so the numeral and poster
+  /// together leave room for more than two cards across.
+  final double numeralScale;
+
   static double heightFor(double posterWidth) => posterWidth * 1.5;
 
   @override
   Widget build(BuildContext context) {
-    final numeral = posterWidth;
+    final numeral = posterWidth * numeralScale;
     return LuFocusable(
       onTap: onTap,
       borderRadius: LuRadius.poster,
@@ -368,7 +374,7 @@ class LuRankCard extends StatelessWidget {
                 height: 0.8,
                 foreground: Paint()
                   ..style = PaintingStyle.stroke
-                  ..strokeWidth = 2
+                  ..strokeWidth = numeralScale < 1 ? 1.5 : 2
                   ..color = highlighted
                       ? LuColors.gold
                       : const Color(0xFF5C584F),

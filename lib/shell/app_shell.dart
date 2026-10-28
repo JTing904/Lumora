@@ -24,6 +24,7 @@
 /// has exactly one nav bar and exactly one page header at a time.
 library;
 
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -46,6 +47,7 @@ import 'shell_back_guard.dart';
 import 'shell_rail.dart';
 import 'shortcuts_sheet.dart';
 import 'skip_page_shell_focus.dart';
+import '../widgets/updater/whats_new.dart';
 
 /// The five destinations the shell can show, in bar order.
 ///
@@ -150,6 +152,19 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  @override
+  void initState() {
+    super.initState();
+    // After an update, once: what it brought. Not under `flutter test`,
+    // whose shells would be left with a pending timer.
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) WhatsNew.maybeShow(context);
+      });
+    });
+  }
+
   /// The selected slot, and the shell's single piece of navigation state.
   ///
   /// A [ValueNotifier] rather than a bare index because a slot switch has no
@@ -372,11 +387,16 @@ class _AppShellState extends State<AppShell> {
   /// Returns false because the notification is observed, not consumed: it keeps
   /// bubbling to whatever else is listening (`Scrollbar`, a page's own
   /// `NotificationListener`), and the bar only ever reacts to it.
-  bool _onScrollNotification(ScrollNotification notification) {
+  ///
+  /// Heard per slot, so a hidden page settling (a list shrinking after a
+  /// sync) records its own offset and leaves the visible page's bar alone.
+  bool _onScrollNotification(ScrollNotification notification, ShellSlot slot) {
     if (notification.depth != 0) return false;
     if (notification.metrics.axis != Axis.vertical) return false;
-    _slotScrollOffset.value = notification.metrics.pixels;
-    _offsets[_slot.value] = notification.metrics.pixels;
+    _offsets[slot] = notification.metrics.pixels;
+    if (slot == _slot.value) {
+      _slotScrollOffset.value = notification.metrics.pixels;
+    }
     return false;
   }
 
@@ -587,7 +607,11 @@ class _AppShellState extends State<AppShell> {
               // so the node stays active and the controls inside it remain
               // ordinary candidates. Wrapping in `ExcludeFocus(excluding: true)`
               // would take the whole page with it.
-              child: SkipPageShellFocus(child: _pages[i]),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) =>
+                    _onScrollNotification(n, ShellSlot.values[i]),
+                child: SkipPageShellFocus(child: _pages[i]),
+              ),
             ),
           ),
         ),
@@ -672,7 +696,7 @@ class _AppShellState extends State<AppShell> {
     // crossing between the chrome and the page. With both gone the shell is one
     // focus tree and the platform's own Cartesian search does the work.
     final Widget content = NotificationListener<ScrollNotification>(
-      onNotification: _onScrollNotification,
+      onNotification: (_) => false,
       // Above the whole slot stack, so it sees the outermost scrollable of
       // whichever slot is showing without a page having to know the shell is
       // watching, and without any page wiring a controller into the shell. See

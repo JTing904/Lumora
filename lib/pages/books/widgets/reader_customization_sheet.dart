@@ -1,19 +1,23 @@
-import '../../../l10n/l10n.dart';
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../../l10n/l10n.dart';
 import '../../../services/books/reader_settings.dart';
-import '../../../services/theme/design_tokens.dart';
-import '../../../widgets/common/focusable_card.dart';
+import '../../../ui/lu_focusable.dart';
+import '../../../ui/lu_theme.dart';
+import 'lu_reading_kit.dart';
 import 'reader_design_tokens.dart';
 
+/// The reader's appearance: a live preview, then type, theme and layout. A
+/// panel on the right of a wide screen, a bottom sheet on a phone. Every
+/// change is written to [ReaderSettings] at once, so the page behind it
+/// follows.
 class ReaderCustomizationSheet extends StatefulWidget {
   final String? realBookSampleText;
 
-  const ReaderCustomizationSheet({
-    super.key,
-    this.realBookSampleText,
-  });
+  const ReaderCustomizationSheet({super.key, this.realBookSampleText});
 
   static Future<void> show(BuildContext context, {String? realBookSampleText}) {
     final isDesktop = MediaQuery.of(context).size.width > 760;
@@ -23,22 +27,30 @@ class ReaderCustomizationSheet extends StatefulWidget {
       return showGeneralDialog(
         context: context,
         barrierDismissible: true,
-        barrierLabel: l10nCurrent().bkCloseSettings,
-        barrierColor: Colors.black.withValues(alpha: 0.4),
+        barrierLabel: l10nOf(context).bkCloseSettings,
+        barrierColor: Colors.black.withValues(alpha: 0.5),
         transitionDuration: ReaderTokens.motionSheet,
         pageBuilder: (ctx, anim1, anim2) {
           return Align(
             alignment: Alignment.centerRight,
             child: Material(
               color: Colors.transparent,
-              child: ReaderCustomizationSheet(realBookSampleText: realBookSampleText),
+              child: ReaderCustomizationSheet(
+                realBookSampleText: realBookSampleText,
+              ),
             ),
           );
         },
         transitionBuilder: (ctx, anim1, anim2, child) {
-          final curved = CurvedAnimation(parent: anim1, curve: ReaderTokens.curveSheet);
+          final curved = CurvedAnimation(
+            parent: anim1,
+            curve: ReaderTokens.curveSheet,
+          );
           return SlideTransition(
-            position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(curved),
+            position: Tween<Offset>(
+              begin: const Offset(1, 0),
+              end: Offset.zero,
+            ).animate(curved),
             child: child,
           );
         },
@@ -50,12 +62,14 @@ class ReaderCustomizationSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => ReaderCustomizationSheet(realBookSampleText: realBookSampleText),
+      builder: (ctx) =>
+          ReaderCustomizationSheet(realBookSampleText: realBookSampleText),
     );
   }
 
   @override
-  State<ReaderCustomizationSheet> createState() => _ReaderCustomizationSheetState();
+  State<ReaderCustomizationSheet> createState() =>
+      _ReaderCustomizationSheetState();
 }
 
 class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
@@ -68,11 +82,17 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTab);
+  }
+
+  void _onTab() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _resetTimer?.cancel();
+    _tabController.removeListener(_onTab);
     _tabController.dispose();
     super.dispose();
   }
@@ -91,166 +111,148 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ReaderSettingsData>(
-      valueListenable: ReaderSettings.settingsNotifier,
-      builder: (context, settings, _) {
-        final isDesktop = MediaQuery.of(context).size.width > 760;
+    final l10n = l10nOf(context);
+    return Theme(
+      data: luTheme(),
+      child: ValueListenableBuilder<ReaderSettingsData>(
+        valueListenable: ReaderSettings.settingsNotifier,
+        builder: (context, settings, _) {
+          final size = MediaQuery.sizeOf(context);
+          final isDesktop = size.width > 760;
+          final tabs = [l10n.bk2Typography, l10n.bk2Theme, l10n.bk2Layout];
 
-        final container = Container(
-          width: isDesktop ? 380 : double.infinity,
-          height: isDesktop ? double.infinity : null,
-          constraints: isDesktop
-              ? null
-              : BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
-          decoration: BoxDecoration(
-            color: ReaderTokens.surfaceOverlay,
-            borderRadius: isDesktop
-                ? const BorderRadius.horizontal(left: Radius.circular(ReaderTokens.radius24))
-                : const BorderRadius.vertical(top: Radius.circular(ReaderTokens.radius24)),
-            // No outline: the sheet's own scrim is its edge, and a hairline
-            // around a floating surface is the second frame the quiet language
-            // drops. The soft shadow still separates it from the page.
-            boxShadow: const [ReaderTokens.shadowMd],
-          ),
-          child: Column(
-            mainAxisSize: isDesktop ? MainAxisSize.max : MainAxisSize.min,
-            children: [
-              // Mobile Drag Handle
-              if (!isDesktop)
-                Container(
-                  margin: const EdgeInsets.only(top: ReaderTokens.space12, bottom: ReaderTokens.space8),
-                  width: 32,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: ReaderTokens.textDisabled,
-                    borderRadius: ReaderTokens.rounded4,
-                  ),
-                ),
+          return Container(
+            width: isDesktop ? 400 : double.infinity,
+            height: isDesktop ? double.infinity : null,
+            constraints: isDesktop
+                ? null
+                : BoxConstraints(maxHeight: size.height * 0.88),
+            decoration: BoxDecoration(
+              color: LuColors.surface,
+              borderRadius: isDesktop
+                  ? const BorderRadius.horizontal(left: Radius.circular(24))
+                  : const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: LuColors.lineSoft),
+            ),
+            child: SafeArea(
+              left: false,
+              top: isDesktop,
+              child: Column(
+                mainAxisSize: isDesktop ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  if (!isDesktop)
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 4),
+                      width: 40,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: LuColors.line,
+                        borderRadius: LuRadius.pill,
+                      ),
+                    ),
 
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  ReaderTokens.space24,
-                  ReaderTokens.space12,
-                  ReaderTokens.space16,
-                  ReaderTokens.space8,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 16, 8),
+                    child: Row(
                       children: [
-                        Icon(Icons.tune_rounded, color: ReaderTokens.accent, size: 18),
-                        const SizedBox(width: ReaderTokens.space8),
-                        Text(
-                          l10nCurrent().bkAppearance,
-                          style: ZplayType.title.toStyle(
-                            color: ReaderTokens.textPrimary,
-                          ),
+                        const Icon(
+                          Icons.tune_rounded,
+                          color: LuColors.gold,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(l10n.bkAppearance, style: LuText.heading),
+                        ),
+                        LuGlyphButton(
+                          icon: Icons.close_rounded,
+                          label: l10n.bkCloseSettings,
+                          size: 40,
+                          iconSize: 18,
+                          onTap: () => Navigator.of(context).pop(),
                         ),
                       ],
                     ),
-                    FocusableCard(
-                      onTap: () => Navigator.of(context).pop(),
-                      builder: (context, state) => SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CardFocusRing(
-                          focused: state.focused,
-                          radius: ZplayRadius.fullAll,
-                          child: Center(
-                            child: Icon(
-                              Icons.close_rounded,
-                              // Paints its own focus ring, so a Material
-                              // button's highlight would be a second indicator
-                              // on the one control that is always in reach.
-                              color: ReaderTokens.textSecondary,
-                              size: 18,
+                  ),
+
+                  _buildLivePreview(settings),
+
+                  // The three pages, as pills.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 6, 24, 2),
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < tabs.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 8),
+                          Expanded(
+                            child: LuChoicePill(
+                              label: tabs[i],
+                              expand: true,
+                              selected: _tabController.index == i,
+                              onTap: () => _tabController.animateTo(i),
                             ),
                           ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  Flexible(
+                    fit: isDesktop ? FlexFit.tight : FlexFit.loose,
+                    child: SizedBox(
+                      height: isDesktop ? null : 360,
+                      child: SliderTheme(
+                        data: SliderThemeData(
+                          trackHeight: 4,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 8,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 16,
+                          ),
+                          activeTrackColor: LuColors.gold,
+                          inactiveTrackColor: const Color(0x33FFFFFF),
+                          thumbColor: LuColors.gold,
+                          overlayColor: const Color(0x33F2B544),
+                          showValueIndicator:
+                              ShowValueIndicator.onlyForContinuous,
+                          valueIndicatorColor: LuColors.gold,
+                          valueIndicatorTextStyle: LuText.caption.copyWith(
+                            color: LuColors.onGold,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildTypographyTab(settings),
+                            _buildThemeTab(settings),
+                            _buildLayoutTab(settings),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-
-              // Real Book Text Live Preview
-              _buildLivePreview(settings),
-
-              // Underline Tab Bar. No bottom hairline under it: the control's
-              // own accent indicator marks the selected tab, and the line the
-              // container used to draw was a second edge under the sheet's
-              // chrome.
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ReaderTokens.space24,
-                  vertical: ReaderTokens.space8,
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  indicatorColor: ReaderTokens.accent,
-                  indicatorWeight: 2.5,
-                  labelColor: ReaderTokens.accent,
-                  unselectedLabelColor: ReaderTokens.textSecondary,
-                  labelStyle: ReaderTokens.tabLabel,
-                  tabs: [
-                    Tab(text: l10nCurrent().bk2Typography),
-                    Tab(text: l10nCurrent().bk2Theme),
-                    Tab(text: l10nCurrent().bk2Layout),
-                  ],
-                ),
-              ),
-
-              // Tab Views
-              Expanded(
-                child: SliderTheme(
-                  data: SliderThemeData(
-                    trackHeight: 2.5,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-                    activeTrackColor: ReaderTokens.accent,
-                    inactiveTrackColor: ReaderTokens.borderDefault,
-                    thumbColor: ReaderTokens.accent,
-                    showValueIndicator: ShowValueIndicator.onlyForContinuous,
-                    valueIndicatorColor: ReaderTokens.accent,
-                    valueIndicatorTextStyle: ZplayType.caption.toStyle(
-                      color: ReaderTokens.onAccent,
-                    ),
                   ),
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildTypographyTab(settings),
-                      _buildThemeTab(settings),
-                      _buildLayoutTab(settings),
-                    ],
-                  ),
-                ),
-              ),
 
-              // Bottom Actions. No top hairline: the row floats on the sheet's
-              // own surface, and the quiet reset control marks focus with the
-              // app's single ring rather than a Material button's highlight.
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ReaderTokens.space24,
-                  vertical: ReaderTokens.space12,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    FocusableCard(
-                      onTap: _triggerReset,
-                      builder: (context, state) => CardFocusRing(
-                        focused: state.focused,
-                        radius: ZplayRadius.smAll,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: ReaderTokens.space8,
-                            vertical: ReaderTokens.space8,
+                  // Reset
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: LuFocusable(
+                        onTap: _triggerReset,
+                        lift: 1,
+                        borderRadius: LuRadius.pill,
+                        builder: (context, hi) => AnimatedContainer(
+                          duration: LuMotion.focus,
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: LuRadius.pill,
+                            color: hi
+                                ? const Color(0x1AFFFFFF)
+                                : Colors.transparent,
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -259,18 +261,20 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
                                 _showResetSuccess
                                     ? Icons.check_rounded
                                     : Icons.restart_alt_rounded,
-                                size: 16,
+                                size: 18,
                                 color: _showResetSuccess
-                                    ? ReaderTokens.success
-                                    : ReaderTokens.textSecondary,
+                                    ? LuColors.success
+                                    : LuColors.textMuted,
                               ),
-                              const SizedBox(width: ReaderTokens.space8),
+                              const SizedBox(width: 8),
                               Text(
-                                _showResetSuccess ? l10nCurrent().bkReset : l10nCurrent().bkResetToDefaults,
-                                style: ZplayType.label.toStyle(
+                                _showResetSuccess
+                                    ? l10n.bkReset
+                                    : l10n.bkResetToDefaults,
+                                style: LuText.label.copyWith(
                                   color: _showResetSuccess
-                                      ? ReaderTokens.success
-                                      : ReaderTokens.textSecondary,
+                                      ? LuColors.success
+                                      : LuColors.textMuted,
                                 ),
                               ),
                             ],
@@ -278,40 +282,29 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
                         ),
                       ),
                     ),
-                    Text(
-                      'v2.0',
-                      style: ZplayType.caption.toStyle(
-                        color: ReaderTokens.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
-
-        return container;
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildLivePreview(ReaderSettingsData settings) {
     final previewText = widget.realBookSampleText?.isNotEmpty == true
         ? widget.realBookSampleText!
-        : '“It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.”';
+        : l10nOf(context).booksPreviewSample;
 
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: ReaderTokens.space24,
-        vertical: ReaderTokens.space8,
-      ),
-      padding: const EdgeInsets.all(ReaderTokens.space16),
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: settings.backgroundColor,
-        borderRadius: ReaderTokens.rounded16,
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
         border: Border.all(color: settings.borderColor),
-        boxShadow: const [ReaderTokens.shadowSm],
       ),
       child: Text(
         previewText,
@@ -329,101 +322,93 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
     );
   }
 
+  /// A setting's name and its value, over its slider.
+  Widget _valueHeader(String title, String value) => Row(
+    children: [
+      Expanded(child: LuSectionLabel(title)),
+      Text(
+        value,
+        style: LuText.label.copyWith(
+          color: LuColors.text,
+          fontWeight: FontWeight.w700,
+          fontFamily: LuFonts.display,
+        ),
+      ),
+    ],
+  );
+
   // ──────────────────────────────────────────────────────────────────────────
   // 1. TYPOGRAPHY TAB
   // ──────────────────────────────────────────────────────────────────────────
 
   Widget _buildTypographyTab(ReaderSettingsData settings) {
-    final fonts = [
-      {'name': 'Georgia', 'key': 'Georgia', 'sub': l10nCurrent().bkSerif},
-      {'name': 'Merriweather', 'key': 'Merriweather', 'sub': l10nCurrent().bkSerif},
-      {'name': 'Inter', 'key': 'Inter', 'sub': l10nCurrent().bkSans},
-      {'name': 'Poppins', 'key': 'Poppins', 'sub': l10nCurrent().bkSans},
-      {'name': 'OpenDyslexic', 'key': 'OpenDyslexic', 'sub': l10nCurrent().bkDyslexic},
-      {'name': 'Monospace', 'key': 'Courier New', 'sub': l10nCurrent().bkMono},
+    final l10n = l10nOf(context);
+    final fonts = <(String, String)>[
+      ('Georgia', 'Georgia'),
+      ('Merriweather', 'Merriweather'),
+      ('Inter', 'Inter'),
+      ('Poppins', 'Poppins'),
+      ('OpenDyslexic', 'OpenDyslexic'),
+      (l10n.bkMono, 'Courier New'),
     ];
 
     return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(ReaderTokens.space24),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
       children: [
-        _buildSectionTitle(l10nCurrent().bkFontFamily),
-        const SizedBox(height: ReaderTokens.space8),
+        LuSectionLabel(l10n.bkFontFamily),
+        const SizedBox(height: 10),
         Wrap(
-          spacing: ReaderTokens.space8,
-          runSpacing: ReaderTokens.space8,
-          children: fonts.map((f) {
-            final isSelected = settings.fontFamily == f['key'];
-            return ChoiceChip(
-              label: Text('${f['name']}'),
-              selected: isSelected,
-              onSelected: (_) {
-                HapticFeedback.selectionClick();
-                ReaderSettings.updateFontFamily(f['key']!);
-              },
-              selectedColor: ReaderTokens.accent,
-              backgroundColor: ReaderTokens.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: ReaderTokens.rounded8,
-                side: BorderSide(
-                  color: isSelected ? Colors.transparent : ReaderTokens.borderDefault,
-                ),
-              ),
-              labelStyle: ZplayType.label
-                  .toStyle(
-                    color: isSelected
-                        ? ReaderTokens.onAccent
-                        : ReaderTokens.textPrimary,
-                  )
-                  .copyWith(fontFamily: f['key']),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: ReaderTokens.space24),
-
-        // Font Size Slider
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            _buildSectionTitle(l10nCurrent().bkFontSize),
-            Text(
-              '${settings.fontSize.round()} px',
-              style: ZplayType.label
-                  .copyWith(weight: FontWeight.w700)
-                  .toStyle(color: ReaderTokens.textPrimary),
-            ),
+            for (final (name, key) in fonts)
+              LuChoicePill(
+                label: name,
+                fontFamily: key,
+                selected: settings.fontFamily == key,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ReaderSettings.updateFontFamily(key);
+                },
+              ),
           ],
         ),
+        const SizedBox(height: 24),
+
+        _valueHeader(
+          l10n.bkFontSize,
+          l10n.booksFontSizePx('${settings.fontSize.round()}'),
+        ),
         Row(
           children: [
-            Text('A', style: ZplayType.bodySmall.copyWith(weight: FontWeight.w700).toStyle(color: ReaderTokens.textSecondary)),
+            Text(
+              'A',
+              style: LuText.label.copyWith(
+                fontWeight: FontWeight.w700,
+                color: LuColors.textMuted,
+              ),
+            ),
             Expanded(
               child: Slider(
                 value: settings.fontSize,
                 min: 14,
                 max: 34,
                 divisions: 10,
-                label: '${settings.fontSize.round()}px',
+                label: l10n.booksFontSizePx('${settings.fontSize.round()}'),
                 onChanged: (val) => ReaderSettings.updateFontSize(val),
               ),
             ),
-            Text('A', style: ZplayType.titleLarge.toStyle(color: ReaderTokens.textSecondary)),
-          ],
-        ),
-        const SizedBox(height: ReaderTokens.space16),
-
-        // Line Spacing Slider
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSectionTitle(l10nCurrent().bkLineHeight),
             Text(
-              '${settings.lineSpacing.toStringAsFixed(2)}×',
-              style: ZplayType.label
-                  .copyWith(weight: FontWeight.w700)
-                  .toStyle(color: ReaderTokens.textPrimary),
+              'A',
+              style: LuText.heading.copyWith(color: LuColors.textMuted),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+
+        _valueHeader(
+          l10n.bkLineHeight,
+          '${settings.lineSpacing.toStringAsFixed(2)}×',
         ),
         Slider(
           value: settings.lineSpacing,
@@ -433,45 +418,33 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
           label: '${settings.lineSpacing.toStringAsFixed(2)}×',
           onChanged: (val) => ReaderSettings.updateLineSpacing(val),
         ),
-        const SizedBox(height: ReaderTokens.space16),
+        const SizedBox(height: 12),
 
-        // Alignment & First-Line Indent
+        LuSectionLabel(l10n.bkAlignment),
+        const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle(l10nCurrent().bkAlignment),
-                  const SizedBox(height: ReaderTokens.space8),
-                  Row(
-                    children: [
-                      _buildAlignButton(Icons.format_align_left_rounded, TextAlign.left, settings),
-                      const SizedBox(width: ReaderTokens.space8),
-                      _buildAlignButton(Icons.format_align_justify_rounded, TextAlign.justify, settings),
-                    ],
-                  ),
-                ],
-              ),
+            _buildAlignButton(
+              Icons.format_align_left_rounded,
+              TextAlign.left,
+              settings,
             ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle(l10nCurrent().bkFirstLineIndent),
-                  const SizedBox(height: ReaderTokens.space8),
-                  Switch.adaptive(
-                    value: settings.firstLineIndent,
-                    activeColor: ReaderTokens.accent,
-                    onChanged: (val) {
-                      HapticFeedback.selectionClick();
-                      ReaderSettings.updateFirstLineIndent(val);
-                    },
-                  ),
-                ],
-              ),
+            const SizedBox(width: 10),
+            _buildAlignButton(
+              Icons.format_align_justify_rounded,
+              TextAlign.justify,
+              settings,
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        LuSwitchRow(
+          label: l10n.bkFirstLineIndent,
+          value: settings.firstLineIndent,
+          onChanged: (val) {
+            HapticFeedback.selectionClick();
+            ReaderSettings.updateFirstLineIndent(val);
+          },
         ),
       ],
     );
@@ -482,43 +455,43 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
   // ──────────────────────────────────────────────────────────────────────────
 
   Widget _buildThemeTab(ReaderSettingsData settings) {
+    final l10n = l10nOf(context);
     return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(ReaderTokens.space24),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
       children: [
-        _buildSectionTitle(l10nCurrent().bkReadingThemes),
-        const SizedBox(height: ReaderTokens.space12),
+        LuSectionLabel(l10n.bkReadingThemes),
+        const SizedBox(height: 12),
         Row(
           children: [
             _buildThemeSwatchCard(
-              label: l10nCurrent().bkLight,
+              label: l10n.bkLight,
               theme: ReaderTheme.light,
               current: settings.theme,
               bg: const Color(0xFFFAFAFA),
               textColor: const Color(0xFF1F2328),
               border: const Color(0xFFD0D7DE),
             ),
-            const SizedBox(width: ReaderTokens.space8),
+            const SizedBox(width: 8),
             _buildThemeSwatchCard(
-              label: l10nCurrent().bkSepia,
+              label: l10n.bkSepia,
               theme: ReaderTheme.sepia,
               current: settings.theme,
               bg: const Color(0xFFF4ECD8),
               textColor: const Color(0xFF382717),
               border: const Color(0xFFD4C8B0),
             ),
-            const SizedBox(width: ReaderTokens.space8),
+            const SizedBox(width: 8),
             _buildThemeSwatchCard(
-              label: l10nCurrent().bkDark,
+              label: l10n.bkDark,
               theme: ReaderTheme.dark,
               current: settings.theme,
               bg: const Color(0xFF141419),
               textColor: const Color(0xFFE6E8ED),
               border: const Color(0xFF2A2E3D),
             ),
-            const SizedBox(width: ReaderTokens.space8),
+            const SizedBox(width: 8),
             _buildThemeSwatchCard(
-              label: l10nCurrent().bkAmoled,
+              label: l10n.bkAmoled,
               theme: ReaderTheme.amoled,
               current: settings.theme,
               bg: Colors.black,
@@ -527,24 +500,19 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
             ),
           ],
         ),
-        const SizedBox(height: ReaderTokens.space32),
+        const SizedBox(height: 28),
 
-        // In-App Brightness Dimmer
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSectionTitle(l10nCurrent().bkReaderBrightness),
-            Text(
-              '${(settings.brightness * 100).round()}%',
-              style: ZplayType.label
-                  .copyWith(weight: FontWeight.w700)
-                  .toStyle(color: ReaderTokens.textPrimary),
-            ),
-          ],
+        _valueHeader(
+          l10n.bkReaderBrightness,
+          '${(settings.brightness * 100).round()}%',
         ),
         Row(
           children: [
-            Icon(Icons.brightness_low_rounded, color: ReaderTokens.textSecondary, size: 18),
+            const Icon(
+              Icons.brightness_low_rounded,
+              color: LuColors.textMuted,
+              size: 18,
+            ),
             Expanded(
               child: Slider(
                 value: settings.brightness,
@@ -555,7 +523,11 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
                 onChanged: (val) => ReaderSettings.updateBrightness(val),
               ),
             ),
-            Icon(Icons.brightness_high_rounded, color: ReaderTokens.textSecondary, size: 20),
+            const Icon(
+              Icons.brightness_high_rounded,
+              color: LuColors.textMuted,
+              size: 20,
+            ),
           ],
         ),
       ],
@@ -567,46 +539,24 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
   // ──────────────────────────────────────────────────────────────────────────
 
   Widget _buildLayoutTab(ReaderSettingsData settings) {
+    final l10n = l10nOf(context);
     return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(ReaderTokens.space24),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
       children: [
-        _buildSectionTitle(l10nCurrent().bkPageMargins),
-        const SizedBox(height: ReaderTokens.space12),
+        LuSectionLabel(l10n.bkPageMargins),
+        const SizedBox(height: 12),
         Row(
           children: [
-            _buildMarginChip(l10nCurrent().bkCompact, MarginPreset.compact, settings),
-            const SizedBox(width: ReaderTokens.space8),
-            _buildMarginChip(l10nCurrent().bkBalanced, MarginPreset.balanced, settings),
-            const SizedBox(width: ReaderTokens.space8),
-            _buildMarginChip(l10nCurrent().bkWide, MarginPreset.wide, settings),
+            _buildMarginChip(l10n.bkCompact, MarginPreset.compact, settings),
+            const SizedBox(width: 8),
+            _buildMarginChip(l10n.bkBalanced, MarginPreset.balanced, settings),
+            const SizedBox(width: 8),
+            _buildMarginChip(l10n.bkWide, MarginPreset.wide, settings),
           ],
         ),
-        const SizedBox(height: ReaderTokens.space24),
-
-        _buildSectionTitle(l10nCurrent().bkReadingMode),
-        const SizedBox(height: ReaderTokens.space12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildModeButton(
-                icon: Icons.unfold_more_rounded,
-                label: l10nCurrent().bkContinuousScroll,
-                mode: ReaderMode.scroll,
-                settings: settings,
-              ),
-            ),
-            const SizedBox(width: ReaderTokens.space12),
-            Expanded(
-              child: _buildModeButton(
-                icon: Icons.auto_stories_rounded,
-                label: l10nCurrent().bkPaginatedTurns,
-                mode: ReaderMode.paginated,
-                settings: settings,
-              ),
-            ),
-          ],
-        ),
+        // No reading-mode choice: the EPUB reader only scrolls. A paginated
+        // option used to sit here, but nothing read it, so picking it did
+        // nothing. A stored paginated value loads as scroll.
       ],
     );
   }
@@ -614,13 +564,6 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
   // ──────────────────────────────────────────────────────────────────────────
   // HELPER WIDGETS
   // ──────────────────────────────────────────────────────────────────────────
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: ZplayType.label.toStyle(color: ReaderTokens.textSecondary),
-    );
-  }
 
   Widget _buildThemeSwatchCard({
     required String label,
@@ -632,60 +575,46 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
   }) {
     final isSelected = theme == current;
     return Expanded(
-      child: FocusableCard(
+      child: LuFocusable(
         onTap: () {
           HapticFeedback.lightImpact();
           ReaderSettings.updateTheme(theme);
         },
-        builder: (context, _) => Container(
-          height: 64,
+        semanticLabel: label,
+        borderRadius: LuRadius.field,
+        builder: (context, _) => AnimatedContainer(
+          duration: LuMotion.focus,
+          height: 68,
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: ReaderTokens.rounded12,
+            borderRadius: LuRadius.field,
             border: Border.all(
-              color: isSelected ? ReaderTokens.accent : border,
-              width: isSelected ? 2.2 : 1.0,
+              color: isSelected ? LuColors.gold : border,
+              width: isSelected ? 2.4 : 1.0,
             ),
-            boxShadow: isSelected
-                ? [ReaderTokens.shadowGlow(ReaderTokens.accent)]
-                : null,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Mini color swatch dot pair
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: textColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: border, width: 0.5),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: bg,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: textColor.withValues(alpha: 0.5), width: 0.8),
-                    ),
-                  ),
-                ],
+              Text(
+                'Aa',
+                style: TextStyle(
+                  fontFamily: LuFonts.display,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
               ),
-              const SizedBox(height: ReaderTokens.space4),
+              const SizedBox(height: 2),
               Text(
                 label,
-                style: ZplayType.caption
-                    .copyWith(
-                      weight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    )
-                    .toStyle(color: textColor),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LuText.caption.copyWith(
+                  fontSize: 12,
+                  color: textColor,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -694,99 +623,39 @@ class _ReaderCustomizationSheetState extends State<ReaderCustomizationSheet>
     );
   }
 
-  Widget _buildAlignButton(IconData icon, TextAlign align, ReaderSettingsData settings) {
-    final isSelected = settings.textAlign == align;
-    return IconButton.filledTonal(
-      icon: Icon(icon, size: 20),
-      onPressed: () {
+  Widget _buildAlignButton(
+    IconData icon,
+    TextAlign align,
+    ReaderSettingsData settings,
+  ) {
+    final l10n = l10nOf(context);
+    return LuGlyphButton(
+      icon: icon,
+      label: align == TextAlign.justify
+          ? l10n.booksAlignJustify
+          : l10n.booksAlignLeft,
+      active: settings.textAlign == align,
+      onTap: () {
         HapticFeedback.selectionClick();
         ReaderSettings.updateTextAlign(align);
       },
-      style: IconButton.styleFrom(
-        backgroundColor: isSelected ? ReaderTokens.accent : ReaderTokens.surface,
-        foregroundColor: isSelected ? ReaderTokens.onAccent : ReaderTokens.textSecondary,
-        side: BorderSide(
-          color: isSelected ? Colors.transparent : ReaderTokens.borderDefault,
-        ),
-        shape: const RoundedRectangleBorder(borderRadius: ReaderTokens.rounded8),
-      ),
     );
   }
 
-  Widget _buildMarginChip(String label, MarginPreset preset, ReaderSettingsData settings) {
-    final isSelected = settings.marginPreset == preset;
+  Widget _buildMarginChip(
+    String label,
+    MarginPreset preset,
+    ReaderSettingsData settings,
+  ) {
     return Expanded(
-      child: ChoiceChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (_) {
+      child: LuChoicePill(
+        label: label,
+        expand: true,
+        selected: settings.marginPreset == preset,
+        onTap: () {
           HapticFeedback.selectionClick();
           ReaderSettings.updateMarginPreset(preset);
         },
-        selectedColor: ReaderTokens.accent,
-        backgroundColor: ReaderTokens.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: ReaderTokens.rounded8,
-          side: BorderSide(
-            color: isSelected ? Colors.transparent : ReaderTokens.borderDefault,
-          ),
-        ),
-        labelStyle: ZplayType.caption
-            .copyWith(
-              weight: isSelected ? FontWeight.w700 : FontWeight.w400,
-            )
-            .toStyle(
-              color: isSelected ? ReaderTokens.onAccent : ReaderTokens.textPrimary,
-            ),
-      ),
-    );
-  }
-
-  Widget _buildModeButton({
-    required IconData icon,
-    required String label,
-    required ReaderMode mode,
-    required ReaderSettingsData settings,
-  }) {
-    final isSelected = settings.mode == mode;
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        ReaderSettings.updateMode(mode);
-      },
-      borderRadius: ReaderTokens.rounded12,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: ReaderTokens.space12),
-        decoration: BoxDecoration(
-          color: isSelected ? ReaderTokens.accentSubtle : ReaderTokens.surface,
-          borderRadius: ReaderTokens.rounded12,
-          border: Border.all(
-            color: isSelected ? ReaderTokens.accent : ReaderTokens.borderDefault,
-            width: isSelected ? 2.0 : 1.0,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? ReaderTokens.accent : ReaderTokens.textSecondary,
-              size: 20,
-            ),
-            const SizedBox(height: ReaderTokens.space4),
-            Text(
-              label,
-              style: ZplayType.caption
-                  .copyWith(
-                    weight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  )
-                  .toStyle(
-                    color: isSelected
-                        ? ReaderTokens.accent
-                        : ReaderTokens.textPrimary,
-                  ),
-            ),
-          ],
-        ),
       ),
     );
   }

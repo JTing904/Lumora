@@ -11,6 +11,7 @@ import '../../services/metadata/art_quality.dart';
 import '../../services/metadata/metadata_service.dart';
 import '../../services/metadata/trailer_resolver.dart';
 import '../../services/metadata/metahub_art.dart';
+import '../../services/stream/auto_source_picker.dart' show parseRuntime;
 import '../../services/theme/design_tokens.dart';
 import 'trailer_preview.dart';
 import '../../l10n/l10n.dart';
@@ -470,8 +471,13 @@ class MovieCard extends StatelessWidget {
                                   Flexible(child: type)
                                 else
                                   type,
+                                // A narrow card (three across on a phone)
+                                // drops the rating here: the poster already
+                                // wears it, and the type keeps its room.
                                 if (movie.imdbRating != null &&
-                                    movie.imdbRating!.isNotEmpty) ...[
+                                    movie.imdbRating!.isNotEmpty &&
+                                    (!constraints.hasBoundedWidth ||
+                                        constraints.maxWidth >= 150)) ...[
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: ZplaySpacing.s8,
@@ -955,7 +961,13 @@ class _CardFocusDetailsState extends State<_CardFocusDetails> {
           : (movie.type == 'anime'
                 ? l10nOf(context).kindAnime
                 : l10nOf(context).kindMovie),
-      if (runtime != null && runtime.isNotEmpty) runtime,
+      // Cinemeta writes English ("114 min"); say the minutes in the UI's
+      // language and keep the raw text only when it cannot be read.
+      if (runtime != null && runtime.isNotEmpty)
+        switch (parseRuntime(runtime)) {
+          final d? => l10nOf(context).detailsRuntimeMinutes(d.inMinutes),
+          null => runtime,
+        },
       if (movie.imdbRating != null && movie.imdbRating!.isNotEmpty)
         '★ ${_formatRating(movie.imdbRating!)}',
     ];

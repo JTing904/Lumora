@@ -302,7 +302,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAppearanceTitle => '外观与界面';
 
   @override
-  String get settingsAppearanceSubtitle => '玻璃效果、主题颜色和首页界面';
+  String get settingsAppearanceSubtitle => '玻璃效果、壁纸和首页界面';
 
   @override
   String get settingsGlassOn => '玻璃效果开';
@@ -4380,7 +4380,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgaPurposePaper2audio => 'paper2audio PDF 转有声书后端的 Firebase 密钥。';
 
   @override
-  String get stgaPurposeVidgod => 'ZPlayHTTP 片源所用 VidGod 云缓存的 Bearer 令牌。';
+  String get stgaPurposeVidgod => '内置片源所用 VidGod 云缓存的 Bearer 令牌。';
 
   @override
   String get stgaPurposeFilms365 => 'Films365 直链片源 API 的 Bearer 令牌。';
@@ -4606,7 +4606,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '使用 Flutter SurfaceProducer 将画面直接渲染到硬件表面，无需纹理复制。在 Android 上可显著提升 4K/60fps 播放表现并降低耗电。（如设备出现显示异常，请保持关闭。）';
 
   @override
-  String get stgbAppearanceIntro => '微调视觉氛围、自定义壁纸背景、配色方案和界面布局。';
+  String get stgbAppearanceIntro => '微调视觉氛围、自定义壁纸背景和界面布局。';
 
   @override
   String get stgbInterfaceAtmosphere => '界面与氛围';
@@ -4633,10 +4633,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgbDisabled => '已停用';
 
   @override
-  String get stgbHomeUiThemes => '首页界面与主题';
+  String get stgbHomeUiThemes => '首页界面';
 
   @override
-  String get stgbHomeUiThemesDesc => '配色方案、“因为你收藏了”智能轮播、焦点大图和卡片密度';
+  String get stgbHomeUiThemesDesc => '“因为你收藏了”智能轮播、焦点大图和卡片密度';
 
   @override
   String get stgbLiveTvSportsUi => '电视直播与体育界面';
@@ -7031,7 +7031,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stgcServiceKeysUnobtainable =>
-      '以下密钥无法申请：每一项都是第三方服务的凭据，并非发给 ZPlay，除非你有自己的密钥，否则请留空。私有构建可通过 --dart-define 提供自己的密钥；在源码中清空某个注册项只会停用对应的那一个来源。';
+      '以下密钥无法申请：每一项都是第三方服务的凭据，并非发给 Lumora，除非你有自己的密钥，否则请留空。私有构建可通过 --dart-define 提供自己的密钥；在源码中清空某个注册项只会停用对应的那一个来源。';
 
   @override
   String get stgcServiceKeysStoredLocally => '所有值仅保存在本设备上，且不会在这些输入框中回显。';
@@ -7207,7 +7207,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get stgcHomeUiThemes => '首页界面与主题';
+  String get stgcHomeUiThemes => '首页界面';
 
   @override
   String get stgcDropImagelessRails =>
@@ -7881,6 +7881,55 @@ class AppLocalizationsZh extends AppLocalizations {
       '此版本未提供 SHA-256 校验值，Lumora 不会自动安装。请打开发布页面，自行校验下载文件后再安装。';
 
   @override
+  String get wgUpdInstallPermission => '请在 Android 设置中允许 Lumora「安装未知应用」，然后重试。';
+
+  @override
+  String wgUpdFailed(String error) {
+    return '更新失败：$error';
+  }
+
+  @override
+  String wgUpdDownloadFailed(String error) {
+    return '下载失败：$error';
+  }
+
+  @override
+  String get wgUpdChecksumMismatch => '更新文件的校验值不匹配，已删除下载的文件。';
+
+  @override
+  String get wgUpdSignatureConflictHint =>
+      '如果之前安装的版本使用了不同的签名密钥，安装可能会失败并提示「应用未安装：软件包与现有软件包存在冲突」。请先卸载旧版本一次再重新安装；卸载前可在 设置 → 备份与还原（JSON）中导出设置以保留它们。';
+
+  @override
+  String get wgUpdDownloadComplete => '下载完成';
+
+  @override
+  String get wgUpdWillCloseAndInstall => 'Lumora 将关闭并安装更新。';
+
+  @override
+  String get wgUpdDownloadedTo => '更新已下载到：';
+
+  @override
+  String get wgUpdMakeExecutable => '为文件添加可执行权限并运行：';
+
+  @override
+  String get wgUpdOpenFolder => '打开文件夹';
+
+  @override
+  String get wgUpdCloseAndInstall => '关闭并立即安装';
+
+  @override
+  String get wgUpdOk => '确定';
+
+  @override
+  String get updatesCheckFailed => '无法检查更新。请检查网络连接后重试。';
+
+  @override
+  String detailsRuntimeMinutes(int minutes) {
+    return '$minutes 分钟';
+  }
+
+  @override
   String get authTagline => '电影光影，尽在 Lumora';
 
   @override
@@ -8321,4 +8370,587 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get filterMoreFailed => '没能加载更多。';
+
+  @override
+  String get profileEdit => '编辑个人资料';
+
+  @override
+  String get profileNameLabel => '昵称';
+
+  @override
+  String get profileNameHint => '朋友看到的名字';
+
+  @override
+  String get profileColorLabel => '头像颜色';
+
+  @override
+  String get profileSave => '保存';
+
+  @override
+  String get profileCancel => '取消';
+
+  @override
+  String get profileSaved => '个人资料已保存。';
+
+  @override
+  String get profileSaveFailed => '保存失败，请检查网络后再试。';
+
+  @override
+  String whatsNewTitle(String version) {
+    return 'Lumora $version 更新了什么';
+  }
+
+  @override
+  String get whatsNewDone => '知道了';
+
+  @override
+  String get newEpBadge => '有新集';
+
+  @override
+  String newEpCode(String season, String episode) {
+    return 'S$season E$episode';
+  }
+
+  @override
+  String get newEpRail => '新集上线';
+
+  @override
+  String newEpAirsNext(String date) {
+    return '$date 更新';
+  }
+
+  @override
+  String newEpMonthDay(String month, String day) {
+    return '$month月$day日';
+  }
+
+  @override
+  String get newEpCalTitle => '追剧日历';
+
+  @override
+  String get newEpCalSubtitle => '你收藏的剧什么时候更新';
+
+  @override
+  String get newEpCalEmptyTitle => '收藏里还没有剧';
+
+  @override
+  String get newEpCalEmptyBody => '把剧加进收藏，这里就会显示它们的播出时间';
+
+  @override
+  String get newEpCalNoneThisDay => '你收藏的剧这天没有更新';
+
+  @override
+  String get newEpCalChecking => '正在查询播出时间…';
+
+  @override
+  String get mangaGenreAll => '全部';
+
+  @override
+  String get mangaGenreAction => '动作';
+
+  @override
+  String get mangaGenreAdventure => '冒险';
+
+  @override
+  String get mangaGenreComedy => '喜剧';
+
+  @override
+  String get mangaGenreDrama => '剧情';
+
+  @override
+  String get mangaGenreFantasy => '奇幻';
+
+  @override
+  String get mangaGenreHistorical => '历史';
+
+  @override
+  String get mangaGenreHorror => '恐怖';
+
+  @override
+  String get mangaGenreIsekai => '异世界';
+
+  @override
+  String get mangaGenreMartialArts => '武侠';
+
+  @override
+  String get mangaGenreMystery => '悬疑';
+
+  @override
+  String get mangaGenrePsychological => '心理';
+
+  @override
+  String get mangaGenreRomance => '恋爱';
+
+  @override
+  String get mangaGenreSchoolLife => '校园';
+
+  @override
+  String get mangaGenreSciFi => '科幻';
+
+  @override
+  String get mangaGenreSeinen => '青年';
+
+  @override
+  String get mangaGenreShounen => '少年';
+
+  @override
+  String get mangaGenreSliceOfLife => '日常';
+
+  @override
+  String get mangaGenreSports => '运动';
+
+  @override
+  String get mangaGenreSupernatural => '超自然';
+
+  @override
+  String get mangaGenreTragedy => '悲剧';
+
+  @override
+  String get mangaTypeManga => '日漫';
+
+  @override
+  String get mangaTypeManhwa => '韩漫';
+
+  @override
+  String get mangaTypeManhua => '国漫';
+
+  @override
+  String get mangaModeWebtoon => '竖向滚动（条漫）';
+
+  @override
+  String get mangaModeLtr => '翻页，从左到右';
+
+  @override
+  String get mangaModeRtl => '翻页，从右到左（日漫）';
+
+  @override
+  String get mangaWidthFull => '全屏';
+
+  @override
+  String get mangaWidthCompact => '紧凑';
+
+  @override
+  String get mangaWidthStandard => '标准';
+
+  @override
+  String get mangaWidthWide => '宽屏';
+
+  @override
+  String get mangaBgPitchBlack => '纯黑';
+
+  @override
+  String get mangaBgDeepCharcoal => '深炭灰';
+
+  @override
+  String get mangaBgDarkSlate => '暗石板';
+
+  @override
+  String get mangaBgSepiaDark => '暗褐';
+
+  @override
+  String get mangaDensityCompact => '紧凑';
+
+  @override
+  String get mangaDensityStandard => '标准';
+
+  @override
+  String get mangaDensitySpacious => '宽松';
+
+  @override
+  String mangaChapterShort(String number) {
+    return '第$number话';
+  }
+
+  @override
+  String get mangaPageTitle => '漫画';
+
+  @override
+  String get mangaPageSubtitle => '日漫、韩漫、国漫，随时随地翻开就读';
+
+  @override
+  String get mangaReaderSettings => '阅读器';
+
+  @override
+  String booksChapterShort(String number) {
+    return '第$number章';
+  }
+
+  @override
+  String booksChapterOfTotal(String current, String total) {
+    return '第 $current / $total 章';
+  }
+
+  @override
+  String booksFontSizePt(String size) {
+    return '$size 磅';
+  }
+
+  @override
+  String booksFontSizePx(String size) {
+    return '$size 像素';
+  }
+
+  @override
+  String get booksPreviewSample => '春日午后，阳光穿过窗棂落在书页上，字里行间仿佛都有了温度。';
+
+  @override
+  String get booksPageTitle => '书籍';
+
+  @override
+  String get booksPageSubtitle => '找到一本书，下载一次，随处阅读';
+
+  @override
+  String get booksReaderStyle => '阅读样式';
+
+  @override
+  String get booksShowControls => '显示控制栏';
+
+  @override
+  String get musArtistsHeading => '艺人';
+
+  @override
+  String get musAlbumsHeading => '专辑';
+
+  @override
+  String get musPlaylistsHeading => '歌单';
+
+  @override
+  String get musGenrePopHits => '流行金曲';
+
+  @override
+  String get musGenreRockClassics => '经典摇滚';
+
+  @override
+  String get musGenreHeavyMetal => '重金属';
+
+  @override
+  String get musGenreClassicalPiano => '古典钢琴';
+
+  @override
+  String musHiResLossless(String quality) {
+    return '高解析无损 · $quality';
+  }
+
+  @override
+  String musHiResLosslessAudio(String quality) {
+    return '$quality · 高解析无损音频';
+  }
+
+  @override
+  String get musPlayTip => '播放';
+
+  @override
+  String get musPauseTip => '暂停';
+
+  @override
+  String get musPreviousTip => '上一首';
+
+  @override
+  String get musNextTip => '下一首';
+
+  @override
+  String get musRepeatTip => '循环播放';
+
+  @override
+  String get musLikeTip => '喜欢';
+
+  @override
+  String get musAddToPlaylistTip => '加入歌单';
+
+  @override
+  String get musLyricsTip => '歌词';
+
+  @override
+  String get musQueueTip => '播放队列';
+
+  @override
+  String get musClosePlayerTip => '收起播放器';
+
+  @override
+  String get musMoreTip => '更多';
+
+  @override
+  String get musRemoveFromQueueTip => '从队列移除';
+
+  @override
+  String get musRemoveFromPlaylistTip => '从歌单移除';
+
+  @override
+  String get musClearSearchTip => '清除搜索';
+
+  @override
+  String get musCancelDownloadTip => '取消下载';
+
+  @override
+  String get musNowPlayingKicker => '正在播放';
+
+  @override
+  String get abkCatFantasy => '奇幻';
+
+  @override
+  String get abkCatSciFi => '科幻';
+
+  @override
+  String get abkCatMystery => '悬疑';
+
+  @override
+  String get abkCatThriller => '惊悚';
+
+  @override
+  String get abkCatNonFiction => '非虚构';
+
+  @override
+  String get abkCatSelfHelp => '自我成长';
+
+  @override
+  String get abkCatHorror => '恐怖';
+
+  @override
+  String get abkCatRomance => '爱情';
+
+  @override
+  String get abkCatAdventure => '冒险';
+
+  @override
+  String get abkCatClassics => '经典名著';
+
+  @override
+  String abkTimeLeft(String time) {
+    return '剩余 $time';
+  }
+
+  @override
+  String get abkTorrentSource => 'AudiobookBay · 种子';
+
+  @override
+  String get abkAiGenerated => 'AI 生成';
+
+  @override
+  String get abkAiGeneratedKokoro => 'AI 生成 · Kokoro TTS';
+
+  @override
+  String get abkUnknownAuthor => '未知作者';
+
+  @override
+  String abkSplitMessage(String words, String parts, String list) {
+    return '这本书约有 $words 个词，将按章节拆分为 $parts 部分并加入队列：\n\n$list';
+  }
+
+  @override
+  String abkSplitPartLine(String name, String words) {
+    return '• $name（约 $words 词）';
+  }
+
+  @override
+  String get abkBackTip => '返回';
+
+  @override
+  String get abkPlaybackSpeedTip => '播放速度';
+
+  @override
+  String get abkRemoveFromContinue => '从继续收听中移除？';
+
+  @override
+  String get abkClearSearchTip => '清除搜索';
+
+  @override
+  String get abkDeleteJobTip => '移除';
+
+  @override
+  String get playerSubPreviewSample => 'Lumora · 字幕样式预览';
+
+  @override
+  String get abkDensityCompact => '紧凑';
+
+  @override
+  String get abkDensityStandard => '标准';
+
+  @override
+  String get abkDensitySpacious => '宽松';
+
+  @override
+  String get abkPresetModern => '经典';
+
+  @override
+  String get abkPresetVinyl => '唱片机';
+
+  @override
+  String get abkPresetCapsule => '极简';
+
+  @override
+  String get abkPresetCanvas => '大封面';
+
+  @override
+  String get abkPresetCustom => '自定义';
+
+  @override
+  String get abkSeekWaveform => '波形';
+
+  @override
+  String get abkSeekGradient => '进度条';
+
+  @override
+  String get abkSeekSlider => '滑块';
+
+  @override
+  String get abkSeekRing => '圆环';
+
+  @override
+  String get abkButtonCircle => '圆形';
+
+  @override
+  String get abkButtonGlass => '描边';
+
+  @override
+  String get abkButtonSquare => '方形';
+
+  @override
+  String get abkButtonPill => '胶囊';
+
+  @override
+  String get profilePhotoUpload => '上传照片';
+
+  @override
+  String get profilePhotoRemove => '移除照片';
+
+  @override
+  String get profilePhotoFailed => '照片上传失败，请换一张图片再试。';
+
+  @override
+  String get booksAlignLeft => '左对齐';
+
+  @override
+  String get booksAlignJustify => '两端对齐';
+
+  @override
+  String get wgPlyAspectFit => '适应屏幕（完整显示）';
+
+  @override
+  String get wgPlyAspectCover => '填满屏幕（裁剪/放大）';
+
+  @override
+  String get wgPlyAspectStretch => '拉伸填满';
+
+  @override
+  String get wgPlySubColorWhite => '白色';
+
+  @override
+  String get wgPlySubColorCinemaYellow => '影院黄';
+
+  @override
+  String get wgPlySubColorAmberGold => '琥珀金';
+
+  @override
+  String get wgPlySubColorElectricCyan => '电光青';
+
+  @override
+  String get wgPlySubColorNeonGreen => '霓虹绿';
+
+  @override
+  String get wgPlySubColorVibrantOrange => '活力橙';
+
+  @override
+  String get wgPlySubColorSoftRose => '柔粉';
+
+  @override
+  String get wgPlySubColorLightGray => '浅灰';
+
+  @override
+  String get wgPlySubColorBlack => '黑色';
+
+  @override
+  String get wgPlySubColorDarkSlate => '深石板灰';
+
+  @override
+  String get wgPlySubColorGold => '金色';
+
+  @override
+  String get wgPlySubColorCrimson => '深红';
+
+  @override
+  String get wgPlySubColorNeonCyan => '霓虹青';
+
+  @override
+  String get wgPlySubBoxNone => '无';
+
+  @override
+  String wgPlySubBoxDark(String percent) {
+    return '$percent% 深色';
+  }
+
+  @override
+  String get wgPlySubBoxSolid => '100% 实色';
+
+  @override
+  String get wgPlySubBoxIndigo => '50% 靛蓝';
+
+  @override
+  String get wgPlySubBoxDescTransparent => '透明';
+
+  @override
+  String get wgPlySubBoxDescSubtle => '轻微';
+
+  @override
+  String get wgPlySubBoxDescStandard => '标准底框';
+
+  @override
+  String get wgPlySubBoxDescHighContrast => '高对比度';
+
+  @override
+  String get wgPlySubBoxDescOpaque => '不透明黑';
+
+  @override
+  String get wgPlySubBoxDescSlate => '石板色调';
+
+  @override
+  String get tvDescEspn => 'ESPN+、ESPN、ESPN2、ESPNU、NCAA 男女篮、SEC 与 ACC';
+
+  @override
+  String get tvDescCombat => 'UFC Fight Pass、WWE、AEW、World Boxing 与按次付费 (PPV)';
+
+  @override
+  String get musRailTrending => '🔥 全球热门榜单';
+
+  @override
+  String get musRailPop => '🌟 流行精选';
+
+  @override
+  String get musRailHipHop => '🎙️ 嘻哈说唱重磅';
+
+  @override
+  String get musRailElectronic => '🎧 电子舞曲与 EDM';
+
+  @override
+  String get musRailRock => '🎸 经典摇滚与另类';
+
+  @override
+  String get musRailSoundtracks => '🎬 电影与动漫原声';
+
+  @override
+  String get musRailChill => '🌙 放松、Lofi 与氛围音乐';
+
+  @override
+  String abkDebridCouldNotResolveAudio(String service) {
+    return '$service 无法解析音频流。';
+  }
+
+  @override
+  String get abkAudioStreamUrlUnresolved => '无法解析音频流地址。';
+
+  @override
+  String get abkCatalogueUnavailableTitle => '此版本不提供在线有声书目录';
+
+  @override
+  String get abkCatalogueUnavailableBody =>
+      '你仍可以在工作室导入自己的 MP3 或 M4B 有声书，或把 EPUB 生成为有声书。';
+
+  @override
+  String get abkCatalogueUnavailableBodyImportOnly =>
+      '你仍可以在工作室导入自己的 MP3 或 M4B 有声书。';
+
+  @override
+  String get abkHubSubtitleOwnLibrary => '你自己的有声书，随时收听';
+
+  @override
+  String get detailsSpecials => '特别篇';
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Floating glass toolbar for quick live subtitle delay adjustment.
 class SubSyncBar extends StatefulWidget {
@@ -65,7 +67,7 @@ class _SubSyncBarState extends State<SubSyncBar> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final isDirty = ((_localDelay - _initialDelay).abs() > 0.01);
     final isNonZero = _localDelay.abs() > 0.01;
 
@@ -86,7 +88,7 @@ class _SubSyncBarState extends State<SubSyncBar> {
             // Left: Speech Text Sync button
             if (widget.onEnterTextSync != null) ...[
               FocusableInkWell(
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 onTap: widget.isTextSyncAvailable ? widget.onEnterTextSync : null,
                 enabled: widget.isTextSyncAvailable,
                 child: Container(
@@ -98,7 +100,7 @@ class _SubSyncBarState extends State<SubSyncBar> {
                     color: widget.isTextSyncAvailable
                         ? PlayerTheme.accent.withValues(alpha: 0.18)
                         : tokens.textPrimary.withValues(alpha: 0.04),
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -133,7 +135,7 @@ class _SubSyncBarState extends State<SubSyncBar> {
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: tokens.bg.withValues(alpha: 0.4),
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 border: Border.all(color: PlayerTheme.edgeSoft),
               ),
               child: Row(
@@ -153,7 +155,7 @@ class _SubSyncBarState extends State<SubSyncBar> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: PlayerTheme.raised,
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                       border: Border.all(
                         color: isNonZero ? PlayerTheme.edge : Colors.transparent,
                       ),
@@ -226,7 +228,7 @@ class _SubSyncBarState extends State<SubSyncBar> {
                   horizontal: ZplaySpacing.s12,
                   vertical: 7,
                 ),
-                shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                shape: const RoundedRectangleBorder(borderRadius: LuRadius.field),
                 minimumSize: const Size(0, 32),
               ),
               icon: const Icon(Icons.check_rounded, size: 15),

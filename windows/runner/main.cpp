@@ -20,7 +20,7 @@ namespace {
 // (lib/services/diagnostics/renderer_backend.dart). The Windows
 // shared_preferences plugin stores
 // `%APPDATA%\<CompanyName>\<ProductName>\shared_preferences.json`
-// (Runner.rc: CompanyName "tzero86"; ProductName "zplay"; the executable
+// (Runner.rc: CompanyName "JTing904"; ProductName "Lumora"; the executable
 // name is the fallback), with keys prefixed `flutter.`. The candidate paths
 // below mirror that layout.
 // Anything missing or unparseable falls back to "skia": measured A/B on
@@ -35,6 +35,7 @@ std::string ReadSavedRendererBackend() {
   std::wstring base(appdata);
   free(appdata);
   const wchar_t* candidates[] = {
+      L"JTing904\\Lumora\\shared_preferences.json",
       L"tzero86\\zplay\\shared_preferences.json",
       L"zplay\\shared_preferences.json",
   };
@@ -102,7 +103,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // identity verbatim, and this explicit AppUserModelID was added because a
   // binary advertising that same identity could be grouped by the shell with an
   // installed copy of the upstream app. The inherited identity is gone: Runner.rc
-  // now reports tzero86\zplay, so both the version info and the
+  // now reports JTing904\Lumora, so both the version info and the
   // %APPDATA%\Roaming data directory are the fork's own. The explicit AUMID is
   // kept regardless - the shell does not derive its grouping key from the
   // version-info identity at all. Without an explicit AppUserModelID a Win32

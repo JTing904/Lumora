@@ -712,10 +712,20 @@ class _DiscoverPageState extends State<DiscoverPage> {
     // barely half the canvas. `posterHeight / posterRatio` is the width the
     // artwork resolves to, which for the poster shape is the card's own width.
     final drawnWidth = sizing.posterHeight / MovieCardSizing.posterRatio;
-    final columns = ((screenWidth - sizing.sidePadding * 2 + sizing.spacing) /
-            (drawnWidth + sizing.spacing))
-        .floor()
-        .clamp(2, 10);
+    final phone = screenWidth < 600 && !DeviceProfile.isTelevision;
+    // A phone shows three posters across, each filling its cell, the way
+    // phone poster grids are laid out; two nominal-width cards in two wide
+    // cells left each poster pinned to the left of its cell with a gap down
+    // the middle of the screen.
+    final columns = phone
+        ? 3
+        : ((screenWidth - sizing.sidePadding * 2 + sizing.spacing) /
+                  (drawnWidth + sizing.spacing))
+              .floor()
+              .clamp(2, 10);
+    final gap = phone ? ZplaySpacing.s12 : sizing.spacing;
+    final cellWidth =
+        (screenWidth - sizing.sidePadding * 2 - gap * (columns - 1)) / columns;
 
     // Where this page's own content starts, which is also the band a focused
     // card's pop may paint in - see [PageContentTop]. `topOffset` is the header
@@ -746,8 +756,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
           // `columns`-driven and come out wider, which inflated every card 25% -
           // 408 dp tall on a screen with about 200 dp to spend. Same fix as
           // `manga_page.dart`, which already did this correctly.
-          mainAxisExtent: sizing.totalHeight,
-          crossAxisSpacing: sizing.spacing,
+          mainAxisExtent: phone
+              ? cellWidth * MovieCardSizing.posterRatio +
+                    MovieCardSizing.textBlockHeight
+              : sizing.totalHeight,
+          crossAxisSpacing: gap,
           mainAxisSpacing: sizing.spacing,
         ),
         itemCount: _items.length + (_hasMore ? 1 : 0),

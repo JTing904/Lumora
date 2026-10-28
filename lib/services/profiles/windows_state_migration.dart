@@ -70,6 +70,8 @@ const String _stagingSuffix = '.migrating';
 /// preference lookup in `windows/runner/main.cpp:35-38`, which probes the same
 /// two-way layout split.
 const List<List<String>> _legacyProfileCandidates = <List<String>>[
+  // Lumora 1.0.0 and the ZPlay builds before it.
+  <String>['tzero86', 'zplay'],
   <String>['com.example', 'playtorrio'],
   <String>['playtorrio'],
   <String>['zplay'],
@@ -79,7 +81,7 @@ const List<List<String>> _legacyProfileCandidates = <List<String>>[
 /// because this runs before any plugin call: it must mirror `Runner.rc`'s
 /// `CompanyName` / `ProductName` exactly, so changing the rebrand identity
 /// means changing this line too.
-const List<String> _destinationProfileSegments = <String>['tzero86', 'zplay'];
+const List<String> _destinationProfileSegments = <String>['JTing904', 'Lumora'];
 
 /// Decides what should happen to a profile pair, touching the filesystem only
 /// to stat it. Kept free of the platform guard, `%APPDATA%` resolution and

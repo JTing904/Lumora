@@ -10,6 +10,7 @@ import '../../ui/lu_theme.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/iptv/iptv_controller.dart';
+import '../../services/iptv/channel_category_l10n.dart';
 import '../../services/iptv/iptv_settings.dart';
 import '../../services/iptv/iptv_storage.dart';
 import '../../models/iptv/iptv_models.dart';
@@ -28,6 +29,7 @@ import 'iptv_portals_modal.dart';
 import 'iptv_search_page.dart';
 import 'widgets/live_guide_band.dart';
 import '../../services/storage/app_image_cache.dart';
+import '../../widgets/player/lu_player_style.dart';
 
 class IptvPage extends StatefulWidget {
   const IptvPage({super.key});
@@ -327,26 +329,7 @@ class _IptvPageState extends State<IptvPage> {
   /// A category's name in the viewer's language. The stored keys stay the
   /// English names the user's order and visibility are saved under.
   static String _categoryTitle(AppLocalizations l10n, String key) =>
-      switch (key) {
-        'Premier Live Broadcasts' => l10n.liveCatPremier,
-        'ESPN & College Basketball (NCAA)' => l10n.liveCatEspn,
-        'US Major Leagues & Sports' => l10n.liveCatUsSports,
-        'Global Football & Soccer' => l10n.liveCatSoccer,
-        'Boxing' => l10n.liveCatBoxing,
-        'Combat & Martial Arts' => l10n.liveCatCombat,
-        'Motorsport & Racing' => l10n.liveCatRacing,
-        'Movies & Premium Networks' => l10n.liveCatMovies,
-        '24/7 Global News Networks' => l10n.liveCatNews,
-        'Arabic & Regional Hub' => l10n.liveCatArabic,
-        'Discovery & Documentaries' => l10n.liveCatDiscovery,
-        'Kids & Family' => l10n.liveCatKids,
-        'US Region' => l10n.liveCatUs,
-        'UK Region' => l10n.liveCatUk,
-        'Canada Region' => l10n.liveCatCanada,
-        'Bay Area' => l10n.liveCatBayArea,
-        'International Sports' => l10n.liveCatIntlSports,
-        _ => key,
-      };
+      localizedLiveSection(key);
 
   @override
   Widget build(BuildContext context) {
@@ -364,7 +347,7 @@ class _IptvPageState extends State<IptvPage> {
     final Map<String, (String, List<HardcodedChannel>)> categoryMap = {
       'Premier Live Broadcasts': (l10n.tvDescPremier, _featured),
       'ESPN & College Basketball (NCAA)': (
-        'ESPN+, ESPN, ESPN2, ESPNU, NCAA Men\'s & Women\'s CBB, SEC & ACC',
+        l10n.tvDescEspn,
         _espnAndCollege,
       ),
       'US Major Leagues & Sports': (
@@ -377,7 +360,7 @@ class _IptvPageState extends State<IptvPage> {
       ),
       'Boxing': (l10n.tvDescBoxing, _boxing),
       'Combat & Martial Arts': (
-        'UFC Fight Pass, WWE, AEW, World Boxing & PPV',
+        l10n.tvDescCombat,
         _combat,
       ),
       'Motorsport & Racing': (
@@ -471,7 +454,7 @@ class _IptvPageState extends State<IptvPage> {
     );
 
     return Theme(
-      data: luTheme(),
+      data: luPanelTheme(),
       child: Scaffold(
         backgroundColor: LuColors.bg,
         body: RefreshIndicator(
@@ -635,7 +618,7 @@ class _QuickChannelsSliderState extends State<_QuickChannelsSlider> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final width = MediaQuery.sizeOf(context).width;
     final cardWidth = width < 600
         ? 140.0
@@ -667,15 +650,19 @@ class _QuickChannelsSliderState extends State<_QuickChannelsSlider> {
           children: [
             Row(
               children: [
-                Text(
-                  l10nCurrent().tvQuickChannels,
-                  style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                Expanded(
+                  child: Text(
+                    l10nCurrent().tvQuickChannels,
+                    style: LuText.heading,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-                  color: tokens.accent,
-                  tooltip: l10nCurrent().tvAddQuickChannel,
+                LuButton(
+                  label: l10nCurrent().tvAddChannel,
+                  icon: Icons.add_rounded,
+                  kind: LuButtonKind.text,
+                  compact: true,
                   onPressed: widget.onAddTap,
                 ),
               ],
@@ -784,7 +771,7 @@ class _QuickChannelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return FocusableCard(
       onTap: onTap,
       builder: (context, state) => GestureDetector(
@@ -792,12 +779,12 @@ class _QuickChannelCard extends StatelessWidget {
         onLongPress: onRemove,
         child: CardFocusRing(
           focused: state.focused,
-          radius: ZplayRadius.smAll,
+          radius: LuRadius.field,
           child: Stack(
             children: [
               Container(
                 decoration: BoxDecoration(
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.field,
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -903,20 +890,21 @@ class _QuickAddCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return FocusableCard(
       onTap: onTap,
       builder: (context, state) => CardFocusRing(
         focused: state.focused,
-        radius: ZplayRadius.smAll,
+        radius: LuRadius.field,
         child: Container(
           decoration: BoxDecoration(
             // A resting 2 dp accent border sat here, directly under the focus
             // ring the card draws in the same colour at the same width, so the
             // focused card read as a 4 dp double edge. The fill and the accent
             // glyph carry the affordance; the ring marks the focus.
-            borderRadius: ZplayRadius.smAll,
-            color: tokens.surface,
+            borderRadius: LuRadius.field,
+            color: state.highlighted ? tokens.surfaceRaised : tokens.surface,
+            border: Border.all(color: LuPanel.edge),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -943,7 +931,7 @@ class _QuickChannelIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       short,
-      style: ZplayType.titleLarge.toStyle(color: context.tokens.textPrimary),
+      style: ZplayType.titleLarge.toStyle(color: luTokens.textPrimary),
     );
   }
 }
@@ -966,9 +954,9 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
   final _shortCtrl = TextEditingController();
   final _keywordsCtrl = TextEditingController();
 
-  List<Color> _gradient = [const Color(0xFF7C5CFF), const Color(0xFF1A1A1A)];
+  List<Color> _gradient = [const Color(0xFFF2B544), const Color(0xFF1A1A1A)];
   final List<List<Color>> _presetGradients = [
-    [const Color(0xFF7C5CFF), const Color(0xFF1A1A1A)],
+    [const Color(0xFFF2B544), const Color(0xFF1A1A1A)],
     [const Color(0xFFCC0000), const Color(0xFF1A1A1A)],
     [const Color(0xFF003366), const Color(0xFF0066CC)],
     [const Color(0xFFD4AF37), const Color(0xFF1A1A1A)],
@@ -1001,10 +989,10 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return AlertDialog(
       backgroundColor: tokens.surfaceOverlay,
-      shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.mdAll),
+      shape: const RoundedRectangleBorder(borderRadius: LuRadius.card),
       title: Text(
         l10nCurrent().tvAddQuickChannel,
         style: ZplayType.title.toStyle(color: tokens.textPrimary),
@@ -1131,7 +1119,7 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
                       onTap: () => setState(() => _gradient = g),
                       builder: (context, state) => CardFocusRing(
                         focused: state.focused,
-                        radius: ZplayRadius.smAll,
+                        radius: LuRadius.field,
                         child: Container(
                           width:
                               FormFactorService.of(context) ==
@@ -1144,7 +1132,7 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
                               ? 36
                               : kMinInteractiveDimension,
                           decoration: BoxDecoration(
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                             gradient: LinearGradient(colors: g),
                             border: Border.all(
                               color: isSelected
@@ -1175,9 +1163,7 @@ class _AddQuickChannelDialogState extends State<_AddQuickChannelDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: tokens.accent,
             foregroundColor: tokens.onAccent,
-            shape: const RoundedRectangleBorder(
-              borderRadius: ZplayRadius.smAll,
-            ),
+            shape: const StadiumBorder(),
           ),
           onPressed: () {
             if (_formKey.currentState!.validate()) {

@@ -93,14 +93,14 @@ BEGIN
             // application-support root from these two fields as
             // %APPDATA%\<CompanyName>\<ProductName> (= the RoamingAppData known
             // folder plus company\product). Keep them in sync with the
-            // application identity, currently %APPDATA%\tzero86\zplay.
-            VALUE "CompanyName", "tzero86" "\0"
+            // application identity, currently %APPDATA%\JTing904\Lumora.
+            VALUE "CompanyName", "JTing904" "\0"
             VALUE "FileDescription", "Lumora" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "zplay" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 tzero86. All rights reserved." "\0"
-            VALUE "OriginalFilename", "zplay.exe" "\0"
-            VALUE "ProductName", "zplay" "\0"
+            VALUE "InternalName", "Lumora" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 JTing904" "\0"
+            VALUE "OriginalFilename", "Lumora.exe" "\0"
+            VALUE "ProductName", "Lumora" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

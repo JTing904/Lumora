@@ -1,5 +1,5 @@
-import '../../../l10n/l10n.dart';
 import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +7,10 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/books/epub_parser_service.dart';
 import '../../../services/books/reader_settings.dart';
-import '../../../services/theme/design_tokens.dart';
+import '../../../l10n/l10n.dart';
+import '../../../ui/lu_focusable.dart';
+import '../../../ui/lu_theme.dart';
+import 'lu_reading_kit.dart';
 import 'reader_design_tokens.dart';
 
 class FocusLineData {
@@ -104,7 +107,9 @@ class _FocusModeViewState extends State<FocusModeView> {
     final doc = html_parser.parse(widget.chapter.htmlContent);
     final extracted = <String>[];
 
-    final nodes = doc.querySelectorAll('h1, h2, h3, h4, p, blockquote, div, section, article');
+    final nodes = doc.querySelectorAll(
+      'h1, h2, h3, h4, p, blockquote, div, section, article',
+    );
     if (nodes.isNotEmpty) {
       for (final node in nodes) {
         final text = node.text.trim();
@@ -130,7 +135,9 @@ class _FocusModeViewState extends State<FocusModeView> {
   }
 
   void _computeLines(double maxWidth) {
-    if (_paragraphs.isEmpty || (maxWidth - _lastCalculatedWidth).abs() < 1.0) return;
+    if (_paragraphs.isEmpty || (maxWidth - _lastCalculatedWidth).abs() < 1.0) {
+      return;
+    }
     _lastCalculatedWidth = maxWidth;
 
     final computed = <FocusLineData>[];
@@ -157,24 +164,31 @@ class _FocusModeViewState extends State<FocusModeView> {
       if (lineMetrics.isEmpty) {
         final lineIndex = computed.length;
         _lineKeys[lineIndex] = GlobalKey();
-        computed.add(FocusLineData(
-          index: lineIndex,
-          paragraphIndex: pIdx,
-          isFirstInParagraph: true,
-          isLastInParagraph: true,
-          text: pText,
-        ));
+        computed.add(
+          FocusLineData(
+            index: lineIndex,
+            paragraphIndex: pIdx,
+            isFirstInParagraph: true,
+            isLastInParagraph: true,
+            text: pText,
+          ),
+        );
       } else {
         int charOffset = 0;
         for (int mIdx = 0; mIdx < lineMetrics.length; mIdx++) {
           final isLast = mIdx == lineMetrics.length - 1;
           final metric = lineMetrics[mIdx];
-          
+
           final lineEndOffset = isLast
               ? pText.length
-              : painter.getPositionForOffset(Offset(maxWidth, metric.baseline)).offset;
+              : painter
+                    .getPositionForOffset(Offset(maxWidth, metric.baseline))
+                    .offset;
 
-          final lineText = (charOffset < pText.length && lineEndOffset <= pText.length && lineEndOffset > charOffset)
+          final lineText =
+              (charOffset < pText.length &&
+                  lineEndOffset <= pText.length &&
+                  lineEndOffset > charOffset)
               ? pText.substring(charOffset, lineEndOffset).trim()
               : pText.substring(charOffset).trim();
           charOffset = lineEndOffset;
@@ -182,13 +196,15 @@ class _FocusModeViewState extends State<FocusModeView> {
           if (lineText.isNotEmpty) {
             final lineIndex = computed.length;
             _lineKeys[lineIndex] = GlobalKey();
-            computed.add(FocusLineData(
-              index: lineIndex,
-              paragraphIndex: pIdx,
-              isFirstInParagraph: mIdx == 0,
-              isLastInParagraph: isLast,
-              text: lineText,
-            ));
+            computed.add(
+              FocusLineData(
+                index: lineIndex,
+                paragraphIndex: pIdx,
+                isFirstInParagraph: mIdx == 0,
+                isLastInParagraph: isLast,
+                text: lineText,
+              ),
+            );
           }
         }
       }
@@ -289,201 +305,289 @@ class _FocusModeViewState extends State<FocusModeView> {
     final textColumnWidth = (screenSize.width - 64).clamp(320.0, 780.0);
     final reduceMotion = MediaQuery.of(context).disableAnimations;
 
-    return Focus(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: _handleKeyEvent,
-      child: Scaffold(
-        backgroundColor: ReaderTokens.bg,
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            _computeLines(textColumnWidth);
+    final l10n = l10nOf(context);
+    // Back (a remote's, Android's) leaves focus mode, not the book.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) widget.onExit();
+      },
+      child: Theme(
+        data: luTheme(),
+        child: Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: _handleKeyEvent,
+          child: Scaffold(
+            backgroundColor: ReaderTokens.bg,
+            body: LayoutBuilder(
+              builder: (context, constraints) {
+                _computeLines(textColumnWidth);
 
-            return Stack(
-              children: [
-                // ── Reader Backdrop ──
-                Positioned.fill(
-                  child: Container(
-                    color: ReaderTokens.bg,
-                  ),
-                ),
+                return Stack(
+                  children: [
+                    // ── Reader Backdrop ──
+                    Positioned.fill(child: Container(color: ReaderTokens.bg)),
 
-                // ── Direct Line-by-Line Content ──
-                Positioned.fill(
-                  child: Listener(
-                    onPointerSignal: _handlePointerSignal,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTapUp: (details) => _handleScreenTap(details, constraints.maxHeight),
-                      child: SingleChildScrollView(
-                        controller: _scrollController,
-                        physics: const BouncingScrollPhysics(),
-                        padding: EdgeInsets.only(
-                          top: 120,
-                          bottom: constraints.maxHeight * 0.55,
-                        ),
-                        child: Center(
-                          child: SizedBox(
-                            width: textColumnWidth,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: _lines.map((line) {
-                                final isActive = line.index == _activeLineIndex;
-
-                                return Padding(
-                                  key: _lineKeys[line.index],
-                                  padding: EdgeInsets.only(
-                                    top: 3,
-                                    bottom: line.isLastInParagraph
-                                        ? widget.settings.paragraphSpacing + 4
-                                        : 3,
-                                  ),
-                                  child: InkWell(
-                                    onTap: () => _goToLine(line.index),
-                                    borderRadius: ReaderTokens.rounded12,
-                                    child: AnimatedContainer(
-                                      duration: reduceMotion ? Duration.zero : ReaderTokens.motionFocusLine,
-                                      curve: ReaderTokens.curveFocusLine,
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                      decoration: BoxDecoration(
-                                        color: isActive
-                                            ? ReaderTokens.surface
-                                            : Colors.transparent,
-                                        borderRadius: ReaderTokens.rounded12,
-                                        border: Border.all(
-                                          color: isActive
-                                              ? ReaderTokens.accent.withValues(alpha: 0.65)
-                                              : Colors.transparent,
-                                          width: 1.4,
-                                        ),
-                                        boxShadow: isActive
-                                            ? [
-                                                BoxShadow(
-                                                  color: ReaderTokens.accent.withValues(alpha: 0.28),
-                                                  blurRadius: 20,
-                                                  spreadRadius: 0,
-                                                  offset: Offset.zero,
-                                                ),
-                                              ]
-                                            : null,
-                                      ),
-                                      child: AnimatedDefaultTextStyle(
-                                        duration: reduceMotion ? Duration.zero : ReaderTokens.motionFocusOpacity,
-                                        curve: ReaderTokens.curveFocusOpacity,
-                                        style: TextStyle(
-                                          fontFamily: widget.settings.fontFamily,
-                                          fontSize: widget.settings.fontSize,
-                                          height: widget.settings.lineSpacing,
-                                          letterSpacing: widget.settings.letterSpacing,
-                                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                          color: isActive
-                                              ? ReaderTokens.textPrimary
-                                              : ReaderTokens.textDisabled,
-                                        ),
-                                        child: Text(
-                                          line.text,
-                                          textAlign: widget.settings.textAlign,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
+                    // ── Direct Line-by-Line Content ──
+                    Positioned.fill(
+                      child: Listener(
+                        onPointerSignal: _handlePointerSignal,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) =>
+                              _handleScreenTap(details, constraints.maxHeight),
+                          child: SingleChildScrollView(
+                            controller: _scrollController,
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.only(
+                              top: 120,
+                              bottom: constraints.maxHeight * 0.55,
                             ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                            child: Center(
+                              child: SizedBox(
+                                width: textColumnWidth,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: _lines.map((line) {
+                                    final isActive =
+                                        line.index == _activeLineIndex;
 
-                // ── Top Header Scrim Overlay ──
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: ReaderTokens.space24,
-                      vertical: ReaderTokens.space16,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.95),
-                          Colors.black.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Focus Mode Indicator Pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: ReaderTokens.space12,
-                            vertical: ReaderTokens.space4 + 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ReaderTokens.surfaceOverlay.withValues(alpha: 0.90),
-                            borderRadius: ReaderTokens.rounded24,
-                            border: Border.all(
-                              color: ReaderTokens.accent.withValues(alpha: 0.40),
-                            ),
-                            boxShadow: const [ReaderTokens.shadowSm],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.center_focus_strong_rounded,
-                                color: ReaderTokens.accent,
-                                size: 16,
-                              ),
-                              const SizedBox(width: ReaderTokens.space8),
-                              Text(
-                                l10nCurrent().bkFocusModeActive,
-                                style: ZplayType.label.toStyle(
-                                  color: ReaderTokens.accent,
+                                    return Padding(
+                                      key: _lineKeys[line.index],
+                                      padding: EdgeInsets.only(
+                                        top: 3,
+                                        bottom: line.isLastInParagraph
+                                            ? widget.settings.paragraphSpacing +
+                                                  4
+                                            : 3,
+                                      ),
+                                      child: GestureDetector(
+                                        onTap: () => _goToLine(line.index),
+                                        child: AnimatedContainer(
+                                          duration: reduceMotion
+                                              ? Duration.zero
+                                              : ReaderTokens.motionFocusLine,
+                                          curve: ReaderTokens.curveFocusLine,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 7,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isActive
+                                                ? ReaderTokens.surface
+                                                : Colors.transparent,
+                                            borderRadius:
+                                                ReaderTokens.rounded12,
+                                            border: Border.all(
+                                              color: isActive
+                                                  ? ReaderTokens.accent
+                                                        .withValues(alpha: 0.65)
+                                                  : Colors.transparent,
+                                              width: 1.4,
+                                            ),
+                                            boxShadow: isActive
+                                                ? [
+                                                    BoxShadow(
+                                                      color: ReaderTokens.accent
+                                                          .withValues(
+                                                            alpha: 0.28,
+                                                          ),
+                                                      blurRadius: 20,
+                                                      spreadRadius: 0,
+                                                      offset: Offset.zero,
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                          child: AnimatedDefaultTextStyle(
+                                            duration: reduceMotion
+                                                ? Duration.zero
+                                                : ReaderTokens
+                                                      .motionFocusOpacity,
+                                            curve:
+                                                ReaderTokens.curveFocusOpacity,
+                                            style: TextStyle(
+                                              fontFamily:
+                                                  widget.settings.fontFamily,
+                                              fontSize:
+                                                  widget.settings.fontSize,
+                                              height:
+                                                  widget.settings.lineSpacing,
+                                              letterSpacing:
+                                                  widget.settings.letterSpacing,
+                                              fontWeight: isActive
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                              color: isActive
+                                                  ? ReaderTokens.textPrimary
+                                                  : ReaderTokens.textDisabled,
+                                            ),
+                                            child: Text(
+                                              line.text,
+                                              textAlign:
+                                                  widget.settings.textAlign,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
                               ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // ── Top Header Scrim Overlay ──
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ReaderTokens.space24,
+                          vertical: ReaderTokens.space16,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              LuColors.bg.withValues(alpha: 0.95),
+                              LuColors.bg.withValues(alpha: 0.0),
                             ],
                           ),
                         ),
-
-                        // Exit Pill
-                        Semantics(
-                          label: l10nCurrent().bkExitFocusMode,
-                          button: true,
-                          child: InkWell(
-                            onTap: widget.onExit,
-                            borderRadius: ReaderTokens.rounded24,
-                            child: Container(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Focus Mode Indicator Pill
+                            Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: ReaderTokens.space16,
-                                vertical: ReaderTokens.space8,
+                                horizontal: ReaderTokens.space12,
+                                vertical: ReaderTokens.space4 + 2,
                               ),
                               decoration: BoxDecoration(
-                                color: ReaderTokens.surfaceOverlay.withValues(alpha: 0.95),
+                                color: ReaderTokens.surfaceOverlay.withValues(
+                                  alpha: 0.90,
+                                ),
                                 borderRadius: ReaderTokens.rounded24,
-                                border: Border.all(color: ReaderTokens.borderStrong),
+                                border: Border.all(
+                                  color: ReaderTokens.accent.withValues(
+                                    alpha: 0.40,
+                                  ),
+                                ),
                                 boxShadow: const [ReaderTokens.shadowSm],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    Icons.close_rounded,
-                                    color: ReaderTokens.textPrimary,
+                                    Icons.center_focus_strong_rounded,
+                                    color: ReaderTokens.accent,
                                     size: 16,
                                   ),
-                                  const SizedBox(width: ReaderTokens.space4),
+                                  const SizedBox(width: ReaderTokens.space8),
                                   Text(
-                                    l10nCurrent().bkExitEsc,
-                                    style: ZplayType.label.toStyle(
-                                      color: ReaderTokens.textPrimary,
+                                    l10n.bkFocusModeActive,
+                                    style: LuText.label.copyWith(
+                                      color: LuColors.gold,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Exit pill
+                            LuFocusable(
+                              onTap: widget.onExit,
+                              semanticLabel: l10n.bkExitFocusMode,
+                              builder: (context, hi) => AnimatedContainer(
+                                duration: LuMotion.focus,
+                                height: 40,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: hi
+                                      ? const Color(0x33FFFFFF)
+                                      : const Color(0x1FFFFFFF),
+                                  borderRadius: LuRadius.pill,
+                                  border: Border.all(
+                                    color: const Color(0x38FFFFFF),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.close_rounded,
+                                      color: LuColors.text,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      l10n.bkExitEsc,
+                                      style: LuText.label.copyWith(
+                                        color: LuColors.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ── One-Time Coach Mark ──
+                    if (_showCoachMark)
+                      Positioned(
+                        bottom: 36,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: AnimatedOpacity(
+                            opacity: _showCoachMark ? 1.0 : 0.0,
+                            duration: ReaderTokens.motionFast,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: ReaderTokens.space16,
+                                vertical: ReaderTokens.space8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ReaderTokens.surfaceOverlay.withValues(
+                                  alpha: 0.95,
+                                ),
+                                borderRadius: ReaderTokens.rounded24,
+                                border: Border.all(
+                                  color: ReaderTokens.accent.withValues(
+                                    alpha: 0.40,
+                                  ),
+                                ),
+                                boxShadow: const [ReaderTokens.shadowMd],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.touch_app_rounded,
+                                    color: ReaderTokens.accent,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: ReaderTokens.space8),
+                                  Flexible(
+                                    child: Text(
+                                      l10n.bkTapAboveBelowToMoveKeys,
+                                      style: LuText.label.copyWith(
+                                        color: LuColors.text,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -491,110 +595,70 @@ class _FocusModeViewState extends State<FocusModeView> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
 
-                // ── One-Time Coach Mark ──
-                if (_showCoachMark)
-                  Positioned(
-                    bottom: 36,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: AnimatedOpacity(
-                        opacity: _showCoachMark ? 1.0 : 0.0,
-                        duration: ReaderTokens.motionFast,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: ReaderTokens.space16,
-                            vertical: ReaderTokens.space8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ReaderTokens.surfaceOverlay.withValues(alpha: 0.95),
-                            borderRadius: ReaderTokens.rounded24,
-                            border: Border.all(
-                              color: ReaderTokens.accent.withValues(alpha: 0.40),
+                    // ── Line up / down discs ──
+                    Positioned(
+                      right: ReaderTokens.space24,
+                      top: constraints.maxHeight * 0.42,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: LuColors.glass,
+                          borderRadius: LuRadius.pill,
+                          border: Border.all(color: LuColors.glassEdge),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            LuGlyphButton(
+                              icon: Icons.keyboard_arrow_up_rounded,
+                              label: l10n.bkPreviousLineUpArrow,
+                              filled: false,
+                              iconSize: 24,
+                              onTap: () => _goToLine(_activeLineIndex - 1),
                             ),
-                            boxShadow: const [ReaderTokens.shadowMd],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.touch_app_rounded,
-                                color: ReaderTokens.accent,
-                                size: 16,
-                              ),
-                              const SizedBox(width: ReaderTokens.space8),
-                              Text(
-                                l10nCurrent().bkTapAboveBelowToMoveKeys,
-                                style: ZplayType.label.toStyle(
-                                  color: ReaderTokens.textPrimary,
-                                ),
-                              ),
-                            ],
+                            Container(
+                              height: 1,
+                              width: 22,
+                              color: LuColors.line,
+                            ),
+                            LuGlyphButton(
+                              icon: Icons.keyboard_arrow_down_rounded,
+                              label: l10n.bkNextLineDownArrowSpace,
+                              filled: false,
+                              iconSize: 24,
+                              onTap: () => _goToLine(_activeLineIndex + 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ── Ambient Hairline Progress Bar (50% Opacity) ──
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Opacity(
+                        opacity: 0.50,
+                        child: LinearProgressIndicator(
+                          value: _lines.isNotEmpty
+                              ? (_activeLineIndex + 1) / _lines.length
+                              : 0.0,
+                          minHeight: 2.0,
+                          backgroundColor: Colors.transparent,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            ReaderTokens.accent,
                           ),
                         ),
                       ),
                     ),
-                  ),
-
-                // ── Desktop Floating Chevron Controls ──
-                Positioned(
-                  right: ReaderTokens.space24,
-                  top: constraints.maxHeight * 0.44,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: ReaderTokens.surfaceOverlay.withValues(alpha: 0.92),
-                      borderRadius: ReaderTokens.rounded32,
-                      border: Border.all(color: ReaderTokens.borderStrong),
-                      boxShadow: const [ReaderTokens.shadowMd],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.keyboard_arrow_up_rounded,
-                            color: ReaderTokens.textPrimary,
-                          ),
-                          tooltip: l10nCurrent().bkPreviousLineUpArrow,
-                          onPressed: () => _goToLine(_activeLineIndex - 1),
-                        ),
-                        Container(height: 1, width: 24, color: ReaderTokens.borderStrong),
-                        IconButton(
-                          icon: Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: ReaderTokens.textPrimary,
-                          ),
-                          tooltip: l10nCurrent().bkNextLineDownArrowSpace,
-                          onPressed: () => _goToLine(_activeLineIndex + 1),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── Ambient Hairline Progress Bar (50% Opacity) ──
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Opacity(
-                    opacity: 0.50,
-                    child: LinearProgressIndicator(
-                      value: _lines.isNotEmpty ? (_activeLineIndex + 1) / _lines.length : 0.0,
-                      minHeight: 2.0,
-                      backgroundColor: Colors.transparent,
-                      valueColor: AlwaysStoppedAnimation<Color>(ReaderTokens.accent),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );

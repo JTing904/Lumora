@@ -7,6 +7,8 @@ import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
 import '../../services/storage/app_image_cache.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Ultra-responsive, glassmorphic Episodes Side Panel with season tabs,
 /// auto-scroll to current episode, animated card expansion, and high FPS rendering.
@@ -246,7 +248,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isCompact = screenWidth < 680;
     final drawerWidth = isCompact ? screenWidth * 0.94 : 440.0;
@@ -259,10 +261,9 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
         height: MediaQuery.sizeOf(context).height,
         child: Container(
           decoration: BoxDecoration(
-          color: tokens.surfaceOverlay.withValues(alpha: 0.95),
-          border: Border(
-            left: BorderSide(color: tokens.borderStrong, width: 1.2),
-          ),
+          color: LuPanel.fill,
+          borderRadius: _drawerRadius,
+          border: Border.all(color: LuPanel.edge),
           boxShadow: [
             BoxShadow(
               color: tokens.bg.withValues(alpha: 0.85),
@@ -272,6 +273,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
           ],
         ),
         child: ClipRRect(
+          borderRadius: _drawerRadius,
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: Column(
@@ -348,8 +350,13 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
     );
   }
 
+  /// The drawer's open edge is rounded; its screen edge stays square.
+  static const BorderRadius _drawerRadius = BorderRadius.horizontal(
+    left: Radius.circular(24),
+  );
+
   Widget _buildHeader(int episodeCount, bool isCompact) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.paddingOf(context).top + ZplaySpacing.s12,
@@ -357,14 +364,13 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
         right: isCompact ? 14 : 18,
         bottom: ZplaySpacing.s12,
       ),
-      color: tokens.bg.withValues(alpha: 0.4),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
               color: PlayerTheme.accent.withValues(alpha: 0.20),
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: LuRadius.field,
               border: Border.all(
                 color: PlayerTheme.accent.withValues(alpha: 0.40),
               ),
@@ -388,7 +394,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
                       .toStyle(color: tokens.textPrimary),
                 ),
                 Text(
-                  l10nCurrent().wgPlySeasonEpisodeSummary(_seasonLabels[_selectedSeason] ?? 'Season $_selectedSeason', episodeCount),
+                  l10nCurrent().wgPlySeasonEpisodeSummary(_seasonLabels[_selectedSeason] ?? l10nCurrent().wgPlySeasonLabel(_selectedSeason), episodeCount),
                   style: ZplayType.bodySmall
                       .copyWith(weight: FontWeight.w500)
                       .toStyle(color: tokens.textSecondary),
@@ -411,13 +417,12 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
   }
 
   Widget _buildSeasonTabs(bool isCompact) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final showArrows = !isCompact && _seasons.length > 2;
 
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: ZplaySpacing.s4),
-      color: tokens.bg.withValues(alpha: 0.2),
       child: Row(
         children: [
           // Desktop Left Season Arrow
@@ -447,19 +452,15 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
 
                 return FocusableInkWell(
                   onTap: () => _selectSeason(season),
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.pill,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isActive
-                            ? PlayerTheme.accent.withValues(alpha: 0.28)
-                            : tokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle),
-                        borderRadius: ZplayRadius.smAll,
+                        color: isActive ? LuPanel.selectedFill : LuPanel.rowFill,
+                        borderRadius: LuRadius.pill,
                         border: Border.all(
-                          color: isActive
-                              ? PlayerTheme.accent.withValues(alpha: 0.80)
-                              : tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                          color: isActive ? LuPanel.selectedEdge : LuPanel.edge,
                           width: 1.2,
                         ),
                         boxShadow: isActive
@@ -480,7 +481,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
                               weight: isActive ? FontWeight.w700 : FontWeight.w500,
                             )
                             .toStyle(
-                              color: isActive ? tokens.textPrimary : tokens.textEmphasis,
+                              color: isActive ? tokens.accent : tokens.textEmphasis,
                             ),
                       ),
                   ),
@@ -509,19 +510,19 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
     required String tooltip,
     required VoidCallback onTap,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Tooltip(
       message: tooltip,
       child: FocusableInkWell(
         onTap: onTap,
-        borderRadius: ZplayRadius.smAll,
+        borderRadius: LuRadius.field,
         child: Container(
           width: 28,
           height: 28,
           decoration: BoxDecoration(
             color: tokens.textPrimary
                 .withValues(alpha: ZplayOpacity.borderDefault),
-            borderRadius: ZplayRadius.smAll,
+            borderRadius: LuRadius.field,
             border: Border.all(
               color: tokens.borderStrong,
               width: 1,
@@ -545,7 +546,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
     required bool isSelected,
     required bool isCompact,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final epNum = video.episode ?? (index + 1);
     final epTitle = video.title.isNotEmpty ? video.title : l10nCurrent().wgPlyEpisodeFallback(epNum);
     final hasOverview = video.overview != null && video.overview!.trim().isNotEmpty;
@@ -563,11 +564,9 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
             curve: ZplayMotion.standard,
             decoration: BoxDecoration(
               color: isSelected
-                  ? tokens.surface
-                  : (isHovered
-                      ? tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)
-                      : tokens.bg.withValues(alpha: 0.12)),
-              borderRadius: ZplayRadius.mdAll,
+                  ? LuPanel.selectedFill
+                  : (isHovered ? LuPanel.rowHover : LuPanel.rowFill),
+              borderRadius: LuPanel.rowRadiusAll,
               border: Border.all(
                 color: isSelected
                     ? PlayerTheme.accent
@@ -575,7 +574,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
                         ? tokens.success.withValues(alpha: 0.70)
                         : (isHovered
                             ? tokens.textPrimary.withValues(alpha: 0.28)
-                            : tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium))),
+                            : LuPanel.edge)),
                 width: isSelected ? 1.8 : 1.0,
               ),
               boxShadow: [
@@ -603,7 +602,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
                   children: [
                     // Thumbnail Container
                     ClipRRect(
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                       child: Container(
                         width: isSelected ? 116 : (isCompact ? 92 : 104),
                         height: isSelected ? 68 : (isCompact ? 56 : 62),
@@ -777,14 +776,14 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
                   // "SELECT SOURCE / PLAY" Action Button
                   FocusableInkWell(
                     onTap: () => widget.onEpisodeSelected(video),
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                     child: Container(
                       height: 38,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [PlayerTheme.accent, tokens.accentHover],
                         ),
-                        borderRadius: ZplayRadius.smAll,
+                        borderRadius: LuRadius.field,
                         boxShadow: [
                           BoxShadow(
                             color: PlayerTheme.accent.withValues(alpha: 0.45),
@@ -818,7 +817,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
   }
 
   Widget _buildThumbPlaceholder(int epNum) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Container(
       color: tokens.surface,
       alignment: Alignment.center,
@@ -835,7 +834,7 @@ class _PlayerEpisodesPanelState extends State<PlayerEpisodesPanel> {
     required String tooltip,
     required VoidCallback onTap,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Tooltip(
       message: tooltip,
       child: FocusableInkWell(

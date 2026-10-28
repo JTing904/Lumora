@@ -509,7 +509,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsP2pDisabledSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'P2P disabled. Using only direct HTTP streaming (ZPlayHTTP)'**
+  /// **'P2P disabled. Using only direct HTTP streaming'**
   String get settingsP2pDisabledSubtitle;
 
   /// No description provided for @settingsP2pActiveValue.
@@ -557,7 +557,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsBuiltinSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'ZPlayHTTP streaming sources, priority order & toggles'**
+  /// **'Built-in streaming sources, priority order & toggles'**
   String get settingsBuiltinSubtitle;
 
   /// No description provided for @settingsBuiltinCustom.
@@ -671,7 +671,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAppearanceSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Liquid Glass setup, color themes, and Home Page UI'**
+  /// **'Liquid Glass, wallpaper and Home Page UI'**
   String get settingsAppearanceSubtitle;
 
   /// No description provided for @settingsGlassOn.
@@ -8513,7 +8513,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgaPurposeVidgod.
   ///
   /// In en, this message translates to:
-  /// **'Bearer for the VidGod cloud cache behind ZPlayHTTP streams.'**
+  /// **'Bearer for the VidGod cloud cache behind the built-in streams.'**
   String get stgaPurposeVidgod;
 
   /// No description provided for @stgaPurposeFilms365.
@@ -8945,7 +8945,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgbAppearanceIntro.
   ///
   /// In en, this message translates to:
-  /// **'Fine-tune the visual atmosphere, custom wallpaper background, color palettes, and interface layouts.'**
+  /// **'Fine-tune the visual atmosphere, custom wallpaper background and interface layouts.'**
   String get stgbAppearanceIntro;
 
   /// No description provided for @stgbInterfaceAtmosphere.
@@ -8999,13 +8999,13 @@ abstract class AppLocalizations {
   /// No description provided for @stgbHomeUiThemes.
   ///
   /// In en, this message translates to:
-  /// **'Home Page UI & Themes'**
+  /// **'Home Page UI'**
   String get stgbHomeUiThemes;
 
   /// No description provided for @stgbHomeUiThemesDesc.
   ///
   /// In en, this message translates to:
-  /// **'Color schemes, \"Because you have on your list\" smart slider, hero spotlight, and card density'**
+  /// **'\"Because you have on your list\" smart slider, hero spotlight, and card density'**
   String get stgbHomeUiThemesDesc;
 
   /// No description provided for @stgbLiveTvSportsUi.
@@ -12766,7 +12766,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgcServiceKeysUnobtainable.
   ///
   /// In en, this message translates to:
-  /// **'These cannot be obtained: each is a credential for a third-party service that did not issue it to ZPlay, so leave its field blank unless you have your own. A private build can supply its own with --dart-define, and blanking the registry entry in the source disables only that one source.'**
+  /// **'These cannot be obtained: each is a credential for a third-party service that did not issue it to Lumora, so leave its field blank unless you have your own. A private build can supply its own with --dart-define, and blanking the registry entry in the source disables only that one source.'**
   String get stgcServiceKeysUnobtainable;
 
   /// No description provided for @stgcServiceKeysStoredLocally.
@@ -13030,7 +13030,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgcHomeUiThemes.
   ///
   /// In en, this message translates to:
-  /// **'Home Page UI & Themes'**
+  /// **'Home Page UI'**
   String get stgcHomeUiThemes;
 
   /// No description provided for @stgcDropImagelessRails.
@@ -14173,6 +14173,90 @@ abstract class AppLocalizations {
   /// **'This release does not publish a SHA-256 checksum, so Lumora will not install it automatically. Open the release page and verify the download yourself before installing it.'**
   String get wgUpdNoChecksum;
 
+  /// No description provided for @wgUpdInstallPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow \"Install unknown apps\" for Lumora in Android settings, then try again.'**
+  String get wgUpdInstallPermission;
+
+  /// No description provided for @wgUpdFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed: {error}'**
+  String wgUpdFailed(String error);
+
+  /// No description provided for @wgUpdDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String wgUpdDownloadFailed(String error);
+
+  /// No description provided for @wgUpdChecksumMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The update\'s checksum did not match, so the download was deleted.'**
+  String get wgUpdChecksumMismatch;
+
+  /// No description provided for @wgUpdSignatureConflictHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The install can fail with \"App not installed as package conflicts with an existing package\" when the previously installed copy was signed with a different key. Uninstall that copy once and install again; export your settings first from Settings → Backup & Restore (JSON) to keep them.'**
+  String get wgUpdSignatureConflictHint;
+
+  /// No description provided for @wgUpdDownloadComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete'**
+  String get wgUpdDownloadComplete;
+
+  /// No description provided for @wgUpdWillCloseAndInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Lumora will close and install the update.'**
+  String get wgUpdWillCloseAndInstall;
+
+  /// No description provided for @wgUpdDownloadedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Update downloaded to:'**
+  String get wgUpdDownloadedTo;
+
+  /// No description provided for @wgUpdMakeExecutable.
+  ///
+  /// In en, this message translates to:
+  /// **'Make the file executable and run it:'**
+  String get wgUpdMakeExecutable;
+
+  /// No description provided for @wgUpdOpenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open folder'**
+  String get wgUpdOpenFolder;
+
+  /// No description provided for @wgUpdCloseAndInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Close and install now'**
+  String get wgUpdCloseAndInstall;
+
+  /// No description provided for @wgUpdOk.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get wgUpdOk;
+
+  /// No description provided for @updatesCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check for updates. Check your connection and try again.'**
+  String get updatesCheckFailed;
+
+  /// No description provided for @detailsRuntimeMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String detailsRuntimeMinutes(int minutes);
+
   /// No description provided for @authTagline.
   ///
   /// In en, this message translates to:
@@ -14982,6 +15066,1104 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load more.'**
   String get filterMoreFailed;
+
+  /// No description provided for @profileEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get profileEdit;
+
+  /// No description provided for @profileNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname'**
+  String get profileNameLabel;
+
+  /// No description provided for @profileNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What friends see'**
+  String get profileNameHint;
+
+  /// No description provided for @profileColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatar colour'**
+  String get profileColorLabel;
+
+  /// No description provided for @profileSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get profileSave;
+
+  /// No description provided for @profileCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get profileCancel;
+
+  /// No description provided for @profileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile saved.'**
+  String get profileSaved;
+
+  /// No description provided for @profileSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Check your connection and try again.'**
+  String get profileSaveFailed;
+
+  /// No description provided for @whatsNewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new in Lumora {version}'**
+  String whatsNewTitle(String version);
+
+  /// No description provided for @whatsNewDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get whatsNewDone;
+
+  /// No description provided for @newEpBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get newEpBadge;
+
+  /// No description provided for @newEpCode.
+  ///
+  /// In en, this message translates to:
+  /// **'S{season} E{episode}'**
+  String newEpCode(String season, String episode);
+
+  /// No description provided for @newEpRail.
+  ///
+  /// In en, this message translates to:
+  /// **'New episodes'**
+  String get newEpRail;
+
+  /// No description provided for @newEpAirsNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next {date}'**
+  String newEpAirsNext(String date);
+
+  /// No description provided for @newEpMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{month}/{day}'**
+  String newEpMonthDay(String month, String day);
+
+  /// No description provided for @newEpCalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My shows calendar'**
+  String get newEpCalTitle;
+
+  /// No description provided for @newEpCalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When the series in My List air next'**
+  String get newEpCalSubtitle;
+
+  /// No description provided for @newEpCalEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No series in My List yet'**
+  String get newEpCalEmptyTitle;
+
+  /// No description provided for @newEpCalEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Add series to My List to see their new episodes here'**
+  String get newEpCalEmptyBody;
+
+  /// No description provided for @newEpCalNoneThisDay.
+  ///
+  /// In en, this message translates to:
+  /// **'None of your series air this day'**
+  String get newEpCalNoneThisDay;
+
+  /// No description provided for @newEpCalChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking air dates…'**
+  String get newEpCalChecking;
+
+  /// No description provided for @mangaGenreAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get mangaGenreAll;
+
+  /// No description provided for @mangaGenreAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get mangaGenreAction;
+
+  /// No description provided for @mangaGenreAdventure.
+  ///
+  /// In en, this message translates to:
+  /// **'Adventure'**
+  String get mangaGenreAdventure;
+
+  /// No description provided for @mangaGenreComedy.
+  ///
+  /// In en, this message translates to:
+  /// **'Comedy'**
+  String get mangaGenreComedy;
+
+  /// No description provided for @mangaGenreDrama.
+  ///
+  /// In en, this message translates to:
+  /// **'Drama'**
+  String get mangaGenreDrama;
+
+  /// No description provided for @mangaGenreFantasy.
+  ///
+  /// In en, this message translates to:
+  /// **'Fantasy'**
+  String get mangaGenreFantasy;
+
+  /// No description provided for @mangaGenreHistorical.
+  ///
+  /// In en, this message translates to:
+  /// **'Historical'**
+  String get mangaGenreHistorical;
+
+  /// No description provided for @mangaGenreHorror.
+  ///
+  /// In en, this message translates to:
+  /// **'Horror'**
+  String get mangaGenreHorror;
+
+  /// No description provided for @mangaGenreIsekai.
+  ///
+  /// In en, this message translates to:
+  /// **'Isekai'**
+  String get mangaGenreIsekai;
+
+  /// No description provided for @mangaGenreMartialArts.
+  ///
+  /// In en, this message translates to:
+  /// **'Martial Arts'**
+  String get mangaGenreMartialArts;
+
+  /// No description provided for @mangaGenreMystery.
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery'**
+  String get mangaGenreMystery;
+
+  /// No description provided for @mangaGenrePsychological.
+  ///
+  /// In en, this message translates to:
+  /// **'Psychological'**
+  String get mangaGenrePsychological;
+
+  /// No description provided for @mangaGenreRomance.
+  ///
+  /// In en, this message translates to:
+  /// **'Romance'**
+  String get mangaGenreRomance;
+
+  /// No description provided for @mangaGenreSchoolLife.
+  ///
+  /// In en, this message translates to:
+  /// **'School Life'**
+  String get mangaGenreSchoolLife;
+
+  /// No description provided for @mangaGenreSciFi.
+  ///
+  /// In en, this message translates to:
+  /// **'Sci-fi'**
+  String get mangaGenreSciFi;
+
+  /// No description provided for @mangaGenreSeinen.
+  ///
+  /// In en, this message translates to:
+  /// **'Seinen'**
+  String get mangaGenreSeinen;
+
+  /// No description provided for @mangaGenreShounen.
+  ///
+  /// In en, this message translates to:
+  /// **'Shounen'**
+  String get mangaGenreShounen;
+
+  /// No description provided for @mangaGenreSliceOfLife.
+  ///
+  /// In en, this message translates to:
+  /// **'Slice of Life'**
+  String get mangaGenreSliceOfLife;
+
+  /// No description provided for @mangaGenreSports.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports'**
+  String get mangaGenreSports;
+
+  /// No description provided for @mangaGenreSupernatural.
+  ///
+  /// In en, this message translates to:
+  /// **'Supernatural'**
+  String get mangaGenreSupernatural;
+
+  /// No description provided for @mangaGenreTragedy.
+  ///
+  /// In en, this message translates to:
+  /// **'Tragedy'**
+  String get mangaGenreTragedy;
+
+  /// No description provided for @mangaTypeManga.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga'**
+  String get mangaTypeManga;
+
+  /// No description provided for @mangaTypeManhwa.
+  ///
+  /// In en, this message translates to:
+  /// **'Manhwa'**
+  String get mangaTypeManhwa;
+
+  /// No description provided for @mangaTypeManhua.
+  ///
+  /// In en, this message translates to:
+  /// **'Manhua'**
+  String get mangaTypeManhua;
+
+  /// No description provided for @mangaModeWebtoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical scroll (webtoon)'**
+  String get mangaModeWebtoon;
+
+  /// No description provided for @mangaModeLtr.
+  ///
+  /// In en, this message translates to:
+  /// **'Pages, left to right'**
+  String get mangaModeLtr;
+
+  /// No description provided for @mangaModeRtl.
+  ///
+  /// In en, this message translates to:
+  /// **'Pages, right to left (manga)'**
+  String get mangaModeRtl;
+
+  /// No description provided for @mangaWidthFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen'**
+  String get mangaWidthFull;
+
+  /// No description provided for @mangaWidthCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
+  String get mangaWidthCompact;
+
+  /// No description provided for @mangaWidthStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get mangaWidthStandard;
+
+  /// No description provided for @mangaWidthWide.
+  ///
+  /// In en, this message translates to:
+  /// **'Wide'**
+  String get mangaWidthWide;
+
+  /// No description provided for @mangaBgPitchBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch Black'**
+  String get mangaBgPitchBlack;
+
+  /// No description provided for @mangaBgDeepCharcoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep Charcoal'**
+  String get mangaBgDeepCharcoal;
+
+  /// No description provided for @mangaBgDarkSlate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Slate'**
+  String get mangaBgDarkSlate;
+
+  /// No description provided for @mangaBgSepiaDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Sepia Dark'**
+  String get mangaBgSepiaDark;
+
+  /// No description provided for @mangaDensityCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
+  String get mangaDensityCompact;
+
+  /// No description provided for @mangaDensityStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get mangaDensityStandard;
+
+  /// No description provided for @mangaDensitySpacious.
+  ///
+  /// In en, this message translates to:
+  /// **'Spacious'**
+  String get mangaDensitySpacious;
+
+  /// No description provided for @mangaChapterShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Ch. {number}'**
+  String mangaChapterShort(String number);
+
+  /// No description provided for @mangaPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga'**
+  String get mangaPageTitle;
+
+  /// No description provided for @mangaPageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga, manhwa and manhua to read on any screen'**
+  String get mangaPageSubtitle;
+
+  /// No description provided for @mangaReaderSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reader'**
+  String get mangaReaderSettings;
+
+  /// No description provided for @booksChapterShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Ch. {number}'**
+  String booksChapterShort(String number);
+
+  /// No description provided for @booksChapterOfTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Ch. {current} of {total}'**
+  String booksChapterOfTotal(String current, String total);
+
+  /// No description provided for @booksFontSizePt.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} pt'**
+  String booksFontSizePt(String size);
+
+  /// No description provided for @booksFontSizePx.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} px'**
+  String booksFontSizePx(String size);
+
+  /// No description provided for @booksPreviewSample.
+  ///
+  /// In en, this message translates to:
+  /// **'“It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.”'**
+  String get booksPreviewSample;
+
+  /// No description provided for @booksPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Books'**
+  String get booksPageTitle;
+
+  /// No description provided for @booksPageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a book, download it once, read it anywhere'**
+  String get booksPageSubtitle;
+
+  /// No description provided for @booksReaderStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading style'**
+  String get booksReaderStyle;
+
+  /// No description provided for @booksShowControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Show controls'**
+  String get booksShowControls;
+
+  /// No description provided for @musArtistsHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Artists'**
+  String get musArtistsHeading;
+
+  /// No description provided for @musAlbumsHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums'**
+  String get musAlbumsHeading;
+
+  /// No description provided for @musPlaylistsHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlists'**
+  String get musPlaylistsHeading;
+
+  /// No description provided for @musGenrePopHits.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop Hits'**
+  String get musGenrePopHits;
+
+  /// No description provided for @musGenreRockClassics.
+  ///
+  /// In en, this message translates to:
+  /// **'Rock Classics'**
+  String get musGenreRockClassics;
+
+  /// No description provided for @musGenreHeavyMetal.
+  ///
+  /// In en, this message translates to:
+  /// **'Heavy Metal'**
+  String get musGenreHeavyMetal;
+
+  /// No description provided for @musGenreClassicalPiano.
+  ///
+  /// In en, this message translates to:
+  /// **'Classical Piano'**
+  String get musGenreClassicalPiano;
+
+  /// No description provided for @musHiResLossless.
+  ///
+  /// In en, this message translates to:
+  /// **'Hi-Res Lossless · {quality}'**
+  String musHiResLossless(String quality);
+
+  /// No description provided for @musHiResLosslessAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'{quality} · Hi-Res lossless audio'**
+  String musHiResLosslessAudio(String quality);
+
+  /// No description provided for @musPlayTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get musPlayTip;
+
+  /// No description provided for @musPauseTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get musPauseTip;
+
+  /// No description provided for @musPreviousTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get musPreviousTip;
+
+  /// No description provided for @musNextTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get musNextTip;
+
+  /// No description provided for @musRepeatTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get musRepeatTip;
+
+  /// No description provided for @musLikeTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Like'**
+  String get musLikeTip;
+
+  /// No description provided for @musAddToPlaylistTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to playlist'**
+  String get musAddToPlaylistTip;
+
+  /// No description provided for @musLyricsTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics'**
+  String get musLyricsTip;
+
+  /// No description provided for @musQueueTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get musQueueTip;
+
+  /// No description provided for @musClosePlayerTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Close player'**
+  String get musClosePlayerTip;
+
+  /// No description provided for @musMoreTip.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get musMoreTip;
+
+  /// No description provided for @musRemoveFromQueueTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from queue'**
+  String get musRemoveFromQueueTip;
+
+  /// No description provided for @musRemoveFromPlaylistTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from playlist'**
+  String get musRemoveFromPlaylistTip;
+
+  /// No description provided for @musClearSearchTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get musClearSearchTip;
+
+  /// No description provided for @musCancelDownloadTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel download'**
+  String get musCancelDownloadTip;
+
+  /// No description provided for @musNowPlayingKicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get musNowPlayingKicker;
+
+  /// No description provided for @abkCatFantasy.
+  ///
+  /// In en, this message translates to:
+  /// **'Fantasy'**
+  String get abkCatFantasy;
+
+  /// No description provided for @abkCatSciFi.
+  ///
+  /// In en, this message translates to:
+  /// **'Sci-Fi'**
+  String get abkCatSciFi;
+
+  /// No description provided for @abkCatMystery.
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery'**
+  String get abkCatMystery;
+
+  /// No description provided for @abkCatThriller.
+  ///
+  /// In en, this message translates to:
+  /// **'Thriller'**
+  String get abkCatThriller;
+
+  /// No description provided for @abkCatNonFiction.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-Fiction'**
+  String get abkCatNonFiction;
+
+  /// No description provided for @abkCatSelfHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-Help'**
+  String get abkCatSelfHelp;
+
+  /// No description provided for @abkCatHorror.
+  ///
+  /// In en, this message translates to:
+  /// **'Horror'**
+  String get abkCatHorror;
+
+  /// No description provided for @abkCatRomance.
+  ///
+  /// In en, this message translates to:
+  /// **'Romance'**
+  String get abkCatRomance;
+
+  /// No description provided for @abkCatAdventure.
+  ///
+  /// In en, this message translates to:
+  /// **'Adventure'**
+  String get abkCatAdventure;
+
+  /// No description provided for @abkCatClassics.
+  ///
+  /// In en, this message translates to:
+  /// **'Classics'**
+  String get abkCatClassics;
+
+  /// No description provided for @abkTimeLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} left'**
+  String abkTimeLeft(String time);
+
+  /// No description provided for @abkTorrentSource.
+  ///
+  /// In en, this message translates to:
+  /// **'AudiobookBay · torrent'**
+  String get abkTorrentSource;
+
+  /// No description provided for @abkAiGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'AI generated'**
+  String get abkAiGenerated;
+
+  /// No description provided for @abkAiGeneratedKokoro.
+  ///
+  /// In en, this message translates to:
+  /// **'AI generated · Kokoro TTS'**
+  String get abkAiGeneratedKokoro;
+
+  /// No description provided for @abkUnknownAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown author'**
+  String get abkUnknownAuthor;
+
+  /// No description provided for @abkSplitMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This book has about {words} words. It will be split into {parts} parts along chapter boundaries and queued:\n\n{list}'**
+  String abkSplitMessage(String words, String parts, String list);
+
+  /// No description provided for @abkSplitPartLine.
+  ///
+  /// In en, this message translates to:
+  /// **'• {name} (about {words} words)'**
+  String abkSplitPartLine(String name, String words);
+
+  /// No description provided for @abkBackTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get abkBackTip;
+
+  /// No description provided for @abkPlaybackSpeedTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback speed'**
+  String get abkPlaybackSpeedTip;
+
+  /// No description provided for @abkRemoveFromContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Continue Listening?'**
+  String get abkRemoveFromContinue;
+
+  /// No description provided for @abkClearSearchTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get abkClearSearchTip;
+
+  /// No description provided for @abkDeleteJobTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get abkDeleteJobTip;
+
+  /// No description provided for @playerSubPreviewSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Lumora • Sample subtitle preview'**
+  String get playerSubPreviewSample;
+
+  /// No description provided for @abkDensityCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
+  String get abkDensityCompact;
+
+  /// No description provided for @abkDensityStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get abkDensityStandard;
+
+  /// No description provided for @abkDensitySpacious.
+  ///
+  /// In en, this message translates to:
+  /// **'Spacious'**
+  String get abkDensitySpacious;
+
+  /// No description provided for @abkPresetModern.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get abkPresetModern;
+
+  /// No description provided for @abkPresetVinyl.
+  ///
+  /// In en, this message translates to:
+  /// **'Turntable'**
+  String get abkPresetVinyl;
+
+  /// No description provided for @abkPresetCapsule.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimal'**
+  String get abkPresetCapsule;
+
+  /// No description provided for @abkPresetCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Big cover'**
+  String get abkPresetCanvas;
+
+  /// No description provided for @abkPresetCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get abkPresetCustom;
+
+  /// No description provided for @abkSeekWaveform.
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform'**
+  String get abkSeekWaveform;
+
+  /// No description provided for @abkSeekGradient.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar'**
+  String get abkSeekGradient;
+
+  /// No description provided for @abkSeekSlider.
+  ///
+  /// In en, this message translates to:
+  /// **'Slider'**
+  String get abkSeekSlider;
+
+  /// No description provided for @abkSeekRing.
+  ///
+  /// In en, this message translates to:
+  /// **'Ring'**
+  String get abkSeekRing;
+
+  /// No description provided for @abkButtonCircle.
+  ///
+  /// In en, this message translates to:
+  /// **'Circle'**
+  String get abkButtonCircle;
+
+  /// No description provided for @abkButtonGlass.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get abkButtonGlass;
+
+  /// No description provided for @abkButtonSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Square'**
+  String get abkButtonSquare;
+
+  /// No description provided for @abkButtonPill.
+  ///
+  /// In en, this message translates to:
+  /// **'Pill'**
+  String get abkButtonPill;
+
+  /// No description provided for @profilePhotoUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload photo'**
+  String get profilePhotoUpload;
+
+  /// No description provided for @profilePhotoRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove photo'**
+  String get profilePhotoRemove;
+
+  /// No description provided for @profilePhotoFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t upload that photo. Try another image.'**
+  String get profilePhotoFailed;
+
+  /// No description provided for @booksAlignLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Align left'**
+  String get booksAlignLeft;
+
+  /// No description provided for @booksAlignJustify.
+  ///
+  /// In en, this message translates to:
+  /// **'Justify'**
+  String get booksAlignJustify;
+
+  /// No description provided for @wgPlyAspectFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit to screen (Contain)'**
+  String get wgPlyAspectFit;
+
+  /// No description provided for @wgPlyAspectCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill screen (Crop/Zoom)'**
+  String get wgPlyAspectCover;
+
+  /// No description provided for @wgPlyAspectStretch.
+  ///
+  /// In en, this message translates to:
+  /// **'Stretch to fill'**
+  String get wgPlyAspectStretch;
+
+  /// No description provided for @wgPlySubColorWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get wgPlySubColorWhite;
+
+  /// No description provided for @wgPlySubColorCinemaYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinema Yellow'**
+  String get wgPlySubColorCinemaYellow;
+
+  /// No description provided for @wgPlySubColorAmberGold.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber Gold'**
+  String get wgPlySubColorAmberGold;
+
+  /// No description provided for @wgPlySubColorElectricCyan.
+  ///
+  /// In en, this message translates to:
+  /// **'Electric Cyan'**
+  String get wgPlySubColorElectricCyan;
+
+  /// No description provided for @wgPlySubColorNeonGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Neon Green'**
+  String get wgPlySubColorNeonGreen;
+
+  /// No description provided for @wgPlySubColorVibrantOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrant Orange'**
+  String get wgPlySubColorVibrantOrange;
+
+  /// No description provided for @wgPlySubColorSoftRose.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft Rose'**
+  String get wgPlySubColorSoftRose;
+
+  /// No description provided for @wgPlySubColorLightGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Gray'**
+  String get wgPlySubColorLightGray;
+
+  /// No description provided for @wgPlySubColorBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get wgPlySubColorBlack;
+
+  /// No description provided for @wgPlySubColorDarkSlate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Slate'**
+  String get wgPlySubColorDarkSlate;
+
+  /// No description provided for @wgPlySubColorGold.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold'**
+  String get wgPlySubColorGold;
+
+  /// No description provided for @wgPlySubColorCrimson.
+  ///
+  /// In en, this message translates to:
+  /// **'Crimson'**
+  String get wgPlySubColorCrimson;
+
+  /// No description provided for @wgPlySubColorNeonCyan.
+  ///
+  /// In en, this message translates to:
+  /// **'Neon Cyan'**
+  String get wgPlySubColorNeonCyan;
+
+  /// No description provided for @wgPlySubBoxNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get wgPlySubBoxNone;
+
+  /// No description provided for @wgPlySubBoxDark.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% Dark'**
+  String wgPlySubBoxDark(String percent);
+
+  /// No description provided for @wgPlySubBoxSolid.
+  ///
+  /// In en, this message translates to:
+  /// **'100% Solid'**
+  String get wgPlySubBoxSolid;
+
+  /// No description provided for @wgPlySubBoxIndigo.
+  ///
+  /// In en, this message translates to:
+  /// **'50% Indigo'**
+  String get wgPlySubBoxIndigo;
+
+  /// No description provided for @wgPlySubBoxDescTransparent.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparent'**
+  String get wgPlySubBoxDescTransparent;
+
+  /// No description provided for @wgPlySubBoxDescSubtle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtle'**
+  String get wgPlySubBoxDescSubtle;
+
+  /// No description provided for @wgPlySubBoxDescStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard Box'**
+  String get wgPlySubBoxDescStandard;
+
+  /// No description provided for @wgPlySubBoxDescHighContrast.
+  ///
+  /// In en, this message translates to:
+  /// **'High Contrast'**
+  String get wgPlySubBoxDescHighContrast;
+
+  /// No description provided for @wgPlySubBoxDescOpaque.
+  ///
+  /// In en, this message translates to:
+  /// **'Opaque Black'**
+  String get wgPlySubBoxDescOpaque;
+
+  /// No description provided for @wgPlySubBoxDescSlate.
+  ///
+  /// In en, this message translates to:
+  /// **'Slate Tint'**
+  String get wgPlySubBoxDescSlate;
+
+  /// No description provided for @tvDescEspn.
+  ///
+  /// In en, this message translates to:
+  /// **'ESPN+, ESPN, ESPN2, ESPNU, NCAA Men\'s & Women\'s CBB, SEC & ACC'**
+  String get tvDescEspn;
+
+  /// No description provided for @tvDescCombat.
+  ///
+  /// In en, this message translates to:
+  /// **'UFC Fight Pass, WWE, AEW, World Boxing & PPV'**
+  String get tvDescCombat;
+
+  /// No description provided for @musRailTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'🔥 Top Global & Trending Hits'**
+  String get musRailTrending;
+
+  /// No description provided for @musRailPop.
+  ///
+  /// In en, this message translates to:
+  /// **'🌟 Pop Essentials'**
+  String get musRailPop;
+
+  /// No description provided for @musRailHipHop.
+  ///
+  /// In en, this message translates to:
+  /// **'🎙️ Hip-Hop & Rap Heavyweights'**
+  String get musRailHipHop;
+
+  /// No description provided for @musRailElectronic.
+  ///
+  /// In en, this message translates to:
+  /// **'🎧 Electronic, Dance & EDM'**
+  String get musRailElectronic;
+
+  /// No description provided for @musRailRock.
+  ///
+  /// In en, this message translates to:
+  /// **'🎸 Rock Classics & Alternative'**
+  String get musRailRock;
+
+  /// No description provided for @musRailSoundtracks.
+  ///
+  /// In en, this message translates to:
+  /// **'🎬 Film & Anime Soundtracks'**
+  String get musRailSoundtracks;
+
+  /// No description provided for @musRailChill.
+  ///
+  /// In en, this message translates to:
+  /// **'🌙 Chill, Lofi & Ambient Beats'**
+  String get musRailChill;
+
+  /// No description provided for @abkDebridCouldNotResolveAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'{service} could not resolve the audio stream.'**
+  String abkDebridCouldNotResolveAudio(String service);
+
+  /// No description provided for @abkAudioStreamUrlUnresolved.
+  ///
+  /// In en, this message translates to:
+  /// **'The audio stream URL could not be resolved.'**
+  String get abkAudioStreamUrlUnresolved;
+
+  /// No description provided for @abkCatalogueUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The online audiobook catalogue isn\'t available in this build'**
+  String get abkCatalogueUnavailableTitle;
+
+  /// No description provided for @abkCatalogueUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You can still import your own MP3 or M4B audiobooks, or turn an EPUB into an audiobook, in the Studio.'**
+  String get abkCatalogueUnavailableBody;
+
+  /// No description provided for @abkCatalogueUnavailableBodyImportOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'You can still import your own MP3 or M4B audiobooks in the Studio.'**
+  String get abkCatalogueUnavailableBodyImportOnly;
+
+  /// No description provided for @abkHubSubtitleOwnLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own audiobooks, ready to listen'**
+  String get abkHubSubtitleOwnLibrary;
+
+  /// No description provided for @detailsSpecials.
+  ///
+  /// In en, this message translates to:
+  /// **'Specials'**
+  String get detailsSpecials;
 }
 
 class _AppLocalizationsDelegate

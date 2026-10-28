@@ -16,7 +16,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zplay/services/theme/design_tokens.dart';
+import 'package:zplay/ui/lu_theme.dart';
 import 'package:zplay/widgets/settings/settings_app_bar.dart';
 
 /// Pushes a page using the shared band, so the back chevron has somewhere to go
@@ -53,8 +53,6 @@ void main() {
       (tester) async {
     await _pumpPage(tester, title: 'Probe Settings');
 
-    final context = tester.element(find.byType(SettingsAppBar));
-    final tokens = context.tokens;
     final appBar = tester.widget<AppBar>(find.byType(AppBar));
 
     expect(
@@ -90,7 +88,7 @@ void main() {
     final title = tester.widget<Text>(find.text('Probe Settings'));
     expect(
       title.style,
-      ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
+      LuText.title.copyWith(fontSize: 24),
       reason: 'one title style for every page, so no page can restyle its own',
     );
   });

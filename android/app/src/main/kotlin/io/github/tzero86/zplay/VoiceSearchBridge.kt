@@ -166,7 +166,7 @@ class VoiceSearchBridge(
             // No partials: the search must run on the finished sentence, not on
             // every half-word the recognizer revises.
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to search ZPlay")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to search Lumora")
         }
 
     private fun startListening(result: MethodChannel.Result) {

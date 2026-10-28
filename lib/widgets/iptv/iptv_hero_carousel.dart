@@ -9,11 +9,14 @@ import 'iptv_slider_section.dart' show iptvPagePadding;
 import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/home/home_page_settings.dart';
+import '../../services/iptv/channel_category_l10n.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/iptv/iptv_settings.dart';
 import '../../services/storage/app_image_cache.dart';
 import '../common/focusable_card.dart';
 import 'iptv_hero_artwork.dart';
+import '../player/lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 class IptvHeroCarousel extends StatefulWidget {
   final List<HardcodedChannel> channels;
@@ -103,7 +106,7 @@ class _IptvHeroCarouselState extends State<IptvHeroCarousel> {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final heroHeight = _heroHeight(screenWidth, screenHeight);
     final isDesktop = _isDesktop();
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -249,7 +252,7 @@ class _IptvHeroSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final primaryColor = channel.gradient.isNotEmpty
         ? channel.gradient.first
         : tokens.accent;
@@ -339,7 +342,7 @@ class _IptvHeroSlide extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: tokens.danger.withValues(alpha: 0.9),
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                       boxShadow: [
                         BoxShadow(
                           color: tokens.danger.withValues(alpha: 0.5),
@@ -367,26 +370,33 @@ class _IptvHeroSlide extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.textPrimary.withValues(
-                        alpha: ZplayOpacity.borderStrong,
+                  // Bounded so a long category (or a large text scale on a
+                  // phone) ellipsizes instead of overflowing the row.
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
                       ),
-                      borderRadius: ZplayRadius.smAll,
-                      border: Border.all(
+                      decoration: BoxDecoration(
                         color: tokens.textPrimary.withValues(
-                          alpha: ZplayOpacity.overlayHover,
+                          alpha: ZplayOpacity.borderStrong,
+                        ),
+                        borderRadius: LuRadius.field,
+                        border: Border.all(
+                          color: tokens.textPrimary.withValues(
+                            alpha: ZplayOpacity.overlayHover,
+                          ),
                         ),
                       ),
-                    ),
-                    child: Text(
-                      channel.category,
-                      style: ZplayType.caption.toStyle(
-                        color: tokens.textEmphasis,
+                      child: Text(
+                        localizedChannelCategory(channel.category),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: ZplayType.caption.toStyle(
+                          color: tokens.textEmphasis,
+                        ),
                       ),
                     ),
                   ),
@@ -468,7 +478,7 @@ class _HeroArrowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return FocusableCard(
       onTap: onTap,
       builder: (context, state) => CardFocusRing(

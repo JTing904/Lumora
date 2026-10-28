@@ -8,6 +8,7 @@ import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/common/tab_strip.dart';
 import '../../widgets/iptv/iptv_channel_card.dart';
 import 'iptv_channel_sheet.dart';
+import '../../widgets/player/lu_player_style.dart';
 
 class IptvSearchPage extends StatefulWidget {
   final List<QuickChannel> quickChannels;
@@ -52,7 +53,8 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
 
     // Search hardcoded channels
     for (final c in HardcodedChannels.all) {
-      final matchesCategory = _selectedCategory == 'All' || c.category == _selectedCategory;
+      final matchesCategory =
+          _selectedCategory == 'All' || c.category == _selectedCategory;
       if (!matchesCategory) continue;
       if (_query.trim().isEmpty) {
         results.add(c);
@@ -67,7 +69,9 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
 
     // Also search user-added Quick Channels
     for (final qc in widget.quickChannels) {
-      if (_selectedCategory != 'All' && qc.category != _selectedCategory) continue;
+      if (_selectedCategory != 'All' && qc.category != _selectedCategory) {
+        continue;
+      }
       if (_query.trim().isEmpty) {
         results.add(_toHardcoded(qc));
         continue;
@@ -83,18 +87,18 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
   }
 
   static HardcodedChannel _toHardcoded(QuickChannel ch) => HardcodedChannel(
-        id: 'qc_${ch.id}',
-        name: ch.name,
-        short: ch.short,
-        category: ch.category,
-        keywords: ch.keywords,
-        gradient: ch.gradient,
-        iconUrl: ch.iconUrl,
-      );
+    id: 'qc_${ch.id}',
+    name: ch.name,
+    short: ch.short,
+    category: ch.category,
+    keywords: ch.keywords,
+    gradient: ch.gradient,
+    iconUrl: ch.iconUrl,
+  );
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final channels = _filteredChannels();
     final width = MediaQuery.sizeOf(context).width;
     // This is a pushed route, not a shell slot: the shell's blended nav is not
@@ -143,7 +147,7 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
                   height: 44,
                   decoration: BoxDecoration(
                     color: tokens.surface,
-                    borderRadius: ZplayRadius.mdAll,
+                    borderRadius: LuPanel.rowRadiusAll,
                     border: Border.fromBorderSide(tokens.hairline),
                   ),
                   child: TextField(
@@ -152,7 +156,9 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
                     style: ZplayType.body.toStyle(color: tokens.textPrimary),
                     decoration: InputDecoration(
                       hintText: l10nCurrent().tvSearchHint,
-                      hintStyle: ZplayType.label.toStyle(color: tokens.textMuted),
+                      hintStyle: ZplayType.label.toStyle(
+                        color: tokens.textMuted,
+                      ),
                       prefixIcon: Icon(
                         Icons.search_rounded,
                         color: tokens.accent,
@@ -237,7 +243,9 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
       ],
     );
 
-    return Scaffold(
+    return Theme(
+      data: luPanelTheme(),
+      child: Scaffold(
       backgroundColor: tokens.bg,
       // One canvas under the whole page, gated on the same ambient-lights
       // setting the Live TV vertical itself reads, so the two agree about what
@@ -245,6 +253,7 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
       body: IptvSettings.enableAmbientLights.value
           ? AnimatedAmbientBackground(child: content)
           : content,
+    ),
     );
   }
 }

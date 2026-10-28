@@ -12,6 +12,8 @@ import '../../utils/navigation/route_transitions.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../../widgets/common/segmented_tabs.dart';
 import 'iptv_portal_browser_page.dart';
+import '../../widgets/player/lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 class IptvPortalsModal extends StatefulWidget {
   const IptvPortalsModal({super.key});
@@ -19,8 +21,9 @@ class IptvPortalsModal extends StatefulWidget {
   static Future<void> show(BuildContext context) {
     return showDialog(
       context: context,
-      barrierColor: context.tokens.bg.withValues(alpha: 0.87),
-      builder: (_) => const IptvPortalsModal(),
+      barrierColor: luTokens.bg.withValues(alpha: 0.87),
+      builder: (_) =>
+          Theme(data: luPanelTheme(), child: const IptvPortalsModal()),
     );
   }
 
@@ -140,7 +143,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
         SnackBar(
           content: Text(l10nCurrent().tv2RemovedPortals(count)),
           duration: const Duration(seconds: 2),
-          backgroundColor: context.tokens.surfaceOverlay,
+          backgroundColor: luTokens.surfaceOverlay,
         ),
       );
     }
@@ -158,7 +161,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
         SnackBar(
           content: Text(l10nCurrent().tv2RemovedAllPortals(count)),
           duration: const Duration(seconds: 2),
-          backgroundColor: context.tokens.surfaceOverlay,
+          backgroundColor: luTokens.surfaceOverlay,
         ),
       );
     }
@@ -180,7 +183,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
         SnackBar(
           content: Text(l10nCurrent().tv2RemovedPlaylists(count)),
           duration: const Duration(seconds: 2),
-          backgroundColor: context.tokens.surfaceOverlay,
+          backgroundColor: luTokens.surfaceOverlay,
         ),
       );
     }
@@ -198,14 +201,14 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
         SnackBar(
           content: Text(l10nCurrent().tv2RemovedAllPlaylists(count)),
           duration: const Duration(seconds: 2),
-          backgroundColor: context.tokens.surfaceOverlay,
+          backgroundColor: luTokens.surfaceOverlay,
         ),
       );
     }
   }
 
   void _openModalCustomizer(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isMobile = screenWidth < 520;
 
@@ -218,7 +221,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
             horizontal: isMobile ? 14 : 32,
             vertical: 24,
           ),
-          shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.lgAll),
+          shape: const RoundedRectangleBorder(borderRadius: LuRadius.card),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: Padding(
@@ -340,7 +343,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return AnimatedBuilder(
       animation: _ctrl,
@@ -357,9 +360,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
           ),
           // No `side`: the dialog is a pushed surface, so its own edge is the
           // radius and the scrim behind it, not a hairline drawn round a box.
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(isMobile ? ZplayRadius.md : ZplayRadius.lg),
-          ),
+          shape: const RoundedRectangleBorder(borderRadius: LuRadius.card),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 480 || isMobile;
@@ -401,28 +402,16 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.tune_rounded,
-                              color: tokens.textEmphasis,
-                              size: 19,
-                            ),
-                            tooltip: l10nCurrent().tvCustomizeModalStyle,
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.all(6),
-                            constraints: const BoxConstraints(),
+                          LuIconAction(
+                            icon: Icons.tune_rounded,
+                            iconSize: 19,
+                            label: l10nCurrent().tvCustomizeModalStyle,
                             onPressed: () => _openModalCustomizer(context),
                           ),
-                          const SizedBox(width: ZplaySpacing.s4),
-                          IconButton(
-                            icon: Icon(
-                              Icons.close_rounded,
-                              color: tokens.textMuted,
-                              size: 20,
-                            ),
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.all(6),
-                            constraints: const BoxConstraints(),
+                          const SizedBox(width: ZplaySpacing.s8),
+                          LuIconAction(
+                            icon: Icons.close_rounded,
+                            label: l10nCurrent().panelClose,
                             onPressed: () => Navigator.pop(context),
                           ),
                         ],
@@ -437,7 +426,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                       controller: _tabController,
                       indicatorColor: tokens.accent,
                       indicatorWeight: 2,
-                      labelColor: tokens.textPrimary,
+                      indicatorSize: TabBarIndicatorSize.label,
+                      dividerColor: Colors.transparent,
+                      labelColor: tokens.accent,
                       unselectedLabelColor: tokens.textMuted,
                       labelStyle: (isNarrow ? ZplayType.caption : ZplayType.body).toStyle(),
                       unselectedLabelStyle: (isNarrow ? ZplayType.caption : ZplayType.body).toStyle(),
@@ -477,7 +468,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
   }
 
   Widget _buildPortalsTab(bool isMobile) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final currentList = _filteredPortals;
     final allSelected =
         currentList.isNotEmpty &&
@@ -498,7 +489,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.accent,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 10 : 14,
@@ -538,7 +529,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                   _ctrl.setScrapeSource(s);
                   setState(() {});
                 },
-                shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.mdAll),
+                shape: const RoundedRectangleBorder(borderRadius: LuRadius.card),
                 color: tokens.surfaceOverlay,
                 child: Container(
                   padding: EdgeInsets.symmetric(
@@ -549,7 +540,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                   // on the bar rather than a second boxed button.
                   decoration: BoxDecoration(
                     color: tokens.surfaceRaised,
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -671,7 +662,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 style: TextButton.styleFrom(
                   foregroundColor: tokens.textPrimary,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 10 : 14,
@@ -697,7 +688,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         ? tokens.info
                         : tokens.textPrimary,
                     shape: const RoundedRectangleBorder(
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                     ),
                     padding: EdgeInsets.symmetric(
                       horizontal: isMobile ? 9 : 12,
@@ -735,7 +726,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
               // state, not a boxed panel on the dialog.
               decoration: BoxDecoration(
                 color: tokens.accentSubtle,
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
               ),
               child: Wrap(
                 spacing: 8,
@@ -803,7 +794,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                             vertical: 6,
                           ),
                           shape: const RoundedRectangleBorder(
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                           ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -826,7 +817,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                             vertical: 6,
                           ),
                           shape: const RoundedRectangleBorder(
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                           ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -873,7 +864,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                     // Legible fill, no decorative box; the underline only
                     // appears while the field has focus.
                     decoration: InputDecoration(
-                      labelText: 'Server URL (e.g. http://example.com:8080)',
+                      labelText: l10nCurrent().wgIptvServerUrlLabel,
                       isDense: true,
                       filled: true,
                       fillColor: tokens.surfaceRaised,
@@ -1083,7 +1074,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                       },
                       builder: (context, state) => CardFocusRing(
                         focused: state.focused,
-                        radius: ZplayRadius.smAll,
+                        radius: LuRadius.field,
                         child: AnimatedContainer(
                           duration: ZplayMotion.fast,
                           curve: ZplayMotion.standard,
@@ -1106,7 +1097,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                                         alpha: ZplayOpacity.overlayHover,
                                       )
                                     : Colors.transparent),
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                           ),
                           child: _buildPortalCardContent(
                             context: context,
@@ -1141,7 +1132,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
     required bool showConn,
     required bool isMobile,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final hasBadges = showExp || showConn || p.portal.source.isNotEmpty;
 
     // Action button helpers
@@ -1160,7 +1151,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
             SnackBar(
               content: Text(l10nCurrent().tv2CopiedText(text)),
               duration: const Duration(seconds: 2),
-              backgroundColor: context.tokens.surfaceOverlay,
+              backgroundColor: luTokens.surfaceOverlay,
             ),
           );
         },
@@ -1411,7 +1402,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
     IconData icon, {
     Color? activeColor,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final isSelected = _portalSourceFilter == filterKey;
     final color = activeColor ?? tokens.accent;
 
@@ -1431,7 +1422,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
       },
       builder: (context, state) => CardFocusRing(
         focused: state.focused,
-        radius: ZplayRadius.smAll,
+        radius: LuRadius.pill,
         child: AnimatedContainer(
           duration: ZplayMotion.fast,
           curve: ZplayMotion.standard,
@@ -1440,13 +1431,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
             // On-filter: the one accent wash. Off-filter: nothing but text,
             // with the pointer/focus wash on top so it still reads as a target.
             color: isSelected
-                ? color.withValues(alpha: ZplayOpacity.overlayHover)
-                : (state.highlighted
-                    ? tokens.surfaceRaised.withValues(
-                        alpha: ZplayOpacity.overlayHover,
-                      )
-                    : Colors.transparent),
-            borderRadius: ZplayRadius.smAll,
+                ? color.withValues(alpha: 0.18)
+                : (state.highlighted ? LuPanel.rowHover : LuPanel.rowFill),
+            borderRadius: LuRadius.pill,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1454,13 +1441,13 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
               Icon(
                 icon,
                 size: 14,
-                color: isSelected ? tokens.textPrimary : tokens.textEmphasis,
+                color: isSelected ? color : tokens.textEmphasis,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: ZplayType.caption.toStyle(
-                  color: isSelected ? tokens.textPrimary : tokens.textEmphasis,
+                  color: isSelected ? color : tokens.textEmphasis,
                 ),
               ),
             ],
@@ -1471,7 +1458,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
   }
 
   Widget _buildM3uTab(bool isMobile) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final allSelected =
         _ctrl.m3uPlaylists.isNotEmpty &&
         _selectedM3uIds.length == _ctrl.m3uPlaylists.length;
@@ -1487,7 +1474,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.accent,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 10 : 14,
@@ -1516,7 +1503,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         ? tokens.info
                         : tokens.textPrimary,
                     shape: const RoundedRectangleBorder(
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                     ),
                     padding: EdgeInsets.symmetric(
                       horizontal: isMobile ? 10 : 12,
@@ -1553,7 +1540,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: tokens.accentSubtle,
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
               ),
               child: Wrap(
                 spacing: 8,
@@ -1621,7 +1608,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                             vertical: 6,
                           ),
                           shape: const RoundedRectangleBorder(
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                           ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1644,7 +1631,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                             vertical: 6,
                           ),
                           shape: const RoundedRectangleBorder(
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                           ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1774,7 +1761,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                           },
                           builder: (context, state) => CardFocusRing(
                             focused: state.focused,
-                            radius: ZplayRadius.smAll,
+                            radius: LuRadius.field,
                             child: AnimatedContainer(
                               duration: ZplayMotion.fast,
                               curve: ZplayMotion.standard,
@@ -1795,7 +1782,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                                             alpha: ZplayOpacity.overlayHover,
                                           )
                                         : Colors.transparent),
-                                borderRadius: ZplayRadius.smAll,
+                                borderRadius: LuRadius.field,
                               ),
                               child: _buildM3uCardContent(
                                 context: context,
@@ -1821,7 +1808,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
     required bool isSelected,
     required bool isMobile,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     Widget buildM3uCopyBtn() {
       return IconButton(
         icon: Icon(Icons.copy_rounded, color: tokens.textEmphasis, size: 17),
@@ -1837,7 +1824,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
               SnackBar(
                 content: Text(l10nCurrent().tv2CopiedText(text)),
                 duration: const Duration(seconds: 2),
-                backgroundColor: context.tokens.surfaceOverlay,
+                backgroundColor: luTokens.surfaceOverlay,
               ),
             );
           }

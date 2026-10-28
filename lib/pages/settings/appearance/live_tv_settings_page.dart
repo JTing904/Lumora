@@ -1,5 +1,6 @@
 import '../../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
+import '../../../services/iptv/channel_category_l10n.dart';
 import '../../../services/theme/app_theme_service.dart';
 import '../../../services/theme/design_tokens.dart';
 import '../../../services/home/home_page_settings.dart';
@@ -7,6 +8,7 @@ import '../../../services/iptv/iptv_settings.dart';
 import '../../../widgets/common/animated_ambient_background.dart';
 import '../../../widgets/common/segmented_tabs.dart';
 import '../../../widgets/settings/settings_app_bar.dart';
+import '../../../widgets/settings/lu_settings_kit.dart';
 
 class LiveTvSettingsPage extends StatefulWidget {
   const LiveTvSettingsPage({super.key});
@@ -21,79 +23,86 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
     final tokens = context.tokens;
     final palette = AppThemeService.currentPalette.value;
 
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().stgcLiveTvSportsUi),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            children: [
-              // ── 1. Hero Spotlight Carousel ──
-              Text(
-                l10nCurrent().stgbLiveSpotlightHero,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().stgcLiveTvSportsUi),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                children: [
+                  // ── 1. Hero Spotlight Carousel ──
+                  Text(
+                    l10nCurrent().stgbLiveSpotlightHero,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildHeroSpotlightCard(palette),
+
+                  const SizedBox(height: 28),
+
+                  // ── 2. Card Layout & Poster Density ──
+                  Text(
+                    l10nCurrent().stgbChannelCardsDensity,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCardDensityCard(palette),
+
+                  const SizedBox(height: 28),
+
+                  // ── 3. Category Visibility & Ordering ──
+                  Text(
+                    l10nCurrent().stgbSectionsCategoryManager,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCategoryManagerCard(palette),
+
+                  const SizedBox(height: 28),
+
+                  // ── 4. Portals Modal Customization ──
+                  Text(
+                    l10nCurrent().stgbPortalsPlaylistsModal,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPortalsModalCustomizerCard(palette),
+
+                  const SizedBox(height: 28),
+
+                  // ── 5. Portal Browser Customization ──
+                  Text(
+                    l10nCurrent().stgbPortalBrowserGuide,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPortalBrowserCustomizerCard(palette),
+
+                  const SizedBox(height: 28),
+
+                  // ── 6. Public Stream Sources ──
+                  Text(
+                    l10nCurrent().stgbStreamSources,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFreeSourcesCard(palette),
+
+                  const SizedBox(height: 36),
+                ],
               ),
-              const SizedBox(height: 12),
-              _buildHeroSpotlightCard(palette),
-
-              const SizedBox(height: 28),
-
-              // ── 2. Card Layout & Poster Density ──
-              Text(
-                l10nCurrent().stgbChannelCardsDensity,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-              _buildCardDensityCard(palette),
-
-              const SizedBox(height: 28),
-
-              // ── 3. Category Visibility & Ordering ──
-              Text(
-                l10nCurrent().stgbSectionsCategoryManager,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-              _buildCategoryManagerCard(palette),
-
-              const SizedBox(height: 28),
-
-              // ── 4. Portals Modal Customization ──
-              Text(
-                l10nCurrent().stgbPortalsPlaylistsModal,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-              _buildPortalsModalCustomizerCard(palette),
-
-              const SizedBox(height: 28),
-
-              // ── 5. Portal Browser Customization ──
-              Text(
-                l10nCurrent().stgbPortalBrowserGuide,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-              _buildPortalBrowserCustomizerCard(palette),
-
-              const SizedBox(height: 28),
-
-              // ── 6. Public Stream Sources ──
-              Text(
-                l10nCurrent().stgbStreamSources,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-              _buildFreeSourcesCard(palette),
-
-              const SizedBox(height: 36),
-            ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildHeroSpotlightCard(AppThemePalette palette) {
@@ -121,7 +130,9 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: palette.primaryColor.withValues(alpha: ZplayOpacity.overlayHover),
+                      color: palette.primaryColor.withValues(
+                        alpha: ZplayOpacity.overlayHover,
+                      ),
                       borderRadius: ZplayRadius.smAll,
                     ),
                     child: Icon(
@@ -137,19 +148,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowLiveSpotlight,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowLiveSpotlightDesc,
-                          style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.bodySmall.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: enabled,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) {
                       IptvSettings.setEnableSpotlight(val);
                       setState(() {});
@@ -202,20 +216,24 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                             children: [
                               Text(
                                 l10nCurrent().stgbAutoRotateChannels,
-                                style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                                style: ZplayType.subtitle.toStyle(
+                                  color: tokens.textPrimary,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 l10nCurrent().stgbAutoRotateChannelsDesc,
-                                style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                                style: ZplayType.caption.toStyle(
+                                  color: tokens.textSecondary,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         Switch.adaptive(
                           value: autoRotate,
-                          activeColor: palette.primaryColor,
-                          onChanged: (val) => IptvSettings.setHeroAutoRotate(val),
+                          onChanged: (val) =>
+                              IptvSettings.setHeroAutoRotate(val),
                         ),
                       ],
                     );
@@ -239,11 +257,15 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                               children: [
                                 Text(
                                   l10nCurrent().stgbRotationInterval,
-                                  style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+                                  style: ZplayType.label.toStyle(
+                                    color: tokens.textEmphasis,
+                                  ),
                                 ),
                                 Text(
                                   l10nCurrent().stgcNSeconds(seconds),
-                                  style: ZplayType.labelNumeric.toStyle(color: palette.primaryColor),
+                                  style: ZplayType.labelNumeric.toStyle(
+                                    color: palette.primaryColor,
+                                  ),
                                 ),
                               ],
                             ),
@@ -251,7 +273,9 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                             SliderTheme(
                               data: SliderTheme.of(context).copyWith(
                                 activeTrackColor: palette.primaryColor,
-                                inactiveTrackColor: Colors.white.withValues(alpha: ZplayOpacity.borderMedium),
+                                inactiveTrackColor: Colors.white.withValues(
+                                  alpha: ZplayOpacity.borderMedium,
+                                ),
                                 thumbColor: palette.primaryColor,
                                 trackHeight: 3,
                               ),
@@ -260,7 +284,10 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                                 min: 3,
                                 max: 15,
                                 divisions: 12,
-                                onChanged: (val) => IptvSettings.setHeroRotateSeconds(val.round()),
+                                onChanged: (val) =>
+                                    IptvSettings.setHeroRotateSeconds(
+                                      val.round(),
+                                    ),
                               ),
                             ),
                           ],
@@ -324,11 +351,15 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                     children: [
                       Text(
                         l10nCurrent().stgbCardHoverZoom,
-                        style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
+                        style: ZplayType.subtitle.toStyle(
+                          color: tokens.textEmphasis,
+                        ),
                       ),
                       Text(
                         '+$percent%',
-                        style: ZplayType.labelNumeric.toStyle(color: palette.primaryColor),
+                        style: ZplayType.labelNumeric.toStyle(
+                          color: palette.primaryColor,
+                        ),
                       ),
                     ],
                   ),
@@ -336,7 +367,9 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       activeTrackColor: palette.primaryColor,
-                      inactiveTrackColor: Colors.white.withValues(alpha: ZplayOpacity.borderMedium),
+                      inactiveTrackColor: Colors.white.withValues(
+                        alpha: ZplayOpacity.borderMedium,
+                      ),
                       thumbColor: palette.primaryColor,
                       trackHeight: 3,
                     ),
@@ -369,19 +402,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowLiveHdBadge,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowLiveHdBadgeDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showHd,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) => IptvSettings.setShowHdBadge(val),
                   ),
                 ],
@@ -405,19 +441,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowChannelCategoryTag,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowChannelCategoryTagDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showTag,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) => IptvSettings.setShowCategoryTag(val),
                   ),
                 ],
@@ -441,19 +480,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowFeedHealthBadge,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowFeedHealthBadgeDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showHealth,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) => IptvSettings.setShowHealthBadge(val),
                   ),
                 ],
@@ -483,19 +525,26 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                     children: [
                       Text(
                         l10nCurrent().stgbChannelCategoriesSections,
-                        style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                        style: ZplayType.subtitle.toStyle(
+                          color: tokens.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         l10nCurrent().stgbToggleLiveTvRows,
-                        style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                        style: ZplayType.caption.toStyle(
+                          color: tokens.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                   TextButton.icon(
                     onPressed: () => IptvSettings.resetCategories(),
                     icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: Text(l10nCurrent().stgbResetAll, style: ZplayType.label.toStyle()),
+                    label: Text(
+                      l10nCurrent().stgbResetAll,
+                      style: ZplayType.label.toStyle(),
+                    ),
                     style: TextButton.styleFrom(
                       foregroundColor: palette.primaryColor,
                     ),
@@ -511,11 +560,12 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                 return CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    cat,
-                    style: ZplayType.subtitle.toStyle(color: isVisible ? tokens.textPrimary : tokens.textMuted),
+                    localizedLiveSection(cat),
+                    style: ZplayType.subtitle.toStyle(
+                      color: isVisible ? tokens.textPrimary : tokens.textMuted,
+                    ),
                   ),
                   value: isVisible,
-                  activeColor: palette.primaryColor,
                   checkColor: tokens.textPrimary,
                   onChanged: (val) {
                     IptvSettings.toggleCategoryVisibility(cat);
@@ -573,19 +623,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowPortalExpiry,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowPortalExpiryDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showExpiry,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) => IptvSettings.setShowPortalExpiry(val),
                   ),
                 ],
@@ -608,20 +661,24 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowMaxConnections,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowMaxConnectionsDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showConn,
-                    activeColor: palette.primaryColor,
-                    onChanged: (val) => IptvSettings.setShowPortalConnections(val),
+                    onChanged: (val) =>
+                        IptvSettings.setShowPortalConnections(val),
                   ),
                 ],
               );
@@ -644,8 +701,14 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                 selected: tabIdx,
                 onSelected: IptvSettings.setDefaultPortalTab,
                 options: [
-                  SegmentedTabOption(value: 0, label: l10nCurrent().stgcXtreamPanels),
-                  SegmentedTabOption(value: 1, label: l10nCurrent().stgcM3uPlaylists),
+                  SegmentedTabOption(
+                    value: 0,
+                    label: l10nCurrent().stgcXtreamPanels,
+                  ),
+                  SegmentedTabOption(
+                    value: 1,
+                    label: l10nCurrent().stgcM3uPlaylists,
+                  ),
                 ],
               );
             },
@@ -691,7 +754,9 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
           ValueListenableBuilder<PortalBrowserLayout>(
             valueListenable: IptvSettings.browserLayout,
             builder: (context, layout, _) {
-              if (layout != PortalBrowserLayout.grid) return const SizedBox.shrink();
+              if (layout != PortalBrowserLayout.grid) {
+                return const SizedBox.shrink();
+              }
               return ValueListenableBuilder<int>(
                 valueListenable: IptvSettings.browserGridColumns,
                 builder: (context, cols, _) {
@@ -703,11 +768,15 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                         children: [
                           Text(
                             l10nCurrent().stgbGridStreamColumns,
-                            style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
+                            style: ZplayType.subtitle.toStyle(
+                              color: tokens.textEmphasis,
+                            ),
                           ),
                           Text(
                             l10nCurrent().stgcNColumns(cols),
-                            style: ZplayType.labelNumeric.toStyle(color: palette.primaryColor),
+                            style: ZplayType.labelNumeric.toStyle(
+                              color: palette.primaryColor,
+                            ),
                           ),
                         ],
                       ),
@@ -715,7 +784,9 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           activeTrackColor: palette.primaryColor,
-                          inactiveTrackColor: Colors.white.withValues(alpha: ZplayOpacity.borderMedium),
+                          inactiveTrackColor: Colors.white.withValues(
+                            alpha: ZplayOpacity.borderMedium,
+                          ),
                           thumbColor: palette.primaryColor,
                           trackHeight: 3,
                         ),
@@ -724,7 +795,8 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                           min: 2,
                           max: 6,
                           divisions: 4,
-                          onChanged: (val) => IptvSettings.setBrowserGridColumns(val.round()),
+                          onChanged: (val) =>
+                              IptvSettings.setBrowserGridColumns(val.round()),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -748,11 +820,15 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                     children: [
                       Text(
                         l10nCurrent().stgbCategorySidebarWidth,
-                        style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
+                        style: ZplayType.subtitle.toStyle(
+                          color: tokens.textEmphasis,
+                        ),
                       ),
                       Text(
                         '${width.round()} px',
-                        style: ZplayType.labelNumeric.toStyle(color: palette.primaryColor),
+                        style: ZplayType.labelNumeric.toStyle(
+                          color: palette.primaryColor,
+                        ),
                       ),
                     ],
                   ),
@@ -760,7 +836,9 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       activeTrackColor: palette.primaryColor,
-                      inactiveTrackColor: Colors.white.withValues(alpha: ZplayOpacity.borderMedium),
+                      inactiveTrackColor: Colors.white.withValues(
+                        alpha: ZplayOpacity.borderMedium,
+                      ),
                       thumbColor: palette.primaryColor,
                       trackHeight: 3,
                     ),
@@ -792,19 +870,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowChannelLogos,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowChannelLogosDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showLogos,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) => IptvSettings.setShowStreamLogos(val),
                   ),
                 ],
@@ -827,19 +908,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowEpgNowPlaying,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowEpgNowPlayingDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showEpg,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) => IptvSettings.setShowEpgSnippet(val),
                   ),
                 ],
@@ -862,19 +946,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                       children: [
                         Text(
                           l10nCurrent().stgbShowCategoryCounts,
-                          style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10nCurrent().stgbShowCategoryCountsDesc,
-                          style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch.adaptive(
                     value: showCount,
-                    activeColor: palette.primaryColor,
                     onChanged: (val) => IptvSettings.setShowCategoryCount(val),
                   ),
                 ],
@@ -904,19 +991,22 @@ class _LiveTvSettingsPageState extends State<LiveTvSettingsPage> {
                   children: [
                     Text(
                       l10nCurrent().stgbIncludeFreePublicSources,
-                      style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                      style: ZplayType.subtitle.toStyle(
+                        color: tokens.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       l10nCurrent().stgbIncludeFreePublicSourcesDesc,
-                      style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                      style: ZplayType.caption.toStyle(
+                        color: tokens.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
               Switch.adaptive(
                 value: includeFree,
-                activeColor: palette.primaryColor,
                 onChanged: (val) => IptvSettings.setIncludeFreeSources(val),
               ),
             ],

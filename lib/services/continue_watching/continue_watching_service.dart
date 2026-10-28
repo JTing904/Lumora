@@ -112,6 +112,8 @@ class ContinueWatchingService {
       }
     } catch (e) {
       debugPrint('[ContinueWatchingService] Failed to load sessions: $e');
+      // Never carry another account's list into this one.
+      activeItems.value = [];
     }
   }
 
@@ -445,9 +447,13 @@ class ContinueWatchingService {
     // Remove any existing entry for this show/movie
     current.removeWhere((i) => i.sessionKey == newItem.sessionKey);
 
-    // Only insert if not finished (>= 90% watched)
+    // Only insert if not finished (>= 90% watched). A finished title is
+    // remembered as removed, or another device's in-progress copy of it
+    // would bring it back.
     if (!isFinished) {
       current.insert(0, newItem);
+    } else {
+      LibrarySync.removed('continue_watching', newItem.sessionKey);
     }
 
     // Sort newest first
@@ -567,6 +573,7 @@ class ContinueWatchingService {
   /// Removes an item completely from continue watching locally and removes
   /// its playback session & tracking state from Trakt and Simkl in the background.
   static Future<void> removeItem(ContinueWatchingItem item) async {
+    LibrarySync.removed('continue_watching', item.sessionKey);
     final current = List<ContinueWatchingItem>.from(activeItems.value);
     current.removeWhere((i) => i.sessionKey == item.sessionKey);
 

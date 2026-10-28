@@ -7,6 +7,7 @@ import '../../services/storage/app_image_cache.dart';
 import '../../services/theme/design_tokens.dart';
 import '../common/focusable_card.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
 
 /// What the player paints while a stream is opening, and what it paints instead
 /// once that stream has stopped answering.
@@ -138,7 +139,7 @@ class _PlayerLoadingOverlayState extends State<PlayerLoadingOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Stack(
       fit: StackFit.expand,
       children: [

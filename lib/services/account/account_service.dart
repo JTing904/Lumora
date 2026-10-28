@@ -2,13 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart' show StringCharacters;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../config/env_service.dart';
 import '../content/content_settings.dart';
+import 'library_sync.dart';
 
 /// The Lumora project the app signs in to.
 ///
@@ -75,6 +80,164 @@ abstract final class AccountService {
   static bool get signedIn => session.value != null;
 
   static String? get email => session.value?.user.email;
+
+  /// The colours a viewer can pick for their avatar, gold first (the default).
+  static const List<int> avatarColors = [
+    0xFFF2B544, // gold
+    0xFFFF8A65, // coral
+    0xFFF06292, // pink
+    0xFFBA68C8, // violet
+    0xFF64B5F6, // blue
+    0xFF4DD0E1, // teal
+    0xFF81C784, // green
+    0xFFE0E0E0, // silver
+  ];
+
+  /// What the viewer chose to be called, else the start of their email.
+  /// Kept in the account's `user_metadata`, which only they can edit, so it
+  /// follows them to every device.
+  static String get displayName {
+    final meta = session.value?.user.userMetadata;
+    // Lumora's own, then what GitHub / Discord sign-in filled in.
+    for (final key in const ['display_name', 'full_name', 'name']) {
+      final name = meta?[key];
+      if (name is String && name.trim().isNotEmpty) return name.trim();
+    }
+    final mail = email ?? '';
+    return mail.contains('@') ? mail.split('@').first : mail;
+  }
+
+  /// The avatar's letter: the first of [displayName].
+  static String get initial {
+    final name = displayName;
+    return name.isEmpty ? '?' : name.characters.first.toUpperCase();
+  }
+
+  /// The avatar's colour, one of [avatarColors].
+  static int get avatarColor {
+    final i = session.value?.user.userMetadata?['avatar_color'];
+    return i is int && i >= 0 && i < avatarColors.length
+        ? avatarColors[i]
+        : avatarColors.first;
+  }
+
+  /// Index of [avatarColor] in [avatarColors].
+  static int get avatarColorIndex {
+    final i = session.value?.user.userMetadata?['avatar_color'];
+    return i is int && i >= 0 && i < avatarColors.length ? i : 0;
+  }
+
+  /// The profile photo, or null for the letter on [avatarColor]: the one
+  /// uploaded in Lumora, else the GitHub / Discord picture, unless the viewer
+  /// removed it. Lumora's own lives under its own key: sign-in providers
+  /// rewrite `avatar_url` on every sign-in.
+  static String? get avatarUrl {
+    final meta = session.value?.user.userMetadata;
+    if (meta?['lumora_avatar_off'] == true) return null;
+    for (final key in const ['lumora_avatar', 'avatar_url']) {
+      final url = meta?[key];
+      if (url is String && url.startsWith('https://')) return url;
+    }
+    return null;
+  }
+
+  /// Shrinks [bytes] (any common image) to a 256 px square JPEG, stores it
+  /// as the account's profile photo and points the profile at it.
+  static Future<void> uploadAvatar(Uint8List bytes) async {
+    final uid = session.value?.user.id;
+    if (uid == null) throw const AccountException(AccountError.unknown);
+    // Small files in an isolate (EXIF-aware); anything the image library
+    // cannot read (HEIC), a large file, or one whose header says it decodes
+    // to a huge image goes through the platform's decoder, which shrinks
+    // while decoding.
+    Uint8List? jpeg;
+    if (bytes.length <= 6 * 1024 * 1024) {
+      jpeg = await compute(squareAvatarJpeg, bytes);
+    }
+    jpeg ??= await _avatarViaPlatform(bytes);
+    if (jpeg == null) throw const AccountException(AccountError.unknown);
+    final path = '$uid/avatar.jpg';
+    await _client.storage.from('avatars').uploadBinary(
+      path,
+      jpeg,
+      fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+    );
+    // A new address each time, so every cache shows the new photo.
+    final url =
+        '${_client.storage.from('avatars').getPublicUrl(path)}'
+        '?v=${DateTime.now().millisecondsSinceEpoch}';
+    await _client.auth.updateUser(
+      UserAttributes(data: {'lumora_avatar': url, 'lumora_avatar_off': false}),
+    );
+    final current = _client.auth.currentSession;
+    if (current != null) session.value = current;
+  }
+
+  static Future<Uint8List?> _avatarViaPlatform(Uint8List bytes) async {
+    try {
+      final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      final desc = await ui.ImageDescriptor.encoded(buffer);
+      final short = desc.width < desc.height ? desc.width : desc.height;
+      final scale = short > 512 ? 512 / short : 1.0;
+      final codec = await desc.instantiateCodec(
+        targetWidth: (desc.width * scale).round(),
+        targetHeight: (desc.height * scale).round(),
+      );
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final rgba = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final w = image.width, h = image.height;
+      image.dispose();
+      codec.dispose();
+      desc.dispose();
+      buffer.dispose();
+      if (rgba == null) return null;
+      return await compute(
+        squareAvatarFromRgba,
+        (rgba.buffer.asUint8List(), w, h),
+      );
+    } catch (e) {
+      debugPrint('[AccountService] avatar decode: $e');
+      return null;
+    }
+  }
+
+  /// Back to the letter: removes the photo and forgets it. A photo the
+  /// server could not delete stays public, so the profile keeps pointing at
+  /// it and the failure reaches the caller.
+  static Future<void> removeAvatar() async {
+    final uid = session.value?.user.id;
+    if (uid == null) return;
+    try {
+      await _client.storage.from('avatars').remove(['$uid/avatar.jpg']);
+    } catch (e) {
+      debugPrint('[AccountService] avatar remove: $e');
+      rethrow;
+    }
+    await _client.auth.updateUser(
+      UserAttributes(data: {'lumora_avatar': null, 'lumora_avatar_off': true}),
+    );
+    final current = _client.auth.currentSession;
+    if (current != null) session.value = current;
+  }
+
+  /// Saves the nickname (trimmed, at most 24 characters) and avatar colour.
+  static Future<void> updateProfile({
+    required String name,
+    required int colorIndex,
+  }) async {
+    final trimmed = name.trim();
+    final res = await _client.auth.updateUser(
+      UserAttributes(
+        data: {
+          'display_name': trimmed.characters.take(24).toString(),
+          'avatar_color': colorIndex.clamp(0, avatarColors.length - 1),
+        },
+      ),
+    );
+    final current = _client.auth.currentSession;
+    if (res.user != null && current != null) session.value = current;
+  }
 
   static SupabaseClient get _client => Supabase.instance.client;
 
@@ -162,6 +325,11 @@ abstract final class AccountService {
       return;
     }
     bool stillSame() => session.value?.user.id == uid;
+    // Another account's answer never stands in for this one's.
+    if (_invitedFor != uid) {
+      invitedState.value = null;
+      _invitedFor = uid;
+    }
     if (session.value?.user.appMetadata['invited'] == true) {
       invitedState.value = true;
     } else {
@@ -170,7 +338,9 @@ abstract final class AccountService {
         if (stillSame()) invitedState.value = result == true;
       } catch (e) {
         debugPrint('[AccountService] is_invited failed: $e');
-        if (stillSame()) invitedState.value = false;
+        // Offline: keep what this account was last told; never asked, ask
+        // for the code (the server still checks it).
+        if (stillSame()) invitedState.value ??= false;
       }
     }
     try {
@@ -422,6 +592,7 @@ abstract final class AccountService {
   /// [invited] as the server last answered it: null while signed out or
   /// still asking, then true or false. A missing flag is not an invite.
   static final ValueNotifier<bool?> invitedState = ValueNotifier(null);
+  static String? _invitedFor;
 
   /// Spends [code] for this account. False when it is wrong or already used.
   static Future<bool> redeemInvite(String code) async {
@@ -442,6 +613,14 @@ abstract final class AccountService {
   }
 
   static Future<void> signOut() async {
+    // Edits still waiting to go up belong to this account; once it is gone
+    // they cannot be sent. Offline, the wait is short and they stay on this
+    // device, merged up on the next sign-in.
+    try {
+      await LibrarySync.flush().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('[AccountService] library flush: $e');
+    }
     try {
       await _client.auth.signOut();
     } finally {
@@ -526,4 +705,72 @@ class InviteCode {
   final String? usedByEmail;
 
   bool get used => usedAt != null;
+}
+
+/// The largest image [squareAvatarJpeg] decodes itself. Decoded at full size,
+/// a bigger one (or a small file that inflates to a huge image) could exhaust
+/// memory; it is left to the platform's decoder, which shrinks while decoding.
+const int _maxAvatarSide = 4096;
+const int _maxAvatarPixels = 16 * 1000 * 1000;
+
+@visibleForTesting
+bool avatarDecodableInIsolate(int width, int height) =>
+    width > 0 &&
+    height > 0 &&
+    width <= _maxAvatarSide &&
+    height <= _maxAvatarSide &&
+    width * height <= _maxAvatarPixels;
+
+/// Centre-crops [bytes] to a square and encodes a 256 px JPEG; null when the
+/// bytes are not an image, or one too large to decode here (see
+/// [avatarDecodableInIsolate]). Top level so it can run in an isolate.
+Uint8List? squareAvatarJpeg(Uint8List bytes) {
+  // The header first: the size is known before any pixel is decoded.
+  final decoder = img.findDecoderForData(bytes);
+  final info = decoder?.startDecode(bytes);
+  if (decoder == null ||
+      info == null ||
+      !avatarDecodableInIsolate(info.width, info.height)) {
+    return null;
+  }
+  final decoded = decoder.decode(bytes);
+  if (decoded == null) return null;
+  final oriented = img.bakeOrientation(decoded);
+  final side = oriented.width < oriented.height
+      ? oriented.width
+      : oriented.height;
+  final square = img.copyCrop(
+    oriented,
+    x: (oriented.width - side) ~/ 2,
+    y: (oriented.height - side) ~/ 2,
+    width: side,
+    height: side,
+  );
+  return _encodeAvatar(square);
+}
+
+/// [squareAvatarJpeg] for pixels the platform already decoded.
+Uint8List? squareAvatarFromRgba((Uint8List, int, int) raw) {
+  final (rgba, w, h) = raw;
+  final image = img.Image.fromBytes(
+    width: w,
+    height: h,
+    bytes: rgba.buffer,
+    numChannels: 4,
+    order: img.ChannelOrder.rgba,
+  );
+  final side = w < h ? w : h;
+  return _encodeAvatar(
+    img.copyCrop(image, x: (w - side) ~/ 2, y: (h - side) ~/ 2, width: side, height: side),
+  );
+}
+
+/// 256 px JPEG, with transparent areas on the app's dark ground rather
+/// than black.
+Uint8List _encodeAvatar(img.Image square) {
+  final small = img.copyResize(square, width: 256, height: 256);
+  final ground = img.Image(width: 256, height: 256)
+    ..clear(img.ColorRgb8(20, 20, 24));
+  img.compositeImage(ground, small);
+  return Uint8List.fromList(img.encodeJpg(ground, quality: 85));
 }

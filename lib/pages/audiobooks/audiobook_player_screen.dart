@@ -2,14 +2,10 @@ import '../../l10n/l10n.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../../models/audiobook/audiobook_model.dart';
-import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/audiobook/audiobook_progress_service.dart';
 import '../../services/audiobook/audiobook_settings.dart';
@@ -20,12 +16,13 @@ import '../../services/player/player_settings.dart';
 import '../../services/playback/now_playing_service.dart';
 import '../../widgets/audiobook/audiobook_interactive_physics_button.dart';
 import '../../widgets/audiobook/audiobook_waveform_seekbar.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/pill_button.dart';
-import '../../widgets/common/segmented_tabs.dart';
-import '../../widgets/player/player_glass.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_focusable.dart';
+import '../../ui/lu_theme.dart';
+import '../music/lu_media_kit.dart';
+import 'audiobook_lu_labels.dart';
 import '../settings/appearance/audiobook_player_studio_page.dart';
-import '../../services/storage/app_image_cache.dart';
 import '../account/login_page.dart' show SignInRequired;
 
 /// Playing an audiobook needs an account; [SignInRequired] shows the sign-in
@@ -46,11 +43,14 @@ class AudiobookPlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SignInRequired(
-    child: _AudiobookPlayerBody(
-      audiobook: audiobook,
-      chapters: chapters,
-      initialChapterIndex: initialChapterIndex,
-      initialPosition: initialPosition,
+    child: Theme(
+      data: luMediaTheme(),
+      child: _AudiobookPlayerBody(
+        audiobook: audiobook,
+        chapters: chapters,
+        initialChapterIndex: initialChapterIndex,
+        initialPosition: initialPosition,
+      ),
     ),
   );
 }
@@ -85,6 +85,11 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     implements NowPlayingCommands {
   Player? _player;
   final List<StreamSubscription> _playerSubscriptions = [];
+
+  /// Bumped by every [_initChapter], so a load that a newer chapter change (or
+  /// the screen closing) overtook while it awaited can tell it is stale and
+  /// dispose the player it made instead of leaking it.
+  int _loadToken = 0;
   late int _currentChapterIndex;
 
   bool _isLoading = true;
@@ -116,7 +121,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     );
 
     AudiobookSettings.changeNotifier.addListener(_onSettingsChanged);
-    AppThemeService.currentPalette.addListener(_onSettingsChanged);
 
     NowPlayingService.register(this);
     _publishNowPlaying();
@@ -248,7 +252,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     _saveProgress();
     _progressTimer?.cancel();
     AudiobookSettings.changeNotifier.removeListener(_onSettingsChanged);
-    AppThemeService.currentPalette.removeListener(_onSettingsChanged);
     for (final s in _playerSubscriptions) {
       s.cancel();
     }
@@ -274,6 +277,8 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
 
   Future<void> _initChapter(int index) async {
     if (index < 0 || index >= widget.chapters.length) return;
+    final token = ++_loadToken;
+    bool stale() => !mounted || token != _loadToken;
 
     _saveProgress();
 
@@ -282,16 +287,20 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     }
     _playerSubscriptions.clear();
 
-    if (_player != null) {
-      await _player!.dispose();
-      _player = null;
+    final previousPlayer = _player;
+    _player = null;
+    if (previousPlayer != null) {
+      await previousPlayer.dispose();
     }
+    if (stale()) return;
 
     setState(() {
       _currentChapterIndex = index;
       _isLoading = true;
       _errorMessage = null;
-      _statusMessage = l10nCurrent().abk2PreparingChapter(widget.chapters[index].title);
+      _statusMessage = l10nCurrent().abk2PreparingChapter(
+        widget.chapters[index].title,
+      );
       _position = Duration.zero;
       _duration = Duration.zero;
     });
@@ -299,16 +308,31 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
 
     final chapter = widget.chapters[index];
     String? streamUrl;
+    Player? player;
+    final subscriptions = <StreamSubscription>[];
+
+    /// Drops what this load built once a newer one has taken over.
+    Future<void> discard() async {
+      for (final s in subscriptions) {
+        s.cancel();
+        _playerSubscriptions.remove(s);
+      }
+      subscriptions.clear();
+      final built = player;
+      player = null;
+      await built?.dispose();
+    }
 
     try {
       if (chapter.isTorrent) {
         final useDebrid = await DebridService().isDebridActiveForStreams();
         if (useDebrid) {
           final activeService = await DebridService().getSelectedService();
-          if (!mounted) return;
+          if (stale()) return;
           setState(
-            () =>
-                _statusMessage = l10nCurrent().abk2ResolvingAudioVia(activeService),
+            () => _statusMessage = l10nCurrent().abk2ResolvingAudioVia(
+              activeService,
+            ),
           );
 
           final debridFiles = await DebridService().resolveMagnet(
@@ -317,31 +341,40 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
             filename: chapter.title,
           );
 
+          if (stale()) return;
           if (debridFiles.isEmpty || debridFiles.first.downloadUrl.isEmpty) {
-            throw Exception('$activeService could not resolve audio stream.');
+            throw _ChapterResolveException(
+              l10nCurrent().abkDebridCouldNotResolveAudio(activeService),
+            );
           }
 
           streamUrl = debridFiles.first.downloadUrl;
         } else {
+          if (stale()) return;
           setState(
-            () => _statusMessage = l10nCurrent().abkFetchingTorrentMetadataPeers,
+            () =>
+                _statusMessage = l10nCurrent().abkFetchingTorrentMetadataPeers,
           );
           streamUrl = await TorrentStreamService().streamTorrent(
             chapter.url,
             fileIdx: chapter.torrentFileIndex,
           );
+          if (stale()) return;
         }
       } else {
         streamUrl = chapter.url;
       }
 
       if (streamUrl == null || streamUrl.isEmpty) {
-        throw Exception('Audio stream URL could not be resolved.');
+        throw _ChapterResolveException(
+          l10nCurrent().abkAudioStreamUrlUnresolved,
+        );
       }
 
       final isLocal =
           !streamUrl.startsWith('http://') && !streamUrl.startsWith('https://');
-      final player = Player();
+      final created = Player();
+      player = created;
 
       final Media media;
       if (isLocal) {
@@ -363,8 +396,8 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         media = Media(cleanUri.toString(), httpHeaders: headers);
       }
 
-      _playerSubscriptions.addAll([
-        player.stream.playing.listen((playing) {
+      subscriptions.addAll([
+        created.stream.playing.listen((playing) {
           if (mounted) {
             setState(() => _isPlaying = playing);
             _updateDiscordRpc(isPaused: !playing);
@@ -376,13 +409,13 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
             }
           }
         }),
-        player.stream.position.listen((pos) {
+        created.stream.position.listen((pos) {
           if (mounted) {
             setState(() => _position = pos);
             _publishNowPlaying();
           }
         }),
-        player.stream.duration.listen((dur) {
+        created.stream.duration.listen((dur) {
           if (mounted && dur > Duration.zero) {
             setState(() {
               _duration = dur;
@@ -392,7 +425,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
             _publishNowPlaying();
           }
         }),
-        player.stream.completed.listen((completed) {
+        created.stream.completed.listen((completed) {
           if (completed && mounted) {
             if (_autoplayNext &&
                 _currentChapterIndex < widget.chapters.length - 1) {
@@ -400,7 +433,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
             }
           }
         }),
-        player.stream.error.listen((err) {
+        created.stream.error.listen((err) {
           if (PlayerSettings.isNonFatalError(err)) {
             debugPrint('[AudiobookPlayer] Ignored non-fatal error: $err');
             return;
@@ -413,24 +446,32 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
           }
         }),
       ]);
+      _playerSubscriptions.addAll(subscriptions);
 
-      await player.open(media);
-      await player.setVolume(_volume * 100.0);
-      await player.setRate(_playbackSpeed);
+      await created.open(media);
+      if (stale()) {
+        await discard();
+        return;
+      }
+      await created.setVolume(_volume * 100.0);
+      await created.setRate(_playbackSpeed);
 
       // Auto-seek if resuming initial position
       if (!_hasRestoredPosition &&
           index == widget.initialChapterIndex &&
           widget.initialPosition != null &&
           widget.initialPosition! > Duration.zero) {
-        await player.seek(widget.initialPosition!);
+        await created.seek(widget.initialPosition!);
         _hasRestoredPosition = true;
       }
 
-      if (!mounted) return;
+      if (stale()) {
+        await discard();
+        return;
+      }
 
       setState(() {
-        _player = player;
+        _player = created;
         _isLoading = false;
         _isPlaying = true;
       });
@@ -438,7 +479,10 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
 
       _discAnimController.repeat();
     } catch (e) {
-      if (!mounted) return;
+      // The player this load made never became the screen's, so it goes
+      // whether or not a newer load has taken over.
+      await discard();
+      if (stale()) return;
       setState(() {
         _isLoading = false;
         _errorMessage = l10nCurrent().abk2PlaybackError(e);
@@ -483,194 +527,146 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   }
 
   void _showPlayerCustomizer(BuildContext context) {
-    final palette = AppThemeService.currentPalette.value;
-    final tokens = context.tokens;
-
-    showDialog(
+    showLuMediaDialog<void>(
       context: context,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: tokens.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 490),
-            child: Padding(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.tune_rounded,
-                        color: palette.primaryColor,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        l10nCurrent().abk2AudioPlayerStyleStudio,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w800,
+      title: l10nCurrent().abk2AudioPlayerStyleStudio,
+      icon: Icons.tune_rounded,
+      maxWidth: 520,
+      body: (ctx, _) {
+        final l10n = l10nOf(ctx);
+        Widget heading(String text) => Padding(
+          padding: const EdgeInsets.only(bottom: LuSpace.s),
+          child: Text(text, style: LuText.label),
+        );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            heading(l10n.abk2SelectPlayerDesignPreset),
+            ValueListenableBuilder<AudiobookPlayerPreset>(
+              valueListenable: AudiobookSettings.selectedPlayerPreset,
+              builder: (context, current, _) =>
+                  LuPillTabs<AudiobookPlayerPreset>(
+                    semanticsLabel: l10n.abkAudioPlayerDesignPreset,
+                    selected: current,
+                    compact: true,
+                    onSelected: AudiobookSettings.setSelectedPlayerPreset,
+                    options: [
+                      for (final preset in AudiobookPlayerPreset.values)
+                        LuPillOption(
+                          value: preset,
+                          label: abkPresetLabel(l10n, preset),
                         ),
-                      ),
-                      const Spacer(),
-                      FocusableInkWell(
-                        onTap: () => Navigator.pop(ctx),
-                        borderRadius: ZplayRadius.fullAll,
-                        hoverColor: Colors.white.withValues(
-                          alpha: ZplayOpacity.borderDefault,
-                        ),
-                        child: const SizedBox(
-                          width: ZplaySpacing.s48,
-                          height: ZplaySpacing.s48,
-                          child: Icon(
-                            Icons.close_rounded,
-                            color: Colors.white54,
-                            size: 20,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                  // No divider: the gap groups these two blocks, and a 1 px line
-                  // is the border this design does not draw.
-                  const SizedBox(height: ZplaySpacing.s20),
-
-                  Text(
-                    l10nCurrent().abk2SelectPlayerDesignPreset,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ValueListenableBuilder<AudiobookPlayerPreset>(
-                    valueListenable: AudiobookSettings.selectedPlayerPreset,
-                    builder: (context, currentPreset, _) {
-                      return SegmentedTabs<AudiobookPlayerPreset>(
-                        semanticsLabel: l10nCurrent().abkAudioPlayerDesignPreset,
-                        selected: currentPreset,
-                        onSelected: AudiobookSettings.setSelectedPlayerPreset,
-                        options: [
-                          for (final preset in AudiobookPlayerPreset.values)
-                            SegmentedTabOption(
-                              value: preset,
-                              label: preset.label,
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  Text(
-                    l10nCurrent().abk2SeekBarScrubberStyle,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ValueListenableBuilder<AudiobookSeekbarStyle>(
-                    valueListenable: AudiobookSettings.customSeekbarStyle,
-                    builder: (context, currentStyle, _) {
-                      return SegmentedTabs<AudiobookSeekbarStyle>(
-                        semanticsLabel: l10nCurrent().abkSeekBarScrubberStyle,
-                        selected: currentStyle,
-                        onSelected: AudiobookSettings.setCustomSeekbarStyle,
-                        options: [
-                          for (final style in AudiobookSeekbarStyle.values)
-                            SegmentedTabOption(
-                              value: style,
-                              label: style.label,
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  Text(
-                    l10nCurrent().abk2PlayPauseButtonStyle,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ValueListenableBuilder<AudiobookPlayButtonStyle>(
-                    valueListenable: AudiobookSettings.customPlayButtonStyle,
-                    builder: (context, currentStyle, _) {
-                      return SegmentedTabs<AudiobookPlayButtonStyle>(
-                        semanticsLabel: l10nCurrent().abkPlayPauseButtonStyle,
-                        selected: currentStyle,
-                        onSelected: AudiobookSettings.setCustomPlayButtonStyle,
-                        options: [
-                          for (final style in AudiobookPlayButtonStyle.values)
-                            SegmentedTabOption(
-                              value: style,
-                              label: style.label,
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: ZplaySpacing.s20),
-
-                  // The shared pill rather than an accent-outlined
-                  // `ElevatedButton`: one ring, one shape, and no 1 px accent
-                  // edge - a second, softer outline around the control that
-                  // carries the focus ring.
-                  SizedBox(
-                    width: double.infinity,
-                    child: PillButton(
-                      label: l10nCurrent().abkOpenDragDropPlayerStudio,
-                      icon: Icons.dashboard_customize_rounded,
-                      expand: true,
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AudiobookPlayerStudioPage(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ),
+            const SizedBox(height: LuSpace.l),
+            heading(l10n.abk2SeekBarScrubberStyle),
+            ValueListenableBuilder<AudiobookSeekbarStyle>(
+              valueListenable: AudiobookSettings.customSeekbarStyle,
+              builder: (context, current, _) =>
+                  LuPillTabs<AudiobookSeekbarStyle>(
+                    semanticsLabel: l10n.abkSeekBarScrubberStyle,
+                    selected: current,
+                    compact: true,
+                    onSelected: AudiobookSettings.setCustomSeekbarStyle,
+                    options: [
+                      for (final style in AudiobookSeekbarStyle.values)
+                        LuPillOption(
+                          value: style,
+                          label: abkSeekLabel(l10n, style),
+                        ),
+                    ],
+                  ),
+            ),
+            const SizedBox(height: LuSpace.l),
+            heading(l10n.abk2PlayPauseButtonStyle),
+            ValueListenableBuilder<AudiobookPlayButtonStyle>(
+              valueListenable: AudiobookSettings.customPlayButtonStyle,
+              builder: (context, current, _) =>
+                  LuPillTabs<AudiobookPlayButtonStyle>(
+                    semanticsLabel: l10n.abkPlayPauseButtonStyle,
+                    selected: current,
+                    compact: true,
+                    onSelected: AudiobookSettings.setCustomPlayButtonStyle,
+                    options: [
+                      for (final style in AudiobookPlayButtonStyle.values)
+                        LuPillOption(
+                          value: style,
+                          label: abkButtonLabel(l10n, style),
+                        ),
+                    ],
+                  ),
+            ),
+            const SizedBox(height: LuSpace.xl),
+            LuButton(
+              label: l10n.abkOpenDragDropPlayerStudio,
+              icon: Icons.dashboard_customize_rounded,
+              kind: LuButtonKind.secondary,
+              expand: true,
+              compact: true,
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AudiobookPlayerStudioPage(),
+                  ),
+                );
+              },
+            ),
+          ],
         );
       },
     );
   }
 
+  /// The control that had focus when the chapters drawer opened.
+  FocusNode? _chaptersDrawerOpener;
+
+  /// Closes the chapters drawer and puts the remote back on the control that
+  /// opened it.
+  void _closeChaptersDrawer() {
+    if (!_showChaptersDrawer) return;
+    setState(() => _showChaptersDrawer = false);
+    final opener = _chaptersDrawerOpener;
+    _chaptersDrawerOpener = null;
+    if (opener == null) return;
+    // After the frame that removes the drawer, when the control is reachable.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (opener.context == null || !opener.canRequestFocus) return;
+      opener.requestFocus();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Read in the build that opens the drawer, before its scope autofocuses,
+    // so this is still the control that opened it.
+    if (_showChaptersDrawer) {
+      _chaptersDrawerOpener ??= FocusManager.instance.primaryFocus;
+    }
+    // While the chapters drawer is up, Back (the remote's, Android's, the
+    // desktop's) closes the drawer instead of popping the whole player.
+    return PopScope(
+      canPop: !_showChaptersDrawer,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _closeChaptersDrawer();
+      },
+      child: _buildScreen(context),
+    );
+  }
+
+  Widget _buildScreen(BuildContext context) {
     final hasCover = widget.audiobook.coverImage.isNotEmpty;
     final currentChapter =
         widget.chapters.isNotEmpty &&
             _currentChapterIndex < widget.chapters.length
         ? widget.chapters[_currentChapterIndex]
         : null;
-
-    final palette = AppThemeService.currentPalette.value;
     final preset = AudiobookSettings.selectedPlayerPreset.value;
-    final tokens = context.tokens;
 
     final screenSize = MediaQuery.sizeOf(context);
     final isDesktop = screenSize.width >= 800;
@@ -685,10 +681,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
             Positioned.fill(
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Container(color: Colors.black.withValues(alpha: 0.65)),
-                ),
+                child: const ColoredBox(color: Color(0xE00A0A0C)),
               ),
             ),
 
@@ -704,11 +697,9 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                     // A raised modal, not a menu: [surface] is the darkest of the
                     // three steps, so the glass island and the search field — both
                     // [surface] — keep reading as panels on top of this.
-                    color: tokens.surface,
-                    // 28 dp, and no hairline: a 1.2 px light edge around the
-                    // window is the border this design does not draw, and the
-                    // drop below already separates it from the scrim.
+                    color: LuColors.surface,
                     borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: LuColors.lineSoft),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.75),
@@ -722,32 +713,11 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                     borderRadius: BorderRadius.circular(28),
                     child: Stack(
                       children: [
-                        // Background ambient cover blur & atmosphere
-                        if (hasCover &&
-                            widget.audiobook.coverImage.trim().isNotEmpty)
-                          Positioned.fill(
-                            child: Opacity(
-                              opacity: 0.22,
-                              child: CachedNetworkImage(
-                                imageUrl: widget.audiobook.coverImage.trim(),
-                                cacheManager: AppImageCache.manager,
-                                httpHeaders: const {
-                                  'User-Agent':
-                                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                },
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) => const SizedBox.shrink(),
-                                errorWidget: (_, __, ___) =>
-                                    const SizedBox.shrink(),
-                              ),
-                            ),
-                          ),
                         Positioned.fill(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-                            child: Container(
-                              color: Colors.black.withValues(alpha: 0.68),
-                            ),
+                          child: LuMediaBackdrop(
+                            url: hasCover ? widget.audiobook.coverImage : null,
+                            httpHeaders: abkCoverHeaders,
+                            opacity: 0.5,
                           ),
                         ),
 
@@ -755,7 +725,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                         Column(
                           children: [
                             // Top App Bar
-                            _buildTopAppBar(context, palette, isDesktop: true),
+                            _buildTopAppBar(context, isDesktop: true),
 
                             // Main Content Rendered by Selected Player Preset
                             Expanded(
@@ -764,7 +734,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                                 false,
                                 hasCover,
                                 currentChapter,
-                                palette,
                               ),
                             ),
                           ],
@@ -772,9 +741,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
 
                         // Sliding Premade Chapters Drawer Overlay
                         if (_showChaptersDrawer)
-                          Positioned.fill(
-                            child: _buildPremadeChaptersDrawer(palette),
-                          ),
+                          Positioned.fill(child: _buildPremadeChaptersDrawer()),
                       ],
                     ),
                   ),
@@ -787,31 +754,14 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     }
 
     return Scaffold(
-      backgroundColor: tokens.bg,
+      backgroundColor: LuColors.bg,
       body: Stack(
         children: [
-          // Background ambient cover blur & atmosphere
-          if (hasCover && widget.audiobook.coverImage.trim().isNotEmpty)
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.22,
-                child: CachedNetworkImage(
-                  imageUrl: widget.audiobook.coverImage.trim(),
-                  cacheManager: AppImageCache.manager,
-                  httpHeaders: const {
-                    'User-Agent':
-                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                  },
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => const SizedBox.shrink(),
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
           Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-              child: Container(color: Colors.black.withValues(alpha: 0.68)),
+            child: LuMediaBackdrop(
+              url: hasCover ? widget.audiobook.coverImage : null,
+              httpHeaders: abkCoverHeaders,
+              opacity: 0.55,
             ),
           ),
 
@@ -840,7 +790,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                 return Column(
                   children: [
                     // Top App Bar
-                    _buildTopAppBar(context, palette),
+                    _buildTopAppBar(context),
 
                     // Main Content Rendered by Selected Player Preset
                     Expanded(
@@ -849,7 +799,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                         isWide,
                         hasCover,
                         currentChapter,
-                        palette,
                         artScale: artScale,
                       ),
                     ),
@@ -861,18 +810,14 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
 
           // Sliding Premade Chapters Drawer Overlay
           if (_showChaptersDrawer)
-            Positioned.fill(child: _buildPremadeChaptersDrawer(palette)),
+            Positioned.fill(child: _buildPremadeChaptersDrawer()),
         ],
       ),
     );
   }
 
   // ── Top Header Bar ──
-  Widget _buildTopAppBar(
-    BuildContext context,
-    AppThemePalette palette, {
-    bool isDesktop = false,
-  }) {
+  Widget _buildTopAppBar(BuildContext context, {bool isDesktop = false}) {
     final screenW = MediaQuery.sizeOf(context).width;
     final isMobile = screenW < 560;
 
@@ -884,11 +829,11 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
       child: Row(
         children: [
           _PlayerIconButton(
-            icon: isDesktop
-                ? Icons.close_rounded
-                : Icons.arrow_back_ios_new_rounded,
-            palette: palette,
+            icon: isDesktop ? Icons.close_rounded : Icons.arrow_back_rounded,
             size: isMobile ? 20 : 24,
+            tooltip: isDesktop
+                ? l10nCurrent().actionClose
+                : l10nCurrent().abkBackTip,
             onTap: () => Navigator.pop(context),
           ),
           SizedBox(width: isMobile ? 8 : 14),
@@ -899,52 +844,24 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
               children: [
                 Text(
                   widget.audiobook.title,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isMobile ? 14.5 : 16,
-                    fontWeight: FontWeight.bold,
+                  style: LuText.body.copyWith(
+                    fontSize: isMobile ? 15 : 17,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Builder(
-                  builder: (context) {
-                    final isTorrent = widget.audiobook.source
-                        .toLowerCase()
-                        .contains('audiobookbay');
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isTorrent) ...[
-                          // #FFB74D is the Material Amber 300 warning shade, the same
-                          // role `tokens.warning` carries — the source badge is a
-                          // status, not an accent, so it stays palette-independent.
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: context.tokens.warning,
-                            size: 11,
-                          ),
-                          const SizedBox(width: 3),
-                        ],
-                        Flexible(
-                          child: Text(
-                            isTorrent
-                                ? 'AUDIOBOOKBAY (TORRENT)'
-                                : widget.audiobook.source.toUpperCase(),
-                            style: TextStyle(
-                              color: isTorrent
-                                  ? context.tokens.warning
-                                  : context.tokens.accent,
-                              fontSize: isMobile ? 9.5 : 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                Text(
+                  widget.audiobook.source.toLowerCase().contains('audiobookbay')
+                      ? l10nOf(context).abkTorrentSource
+                      : widget.audiobook.source,
+                  style: LuText.caption.copyWith(
+                    color: LuColors.gold,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -958,7 +875,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                 Text(
                   l10nCurrent().abk2Autoplay,
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: LuColors.textMuted,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -970,7 +887,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                 child: Switch(
                   value: _autoplayNext,
                   onChanged: (val) => setState(() => _autoplayNext = val),
-                  activeColor: context.tokens.accent,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
@@ -981,7 +897,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
           _PlayerIconButton(
             icon: Icons.tune_rounded,
             size: isMobile ? 20 : 24,
-            palette: palette,
             tooltip: l10nCurrent().abkCustomizeAudioPlayer,
             onTap: () => _showPlayerCustomizer(context),
           ),
@@ -990,7 +905,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
           _PlayerIconButton(
             icon: Icons.format_list_bulleted_rounded,
             size: isMobile ? 20 : 24,
-            palette: palette,
             tooltip: l10nCurrent().abkChaptersList,
             onTap: () => setState(() => _showChaptersDrawer = true),
           ),
@@ -1004,8 +918,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     AudiobookPlayerPreset preset,
     bool isWide,
     bool hasCover,
-    AudiobookChapter? currentChapter,
-    AppThemePalette palette, {
+    AudiobookChapter? currentChapter, {
 
     /// Scales the cover art and disc down when the viewport is short.
     double artScale = 1.0,
@@ -1015,11 +928,11 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: palette.primaryColor),
+            const CircularProgressIndicator(),
             const SizedBox(height: 18),
             Text(
               _statusMessage,
-              style: const TextStyle(color: Colors.white70, fontSize: 13.5),
+              style: LuText.bodySoft,
               textAlign: TextAlign.center,
             ),
           ],
@@ -1036,21 +949,23 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
             children: [
               const Icon(
                 Icons.error_outline_rounded,
-                color: Colors.redAccent,
+                color: LuColors.danger,
                 size: 40,
               ),
               const SizedBox(height: 12),
               Text(
                 _errorMessage!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                style: const TextStyle(color: LuColors.danger, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: ZplaySpacing.s16),
               // The shared pill, so a failed chapter is recoverable with the
               // same control that starts one and carries the same ring.
-              PillButton(
+              LuButton(
                 label: l10nCurrent().abkRetryChapter,
                 icon: Icons.refresh_rounded,
+                compact: true,
+                autofocus: true,
                 onPressed: () => _initChapter(_currentChapterIndex),
               ),
             ],
@@ -1064,7 +979,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         isWide,
         hasCover,
         currentChapter,
-        palette,
         artScale: artScale,
       );
     }
@@ -1073,7 +987,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         isWide,
         hasCover,
         currentChapter,
-        palette,
         artScale: artScale,
       );
     }
@@ -1082,7 +995,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         isWide,
         hasCover,
         currentChapter,
-        palette,
         artScale: artScale,
       );
     }
@@ -1091,7 +1003,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         isWide,
         hasCover,
         currentChapter,
-        palette,
         artScale: artScale,
       );
     }
@@ -1100,7 +1011,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
       isWide,
       hasCover,
       currentChapter,
-      palette,
       artScale: artScale,
     );
   }
@@ -1109,8 +1019,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   Widget _buildModernGlassPlayer(
     bool isWide,
     bool hasCover,
-    AudiobookChapter? currentChapter,
-    AppThemePalette palette, {
+    AudiobookChapter? currentChapter, {
     double artScale = 1.0,
   }) {
     final seekStyle = AudiobookSettings.customSeekbarStyle.value;
@@ -1128,7 +1037,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
               // Cover Art with 3D Float Shadow
               _buildCoverArtCard(
                 hasCover,
-                palette,
                 size: (isWide ? 220 : 160) * artScale,
               ),
               const SizedBox(height: 18),
@@ -1147,20 +1055,9 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                   // cut for text, not scrims, so this panel takes the highest
                   // defined step. Going opaque instead would flatten the blurred
                   // cover art it is deliberately floating over.
-                  color: context.tokens.surfaceOverlay.withValues(
-                    alpha: ZplayOpacity.textPrimary,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: palette.primaryColor.withValues(alpha: 0.22),
-                      blurRadius: 28,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  color: LuColors.surface.withValues(alpha: 0.88),
+                  borderRadius: LuRadius.card,
+                  border: Border.all(color: LuColors.lineSoft),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1176,7 +1073,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                     const SizedBox(height: 12),
 
                     // Controls Row
-                    _buildMainControlsCluster(palette),
+                    _buildMainControlsCluster(),
                   ],
                 ),
               ),
@@ -1192,8 +1089,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   Widget _buildVinylStudioPlayer(
     bool isWide,
     bool hasCover,
-    AudiobookChapter? currentChapter,
-    AppThemePalette palette, {
+    AudiobookChapter? currentChapter, {
     double artScale = 1.0,
   }) {
     return Center(
@@ -1207,7 +1103,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
               // Spinning Vinyl Disc
               _buildVinylDiscWidget(
                 hasCover,
-                palette,
                 size: (isWide ? 240 : 190) * artScale,
               ),
               const SizedBox(height: 18),
@@ -1215,7 +1110,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
               const SizedBox(height: 18),
 
               // Animated VU Meters
-              _buildVuMetersWidget(palette),
+              _buildVuMetersWidget(),
               const SizedBox(height: 16),
 
               // Waveform Seekbar
@@ -1229,7 +1124,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
               const SizedBox(height: 14),
 
               // Controls Cluster
-              _buildMainControlsCluster(palette),
+              _buildMainControlsCluster(),
             ],
           ),
         ),
@@ -1241,8 +1136,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   Widget _buildMinimalCapsulePlayer(
     bool isWide,
     bool hasCover,
-    AudiobookChapter? currentChapter,
-    AppThemePalette palette, {
+    AudiobookChapter? currentChapter, {
     double artScale = 1.0,
   }) {
     return Center(
@@ -1257,20 +1151,9 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
               // The token doc files a sheet under [surface], not [surfaceOverlay];
               // 0.94 was an almost-opaque carve-out and [textPrimary] (0.90) is
               // the top of the defined scale, so this is the nearest step.
-              color: context.tokens.surface.withValues(
-                alpha: ZplayOpacity.textPrimary,
-              ),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: palette.primaryColor.withValues(alpha: 0.4),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: palette.primaryColor.withValues(alpha: 0.3),
-                  blurRadius: 30,
-                ),
-              ],
+              color: LuColors.surface.withValues(alpha: 0.92),
+              borderRadius: LuRadius.card,
+              border: Border.all(color: LuColors.lineSoft),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1279,20 +1162,15 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: hasCover
-                          ? CachedNetworkImage(
-                              imageUrl: widget.audiobook.coverImage,
-                              cacheManager: AppImageCache.manager,
-                              memCacheWidth: 144,
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              width: 48,
-                              height: 48,
-                              color: Colors.white12,
-                            ),
+                      child: SizedBox.square(
+                        dimension: 52,
+                        child: LuMediaArt(
+                          url: widget.audiobook.coverImage,
+                          cacheWidth: 156,
+                          icon: Icons.headphones_rounded,
+                          httpHeaders: abkCoverHeaders,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1301,23 +1179,20 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                         children: [
                           Text(
                             currentChapter?.title ??
-                                l10nCurrent().abk2ChapterNumber(_currentChapterIndex + 1),
+                                l10nCurrent().abk2ChapterNumber(
+                                  _currentChapterIndex + 1,
+                                ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14.5,
+                            style: LuText.body.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           Text(
                             widget.audiobook.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              fontSize: 12,
-                            ),
+                            style: LuText.caption,
                           ),
                         ],
                       ),
@@ -1333,7 +1208,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                   onSeek: (pos) => seek(pos),
                 ),
                 const SizedBox(height: 12),
-                _buildMainControlsCluster(palette),
+                _buildMainControlsCluster(),
               ],
             ),
           ),
@@ -1346,8 +1221,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   Widget _buildImmersiveCanvasPlayer(
     bool isWide,
     bool hasCover,
-    AudiobookChapter? currentChapter,
-    AppThemePalette palette, {
+    AudiobookChapter? currentChapter, {
     double artScale = 1.0,
   }) {
     return Center(
@@ -1363,7 +1237,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
               // Oversized 3D Card
               _buildCoverArtCard(
                 hasCover,
-                palette,
                 size: (isWide ? 260 : 180) * artScale,
               ),
               const SizedBox(height: 20),
@@ -1377,7 +1250,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                 onSeek: (pos) => seek(pos),
               ),
               const SizedBox(height: 16),
-              _buildMainControlsCluster(palette),
+              _buildMainControlsCluster(),
               const SizedBox(height: 16),
             ],
           ),
@@ -1390,8 +1263,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   Widget _buildCustomStudioPlayer(
     bool isWide,
     bool hasCover,
-    AudiobookChapter? currentChapter,
-    AppThemePalette palette, {
+    AudiobookChapter? currentChapter, {
     double artScale = 1.0,
   }) {
     final order = AudiobookSettings.componentOrder.value;
@@ -1415,7 +1287,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                       padding: const EdgeInsets.only(bottom: 16),
                       child: _buildVinylDiscWidget(
                         hasCover,
-                        palette,
                         size: (isWide ? 220 : 170) * artScale,
                       ),
                     );
@@ -1424,7 +1295,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                     padding: const EdgeInsets.only(bottom: 16),
                     child: _buildCoverArtCard(
                       hasCover,
-                      palette,
                       size: (isWide ? 210 : 160) * artScale,
                     ),
                   );
@@ -1447,7 +1317,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                 case 'mainControls':
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
-                    child: _buildMainControlsCluster(palette),
+                    child: _buildMainControlsCluster(),
                   );
                 case 'secondaryControls':
                   return Padding(
@@ -1459,7 +1329,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                         const SizedBox(width: 16),
                         _VolumeButton(
                           volume: _volume,
-                          palette: palette,
                           onVolumeChanged: (v) {
                             setState(() => _volume = v);
                             _player?.setVolume(v * 100.0);
@@ -1471,33 +1340,13 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
                 case 'chaptersButton':
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: OutlinedButton.icon(
+                    child: LuButton(
+                      label: l10nCurrent().abk2OpenChaptersPanel,
+                      icon: Icons.format_list_bulleted_rounded,
+                      kind: LuButtonKind.secondary,
+                      compact: true,
                       onPressed: () =>
                           setState(() => _showChaptersDrawer = true),
-                      icon: Icon(
-                        Icons.format_list_bulleted_rounded,
-                        color: palette.primaryColor,
-                        size: 18,
-                      ),
-                      label: Text(
-                        l10nCurrent().abk2OpenChaptersPanel,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: palette.primaryColor.withValues(alpha: 0.5),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                      ),
                     ),
                   );
                 default:
@@ -1511,64 +1360,37 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   }
 
   // ── Cover Art Card ──
-  Widget _buildCoverArtCard(
-    bool hasCover,
-    AppThemePalette palette, {
-    double size = 200,
-  }) {
-    final tokens = context.tokens;
-    return Container(
+  Widget _buildCoverArtCard(bool hasCover, {double size = 200}) {
+    return AnimatedContainer(
+      duration: LuMotion.page,
       width: size,
       height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: LuRadius.card,
         boxShadow: [
-          BoxShadow(
-            color: palette.primaryColor.withValues(
-              alpha: _isPlaying ? 0.45 : 0.25,
-            ),
-            blurRadius: _isPlaying ? 32 : 18,
-            spreadRadius: _isPlaying ? 3 : 0,
-            offset: const Offset(0, 8),
+          const BoxShadow(
+            color: Color(0xAA000000),
+            blurRadius: 36,
+            offset: Offset(0, 14),
           ),
+          if (_isPlaying)
+            const BoxShadow(color: Color(0x33F2B544), blurRadius: 40),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: hasCover
-            ? CachedNetworkImage(
-                imageUrl: widget.audiobook.coverImage,
-                cacheManager: AppImageCache.manager,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(color: tokens.surface),
-                errorWidget: (_, __, ___) => Container(
-                  color: tokens.surface,
-                  child: const Icon(
-                    Icons.headphones_rounded,
-                    size: 64,
-                    color: Colors.white54,
-                  ),
-                ),
-              )
-            : Container(
-                color: tokens.surface,
-                child: const Icon(
-                  Icons.headphones_rounded,
-                  size: 64,
-                  color: Colors.white54,
-                ),
-              ),
+        borderRadius: LuRadius.card,
+        child: LuMediaArt(
+          url: hasCover ? widget.audiobook.coverImage : null,
+          cacheWidth: (size * 2.5).round(),
+          icon: Icons.headphones_rounded,
+          httpHeaders: abkCoverHeaders,
+        ),
       ),
     );
   }
 
   // ── Spinning Vinyl Disc Widget ──
-  Widget _buildVinylDiscWidget(
-    bool hasCover,
-    AppThemePalette palette, {
-    double size = 220,
-  }) {
-    final tokens = context.tokens;
+  Widget _buildVinylDiscWidget(bool hasCover, {double size = 220}) {
     return AnimatedBuilder(
       animation: _discAnimController,
       builder: (context, child) {
@@ -1584,55 +1406,31 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: palette.primaryColor.withValues(
-                alpha: _isPlaying ? 0.45 : 0.2,
-              ),
-              blurRadius: _isPlaying ? 32 : 16,
-              spreadRadius: _isPlaying ? 4 : 1,
+              color: LuColors.gold.withValues(alpha: _isPlaying ? 0.3 : 0.12),
+              blurRadius: _isPlaying ? 36 : 18,
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(size / 2),
+        child: ClipOval(
           child: Stack(
             alignment: Alignment.center,
             children: [
-              if (hasCover)
-                CachedNetworkImage(
-                  imageUrl: widget.audiobook.coverImage,
-                  cacheManager: AppImageCache.manager,
-                  width: size,
-                  height: size,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
-                    color: tokens.surface,
-                    child: const Icon(
-                      Icons.headphones_rounded,
-                      size: 64,
-                      color: Colors.white54,
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  color: tokens.surface,
-                  child: const Icon(
-                    Icons.headphones_rounded,
-                    size: 64,
-                    color: Colors.white54,
-                  ),
+              Positioned.fill(
+                child: LuMediaArt(
+                  url: hasCover ? widget.audiobook.coverImage : null,
+                  cacheWidth: (size * 2).round(),
+                  icon: Icons.headphones_rounded,
+                  httpHeaders: abkCoverHeaders,
                 ),
-              // Center Vinyl Ring Hole
+              ),
+              // The record's spindle hole.
               Container(
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: tokens.bg,
+                  color: LuColors.bg,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    width: 3,
-                  ),
+                  border: Border.all(color: LuColors.gold, width: 2),
                 ),
               ),
             ],
@@ -1643,7 +1441,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   }
 
   // ── VU Audio Meters Widget ──
-  Widget _buildVuMetersWidget(AppThemePalette palette) {
+  Widget _buildVuMetersWidget() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(16, (i) {
@@ -1653,7 +1451,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
           height: _isPlaying ? (8 + ((i % 5) * 4.5)) : 6,
           margin: const EdgeInsets.symmetric(horizontal: 2.5),
           decoration: BoxDecoration(
-            color: _isPlaying ? palette.primaryColor : Colors.white24,
+            color: _isPlaying ? LuColors.gold : const Color(0x3DFFFFFF),
             borderRadius: BorderRadius.circular(2),
           ),
         );
@@ -1668,26 +1466,22 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
       child: Column(
         children: [
           Text(
-            currentChapter?.title ?? l10nCurrent().abk2ChapterNumber(_currentChapterIndex + 1),
+            currentChapter?.title ??
+                l10nCurrent().abk2ChapterNumber(_currentChapterIndex + 1),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-              height: 1.25,
-            ),
+            style: LuText.heading.copyWith(fontSize: 24, height: 1.25),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
           Text(
-            l10nCurrent().abk2ChapterOfTotalBook(_currentChapterIndex + 1, widget.chapters.length, widget.audiobook.title),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+            l10nCurrent().abk2ChapterOfTotalBook(
+              _currentChapterIndex + 1,
+              widget.chapters.length,
+              widget.audiobook.title,
             ),
+            textAlign: TextAlign.center,
+            style: LuText.label.copyWith(color: LuColors.textMuted),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1697,7 +1491,7 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   }
 
   // ── Main Controls Cluster (Prev, Rewind, Play, Forward, Next, Speed, Volume) ──
-  Widget _buildMainControlsCluster(AppThemePalette palette) {
+  Widget _buildMainControlsCluster() {
     final playBtnStyle = AudiobookSettings.customPlayButtonStyle.value;
 
     return LayoutBuilder(
@@ -1707,7 +1501,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         final prevBtn = _PlayerIconButton(
           icon: Icons.skip_previous_rounded,
           size: isNarrow ? 24 : 28,
-          palette: palette,
           tooltip: l10nCurrent().abkPreviousChapter,
           onTap: _currentChapterIndex > 0
               ? () => _initChapter(_currentChapterIndex - 1)
@@ -1717,21 +1510,21 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         final rewBtn = _PlayerIconButton(
           icon: Icons.replay_10_rounded,
           size: isNarrow ? 24 : 28,
-          palette: palette,
           tooltip: l10nCurrent().abkRewind10s,
           onTap: () => _seekRelative(-10),
         );
 
-        final playButton = FocusableCard(
-          onTap: _togglePlayPause,
-          builder: (context, _) =>
-              _buildPlayButtonByStyle(playBtnStyle, palette),
+        // The physics button is the control: one focus stop, gold.
+        final playButton = Tooltip(
+          message: _isPlaying
+              ? l10nCurrent().musPauseTip
+              : l10nCurrent().musPlayTip,
+          child: _buildPlayButtonByStyle(playBtnStyle),
         );
 
         final fwdBtn = _PlayerIconButton(
           icon: Icons.forward_10_rounded,
           size: isNarrow ? 24 : 28,
-          palette: palette,
           tooltip: l10nCurrent().abkForward10s,
           onTap: () => _seekRelative(10),
         );
@@ -1739,7 +1532,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
         final nextBtn = _PlayerIconButton(
           icon: Icons.skip_next_rounded,
           size: isNarrow ? 24 : 28,
-          palette: palette,
           tooltip: l10nCurrent().abkNextChapter,
           onTap: _currentChapterIndex < widget.chapters.length - 1
               ? () => _initChapter(_currentChapterIndex + 1)
@@ -1750,7 +1542,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
 
         final volumeBtn = _VolumeButton(
           volume: _volume,
-          palette: palette,
           onVolumeChanged: (v) {
             setState(() => _volume = v);
             _player?.setVolume(v * 100.0);
@@ -1796,387 +1587,282 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
   }
 
   Widget _buildSpeedSelectorPill() {
-    final tokens = context.tokens;
-    // This was a bare `InkWell`: a pointer-only `GestureDetector` with no
-    // `Focus` node anywhere, so playback speed was the one transport control a
-    // remote could not reach at all. `FocusableInkWell` supplies the node, the
-    // centre-key activation and the app's single ring, and the pill keeps its
-    // wash - the hairline it also carried is gone, because the ring is the one
-    // edge this design draws on a control.
-    return FocusableInkWell(
-      onTap: _cycleSpeed,
-      borderRadius: ZplayRadius.fullAll,
-      hoverColor: Colors.white.withValues(alpha: ZplayOpacity.borderDefault),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: ZplayRadius.fullAll,
-        ),
-        child: Text(
-          '${_playbackSpeed}x',
-          style: TextStyle(
-            color: tokens.accent,
-            fontSize: 12.5,
-            fontWeight: FontWeight.bold,
+    return Tooltip(
+      message: l10nCurrent().abkPlaybackSpeedTip,
+      child: LuFocusable(
+        onTap: _cycleSpeed,
+        lift: 1.06,
+        semanticLabel:
+            '${l10nCurrent().abkPlaybackSpeedTip} ${_playbackSpeed}x',
+        builder: (context, highlighted) => AnimatedContainer(
+          duration: LuMotion.focus,
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: highlighted
+                ? const Color(0x29FFFFFF)
+                : const Color(0x14FFFFFF),
+            borderRadius: LuRadius.pill,
+          ),
+          child: Text(
+            '${_playbackSpeed}x',
+            style: LuText.label.copyWith(
+              color: LuColors.gold,
+              fontFamily: LuFonts.display,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPlayButtonByStyle(
-    AudiobookPlayButtonStyle style,
-    AppThemePalette palette,
-  ) {
+  /// The gold play button, in the shape the player setting picks.
+  Widget _buildPlayButtonByStyle(AudiobookPlayButtonStyle style) {
     final icon = _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded;
-    final hoverEffect = AudiobookSettings.customHoverEffect.value;
+    const glow = [
+      BoxShadow(color: Color(0x66F2B544), blurRadius: 26, spreadRadius: 1),
+    ];
 
-    Widget buttonCore;
-    BorderRadius borderRadius;
-
-    if (style == AudiobookPlayButtonStyle.liquidGlassNeo) {
-      borderRadius = BorderRadius.circular(20);
-      final glassStyle = LiquidGlassStyle(
-        shape: LiquidGlassShape.continuousRoundedRectangle(
-          cornerRadius: 20,
-          clipQuality: LiquidGlassClipQuality.exact,
-          borderWidth: 1.6,
-          lightIntensity: 1.5,
-          // 0xE6 is 0.90 alpha, so this is the [textPrimary] white at its
-          // existing ARGB weight. It is the glass lens's light source, not a
-          // surface, but it belongs to the same "near-white" family and no
-          // separate token carries it.
-          lightColor: Colors.white.withValues(alpha: ZplayOpacity.textPrimary),
-          lightDirection: 115,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.5,
-            ambientIntensity: 1.2,
-            borderSolidity: 0.2,
-            lightSpread: 0.7,
+    final BorderRadius borderRadius;
+    final Widget buttonCore;
+    switch (style) {
+      case AudiobookPlayButtonStyle.liquidGlassNeo:
+        borderRadius = BorderRadius.circular(30);
+        buttonCore = Container(
+          width: 62,
+          height: 62,
+          decoration: BoxDecoration(
+            color: const Color(0x33F2B544),
+            shape: BoxShape.circle,
+            border: Border.all(color: LuColors.gold, width: 1.5),
+            boxShadow: glow,
           ),
-        ),
-        appearance: LiquidGlassAppearance(
-          color: palette.primaryColor.withValues(alpha: 0.16),
-          saturation: 1.25,
-          blur: const LiquidGlassBlur(sigmaX: 3.5, sigmaY: 3.5),
-          shadow: LiquidGlassShadow(
-            blur: 18,
-            opacity: 0.45,
-            color: palette.primaryColor,
+          child: Icon(icon, color: LuColors.gold, size: 34),
+        );
+      case AudiobookPlayButtonStyle.roundedSquare:
+        borderRadius = BorderRadius.circular(18);
+        buttonCore = Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: LuColors.gold,
+            borderRadius: borderRadius,
+            boxShadow: glow,
           ),
-        ),
-        refraction: const LiquidGlassRefraction(
-          magnification: 1.04,
-          chromaticAberration: 0.0035,
-          refractionType: OpticalRefraction(
-            refraction: 1.55,
-            refractionWidth: 24,
-            depth: 0.85,
+          child: Icon(icon, color: LuColors.onGold, size: 34),
+        );
+      case AudiobookPlayButtonStyle.accentPill:
+        borderRadius = LuRadius.pill;
+        buttonCore = Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: const BoxDecoration(
+            color: LuColors.gold,
+            borderRadius: LuRadius.pill,
+            boxShadow: glow,
           ),
-        ),
-      );
-
-      buttonCore = LiquidGlassLens(
-        style: glassStyle,
-        visibility: true,
-        useImpellerBackdrop: true,
-        child: Container(
-          width: 58,
-          height: 58,
-          alignment: Alignment.center,
-          child: Icon(icon, color: Colors.white, size: 34),
-        ),
-      );
-    } else if (style == AudiobookPlayButtonStyle.roundedSquare) {
-      borderRadius = BorderRadius.circular(16);
-      buttonCore = Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: palette.primaryColor,
-          borderRadius: borderRadius,
-          boxShadow: [
-            BoxShadow(
-              color: palette.primaryColor.withValues(alpha: 0.5),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: Colors.white, size: 32),
-      );
-    } else if (style == AudiobookPlayButtonStyle.accentPill) {
-      borderRadius = BorderRadius.circular(24);
-      buttonCore = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(
-          color: palette.primaryColor,
-          borderRadius: borderRadius,
-          boxShadow: [
-            BoxShadow(
-              color: palette.primaryColor.withValues(alpha: 0.4),
-              blurRadius: 14,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 24),
-            const SizedBox(width: 6),
-            Text(
-              _isPlaying ? l10nCurrent().abkPauseCaps : l10nCurrent().abkPlayCaps,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 13,
-                letterSpacing: 0.8,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: LuColors.onGold, size: 26),
+              const SizedBox(width: 8),
+              Text(
+                _isPlaying
+                    ? l10nCurrent().abkPauseCaps
+                    : l10nCurrent().abkPlayCaps,
+                style: LuText.button.copyWith(
+                  color: LuColors.onGold,
+                  fontSize: 15,
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      borderRadius = BorderRadius.circular(29);
-      buttonCore = Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: palette.primaryColor,
-          boxShadow: [
-            BoxShadow(
-              color: palette.primaryColor.withValues(alpha: 0.6),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Icon(icon, color: Colors.white, size: 36),
-      );
+            ],
+          ),
+        );
+      case AudiobookPlayButtonStyle.circleGlow:
+        borderRadius = BorderRadius.circular(32);
+        buttonCore = Container(
+          width: 64,
+          height: 64,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: LuColors.gold,
+            boxShadow: glow,
+          ),
+          child: Icon(icon, color: LuColors.onGold, size: 38),
+        );
     }
 
     return AudiobookInteractivePhysicsButton(
-      effect: hoverEffect,
-      glowColor: palette.primaryColor,
+      effect: AudiobookSettings.customHoverEffect.value,
+      glowColor: LuColors.gold,
       borderRadius: borderRadius,
       onTap: _togglePlayPause,
       child: buttonCore,
     );
   }
 
-  // ── Premade Sliding Glass Chapters Drawer ──
-  Widget _buildPremadeChaptersDrawer(AppThemePalette palette) {
+  // ── Chapters sheet ──
+  Widget _buildPremadeChaptersDrawer() {
+    final l10n = l10nOf(context);
     final filteredChapters = widget.chapters.where((c) {
       if (_chapterSearchQuery.isEmpty) return true;
       return c.title.toLowerCase().contains(_chapterSearchQuery.toLowerCase());
     }).toList();
 
-    return GestureDetector(
-      onTap: () => setState(() => _showChaptersDrawer = false),
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.65),
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: GestureDetector(
-            onTap: () {}, // Catch taps inside drawer
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  height: MediaQuery.of(context).size.height * 0.72,
-                  decoration: BoxDecoration(
-                    // Same reasoning as the capsule: a sheet is a [surface], and
-                    // 0.92 rounds to the scale's 0.90 step.
-                    color: context.tokens.surface.withValues(
-                      alpha: ZplayOpacity.textPrimary,
-                    ),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(24),
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
+    return FocusScope(
+      autofocus: true,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _closeChaptersDrawer,
+              child: const ColoredBox(color: Color(0xB30A0A0C)),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Container(
+                height: MediaQuery.sizeOf(context).height * 0.72,
+                decoration: BoxDecoration(
+                  color: LuColors.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
                   ),
-                  child: Column(
-                    children: [
-                      // Handle bar
-                      Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(top: 10, bottom: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(2),
+                  border: Border.all(color: LuColors.lineSoft),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0xCC000000), blurRadius: 40),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(top: 10, bottom: 6),
+                      decoration: const BoxDecoration(
+                        color: LuColors.line,
+                        borderRadius: LuRadius.pill,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 6, 14, 8),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.format_list_bulleted_rounded,
+                            color: LuColors.gold,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              l10n.abk2AudiobookChapters,
+                              style: LuText.heading,
+                            ),
+                          ),
+                          LuBadge(
+                            l10n.abk2ChaptersCountUpper(widget.chapters.length),
+                            muted: true,
+                          ),
+                          const SizedBox(width: 8),
+                          LuMediaIconButton(
+                            icon: Icons.close_rounded,
+                            tooltip: l10n.actionClose,
+                            onTap: _closeChaptersDrawer,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      child: SizedBox(
+                        height: 46,
+                        child: TextField(
+                          onChanged: (val) =>
+                              setState(() => _chapterSearchQuery = val),
+                          style: LuText.label.copyWith(color: LuColors.text),
+                          decoration: InputDecoration(
+                            hintText: l10n.abkFilterChaptersByName,
+                            hintStyle: LuText.label.copyWith(
+                              color: const Color(0xFF77736B),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search_rounded,
+                              color: LuColors.textMuted,
+                              size: 18,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
+                          ),
                         ),
                       ),
-                      // Header
-                      Padding(
+                    ),
+                    Expanded(
+                      child: ListView.builder(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
+                          horizontal: 16,
                           vertical: 8,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.format_list_bulleted_rounded,
-                                  color: palette.primaryColor,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10nCurrent().abk2AudiobookChapters,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: palette.primaryColor.withValues(
-                                  alpha: 0.2,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                l10nCurrent().abk2ChaptersCountUpper(widget.chapters.length),
-                                style: TextStyle(
-                                  color: palette.primaryColor,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            FocusableInkWell(
-                              onTap: () =>
-                                  setState(() => _showChaptersDrawer = false),
-                              borderRadius: ZplayRadius.fullAll,
-                              hoverColor: Colors.white.withValues(
-                                alpha: ZplayOpacity.borderDefault,
-                              ),
-                              child: const SizedBox(
-                                width: ZplaySpacing.s48,
-                                height: ZplaySpacing.s48,
-                                child: Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.white54,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                        itemCount: filteredChapters.length,
+                        itemBuilder: (context, index) {
+                          final chapter = filteredChapters[index];
+                          final originalIndex = widget.chapters.indexOf(
+                            chapter,
+                          );
+                          final isSelected =
+                              originalIndex == _currentChapterIndex;
 
-                      // Chapter Search Bar
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 6,
-                        ),
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            // A form field keeps its fill; the 0.08 hairline it
-                            // also carried is gone, because an outlined box in
-                            // this drawer was a second edge next to the one the
-                            // chapter rows draw when the remote lands on them.
-                            color: context.tokens.surface,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: TextField(
-                            onChanged: (val) =>
-                                setState(() => _chapterSearchQuery = val),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: l10nCurrent().abkFilterChaptersByName,
-                              hintStyle: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.35),
-                                fontSize: 13,
-                              ),
-                              prefixIcon: Icon(
-                                Icons.search_rounded,
-                                color: palette.primaryColor,
-                                size: 16,
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                            ),
-                          ),
-                        ),
+                          return _ChapterListItemTile(
+                            chapter: chapter,
+                            index: originalIndex,
+                            isSelected: isSelected,
+                            isPlaying: isSelected && _isPlaying,
+                            onTap: () {
+                              _closeChaptersDrawer();
+                              _initChapter(originalIndex);
+                            },
+                          );
+                        },
                       ),
-
-                      // Chapters List
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          itemCount: filteredChapters.length,
-                          itemBuilder: (context, index) {
-                            final chapter = filteredChapters[index];
-                            final originalIndex = widget.chapters.indexOf(
-                              chapter,
-                            );
-                            final isSelected =
-                                originalIndex == _currentChapterIndex;
-
-                            return _ChapterListItemTile(
-                              chapter: chapter,
-                              index: originalIndex,
-                              isSelected: isSelected,
-                              isPlaying: isSelected && _isPlaying,
-                              onTap: () {
-                                setState(() => _showChaptersDrawer = false);
-                                _initChapter(originalIndex);
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
+/// A chapter whose audio could not be found, carrying the sentence shown to
+/// the listener, already localized, rather than an English exception text.
+class _ChapterResolveException implements Exception {
+  const _ChapterResolveException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class _PlayerIconButton extends StatelessWidget {
   final IconData icon;
   final double size;
-  final AppThemePalette palette;
   final String? tooltip;
   final VoidCallback? onTap;
 
   const _PlayerIconButton({
     required this.icon,
-    required this.palette,
     this.size = 24,
     this.tooltip,
     this.onTap,
@@ -2196,7 +1882,7 @@ class _PlayerIconButton extends StatelessWidget {
       child: Icon(
         icon,
         size: size,
-        color: enabled ? Colors.white : Colors.white24,
+        color: enabled ? LuColors.text : LuColors.textFaint,
       ),
     );
 
@@ -2204,7 +1890,7 @@ class _PlayerIconButton extends StatelessWidget {
       message: tooltip ?? '',
       child: AudiobookInteractivePhysicsButton(
         effect: AudiobookSettings.customHoverEffect.value,
-        glowColor: palette.primaryColor,
+        glowColor: LuColors.gold,
         borderRadius: BorderRadius.circular(size + 10),
         enabled: enabled,
         onTap: onTap,
@@ -2216,14 +1902,9 @@ class _PlayerIconButton extends StatelessWidget {
 
 class _VolumeButton extends StatefulWidget {
   final double volume;
-  final AppThemePalette palette;
   final ValueChanged<double> onVolumeChanged;
 
-  const _VolumeButton({
-    required this.volume,
-    required this.palette,
-    required this.onVolumeChanged,
-  });
+  const _VolumeButton({required this.volume, required this.onVolumeChanged});
 
   @override
   State<_VolumeButton> createState() => _VolumeButtonState();
@@ -2244,7 +1925,6 @@ class _VolumeButtonState extends State<_VolumeButton> {
                     ? Icons.volume_up_rounded
                     : Icons.volume_down_rounded),
           size: 22,
-          palette: widget.palette,
           tooltip: l10nCurrent().abkVolume,
           onTap: () {
             setState(() => _showSlider = !_showSlider);
@@ -2254,12 +1934,12 @@ class _VolumeButtonState extends State<_VolumeButton> {
           SizedBox(
             width: 80,
             child: SliderTheme(
-              data: SliderThemeData(
+              data: const SliderThemeData(
                 trackHeight: 3,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                activeTrackColor: widget.palette.primaryColor,
-                inactiveTrackColor: Colors.white24,
-                thumbColor: Colors.white,
+                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                activeTrackColor: LuColors.gold,
+                inactiveTrackColor: Color(0x3DFFFFFF),
+                thumbColor: LuColors.gold,
               ),
               child: Slider(
                 value: widget.volume,
@@ -2292,66 +1972,37 @@ class _ChapterListItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: FocusableCard(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: LuMediaRow(
         onTap: onTap,
-        builder: (context, state) {
-          final scale = state.pressed ? 0.98 : (state.hovered ? 1.015 : 1.0);
-
-          return AnimatedScale(
-            scale: scale,
-            duration: const Duration(milliseconds: 150),
-            child: CardFocusRing(
-              focused: state.focused,
-              radius: BorderRadius.circular(12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? context.tokens.accent.withValues(alpha: 0.22)
-                      : (state.highlighted
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.transparent),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isSelected
-                          ? (isPlaying
-                                ? Icons.graphic_eq_rounded
-                                : Icons.pause_circle_filled_rounded)
-                          : Icons.play_circle_outline_rounded,
-                      color: isSelected
-                          ? context.tokens.accent
-                          : Colors.white54,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        chapter.title,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
-                          fontSize: 14,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+        current: isSelected,
+        semanticLabel: chapter.title,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              isSelected
+                  ? (isPlaying
+                        ? Icons.graphic_eq_rounded
+                        : Icons.pause_circle_filled_rounded)
+                  : Icons.play_circle_outline_rounded,
+              color: isSelected ? LuColors.gold : LuColors.textFaint,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                chapter.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LuText.label.copyWith(
+                  color: isSelected ? LuColors.text : LuColors.textSoft,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }

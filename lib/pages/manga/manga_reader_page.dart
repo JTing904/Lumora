@@ -1,22 +1,25 @@
-import '../../l10n/l10n.dart';
 import 'dart:async';
 import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/manga/manga.dart';
 import '../../models/manga/manga_chapter.dart';
+import '../../services/discord/discord_rpc_service.dart';
 import '../../services/layout/form_factor.dart';
-import '../../services/theme/app_theme_service.dart';
-import '../../services/theme/design_tokens.dart';
 import '../../services/manga/manga_service.dart';
 import '../../services/manga/manga_settings.dart';
-import '../../services/discord/discord_rpc_service.dart';
-import '../../widgets/common/custom_scroll_track.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/segmented_tabs.dart';
 import '../../services/storage/app_image_cache.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_focusable.dart';
+import '../../ui/lu_theme.dart';
+import '../../widgets/common/custom_scroll_track.dart';
+import '../books/widgets/lu_reading_kit.dart';
+import 'widgets/manga_labels.dart';
 import 'widgets/manga_reader_controls.dart';
 
 class MangaReaderPage extends StatefulWidget {
@@ -39,7 +42,10 @@ class MangaReaderPage extends StatefulWidget {
 
 class _MangaReaderPageState extends State<MangaReaderPage> {
   final MangaService _mangaService = MangaService();
-  final FocusNode _focusNode = FocusNode();
+  final FocusNode _focusNode = FocusNode(debugLabel: 'manga reader page');
+
+  /// The top bar's back button, where Select on the page sends focus.
+  final FocusNode _chromeFocus = FocusNode(debugLabel: 'manga reader chrome');
 
   late int _currentChapterIndex;
   late int _currentPageIndex;
@@ -60,6 +66,14 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
 
   double _currentZoom = 1.0;
 
+  /// Bumped by every [_loadChapter], so a slow answer for a chapter the
+  /// viewer has already left is dropped.
+  int _loadToken = 0;
+
+  /// The webtoon list is being put back at [_currentPageIndex]; its scroll
+  /// events until then are ours, not the viewer's, and must not be saved.
+  bool _restoringWebtoon = false;
+
   @override
   void initState() {
     super.initState();
@@ -68,9 +82,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     _readingMode = MangaSettings.defaultReadingMode.value;
 
     _initPageController();
+    _focusNode.addListener(_onFocusMoved);
     _verticalScrollController.addListener(_onVerticalScroll);
     MangaSettings.changeNotifier.addListener(_onSettingsChanged);
-    AppThemeService.currentPalette.addListener(_onSettingsChanged);
 
     _loadChapter();
 
@@ -94,8 +108,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     _progressSaveTimer?.cancel();
     _saveProgress();
     MangaSettings.changeNotifier.removeListener(_onSettingsChanged);
-    AppThemeService.currentPalette.removeListener(_onSettingsChanged);
+    _focusNode.removeListener(_onFocusMoved);
     _focusNode.dispose();
+    _chromeFocus.dispose();
     _pageController?.dispose();
     _verticalScrollController.dispose();
     _deckScrollController.dispose();
@@ -153,6 +168,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   Future<void> _loadChapter() async {
+    final token = ++_loadToken;
     _resetZoom();
     setState(() => _isLoading = true);
 
@@ -168,7 +184,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     );
     final urls = await _mangaService.getChapterImages(chapter.id);
 
-    if (mounted) {
+    if (mounted && token == _loadToken) {
       setState(() {
         _pageUrls = urls;
         _isLoading = false;
@@ -227,9 +243,26 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
         _initPageController();
       }
 
+      _restoreWebtoonPosition();
       _saveProgress();
       _scrollToCurrentPageInDeck();
     }
+  }
+
+  /// Puts the webtoon list back at [_currentPageIndex] once it is laid out:
+  /// the resumed page on open, the top for a new chapter.
+  void _restoreWebtoonPosition() {
+    if (_readingMode != MangaReadingMode.webtoon) return;
+    _restoringWebtoon = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _verticalScrollController.hasClients) {
+        final p = _verticalScrollController.position;
+        _verticalScrollController.jumpTo(
+          (_currentPageIndex * 900.0).clamp(0.0, p.maxScrollExtent),
+        );
+      }
+      _restoringWebtoon = false;
+    });
   }
 
   void _saveProgress() {
@@ -265,7 +298,11 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   void _onVerticalScroll() {
-    if (_readingMode != MangaReadingMode.webtoon || _pageUrls.isEmpty) return;
+    if (_readingMode != MangaReadingMode.webtoon ||
+        _pageUrls.isEmpty ||
+        _restoringWebtoon) {
+      return;
+    }
 
     final offset = _verticalScrollController.offset;
     final estimatedIndex = (offset / 900).floor().clamp(
@@ -316,6 +353,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
       _showOverlay = !_showOverlay;
       if (!_showOverlay) _showDeckDrawer = false;
     });
+    // The chrome is gone with its controls: hand focus back to the page so a
+    // remote's keys keep turning it.
+    if (!_showOverlay) _focusNode.requestFocus();
   }
 
   void _toggleDeckDrawer() {
@@ -349,313 +389,339 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     }
   }
 
-  void _handleKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) return;
+  /// Focus is on one of the chrome's controls rather than the page.
+  bool get _chromeHasFocus =>
+      _showOverlay && _focusNode.hasFocus && !_focusNode.hasPrimaryFocus;
 
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
-      Navigator.of(context).pop();
-      return;
-    }
+  void _onFocusMoved() {
+    if (mounted) setState(() {});
+  }
 
-    if (_readingMode == MangaReadingMode.horizontalLtr) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
-          event.logicalKey == LogicalKeyboardKey.space) {
-        if (_currentPageIndex < _pageUrls.length - 1) {
-          _pageController?.nextPage(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-          );
-        } else {
-          _nextChapter();
-        }
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        if (_currentPageIndex > 0) {
-          _pageController?.previousPage(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-          );
-        } else {
-          _prevChapter();
-        }
+  /// Hides the chrome and gives the page its keys back.
+  void _hideChrome() {
+    setState(() {
+      _showOverlay = false;
+      _showDeckDrawer = false;
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _turnPage({required bool forward}) {
+    // Nothing to turn while a chapter loads: the PageView is not there yet.
+    if (_isLoading) return;
+    final attached = _pageController?.hasClients ?? false;
+    if (forward) {
+      if (_currentPageIndex < _pageUrls.length - 1) {
+        if (!attached) return;
+        _pageController!.nextPage(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+      } else {
+        _nextChapter();
       }
-    } else if (_readingMode == MangaReadingMode.horizontalRtl) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-          event.logicalKey == LogicalKeyboardKey.space) {
-        if (_currentPageIndex < _pageUrls.length - 1) {
-          _pageController?.nextPage(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-          );
-        } else {
-          _nextChapter();
-        }
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        if (_currentPageIndex > 0) {
-          _pageController?.previousPage(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-          );
-        } else {
-          _prevChapter();
-        }
+    } else {
+      if (_currentPageIndex > 0) {
+        if (!attached) return;
+        _pageController!.previousPage(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+      } else {
+        _prevChapter();
       }
     }
   }
 
+  void _scrollWebtoon(double direction) {
+    if (!_verticalScrollController.hasClients) return;
+    final p = _verticalScrollController.position;
+    _verticalScrollController.animateTo(
+      (p.pixels + direction * p.viewportDimension * 0.75).clamp(
+        0.0,
+        p.maxScrollExtent,
+      ),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// Keys on the page: the arrows (and Space) turn or scroll it, Select shows
+  /// the controls and moves focus into them, Escape leaves. While a control
+  /// has focus the arrows move between controls, and Escape hides them.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final onPage = _focusNode.hasPrimaryFocus;
+
+    if (key == LogicalKeyboardKey.escape) {
+      if (event is KeyRepeatEvent) return KeyEventResult.handled;
+      if (_chromeHasFocus) {
+        _hideChrome();
+      } else {
+        Navigator.of(context).pop();
+      }
+      return KeyEventResult.handled;
+    }
+    if (!onPage) return KeyEventResult.ignored;
+
+    if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (event is KeyDownEvent) {
+        // Shown already (as on open): move into it rather than hide it.
+        if (_showOverlay) {
+          _chromeFocus.requestFocus();
+        } else {
+          _toggleOverlay();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _showOverlay) _chromeFocus.requestFocus();
+          });
+        }
+      }
+      return KeyEventResult.handled;
+    }
+
+    if (_readingMode == MangaReadingMode.webtoon) {
+      if (key == LogicalKeyboardKey.arrowDown ||
+          key == LogicalKeyboardKey.space ||
+          key == LogicalKeyboardKey.pageDown) {
+        _scrollWebtoon(1);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.arrowUp ||
+          key == LogicalKeyboardKey.pageUp) {
+        _scrollWebtoon(-1);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    final rtl = _readingMode == MangaReadingMode.horizontalRtl;
+    final forwardKey = rtl
+        ? LogicalKeyboardKey.arrowLeft
+        : LogicalKeyboardKey.arrowRight;
+    final backKey = rtl
+        ? LogicalKeyboardKey.arrowRight
+        : LogicalKeyboardKey.arrowLeft;
+    if (key == forwardKey || key == LogicalKeyboardKey.space) {
+      if (event is KeyDownEvent) _turnPage(forward: true);
+      return KeyEventResult.handled;
+    }
+    if (key == backKey) {
+      if (event is KeyDownEvent) _turnPage(forward: false);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   void _showReaderCustomizer(BuildContext context) {
-    final palette = AppThemeService.currentPalette.value;
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final tokens = ctx.tokens;
-        return Dialog(
-          backgroundColor: tokens.surfaceOverlay,
-          // No `side`: the fill is what makes this a modal. The 1 dp
-          // `hairlineStrong` outline it carried was the boxed-chrome idiom this
-          // language drops everywhere else.
-          shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.lgAll),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 490),
-            child: Padding(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.tune_rounded,
-                        color: palette.primaryColor,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        l10nCurrent().mgReaderSettingsLayout,
-                        style: ZplayType.title
-                            .copyWith(weight: FontWeight.w700)
-                            .toStyle(color: tokens.textPrimary),
-                      ),
-                      const Spacer(),
-                      // Was an `IconButton`, which drew Material's grey focus
-                      // wash on top of the single accent ring every other
-                      // control in the app uses.
-                      _MangaChromeAction(
-                        icon: Icons.close_rounded,
-                        semanticLabel: l10nCurrent().mgClose,
-                        iconSize: 20,
-                        tapTarget:
-                            FormFactorService.of(ctx) == FormFactor.compact
-                            ? 40.0
-                            : kMinInteractiveDimension,
-                        onTap: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Divider(color: tokens.borderDefault),
-                  const SizedBox(height: 12),
-
-                  Text(
-                    l10nCurrent().mgReadingOrientationMode,
-                    style: ZplayType.label
-                        .copyWith(weight: FontWeight.w700)
-                        .toStyle(color: tokens.textPrimary),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedTabs<MangaReadingMode>(
-                    semanticsLabel: l10nCurrent().mgReadingOrientationModeLabel,
-                    selected: _readingMode,
-                    onSelected: (mode) {
+    final l10n = l10nOf(context);
+    showLuPanel<void>(
+      context,
+      title: l10n.mgReaderSettingsLayout,
+      icon: Icons.tune_rounded,
+      maxWidth: 520,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setPanel) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LuSectionLabel(l10n.mgReadingOrientationMode),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final mode in MangaReadingMode.values)
+                  LuChoicePill(
+                    label: mangaReadingModeLabel(l10n, mode),
+                    selected: mode == _readingMode,
+                    onTap: () {
                       setState(() => _readingMode = mode);
+                      setPanel(() {});
                       MangaSettings.setDefaultReadingMode(mode);
                       _initPageController();
-                    },
-                    options: [
-                      for (final mode in MangaReadingMode.values)
-                        SegmentedTabOption(value: mode, label: mode.label),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  Text(
-                    l10nCurrent().mgPageReadingWidthConstraint,
-                    style: ZplayType.label
-                        .copyWith(weight: FontWeight.w700)
-                        .toStyle(color: tokens.textPrimary),
-                  ),
-                  const SizedBox(height: 8),
-                  ValueListenableBuilder<MangaReaderMaxWidth>(
-                    valueListenable: MangaSettings.readerMaxWidth,
-                    builder: (context, width, _) {
-                      return SegmentedTabs<MangaReaderMaxWidth>(
-                        semanticsLabel: l10nCurrent().mgPageReadingWidthConstraintLabel,
-                        selected: width,
-                        onSelected: MangaSettings.setReaderMaxWidth,
-                        options: [
-                          for (final option in MangaReaderMaxWidth.values)
-                            SegmentedTabOption(
-                              value: option,
-                              label: option.label,
-                            ),
-                        ],
-                      );
+                      _restoreWebtoonPosition();
                     },
                   ),
-
-                  const SizedBox(height: 14),
-
-                  Text(
-                    l10nCurrent().mgReaderBackgroundAtmosphere,
-                    style: ZplayType.label
-                        .copyWith(weight: FontWeight.w700)
-                        .toStyle(color: tokens.textPrimary),
-                  ),
-                  const SizedBox(height: 8),
-                  const MangaAtmosphereChips(showLabel: false),
-
-                  const SizedBox(height: 14),
-
-                  ValueListenableBuilder<bool>(
-                    valueListenable: MangaSettings.showPageDeck,
-                    builder: (context, showDeck, _) {
-                      return SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          l10nCurrent().mgShowPageDeckPreviewsDrawer,
-                          style: ZplayType.label.toStyle(
-                            color: tokens.textPrimary,
-                          ),
-                        ),
-                        value: showDeck,
-                        activeColor: palette.primaryColor,
-                        onChanged: (val) => MangaSettings.setShowPageDeck(val),
-                      );
-                    },
-                  ),
-
-                  ValueListenableBuilder<bool>(
-                    valueListenable: MangaSettings.enableNextChapterDeck,
-                    builder: (context, showNext, _) {
-                      return SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          l10nCurrent().mgShowNextChapterDeckCard,
-                          style: ZplayType.label.toStyle(
-                            color: tokens.textPrimary,
-                          ),
-                        ),
-                        value: showNext,
-                        activeColor: palette.primaryColor,
-                        onChanged: (val) =>
-                            MangaSettings.setEnableNextChapterDeck(val),
-                      );
-                    },
-                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            LuSectionLabel(l10n.mgPageReadingWidthConstraint),
+            const SizedBox(height: 10),
+            ValueListenableBuilder<MangaReaderMaxWidth>(
+              valueListenable: MangaSettings.readerMaxWidth,
+              builder: (context, width, _) => Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final option in MangaReaderMaxWidth.values)
+                    LuChoicePill(
+                      label: mangaMaxWidthLabel(l10n, option),
+                      selected: option == width,
+                      onTap: () => MangaSettings.setReaderMaxWidth(option),
+                    ),
                 ],
               ),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 20),
+            LuSectionLabel(l10n.mgReaderBackgroundAtmosphere),
+            const SizedBox(height: 10),
+            const MangaAtmosphereChips(showLabel: false),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<bool>(
+              valueListenable: MangaSettings.showPageDeck,
+              builder: (context, showDeck, _) => LuSwitchRow(
+                label: l10n.mgShowPageDeckPreviewsDrawer,
+                value: showDeck,
+                onChanged: MangaSettings.setShowPageDeck,
+              ),
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: MangaSettings.enableNextChapterDeck,
+              builder: (context, showNext, _) => LuSwitchRow(
+                label: l10n.mgShowNextChapterDeckCard,
+                value: showNext,
+                onChanged: MangaSettings.setEnableNextChapterDeck,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final chapterTitle = widget.chapters[_currentChapterIndex].name.isNotEmpty
-        ? widget.chapters[_currentChapterIndex].name
-        : l10nCurrent().mg2CurrentChapterNumber(widget.chapters[_currentChapterIndex].number);
-
-    final tokens = context.tokens;
+    final l10n = l10nOf(context);
+    final chapter = widget.chapters[_currentChapterIndex];
+    final chapterTitle = chapter.name.isNotEmpty
+        ? chapter.name
+        : l10n.mg2CurrentChapterNumber(chapter.number);
     final readerBg = MangaSettings.readerBackground.value.color;
-    final palette = AppThemeService.currentPalette.value;
 
-    return KeyboardListener(
-      focusNode: _focusNode,
-      onKeyEvent: _handleKeyEvent,
-      child: Scaffold(
-        backgroundColor: readerBg,
-        body: Stack(
-          children: [
-            // Main Interactive Zoom & Pan Reader Container
-            GestureDetector(
-              onTap: _toggleOverlay,
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: palette.primaryColor,
-                      ),
-                    )
-                  : _pageUrls.isEmpty
-                  ? Center(
-                      child: Text(
-                        l10nCurrent().mgNoPagesFoundForThisChapter,
-                        style: ZplayType.subtitle.toStyle(
-                          color: tokens.textEmphasis,
+    return Theme(
+      data: luTheme(),
+      child: PopScope(
+        // A remote's Back from the controls hides them first.
+        canPop: !_chromeHasFocus,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _hideChrome();
+        },
+        child: Focus(
+          focusNode: _focusNode,
+          onKeyEvent: _handleKeyEvent,
+          child: Scaffold(
+            backgroundColor: readerBg,
+            body: Stack(
+              children: [
+                // Main Interactive Zoom & Pan Reader Container
+                GestureDetector(
+                  onTap: _toggleOverlay,
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: LuColors.gold,
+                          ),
+                        )
+                      : _pageUrls.isEmpty
+                      ? LuEmptyState(
+                          icon: Icons.image_not_supported_outlined,
+                          title: l10n.mgNoPagesFoundForThisChapter,
+                        )
+                      : InteractiveViewer(
+                          transformationController: _transformationController,
+                          minScale: 0.25,
+                          maxScale: 5.0,
+                          panEnabled: true,
+                          scaleEnabled: true,
+                          clipBehavior: Clip.none,
+                          onInteractionUpdate: (_) {
+                            final s = _transformationController.value
+                                .getMaxScaleOnAxis();
+                            if ((s - _currentZoom).abs() > 0.05) {
+                              setState(() => _currentZoom = s);
+                            }
+                          },
+                          child: _readingMode == MangaReadingMode.webtoon
+                              ? _buildVerticalWebtoonReader()
+                              : _buildHorizontalPageView(),
                         ),
-                      ),
-                    )
-                  : InteractiveViewer(
-                      transformationController: _transformationController,
-                      minScale: 0.25,
-                      maxScale: 5.0,
-                      panEnabled: true,
-                      scaleEnabled: true,
-                      clipBehavior: Clip.none,
-                      onInteractionUpdate: (_) {
-                        final s = _transformationController.value
-                            .getMaxScaleOnAxis();
-                        if ((s - _currentZoom).abs() > 0.05) {
-                          setState(() => _currentZoom = s);
-                        }
-                      },
-                      child: _readingMode == MangaReadingMode.webtoon
-                          ? _buildVerticalWebtoonReader()
-                          : _buildHorizontalPageView(),
-                    ),
-            ),
-
-            // Custom Vertical Scroller for Webtoon Mode (Desktop only, removed for mobile)
-            if (_readingMode == MangaReadingMode.webtoon &&
-                !_isLoading &&
-                _pageUrls.isNotEmpty &&
-                MangaSettings.showScrollTrack.value &&
-                !(Platform.isAndroid || Platform.isIOS) &&
-                MediaQuery.sizeOf(context).width >= 700)
-              Positioned(
-                right: 20,
-                top: 100,
-                bottom: 100,
-                child: Center(
-                  child: CustomScrollTrack(
-                    controller: _verticalScrollController,
-                    axis: Axis.vertical,
-                    length: 320.0,
-                  ),
                 ),
-              ),
 
-            // Top Header Overlay
-            if (_showOverlay)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: _buildTopBar(chapterTitle),
-              ),
+                // Custom Vertical Scroller for Webtoon Mode (desktop only)
+                if (_readingMode == MangaReadingMode.webtoon &&
+                    !_isLoading &&
+                    _pageUrls.isNotEmpty &&
+                    MangaSettings.showScrollTrack.value &&
+                    !(Platform.isAndroid || Platform.isIOS) &&
+                    MediaQuery.sizeOf(context).width >= 700)
+                  Positioned(
+                    right: 20,
+                    top: 100,
+                    bottom: 100,
+                    child: Center(
+                      child: CustomScrollTrack(
+                        controller: _verticalScrollController,
+                        axis: Axis.vertical,
+                        length: 320.0,
+                      ),
+                    ),
+                  ),
 
-            // Bottom Navigation & Controls Overlay (Cohesive & Fully Responsive with Page Deck above slider)
-            if (_showOverlay)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildBottomBar(),
-              ),
-          ],
+                if (_showOverlay)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildTopBar(chapterTitle),
+                  ),
+
+                if (_showOverlay)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildBottomBar(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pageImage(String url, {required BoxFit fit, double? placeholder}) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      cacheManager: AppImageCache.manager,
+      // 2x screen width stays crisp under the 5x zoom while bounding the
+      // decode.
+      memCacheWidth: (MediaQuery.sizeOf(context).width * 2)
+          .round()
+          .clamp(96, 2048)
+          .toInt(),
+      fit: fit,
+      placeholder: (context, url) => SizedBox(
+        height: placeholder,
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: LuColors.textFaint,
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) => SizedBox(
+        height: placeholder == null ? null : 200,
+        child: const Center(
+          child: Icon(
+            Icons.broken_image_rounded,
+            color: LuColors.textFaint,
+            size: 48,
+          ),
         ),
       ),
     );
@@ -663,11 +729,10 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
 
   // 1. Horizontal Reading Mode (LTR & RTL)
   Widget _buildHorizontalPageView() {
-    final tokens = context.tokens;
     final maxWidth = MangaSettings.readerMaxWidth.value.width;
     final isRtl = _readingMode == MangaReadingMode.horizontalRtl;
 
-    Widget pageView = PageView.builder(
+    return PageView.builder(
       controller: _pageController,
       reverse: isRtl,
       physics: _currentZoom > 1.05
@@ -679,38 +744,15 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
         return Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth ?? double.infinity),
-            child: CachedNetworkImage(
-              imageUrl: _pageUrls[index],
-              cacheManager: AppImageCache.manager,
-              // Page view keeps one full-res page; 2x screen width stays crisp
-              // under the 5x zoom InteractiveViewer while bounding the decode.
-              memCacheWidth: (MediaQuery.sizeOf(context).width * 2)
-                  .round()
-                  .clamp(96, 2048)
-                  .toInt(),
-              fit: BoxFit.contain,
-              placeholder: (context, url) => Center(
-                child: CircularProgressIndicator(color: tokens.textDisabled),
-              ),
-              errorWidget: (context, url, error) => Center(
-                child: Icon(
-                  Icons.broken_image_rounded,
-                  color: tokens.textMuted,
-                  size: 48,
-                ),
-              ),
-            ),
+            child: _pageImage(_pageUrls[index], fit: BoxFit.contain),
           ),
         );
       },
     );
-
-    return pageView;
   }
 
   // 2. Vertical Webtoon Continuous Scroll Mode
   Widget _buildVerticalWebtoonReader() {
-    final tokens = context.tokens;
     final maxWidth = MangaSettings.readerMaxWidth.value.width;
     final pageGap = MangaSettings.pageGap.value;
     final showNextDeck = MangaSettings.enableNextChapterDeck.value;
@@ -734,33 +776,10 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
 
             return Container(
               margin: EdgeInsets.only(bottom: pageGap),
-              child: CachedNetworkImage(
-                imageUrl: _pageUrls[index],
-                cacheManager: AppImageCache.manager,
-                // Webtoon strip keeps full-res (2x screen, <=2048) for 5x zoom.
-                memCacheWidth: (MediaQuery.sizeOf(context).width * 2)
-                    .round()
-                    .clamp(96, 2048)
-                    .toInt(),
+              child: _pageImage(
+                _pageUrls[index],
                 fit: BoxFit.fitWidth,
-                placeholder: (context, url) => SizedBox(
-                  height: 350,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: tokens.textDisabled,
-                    ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => SizedBox(
-                  height: 200,
-                  child: Center(
-                    child: Icon(
-                      Icons.broken_image_rounded,
-                      color: tokens.textMuted,
-                      size: 48,
-                    ),
-                  ),
-                ),
+                placeholder: 350,
               ),
             );
           },
@@ -769,10 +788,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     );
   }
 
-  // 3. Next Chapter Preview Deck Card (at the end of Webtoon)
+  // 3. Next Chapter card (at the end of a webtoon chapter)
   Widget _buildNextChapterDeckCard() {
-    final tokens = context.tokens;
-    final palette = AppThemeService.currentPalette.value;
+    final l10n = l10nOf(context);
     final hasNext = _currentChapterIndex > 0;
     final nextChapter = hasNext
         ? widget.chapters[_currentChapterIndex - 1]
@@ -780,279 +798,187 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     final nextTitle = nextChapter != null
         ? (nextChapter.name.isNotEmpty
               ? nextChapter.name
-              : l10nCurrent().mg2NextChapterNumber(nextChapter.number))
-        : l10nCurrent().mgYouAreAllCaughtUp;
+              : l10n.mg2NextChapterNumber(nextChapter.number))
+        : l10n.mgYouAreAllCaughtUp;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: tokens.surfaceOverlay.withValues(alpha: 0.92),
-        borderRadius: ZplayRadius.lgAll,
-        border: Border.all(color: tokens.borderStrong),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        color: LuColors.surface,
+        borderRadius: LuRadius.card,
+        border: Border.all(color: LuColors.lineSoft),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: palette.primaryColor.withValues(alpha: 0.2),
-              borderRadius: ZplayRadius.smAll,
-            ),
-            child: Text(
-              hasNext ? l10nCurrent().mgUpNext : l10nCurrent().mgChapterFinished,
-              style: ZplayType.caption
-                  .copyWith(weight: FontWeight.w700)
-                  .toStyle(color: palette.primaryColor),
-            ),
-          ),
-          const SizedBox(height: 12),
+          LuBadge(hasNext ? l10n.mgUpNext : l10n.mgChapterFinished),
+          const SizedBox(height: 14),
           Text(
             nextTitle,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: ZplayType.title
-                .copyWith(weight: FontWeight.w700)
-                .toStyle(color: tokens.textPrimary),
+            style: LuText.heading,
           ),
           const SizedBox(height: 6),
           Text(
             widget.manga.title,
-            style: ZplayType.label.toStyle(color: tokens.textSecondary),
+            textAlign: TextAlign.center,
+            style: LuText.bodySoft,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           if (hasNext)
-            ElevatedButton.icon(
+            LuButton(
+              label: l10n.mgReadNextChapter,
+              icon: Icons.skip_next_rounded,
               onPressed: _nextChapter,
-              icon: Icon(
-                Icons.skip_next_rounded,
-                color: tokens.textPrimary,
-                size: 20,
-              ),
-              label: Text(
-                l10nCurrent().mgReadNextChapter,
-                style: ZplayType.subtitle
-                    .copyWith(weight: FontWeight.w700)
-                    .toStyle(color: tokens.textPrimary),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: palette.primaryColor,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 14,
-                ),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: ZplayRadius.mdAll,
-                ),
-              ),
             )
           else
-            OutlinedButton.icon(
+            LuButton(
+              label: l10n.mgBackToMangaDetails,
+              icon: Icons.check_circle_outline_rounded,
+              kind: LuButtonKind.secondary,
               onPressed: () => Navigator.of(context).pop(),
-              icon: Icon(
-                Icons.check_circle_outline_rounded,
-                color: tokens.success,
-              ),
-              label: Text(
-                l10nCurrent().mgBackToMangaDetails,
-                style: ZplayType.label.toStyle(color: tokens.textPrimary),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: tokens.hairlineStrong,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: ZplayRadius.mdAll,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-              ),
             ),
         ],
       ),
     );
   }
 
-  // 4. Page Deck Preview Section (Placed DIRECTLY ABOVE the slider)
-  Widget _buildPageDeckSection(
-    bool isMobile,
-    bool isVerySmall,
-    AppThemePalette palette,
-  ) {
-    final tokens = context.tokens;
+  // 4. Page deck: thumbnails directly above the slider.
+  Widget _buildPageDeckSection(bool isMobile, bool isVerySmall) {
+    final l10n = l10nOf(context);
     final cardWidth = isVerySmall ? 54.0 : (isMobile ? 62.0 : 74.0);
     final cardHeight = isVerySmall ? 78.0 : (isMobile ? 88.0 : 104.0);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 14, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 10 : 16,
+        10,
+        isMobile ? 10 : 16,
+        6,
+      ),
       decoration: BoxDecoration(
-        color: tokens.surfaceOverlay.withValues(alpha: 0.85),
-        borderRadius: ZplayRadius.mdAll,
-        // Fill only. This panel is drawn inside the bottom bar, so the
-        // `borderStrong` outline it carried was a Border.all left in the bar -
-        // the same boxed band the zoom cluster next to the slider lost.
+        color: LuColors.glass,
+        borderRadius: const BorderRadius.all(Radius.circular(18)),
+        border: Border.all(color: LuColors.glassEdge),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.view_carousel_rounded,
-                      color: palette.primaryColor,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      l10nCurrent().mgPageDeckPreview,
-                      style: ZplayType.caption
-                          .copyWith(weight: FontWeight.w700, letterSpacing: 0.5)
-                          .toStyle(color: tokens.textEmphasis),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: palette.primaryColor.withValues(alpha: 0.18),
-                    borderRadius: ZplayRadius.xsAll,
-                    // The badge's fill says what it is; the accent outline it
-                    // carried was a second indicator, and the action row's
-                    // "Page N / M" badge never had one.
-                  ),
-                  child: Text(
-                    l10nCurrent().mg2ReaderPageOfTotal(_currentPageIndex + 1, _pageUrls.length),
-                    style: ZplayType.caption
-                        .copyWith(weight: FontWeight.w700)
-                        .toStyle(color: palette.primaryColor),
+          Row(
+            children: [
+              const Icon(
+                Icons.view_carousel_rounded,
+                color: LuColors.gold,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.mgPageDeckPreview,
+                  style: LuText.label.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ),
+              ),
+              LuBadge(
+                l10n.mg2ReaderPageOfTotal(
+                  _currentPageIndex + 1,
+                  _pageUrls.length,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: cardHeight,
+            height: cardHeight + 8,
             child: ListView.builder(
               controller: _deckScrollController,
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              clipBehavior: Clip.none,
+              padding: const EdgeInsets.symmetric(vertical: 4),
               itemCount: _pageUrls.length,
               itemBuilder: (context, index) {
                 final isCurrent = index == _currentPageIndex;
-                return FocusableCard(
-                  onTap: () => _jumpToPage(index),
-                  builder: (context, _) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    width: cardWidth,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: tokens.surface,
-                      borderRadius: ZplayRadius.smAll,
-                      border: Border.all(
-                        color: isCurrent
-                            ? palette.primaryColor
-                            : tokens.borderStrong,
-                        width: isCurrent ? 2.2 : 1.0,
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: LuFocusable(
+                    onTap: () => _jumpToPage(index),
+                    borderRadius: const BorderRadius.all(Radius.circular(8)),
+                    semanticLabel: '${index + 1}',
+                    builder: (context, hi) => AnimatedContainer(
+                      duration: LuMotion.focus,
+                      width: cardWidth,
+                      height: cardHeight,
+                      decoration: BoxDecoration(
+                        color: LuColors.surfaceHigh,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(8),
+                        ),
+                        border: Border.all(
+                          color: isCurrent ? LuColors.gold : LuColors.line,
+                          width: isCurrent ? 2 : 1,
+                        ),
                       ),
-                      boxShadow: isCurrent
-                          ? [
-                              BoxShadow(
-                                color: palette.primaryColor.withValues(
-                                  alpha: 0.45,
-                                ),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: ZplayRadius.smAll,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CachedNetworkImage(
-                            imageUrl: _pageUrls[index],
-                            cacheManager: AppImageCache.manager,
-                            fit: BoxFit.cover,
-                            memCacheWidth: 140,
-                            placeholder: (_, __) =>
-                                Container(color: tokens.surface),
-                            errorWidget: (_, __, ___) => Center(
-                              child: Icon(
-                                Icons.broken_image_rounded,
-                                color: tokens.textDisabled,
-                                size: 18,
-                              ),
-                            ),
-                          ),
-                          // Bottom gradient overlay
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            height: 26,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withValues(alpha: 0.85),
-                                  ],
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(7),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: _pageUrls[index],
+                              cacheManager: AppImageCache.manager,
+                              fit: BoxFit.cover,
+                              memCacheWidth: 140,
+                              placeholder: (_, __) =>
+                                  const ColoredBox(color: LuColors.surfaceHigh),
+                              errorWidget: (_, __, ___) => const Center(
+                                child: Icon(
+                                  Icons.broken_image_rounded,
+                                  color: LuColors.textFaint,
+                                  size: 18,
                                 ),
                               ),
                             ),
-                          ),
-                          // Page number indicator badge
-                          Positioned(
-                            bottom: 3,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isCurrent
-                                      ? palette.primaryColor
-                                      : Colors.black.withValues(alpha: 0.7),
-                                  borderRadius: ZplayRadius.xsAll,
-                                ),
-                                child: Text(
-                                  '${index + 1}',
-                                  style: ZplayType.overline
-                                      .copyWith(weight: FontWeight.w700)
-                                      .toStyle(color: tokens.textPrimary),
+                            Positioned(
+                              bottom: 4,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isCurrent
+                                        ? LuColors.gold
+                                        : const Color(0xB30A0A0C),
+                                    borderRadius: LuRadius.pill,
+                                  ),
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: LuText.caption.copyWith(
+                                      fontSize: 11,
+                                      height: 1.3,
+                                      fontWeight: FontWeight.w700,
+                                      color: isCurrent
+                                          ? LuColors.onGold
+                                          : LuColors.text,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1065,76 +991,66 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     );
   }
 
-  // Top Chrome
-  Widget _buildTopBar(String title) {
-    final tokens = context.tokens;
-    final topInset = MediaQuery.paddingOf(context).top;
-    final tapTarget = FormFactorService.of(context) == FormFactor.compact
-        ? 40.0
-        : kMinInteractiveDimension;
+  double get _tapTarget => FormFactorService.of(context) == FormFactor.compact
+      ? 40.0
+      : kMinInteractiveDimension;
 
-    // A downward scrim, not a band. It was `ClipRRect > BackdropFilter(16)` over
-    // an opaque `Colors.black@0.65` fill closed by a 1 dp `hairlineStrong`
-    // bottom border: a hard edge was drawn exactly where a white manga page met
-    // the bar. The wash fades to nothing by its underside, so the page meets it
-    // without a seam.
+  // Top chrome: a downward scrim with back, the title and the settings disc.
+  Widget _buildTopBar(String title) {
+    final l10n = l10nOf(context);
+    final topInset = MediaQuery.paddingOf(context).top;
+
     return Container(
-      padding: EdgeInsets.only(
-        top: 12 + topInset,
-        bottom: 12,
-        left: 16,
-        right: 16,
-      ),
-      decoration: BoxDecoration(
+      padding: EdgeInsets.fromLTRB(16, 12 + topInset, 16, 28),
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.55),
-            Colors.black.withValues(alpha: 0.0),
-          ],
+          colors: [Color(0xE60A0A0C), Color(0x000A0A0C)],
         ),
       ),
       child: Row(
         children: [
-          _MangaChromeAction(
-            icon: Icons.arrow_back_rounded,
-            semanticLabel: l10nCurrent().mgBack,
-            iconSize: 24,
-            tapTarget: tapTarget,
+          LuGlyphButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            label: l10n.mgBack,
+            size: _tapTarget,
+            iconSize: 18,
+            focusNode: _chromeFocus,
             onTap: () => Navigator.of(context).pop(),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   widget.manga.title,
-                  style: ZplayType.subtitle
-                      .copyWith(weight: FontWeight.w700)
-                      .toStyle(color: tokens.textPrimary)
-                      // The wash is down to about a fifth of its strength by the
-                      // time it reaches this line, which is not enough to hold a
-                      // light glyph on a white manga page on its own.
-                      .copyWith(shadows: const [_glyphShadow]),
+                  style: LuText.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    shadows: const [luGlyphShadow],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   title,
-                  style: ZplayType.bodySmall
-                      .toStyle(color: tokens.textEmphasis)
-                      .copyWith(shadows: const [_glyphShadow]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LuText.caption.copyWith(
+                    color: LuColors.textSoft,
+                    shadows: const [luGlyphShadow],
+                  ),
                 ),
               ],
             ),
           ),
-          _MangaChromeAction(
+          const SizedBox(width: 12),
+          LuGlyphButton(
             icon: Icons.tune_rounded,
-            semanticLabel: l10nCurrent().mgReaderCustomization,
-            iconSize: 22,
-            tapTarget: tapTarget,
+            label: l10n.mgReaderCustomization,
+            size: _tapTarget,
             onTap: () => _showReaderCustomizer(context),
           ),
         ],
@@ -1142,281 +1058,169 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     );
   }
 
-  // Bottom Glass Control Bar with Integrated Page Deck (above slider), Navigation & Zoom
+  // Bottom chrome: the deck, the page slider, then chapter, zoom and page.
   Widget _buildBottomBar() {
-    final tokens = context.tokens;
-    final palette = AppThemeService.currentPalette.value;
+    final l10n = l10nOf(context);
     final showScrubber = MangaSettings.showPageScrubber.value;
     final showDeckToggle = MangaSettings.showPageDeck.value;
     final screenW = MediaQuery.sizeOf(context).width;
     final isMobile = screenW < 600;
     final isVerySmall = screenW < 420;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    // Every control here is a focus target now, so each one is given the
-    // ten-foot minimum: the old `IconButton`s were 48 dp by default, while the
-    // zoom pair measured about 28 dp - it zeroed its own padding and
-    // constraints, which no five-way pad can reliably land on.
-    final tapTarget = FormFactorService.of(context) == FormFactor.compact
-        ? 40.0
-        : kMinInteractiveDimension;
+    final tapTarget = _tapTarget;
+    final zoomed = (_currentZoom - 1.0).abs() > 0.03;
 
-    // An upward scrim, not a band: it was `ClipRRect > BackdropFilter(18)` over
-    // `tokens.bg@0.90`, closed by a 1 dp `hairlineStrong` top border and a 24 dp
-    // black drop thrown upward. All three drew the edge across the page this
-    // language keeps clean, and the wash carries the contrast on its own.
     return Container(
       padding: EdgeInsets.fromLTRB(
         isMobile ? 12 : 24,
-        12,
+        28,
         isMobile ? 12 : 24,
         12 + bottomInset,
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.0),
-            Colors.black.withValues(alpha: 0.75),
-          ],
+          colors: [Color(0x000A0A0C), Color(0xE60A0A0C)],
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── 1. Page Deck Thumbnail Strip (DIRECTLY ABOVE THE SLIDER) ──
           if (_showDeckDrawer && _pageUrls.isNotEmpty)
-            _buildPageDeckSection(isMobile, isVerySmall, palette),
+            _buildPageDeckSection(isMobile, isVerySmall),
 
-          // ── 2. Page Scrubber Slider ──
           if (showScrubber && _pageUrls.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: SliderTheme(
-                data: SliderThemeData(
-                  activeTrackColor: palette.primaryColor,
-                  inactiveTrackColor: tokens.textPrimary.withValues(
-                    alpha: ZplayOpacity.overlayHover,
-                  ),
-                  thumbColor: palette.primaryColor,
-                  overlayColor: palette.primaryColor.withValues(alpha: 0.2),
-                  trackHeight: 3.5,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 6.5,
-                  ),
+            SliderTheme(
+              data: const SliderThemeData(
+                activeTrackColor: LuColors.gold,
+                inactiveTrackColor: Color(0x33FFFFFF),
+                thumbColor: LuColors.gold,
+                overlayColor: Color(0x33F2B544),
+                trackHeight: 4,
+                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
+              ),
+              child: Slider(
+                value: _currentPageIndex.toDouble().clamp(
+                  0.0,
+                  (_pageUrls.length - 1).toDouble(),
                 ),
-                child: Slider(
-                  value: _currentPageIndex.toDouble().clamp(
-                    0.0,
-                    (_pageUrls.length - 1).toDouble(),
-                  ),
-                  min: 0.0,
-                  max: (_pageUrls.length - 1).toDouble(),
-                  divisions: _pageUrls.length > 1 ? _pageUrls.length - 1 : 1,
-                  onChanged: (val) {
-                    _jumpToPage(val.round());
-                  },
-                ),
+                min: 0.0,
+                max: (_pageUrls.length - 1).toDouble(),
+                divisions: _pageUrls.length > 1 ? _pageUrls.length - 1 : 1,
+                onChanged: (val) {
+                  _jumpToPage(val.round());
+                },
               ),
             ),
 
-          // ── 3. Bottom Actions & Responsive Navigation Row ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Prev Chapter Button
-              _MangaChromeAction(
-                icon: Icons.skip_previous_rounded,
-                semanticLabel: l10nCurrent().mgPreviousChapter,
-                iconSize: 24,
-                tapTarget: tapTarget,
-                onTap: _currentChapterIndex < widget.chapters.length - 1
-                    ? _prevChapter
-                    : null,
-              ),
-
-              // Center Cluster: Zoom Controls + Page Badge
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // The zoom cluster was a `Container` filled with
-                    // `tokens.borderDefault` and outlined in `tokens.borderStrong`:
-                    // a box drawn around three controls that already read as one
-                    // group. The glyphs and the readout sit as a quiet row now.
-                    if (!isVerySmall)
-                      _MangaChromeAction(
-                        icon: Icons.zoom_out_rounded,
-                        semanticLabel: l10nCurrent().mgZoomOut,
-                        iconSize: 18,
-                        tapTarget: tapTarget,
-                        onTap: _currentZoom > 0.26 ? _zoomOut : null,
-                      ),
-                    // Was an `InkWell` in the middle of that bordered cluster; it
-                    // keeps its tap and its `%` readout, and gains the one ring.
-                    if (!isVerySmall)
-                      FocusableCard(
-                        onTap: _resetZoom,
-                        builder: (_, state) => CardFocusRing(
-                          focused: state.focused,
-                          radius: ZplayRadius.smAll,
-                          child: SizedBox(
+          FocusTraversalGroup(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                LuGlyphButton(
+                  icon: Icons.skip_previous_rounded,
+                  label: l10n.mgPreviousChapter,
+                  size: tapTarget,
+                  iconSize: 22,
+                  onTap: _currentChapterIndex < widget.chapters.length - 1
+                      ? _prevChapter
+                      : null,
+                ),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isVerySmall) ...[
+                        LuGlyphButton(
+                          icon: Icons.zoom_out_rounded,
+                          label: l10n.mgZoomOut,
+                          size: tapTarget,
+                          iconSize: 18,
+                          filled: false,
+                          onTap: _currentZoom > 0.26 ? _zoomOut : null,
+                        ),
+                        LuFocusable(
+                          onTap: _resetZoom,
+                          semanticLabel: '${(_currentZoom * 100).round()}%',
+                          builder: (_, hi) => Container(
                             height: tapTarget,
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                ),
-                                child: Text(
-                                  '${(_currentZoom * 100).round()}%',
-                                  style: ZplayType.caption
-                                      .copyWith(weight: FontWeight.w700)
-                                      .toStyle(
-                                        color: (_currentZoom - 1.0).abs() > 0.03
-                                            ? palette.primaryColor
-                                            : (state.highlighted
-                                                  ? tokens.textPrimary
-                                                  : tokens.textEmphasis),
-                                      ),
-                                ),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${(_currentZoom * 100).round()}%',
+                              style: LuText.label.copyWith(
+                                fontFamily: LuFonts.display,
+                                fontWeight: FontWeight.w700,
+                                color: zoomed
+                                    ? LuColors.gold
+                                    : (hi ? LuColors.text : LuColors.textSoft),
                               ),
                             ),
                           ),
                         ),
+                        LuGlyphButton(
+                          icon: Icons.zoom_in_rounded,
+                          label: l10n.mgZoomIn,
+                          size: tapTarget,
+                          iconSize: 18,
+                          filled: false,
+                          onTap: _currentZoom < 4.9 ? _zoomIn : null,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 10 : 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: LuColors.glass,
+                          borderRadius: LuRadius.pill,
+                          border: Border.all(color: LuColors.glassEdge),
+                        ),
+                        child: Text(
+                          l10n.mg2ReaderPageSlashTotal(
+                            _currentPageIndex + 1,
+                            _pageUrls.isNotEmpty ? _pageUrls.length : '?',
+                          ),
+                          style: LuText.caption.copyWith(
+                            fontSize: isVerySmall ? 11 : 13,
+                            fontWeight: FontWeight.w700,
+                            color: LuColors.text,
+                          ),
+                        ),
                       ),
-                    if (!isVerySmall)
-                      _MangaChromeAction(
-                        icon: Icons.zoom_in_rounded,
-                        semanticLabel: l10nCurrent().mgZoomIn,
-                        iconSize: 18,
-                        tapTarget: tapTarget,
-                        onTap: _currentZoom < 4.9 ? _zoomIn : null,
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showDeckToggle) ...[
+                      LuGlyphButton(
+                        icon: Icons.view_carousel_rounded,
+                        label: l10n.mgTogglePageDeck,
+                        size: tapTarget,
+                        iconSize: 20,
+                        active: _showDeckDrawer,
+                        onTap: _toggleDeckDrawer,
                       ),
-
-                    if (!isVerySmall) const SizedBox(width: 8),
-
-                    // Page Counter Badge - a badge whose fill is its content, so
-                    // it stays a fill; it never carried a border.
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 8 : 12,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: tokens.borderStrong,
-                        borderRadius: ZplayRadius.smAll,
-                      ),
-                      child: Text(
-                        l10nCurrent().mg2ReaderPageSlashTotal(_currentPageIndex + 1, _pageUrls.isNotEmpty ? _pageUrls.length : '?'),
-                        style: ZplayType.caption
-                            .copyWith(
-                              size: isVerySmall ? 11 : 12.5,
-                              weight: FontWeight.w700,
-                            )
-                            .toStyle(color: tokens.textPrimary),
-                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    LuGlyphButton(
+                      icon: Icons.skip_next_rounded,
+                      label: l10n.mgNextChapter,
+                      size: tapTarget,
+                      iconSize: 22,
+                      onTap: _currentChapterIndex > 0 ? _nextChapter : null,
                     ),
                   ],
                 ),
-              ),
-
-              // Right Cluster: Deck Toggle + Next Chapter Button
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (showDeckToggle)
-                    _MangaChromeAction(
-                      icon: Icons.view_carousel_rounded,
-                      semanticLabel: l10nCurrent().mgTogglePageDeck,
-                      iconSize: 20,
-                      tapTarget: tapTarget,
-                      // Doubles as the "on" marker while the deck is open, so
-                      // the accent says the state rather than the focus.
-                      accent: _showDeckDrawer,
-                      onTap: _toggleDeckDrawer,
-                    ),
-
-                  _MangaChromeAction(
-                    icon: Icons.skip_next_rounded,
-                    semanticLabel: l10nCurrent().mgNextChapter,
-                    iconSize: 24,
-                    tapTarget: tapTarget,
-                    onTap: _currentChapterIndex > 0 ? _nextChapter : null,
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// The app's glyph shadow over art - the same constant Home's row and the anime
-/// chrome use. A 0.6 black drop under a 0.9-white glyph is what keeps text and
-/// icons legible on a white manga page without a band being drawn behind them.
-const Shadow _glyphShadow = Shadow(
-  color: Color(0x99000000),
-  blurRadius: 6,
-  offset: Offset(0, 1),
-);
-
-/// A chrome glyph action for the reader's bars - the same shape as
-/// `_AnimeChromeAction` on the anime page, so the two immersive pages mark focus
-/// identically.
-///
-/// It replaces `IconButton`, which drew Material's own grey focus wash on top of
-/// the single accent ring the rest of the app uses: two indicators for one
-/// state. A null [onTap] keeps the button's disabled rule - a card with no tap
-/// and a `textDisabled` glyph.
-class _MangaChromeAction extends StatelessWidget {
-  final IconData icon;
-  final String semanticLabel;
-  final double iconSize;
-  final double tapTarget;
-  final VoidCallback? onTap;
-
-  /// An action that is "on" (the deck toggle while the deck is open) holds the
-  /// accent instead of the two-state emphasis, so the state reads before focus.
-  final bool accent;
-
-  const _MangaChromeAction({
-    required this.icon,
-    required this.semanticLabel,
-    required this.iconSize,
-    required this.tapTarget,
-    required this.onTap,
-    this.accent = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final disabled = onTap == null;
-
-    return FocusableCard(
-      onTap: onTap,
-      builder: (_, state) => CardFocusRing(
-        focused: state.focused,
-        radius: ZplayRadius.smAll,
-        child: SizedBox(
-          width: tapTarget,
-          height: tapTarget,
-          child: Icon(
-            icon,
-            size: iconSize,
-            semanticLabel: semanticLabel,
-            color: disabled
-                ? tokens.textDisabled
-                : accent
-                ? tokens.accent
-                : (state.highlighted
-                      ? tokens.textPrimary
-                      : tokens.textEmphasis),
-            shadows: const [_glyphShadow],
-          ),
-        ),
       ),
     );
   }

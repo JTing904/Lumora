@@ -115,11 +115,11 @@ jobs:
             throw "Inno Setup compilation failed with exit code $LASTEXITCODE"
           }
 
-          if (Test-Path "installer\windows\Output\ZPlay-Windows-Setup.exe") {
-            Copy-Item "installer\windows\Output\ZPlay-Windows-Setup.exe" ".\ZPlay-Windows-Setup.exe" -Force
-            Write-Host "Verified and copied ZPlay-Windows-Setup.exe to root."
+          if (Test-Path "installer\windows\Output\Lumora-Windows-Setup.exe") {
+            Copy-Item "installer\windows\Output\Lumora-Windows-Setup.exe" ".\Lumora-Windows-Setup.exe" -Force
+            Write-Host "Verified and copied Lumora-Windows-Setup.exe to root."
           } else {
-            throw "ZPlay-Windows-Setup.exe was not found in Output directory after ISCC compile!"
+            throw "Lumora-Windows-Setup.exe was not found in Output directory after ISCC compile!"
           }
 
       - name: Package Portable ZIP
@@ -132,7 +132,7 @@ jobs:
         with:
           name: ZPlay-Windows
           path: |
-            ZPlay-Windows-Setup.exe
+            Lumora-Windows-Setup.exe
             ZPlay-Windows-x64-Portable.zip
 
       - name: Upload Windows Symbols
@@ -314,7 +314,7 @@ jobs:
           Categories=AudioVideo;Audio;Video;Player;
           EOF
 
-          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./zplay "$@"\n' > "$APP/AppRun"
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./lumora "$@"\n' > "$APP/AppRun"
           chmod +x "$APP/AppRun"
 
           ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$APP" ZPlay-Linux-x86_64.AppImage
@@ -597,7 +597,7 @@ jobs:
             fi
             printf '\n<!-- zplay:changelog-end -->\n\n'
             printf '## Downloads\n\n'
-            printf -- '- **Windows** `ZPlay-Windows-Setup.exe` or `ZPlay-Windows-x64-Portable.zip`\n'
+            printf -- '- **Windows** `Lumora-Windows-Setup.exe` or `ZPlay-Windows-x64-Portable.zip`\n'
             printf -- '- **Android** `app-arm64-v8a-release.apk` or `app-armeabi-v7a-release.apk` (Android TV included); `app-x86_64-release.apk` for the emulator\n'
             printf -- '- **Linux** `ZPlay-Linux-x86_64.AppImage` or `ZPlay-Linux-x86_64.tar.gz`\n'
             printf -- '- **macOS** `ZPlay-macOS-arm64.dmg` or `ZPlay-macOS-intel.dmg`\n'
@@ -628,7 +628,7 @@ jobs:
         run: |
           : > SHA256SUMS
           for file in \
-            ZPlay-Windows-Setup.exe \
+            Lumora-Windows-Setup.exe \
             ZPlay-Windows-x64-Portable.zip \
             app-arm64-v8a-release.apk \
             app-armeabi-v7a-release.apk \
@@ -675,7 +675,7 @@ jobs:
           # also matches stray executables checked into the repository, which is
           # how `zplay-new.exe` ended up attached to a release.
           files: |
-            ZPlay-Windows-Setup.exe
+            Lumora-Windows-Setup.exe
             ZPlay-Windows-x64-Portable.zip
             app-arm64-v8a-release.apk
             app-armeabi-v7a-release.apk

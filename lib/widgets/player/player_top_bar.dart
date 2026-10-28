@@ -2,6 +2,7 @@ import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
 
 /// Top header bar for the video player.
 class PlayerTopBar extends StatelessWidget {
@@ -55,7 +56,7 @@ class PlayerTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.paddingOf(context).top + ZplaySpacing.s12,

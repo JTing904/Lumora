@@ -6,12 +6,14 @@ import '../../../services/theme/app_theme_service.dart';
 import '../../../widgets/common/animated_ambient_background.dart';
 import '../../../widgets/common/segmented_tabs.dart';
 import '../../../widgets/settings/settings_app_bar.dart';
+import '../../../widgets/settings/lu_settings_kit.dart';
 
 class LiquidGlassSettingsPage extends StatefulWidget {
   const LiquidGlassSettingsPage({super.key});
 
   @override
-  State<LiquidGlassSettingsPage> createState() => _LiquidGlassSettingsPageState();
+  State<LiquidGlassSettingsPage> createState() =>
+      _LiquidGlassSettingsPageState();
 }
 
 class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
@@ -20,268 +22,313 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(
-        title: l10nCurrent().stgbLiquidGlassSetup,
-        actions: [
-          TextButton.icon(
-            onPressed: () async {
-              await GlassSettings.resetToDefaults();
-              setState(() {});
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(l10nCurrent().stgcLiquidGlassReset),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppThemeService.currentPalette.value.primaryColor,
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(
+            title: l10nCurrent().stgbLiquidGlassSetup,
+            actions: [
+              TextButton.icon(
+                onPressed: () async {
+                  await GlassSettings.resetToDefaults();
+                  setState(() {});
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(l10nCurrent().stgcLiquidGlassReset),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor:
+                          AppThemeService.currentPalette.value.primaryColor,
+                    ),
+                  );
+                },
+                icon: Icon(
+                  Icons.restore_rounded,
+                  size: 18,
+                  color: tokens.textEmphasis,
                 ),
-              );
-            },
-            icon: Icon(Icons.restore_rounded, size: 18, color: tokens.textEmphasis),
-            label: Text(
-              l10nCurrent().stgbReset,
-              style: ZplayType.label.toStyle(color: tokens.textEmphasis),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            children: [
-              // Master Switch Card
-              ValueListenableBuilder<bool>(
-                valueListenable: GlassSettings.enabled,
-                builder: (context, enabled, _) {
-                  return Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      borderRadius: ZplayRadius.mdAll,
-                      border: Border.all(
-                        color: enabled
-                            ? AppThemeService.currentPalette.value.primaryColor.withValues(alpha: 0.45)
-                            : tokens.borderDefault,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: ZplayOpacity.overlayHover),
-                            borderRadius: ZplayRadius.smAll,
-                          ),
-                          child: Icon(Icons.blur_on_rounded, color: AppThemeService.currentPalette.value.primaryColor, size: 24),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10nCurrent().stgbEnableLiquidGlass,
-                                style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                l10nCurrent().stgbEnableLiquidGlassDesc,
-                                style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Switch.adaptive(
-                          value: enabled,
-                          activeColor: AppThemeService.currentPalette.value.primaryColor,
-                          onChanged: (val) {
-                            GlassSettings.setEnabled(val);
-                            setState(() {});
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                label: Text(
+                  l10nCurrent().stgbReset,
+                  style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+                ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Interactive Live Sandbox Preview
-              _buildLivePreviewCard(),
-
-              const SizedBox(height: 24),
-
-              // Presets Selection
-              Text(
-                l10nCurrent().stgbPresets,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 10),
-              _buildPresetsRow(),
-
-              const SizedBox(height: 24),
-
-              // Detailed Sliders
-              Text(
-                l10nCurrent().stgbPhysicsOptical,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-
-              // 1. Hover Scale Impact
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.hoverScale,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbHoverScaleImpact,
-                    subtitle: l10nCurrent().stgbHoverScaleImpactDesc,
-                    valueDisplay: '${val.toStringAsFixed(2)}x',
-                    value: val,
-                    min: 0.95,
-                    max: 1.40,
-                    divisions: 45,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newHoverScale: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // 3. Wobble & Elasticity
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.wobbleIntensity,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbWobbleElasticity,
-                    subtitle: l10nCurrent().stgbWobbleElasticityDesc,
-                    valueDisplay: '${val.toStringAsFixed(1)}x',
-                    value: val,
-                    min: 0.5,
-                    max: 2.5,
-                    divisions: 20,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newWobbleIntensity: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // 4. Lens Refraction Index
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.refractionIndex,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbRefractionIndex,
-                    subtitle: l10nCurrent().stgbRefractionIndexDesc,
-                    valueDisplay: val.toStringAsFixed(2),
-                    value: val,
-                    min: 1.0,
-                    max: 2.2,
-                    divisions: 24,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newRefractionIndex: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // 5. Magnification
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.magnification,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbLensMagnification,
-                    subtitle: l10nCurrent().stgbLensMagnificationDesc,
-                    valueDisplay: '${val.toStringAsFixed(3)}x',
-                    value: val,
-                    min: 1.00,
-                    max: 1.12,
-                    divisions: 24,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newMagnification: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // 6. Chromatic Aberration (Prism RGB)
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.chromaticAberration,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbChromaticAberration,
-                    subtitle: l10nCurrent().stgbChromaticAberrationDesc,
-                    valueDisplay: val.toStringAsFixed(4),
-                    value: val,
-                    min: 0.000,
-                    max: 0.008,
-                    divisions: 32,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newChromaticAberration: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // 7. Frosted Blur Sigma
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.blurSigma,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbFrostedGlassBlur,
-                    subtitle: l10nCurrent().stgbFrostedGlassBlurDesc,
-                    valueDisplay: '${val.toStringAsFixed(1)} px',
-                    value: val,
-                    min: 0.0,
-                    max: 10.0,
-                    divisions: 20,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newBlurSigma: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // 8. Light Intensity
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.lightIntensity,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbSpecularShimmer,
-                    subtitle: l10nCurrent().stgbSpecularShimmerDesc,
-                    valueDisplay: val.toStringAsFixed(2),
-                    value: val,
-                    min: 0.5,
-                    max: 2.5,
-                    divisions: 20,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newLightIntensity: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // 9. Border Width
-              ValueListenableBuilder<double>(
-                valueListenable: GlassSettings.borderWidth,
-                builder: (context, val, _) {
-                  return _buildSliderTile(
-                    title: l10nCurrent().stgbBorderWidth,
-                    subtitle: l10nCurrent().stgbBorderWidthDesc,
-                    valueDisplay: '${val.toStringAsFixed(1)} px',
-                    value: val,
-                    min: 0.5,
-                    max: 3.0,
-                    divisions: 25,
-                    onChanged: (newVal) => GlassSettings.updateCustom(newBorderWidth: newVal),
-                  );
-                },
-              ),
-              const SizedBox(height: 32),
+              const SizedBox(width: 8),
             ],
+          ),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                children: [
+                  // Master Switch Card
+                  ValueListenableBuilder<bool>(
+                    valueListenable: GlassSettings.enabled,
+                    builder: (context, enabled, _) {
+                      return Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          borderRadius: ZplayRadius.mdAll,
+                          border: Border.all(
+                            color: enabled
+                                ? AppThemeService
+                                      .currentPalette
+                                      .value
+                                      .primaryColor
+                                      .withValues(alpha: 0.45)
+                                : tokens.borderDefault,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppThemeService
+                                    .currentPalette
+                                    .value
+                                    .primaryColor
+                                    .withValues(
+                                      alpha: ZplayOpacity.overlayHover,
+                                    ),
+                                borderRadius: ZplayRadius.smAll,
+                              ),
+                              child: Icon(
+                                Icons.blur_on_rounded,
+                                color: AppThemeService
+                                    .currentPalette
+                                    .value
+                                    .primaryColor,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10nCurrent().stgbEnableLiquidGlass,
+                                    style: ZplayType.subtitle.toStyle(
+                                      color: tokens.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    l10nCurrent().stgbEnableLiquidGlassDesc,
+                                    style: ZplayType.bodySmall.toStyle(
+                                      color: tokens.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Switch.adaptive(
+                              value: enabled,
+                              onChanged: (val) {
+                                GlassSettings.setEnabled(val);
+                                setState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Interactive Live Sandbox Preview
+                  _buildLivePreviewCard(),
+
+                  const SizedBox(height: 24),
+
+                  // Presets Selection
+                  Text(
+                    l10nCurrent().stgbPresets,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildPresetsRow(),
+
+                  const SizedBox(height: 24),
+
+                  // Detailed Sliders
+                  Text(
+                    l10nCurrent().stgbPhysicsOptical,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 1. Hover Scale Impact
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.hoverScale,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbHoverScaleImpact,
+                        subtitle: l10nCurrent().stgbHoverScaleImpactDesc,
+                        valueDisplay: '${val.toStringAsFixed(2)}x',
+                        value: val,
+                        min: 0.95,
+                        max: 1.40,
+                        divisions: 45,
+                        onChanged: (newVal) =>
+                            GlassSettings.updateCustom(newHoverScale: newVal),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 3. Wobble & Elasticity
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.wobbleIntensity,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbWobbleElasticity,
+                        subtitle: l10nCurrent().stgbWobbleElasticityDesc,
+                        valueDisplay: '${val.toStringAsFixed(1)}x',
+                        value: val,
+                        min: 0.5,
+                        max: 2.5,
+                        divisions: 20,
+                        onChanged: (newVal) => GlassSettings.updateCustom(
+                          newWobbleIntensity: newVal,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 4. Lens Refraction Index
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.refractionIndex,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbRefractionIndex,
+                        subtitle: l10nCurrent().stgbRefractionIndexDesc,
+                        valueDisplay: val.toStringAsFixed(2),
+                        value: val,
+                        min: 1.0,
+                        max: 2.2,
+                        divisions: 24,
+                        onChanged: (newVal) => GlassSettings.updateCustom(
+                          newRefractionIndex: newVal,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 5. Magnification
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.magnification,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbLensMagnification,
+                        subtitle: l10nCurrent().stgbLensMagnificationDesc,
+                        valueDisplay: '${val.toStringAsFixed(3)}x',
+                        value: val,
+                        min: 1.00,
+                        max: 1.12,
+                        divisions: 24,
+                        onChanged: (newVal) => GlassSettings.updateCustom(
+                          newMagnification: newVal,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 6. Chromatic Aberration (Prism RGB)
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.chromaticAberration,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbChromaticAberration,
+                        subtitle: l10nCurrent().stgbChromaticAberrationDesc,
+                        valueDisplay: val.toStringAsFixed(4),
+                        value: val,
+                        min: 0.000,
+                        max: 0.008,
+                        divisions: 32,
+                        onChanged: (newVal) => GlassSettings.updateCustom(
+                          newChromaticAberration: newVal,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 7. Frosted Blur Sigma
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.blurSigma,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbFrostedGlassBlur,
+                        subtitle: l10nCurrent().stgbFrostedGlassBlurDesc,
+                        valueDisplay: '${val.toStringAsFixed(1)} px',
+                        value: val,
+                        min: 0.0,
+                        max: 10.0,
+                        divisions: 20,
+                        onChanged: (newVal) =>
+                            GlassSettings.updateCustom(newBlurSigma: newVal),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 8. Light Intensity
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.lightIntensity,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbSpecularShimmer,
+                        subtitle: l10nCurrent().stgbSpecularShimmerDesc,
+                        valueDisplay: val.toStringAsFixed(2),
+                        value: val,
+                        min: 0.5,
+                        max: 2.5,
+                        divisions: 20,
+                        onChanged: (newVal) => GlassSettings.updateCustom(
+                          newLightIntensity: newVal,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 9. Border Width
+                  ValueListenableBuilder<double>(
+                    valueListenable: GlassSettings.borderWidth,
+                    builder: (context, val, _) {
+                      return _buildSliderTile(
+                        title: l10nCurrent().stgbBorderWidth,
+                        subtitle: l10nCurrent().stgbBorderWidthDesc,
+                        valueDisplay: '${val.toStringAsFixed(1)} px',
+                        value: val,
+                        min: 0.5,
+                        max: 3.0,
+                        divisions: 25,
+                        onChanged: (newVal) =>
+                            GlassSettings.updateCustom(newBorderWidth: newVal),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildLivePreviewCard() {
@@ -300,11 +347,7 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
             // The sandbox backdrop is simulated content (a scene to refract),
             // not chrome, so it keeps its own hues.
             gradient: LinearGradient(
-              colors: [
-                Color(0xFF2E0854),
-                Color(0xFF0F172A),
-                Color(0xFF00384D),
-              ],
+              colors: [Color(0xFF2E0854), Color(0xFF0F172A), Color(0xFF00384D)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -322,7 +365,10 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                      colors: [AppThemeService.currentPalette.value.primaryColor, const Color(0xFFFF2A85)],
+                      colors: [
+                        AppThemeService.currentPalette.value.primaryColor,
+                        const Color(0xFFFF2A85),
+                      ],
                     ),
                   ),
                 ),
@@ -336,7 +382,10 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                      colors: [AppThemeService.currentPalette.value.primaryColor, tokens.success],
+                      colors: [
+                        AppThemeService.currentPalette.value.primaryColor,
+                        tokens.success,
+                      ],
                     ),
                   ),
                 ),
@@ -349,7 +398,10 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: tokens.bg.withValues(alpha: 0.4),
                         borderRadius: ZplayRadius.xsAll,
@@ -366,8 +418,12 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            enabled ? l10nCurrent().stgbLiveInteractivePreview : l10nCurrent().stgbPreviewEnableGlass,
-                            style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
+                            enabled
+                                ? l10nCurrent().stgbLiveInteractivePreview
+                                : l10nCurrent().stgbPreviewEnableGlass,
+                            style: ZplayType.overline.toStyle(
+                              color: tokens.textEmphasis,
+                            ),
                           ),
                         ],
                       ),
@@ -386,19 +442,30 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                       onEnter: (_) => setState(() => _previewHovered = true),
                       onExit: (_) => setState(() => _previewHovered = false),
                       child: AnimatedContainer(
-                        duration: Duration(milliseconds: (190 / wobbleVal.clamp(0.5, 2.0)).round()),
+                        duration: Duration(
+                          milliseconds: (190 / wobbleVal.clamp(0.5, 2.0))
+                              .round(),
+                        ),
                         curve: ZplayMotion.spring,
                         width: _previewHovered ? 56 * hoverScaleVal : 56,
                         height: _previewHovered ? 56 * hoverScaleVal : 56,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: ZplayOpacity.overlayHover),
+                          color: Colors.white.withValues(
+                            alpha: ZplayOpacity.overlayHover,
+                          ),
                           borderRadius: ZplayRadius.mdAll,
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: ZplayOpacity.textMuted),
+                            color: Colors.white.withValues(
+                              alpha: ZplayOpacity.textMuted,
+                            ),
                             width: GlassSettings.borderWidth.value,
                           ),
                         ),
-                        child: Icon(Icons.play_arrow_rounded, color: tokens.textPrimary, size: 28),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: tokens.textPrimary,
+                          size: 28,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -408,14 +475,23 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: ZplayOpacity.overlayHover),
+                        color: Colors.white.withValues(
+                          alpha: ZplayOpacity.overlayHover,
+                        ),
                         borderRadius: ZplayRadius.mdAll,
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: ZplayOpacity.textMuted),
+                          color: Colors.white.withValues(
+                            alpha: ZplayOpacity.textMuted,
+                          ),
                           width: GlassSettings.borderWidth.value,
                         ),
                       ),
-                      child: Icon(Icons.auto_awesome_rounded, color: AppThemeService.currentPalette.value.primaryColor, size: 24),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color:
+                            AppThemeService.currentPalette.value.primaryColor,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 16),
 
@@ -424,14 +500,22 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: ZplayOpacity.overlayHover),
+                        color: Colors.white.withValues(
+                          alpha: ZplayOpacity.overlayHover,
+                        ),
                         borderRadius: ZplayRadius.mdAll,
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: ZplayOpacity.textMuted),
+                          color: Colors.white.withValues(
+                            alpha: ZplayOpacity.textMuted,
+                          ),
                           width: GlassSettings.borderWidth.value,
                         ),
                       ),
-                      child: const Icon(Icons.favorite_rounded, color: Color(0xFFFF2A85), size: 24),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Color(0xFFFF2A85),
+                        size: 24,
+                      ),
                     ),
                   ],
                 ),
@@ -445,7 +529,9 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
                 child: Center(
                   child: Text(
                     l10nCurrent().stgbHoverTapPreview,
-                    style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                    style: ZplayType.caption.toStyle(
+                      color: tokens.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -506,7 +592,8 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: AppThemeService.currentPalette.value.primaryColor
+                      .withValues(alpha: ZplayOpacity.overlayHover),
                   borderRadius: ZplayRadius.xsAll,
                 ),
                 child: Text(
@@ -526,10 +613,14 @@ class _LiquidGlassSettingsPageState extends State<LiquidGlassSettingsPage> {
           const SizedBox(height: 6),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: AppThemeService.currentPalette.value.primaryColor,
-              inactiveTrackColor: Colors.white.withValues(alpha: ZplayOpacity.borderDefault),
+              activeTrackColor:
+                  AppThemeService.currentPalette.value.primaryColor,
+              inactiveTrackColor: Colors.white.withValues(
+                alpha: ZplayOpacity.borderDefault,
+              ),
               thumbColor: AppThemeService.currentPalette.value.primaryColor,
-              overlayColor: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: ZplayOpacity.overlayHover),
+              overlayColor: AppThemeService.currentPalette.value.primaryColor
+                  .withValues(alpha: ZplayOpacity.overlayHover),
               trackHeight: 4,
             ),
             child: Slider(

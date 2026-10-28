@@ -9,6 +9,8 @@ import '../../services/storage/app_image_cache.dart';
 import '../common/card_badges.dart';
 import '../common/focusable_card.dart';
 import 'iptv_health_badge.dart';
+import '../player/lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 class IptvChannelCard extends StatelessWidget {
   final HardcodedChannel channel;
@@ -35,7 +37,7 @@ class IptvChannelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final ch = channel;
     final primaryColor = ch.gradient.isNotEmpty ? ch.gradient.first : tokens.accent;
     // Second stop of a channel's data-driven gradient; falls back to the info hue.
@@ -66,16 +68,22 @@ class IptvChannelCard extends StatelessWidget {
                     aspectRatio: 1 / 1.35,
                   child: CardFocusRing(
                     focused: state.focused,
-                    radius: ZplayRadius.mdAll,
+                    radius: LuPanel.rowRadiusAll,
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: ZplayRadius.mdAll,
+                        borderRadius: LuPanel.rowRadiusAll,
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            primaryColor.withValues(alpha: 0.85),
-                            secondaryColor.withValues(alpha: 0.70),
+                            // The channel's own colours, muted to a tint
+                            // over the cinema surface so a rail reads as one
+                            // dark wall rather than a row of swatches.
+                            primaryColor.withValues(alpha: 0.42),
+                            Color.alphaBlend(
+                              secondaryColor.withValues(alpha: 0.18),
+                              tokens.surfaceRaised,
+                            ),
                             tokens.surface,
                           ],
                           stops: const [0.0, 0.55, 1.0],
@@ -97,7 +105,7 @@ class IptvChannelCard extends StatelessWidget {
                         // slot and nothing else, for the same reason.
                       ),
                       child: ClipRRect(
-                        borderRadius: ZplayRadius.mdAll,
+                        borderRadius: LuPanel.rowRadiusAll,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -170,7 +178,7 @@ class IptvChannelCard extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     // Live badge scrim over the channel artwork: the alpha stays.
                                     color: tokens.bg.withValues(alpha: 0.65),
-                                    borderRadius: ZplayRadius.xsAll,
+                                    borderRadius: LuRadius.pill,
                                     border: Border.all(
                                       color: tokens.danger.withValues(alpha: 0.6),
                                       width: 0.8,
@@ -274,7 +282,7 @@ class IptvChannelCard extends StatelessWidget {
                     ],
                     Text(
                       l10nCurrent().wgIptvHdLive,
-                      style: ZplayType.caption.toStyle(color: primaryColor),
+                      style: ZplayType.caption.toStyle(color: tokens.accent),
                     ),
                   ],
                 ),
@@ -287,7 +295,7 @@ class IptvChannelCard extends StatelessWidget {
   }
 
   Widget _buildShortBadge(BuildContext context, HardcodedChannel ch) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -296,7 +304,7 @@ class IptvChannelCard extends StatelessWidget {
           decoration: BoxDecoration(
             // Monogram scrim over the card's gradient: the alpha stays.
             color: tokens.bg.withValues(alpha: 0.3),
-            borderRadius: ZplayRadius.smAll,
+            borderRadius: LuRadius.field,
             border: Border.all(color: tokens.borderStrong),
           ),
           child: Text(

@@ -8,6 +8,7 @@ import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/player/player_glass.dart';
 import '../../widgets/settings/settings_app_bar.dart';
 import 'tmdb_settings_page.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 
 /// Bring-your-own keys for the third-party services ZPlay talks to. A saved
 /// value is never read back into its field: only the fact that one exists is
@@ -173,73 +174,81 @@ class _ServiceKeysSettingsPageState extends State<ServiceKeysSettingsPage> {
         if (!ServiceCredentials.isUserObtainable(credential)) credential,
     ];
 
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(
-        title: l10nCurrent().stgcServiceApiKeys,
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s20,
-            ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: ZplaySpacing.s20),
-                child: Text(
-                  l10nCurrent().stgcServiceKeysIntro,
-                  style: ZplayType.body.toStyle(color: tokens.textSecondary),
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().stgcServiceApiKeys),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s16,
+                  vertical: ZplaySpacing.s20,
                 ),
-              ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: ZplaySpacing.s20),
+                    child: Text(
+                      l10nCurrent().stgcServiceKeysIntro,
+                      style: ZplayType.body.toStyle(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
 
-              Text(
-                l10nCurrent().stgaKeysYouCanObtain,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 10),
-              for (final credential in userObtainable) ...[
-                _buildCredentialCard(credential),
-                const SizedBox(height: ZplaySpacing.s12),
-              ],
+                  Text(
+                    l10nCurrent().stgaKeysYouCanObtain,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+                  for (final credential in userObtainable) ...[
+                    _buildCredentialCard(credential),
+                    const SizedBox(height: ZplaySpacing.s12),
+                  ],
 
-              const SizedBox(height: ZplaySpacing.s12),
-              Text(
-                l10nCurrent().stgaBorrowedCredentials,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10nCurrent().stgcServiceKeysUnobtainable,
-                style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-              ),
-              const SizedBox(height: 10),
-              for (final credential in borrowed) ...[
-                _buildCredentialCard(credential),
-                const SizedBox(height: ZplaySpacing.s12),
-              ],
+                  const SizedBox(height: ZplaySpacing.s12),
+                  Text(
+                    l10nCurrent().stgaBorrowedCredentials,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10nCurrent().stgcServiceKeysUnobtainable,
+                    style: ZplayType.bodySmall.toStyle(
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  for (final credential in borrowed) ...[
+                    _buildCredentialCard(credential),
+                    const SizedBox(height: ZplaySpacing.s12),
+                  ],
 
-              Text(
-                l10nCurrent().stgcServiceKeysStoredLocally,
-                style: ZplayType.bodySmall.toStyle(color: tokens.textDisabled),
-              ),
+                  Text(
+                    l10nCurrent().stgcServiceKeysStoredLocally,
+                    style: ZplayType.bodySmall.toStyle(
+                      color: tokens.textDisabled,
+                    ),
+                  ),
 
-              const SizedBox(height: ZplaySpacing.s24),
-              Text(
-                l10nCurrent().stgaRelated,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 10),
-              _buildTmdbRow(tokens),
+                  const SizedBox(height: ZplaySpacing.s24),
+                  Text(
+                    l10nCurrent().stgaRelated,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTmdbRow(tokens),
 
-              const SizedBox(height: ZplaySpacing.s20),
-            ],
+                  const SizedBox(height: ZplaySpacing.s20),
+                ],
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildCredentialCard(ServiceCredential credential) {
@@ -292,9 +301,7 @@ class _ServiceKeysSettingsPageState extends State<ServiceKeysSettingsPage> {
               const SizedBox(height: 3),
               Text(
                 _purposeOf(credential),
-                style: ZplayType.bodySmall.toStyle(
-                  color: tokens.textSecondary,
-                ),
+                style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
               ),
               const SizedBox(height: 2),
               Text(
@@ -348,7 +355,9 @@ class _ServiceKeysSettingsPageState extends State<ServiceKeysSettingsPage> {
                               ),
                               padding: const EdgeInsets.all(4),
                               constraints: const BoxConstraints(),
-                              tooltip: obscured ? l10nCurrent().stgaShowKey : l10nCurrent().stgaHideKey,
+                              tooltip: obscured
+                                  ? l10nCurrent().stgaShowKey
+                                  : l10nCurrent().stgaHideKey,
                               onPressed: () {
                                 setState(() {
                                   _obscured[credential] = !obscured;
@@ -396,7 +405,10 @@ class _ServiceKeysSettingsPageState extends State<ServiceKeysSettingsPage> {
                               color: tokens.onAccent,
                             ),
                           )
-                        : Text(l10nCurrent().stgaSave, style: ZplayType.label.toStyle()),
+                        : Text(
+                            l10nCurrent().stgaSave,
+                            style: ZplayType.label.toStyle(),
+                          ),
                   ),
                 ],
               ),
@@ -436,7 +448,10 @@ class _ServiceKeysSettingsPageState extends State<ServiceKeysSettingsPage> {
                         borderRadius: ZplayRadius.smAll,
                       ),
                     ),
-                    child: Text(l10nCurrent().stgaClearKey, style: ZplayType.label.toStyle()),
+                    child: Text(
+                      l10nCurrent().stgaClearKey,
+                      style: ZplayType.label.toStyle(),
+                    ),
                   ),
                 ],
               ),

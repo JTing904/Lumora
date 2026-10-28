@@ -6,6 +6,7 @@ import '../../services/theme/design_tokens.dart';
 import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/player/player_glass.dart';
 import '../../widgets/settings/settings_app_bar.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 
 class AboutSettingsPage extends StatelessWidget {
   const AboutSettingsPage({super.key});
@@ -13,154 +14,164 @@ class AboutSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().aboutTitle),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s24,
-            ),
-            children: [
-              // App Brand Header
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: tokens.accent,
-                        borderRadius: ZplayRadius.lgAll,
-                      ),
-                      child: Icon(
-                        Icons.play_arrow_rounded,
-                        color: tokens.onAccent,
-                        size: 44,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Lumora',
-                      style: ZplayType.display.toStyle(color: tokens.textPrimary),
-                    ),
-                    const SizedBox(height: 6),
-                    FutureBuilder<PackageInfo>(
-                      future: PackageInfo.fromPlatform(),
-                      builder: (context, snapshot) {
-                        final version = snapshot.hasData ? snapshot.data!.version : '1.1.6';
-                        return Text(
-                          l10nCurrent().stgcAboutVersion(version),
-                          style: ZplayType.label.toStyle(
-                            color: tokens.textSecondary,
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().aboutTitle),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s16,
+                  vertical: ZplaySpacing.s24,
+                ),
+                children: [
+                  // App Brand Header
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: tokens.accent,
+                            borderRadius: ZplayRadius.lgAll,
                           ),
-                        );
-                      },
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            color: tokens.onAccent,
+                            size: 44,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Lumora',
+                          style: ZplayType.display.toStyle(
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        FutureBuilder<PackageInfo>(
+                          future: PackageInfo.fromPlatform(),
+                          builder: (context, snapshot) {
+                            final version = snapshot.hasData
+                                ? snapshot.data!.version
+                                : '';
+                            return Text(
+                              l10nCurrent().stgcAboutVersion(version),
+                              style: ZplayType.label.toStyle(
+                                color: tokens.textSecondary,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
 
-              const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-              // Description
-              Padding(
-                padding: const EdgeInsets.all(ZplaySpacing.s20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10nCurrent().aboutTagline,
-                      style: ZplayType.subtitle.toStyle(
-                        color: tokens.textPrimary,
-                      ),
+                  // Description
+                  Padding(
+                    padding: const EdgeInsets.all(ZplaySpacing.s20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10nCurrent().aboutTagline,
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10nCurrent().aboutBody,
+                          style: ZplayType.body
+                              .toStyle(color: tokens.textSecondary)
+                              .copyWith(height: 1.45),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10nCurrent().aboutBody,
-                      style: ZplayType.body
-                          .toStyle(color: tokens.textSecondary)
-                          .copyWith(height: 1.45),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Architecture & Core Technologies
+                  Text(
+                    l10nCurrent().aboutTech,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildTechTile(
+                    context: context,
+                    title: l10nCurrent().aboutTechEngine,
+                    subtitle: l10nCurrent().stgbAboutPoweredBy,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTechTile(
+                    context: context,
+                    title: l10nCurrent().aboutTechSources,
+                    subtitle: l10nCurrent().aboutTechSourcesBody,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTechTile(
+                    context: context,
+                    title: l10nCurrent().aboutTechGlass,
+                    subtitle: l10nCurrent().aboutTechGlassBody,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTechTile(
+                    context: context,
+                    title: l10nCurrent().aboutTechSync,
+                    subtitle: l10nCurrent().aboutTechSyncBody,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Credits & Licence
+                  Text(
+                    l10nCurrent().aboutCredits,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildLinkTile(
+                    context: context,
+                    icon: Icons.code_rounded,
+                    title: 'ZPlay',
+                    subtitle: l10nCurrent().aboutZplayCredit,
+                    url: 'https://github.com/tzero86/ZPlay',
+                  ),
+                  const SizedBox(height: 10),
+                  _buildLinkTile(
+                    context: context,
+                    icon: Icons.history_edu_rounded,
+                    title: l10nCurrent().aboutPlaytorrio,
+                    subtitle: l10nCurrent().aboutPlaytorrioCredit,
+                    url: 'https://github.com/ayman708-UX/PlayTorrioV3',
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTmdbAttributionTile(context),
+                  const SizedBox(height: 10),
+                  _buildLicenseTile(context),
+
+                  const SizedBox(height: 16),
+                  Text(
+                    l10nCurrent().aboutFontLicense,
+                    style: ZplayType.bodySmall.toStyle(
+                      color: tokens.textDisabled,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 24),
-
-              // Architecture & Core Technologies
-              Text(
-                l10nCurrent().aboutTech,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-
-              _buildTechTile(
-                context: context,
-                title: l10nCurrent().aboutTechEngine,
-                subtitle: l10nCurrent().stgbAboutPoweredBy,
-              ),
-              const SizedBox(height: 10),
-              _buildTechTile(
-                context: context,
-                title: l10nCurrent().aboutTechSources,
-                subtitle: l10nCurrent().aboutTechSourcesBody,
-              ),
-              const SizedBox(height: 10),
-              _buildTechTile(
-                context: context,
-                title: l10nCurrent().aboutTechGlass,
-                subtitle: l10nCurrent().aboutTechGlassBody,
-              ),
-              const SizedBox(height: 10),
-              _buildTechTile(
-                context: context,
-                title: l10nCurrent().aboutTechSync,
-                subtitle: l10nCurrent().aboutTechSyncBody,
-              ),
-
-              const SizedBox(height: 24),
-
-              // Credits & Licence
-              Text(
-                l10nCurrent().aboutCredits,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
-
-              _buildLinkTile(
-                context: context,
-                icon: Icons.code_rounded,
-                title: 'ZPlay',
-                subtitle: l10nCurrent().aboutZplayCredit,
-                url: 'https://github.com/tzero86/ZPlay',
-              ),
-              const SizedBox(height: 10),
-              _buildLinkTile(
-                context: context,
-                icon: Icons.history_edu_rounded,
-                title: l10nCurrent().aboutPlaytorrio,
-                subtitle: l10nCurrent().aboutPlaytorrioCredit,
-                url: 'https://github.com/ayman708-UX/PlayTorrioV3',
-              ),
-              const SizedBox(height: 10),
-              _buildTmdbAttributionTile(context),
-              const SizedBox(height: 10),
-              _buildLicenseTile(context),
-
-              const SizedBox(height: 16),
-              Text(
-                l10nCurrent().aboutFontLicense,
-                style: ZplayType.bodySmall.toStyle(color: tokens.textDisabled),
-              ),
-            ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildTechTile({
@@ -190,9 +201,7 @@ class AboutSettingsPage extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: ZplayType.subtitle.toStyle(
-                    color: tokens.textPrimary,
-                  ),
+                  style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -285,8 +294,7 @@ class AboutSettingsPage extends StatelessWidget {
     return _CreditTile(
       icon: Icons.gavel_rounded,
       title: 'GNU GPL v3.0',
-      subtitle:
-          l10nCurrent().aboutGplBody,
+      subtitle: l10nCurrent().aboutGplBody,
       trailing: Icon(
         Icons.chevron_right_rounded,
         size: 20,
@@ -358,10 +366,7 @@ class _CreditTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: trailing,
-            ),
+            Padding(padding: const EdgeInsets.only(top: 2), child: trailing),
           ],
         ),
       ),

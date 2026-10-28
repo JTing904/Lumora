@@ -83,6 +83,7 @@ abstract final class MyListService {
   /// Used after a profile import, which has already written the document the
   /// running app now needs to show.
   static Future<void> reloadLocal() async {
+    items.value = [];
     final stored = await _store.read();
     // Null: an account with nothing saved yet on this device.
     items.value = stored ?? [];
@@ -95,12 +96,22 @@ abstract final class MyListService {
   /// Takes the account's list from the server.
   static Future<void> importDocument(Object? data) async {
     if (data is! List) return;
-    final list = data
-        .whereType<Map>()
-        .map((m) => MyListItem.fromJson(Map<String, dynamic>.from(m)))
-        .toList();
-    await _store.write(list);
+    // One entry per title: copies from different sources (an IMDb id on one
+    // device, a TMDb id on another) are folded together.
+    final list = <MyListItem>[];
+    for (final m in data.whereType<Map>()) {
+      final item = MyListItem.fromJson(Map<String, dynamic>.from(m));
+      final i = list.indexWhere((o) => o.matches(item));
+      if (i < 0) {
+        list.add(item);
+      } else {
+        list[i] = list[i].mergeWith(item);
+      }
+    }
+    // Shown before the write is awaited: an add or remove made meanwhile then
+    // starts from this list, and its own write lands after this one.
     items.value = list;
+    await _store.write(list);
   }
 
   static Future<void> syncAll() async {
@@ -250,6 +261,13 @@ abstract final class MyListService {
   }
 
   static void remove(MyListItem item) {
+    // Every id the title has here: another device may keep it under any one.
+    LibrarySync.removedMany('my_list', {
+      ...item.aliasKeys,
+      for (final gone in items.value)
+        if (gone.uniqueKey == item.uniqueKey || gone.matches(item))
+          ...gone.aliasKeys,
+    });
     items.value = items.value
         .where((i) => i.uniqueKey != item.uniqueKey && !i.matches(item))
         .toList();

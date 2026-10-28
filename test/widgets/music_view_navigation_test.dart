@@ -17,12 +17,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zplay/pages/music/music_page.dart';
 import 'package:zplay/services/theme/app_theme_service.dart';
-import 'package:zplay/widgets/common/tab_strip.dart';
+import 'package:zplay/pages/music/lu_media_kit.dart';
 
 Widget host() => MaterialApp(
-      theme: AppThemeService.createThemeData(AppThemeService.palettes.first),
-      home: const MusicPage(),
-    );
+  theme: AppThemeService.createThemeData(AppThemeService.palettes.first),
+  home: const MusicPage(),
+);
 
 /// The focus node of the pill labelled [label] inside the switcher.
 ///
@@ -32,17 +32,11 @@ Widget host() => MaterialApp(
 /// that fails when the music service returns a different number of sections.
 FocusNode pill(WidgetTester tester, String label) {
   final text = find.descendant(
-    of: find.byType(TabStrip<MusicView>),
+    of: find.byType(LuPillTabs<MusicView>),
     matching: find.text(label),
   );
-  FocusNode? node;
-  tester.element(text).visitAncestorElements((element) {
-    if (element.widget is Focus) {
-      node = (element.widget as Focus).focusNode;
-      return false;
-    }
-    return true;
-  });
+  // The nearest focus node above the label is the pill's own.
+  final FocusNode? node = Focus.maybeOf(tester.element(text));
   expect(node, isNotNull, reason: 'the "$label" pill is not focusable');
   return node!;
 }
@@ -73,16 +67,24 @@ void main() {
     return find.text(heading, skipOffstage: false).evaluate().isNotEmpty;
   }
 
-  testWidgets('the switcher offers all five views, Home selected', (tester) async {
+  testWidgets('the switcher offers all five views, Home selected', (
+    tester,
+  ) async {
     await tester.pumpWidget(host());
     await tester.pump();
 
-    expect(find.byType(TabStrip<MusicView>), findsOneWidget,
-        reason: 'the views must be reached through the shared tab control');
+    expect(
+      find.byType(LuPillTabs<MusicView>),
+      findsOneWidget,
+      reason: 'the views must be reached through the shared pill row',
+    );
 
     for (final view in MusicView.values) {
-      expect(find.text(view.label), findsOneWidget,
-          reason: '${view.name} has no way to be selected');
+      expect(
+        find.text(view.label),
+        findsOneWidget,
+        reason: '${view.name} has no way to be selected',
+      );
     }
 
     final handle = tester.ensureSemantics();
@@ -93,7 +95,11 @@ void main() {
         isButton: true,
         isSelected: true,
         hasSelectedState: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        isFocusable: true,
         hasTapAction: true,
+        hasFocusAction: true,
         textDirection: TextDirection.ltr,
       ),
     );
@@ -112,12 +118,17 @@ void main() {
         expect(showing('Browse Moods & Genres', view), isFalse);
         continue;
       }
-      expect(showing(headings[view]!, view), isTrue,
-          reason: '${view.name} is unreachable: its body never rendered');
+      expect(
+        showing(headings[view]!, view),
+        isTrue,
+        reason: '${view.name} is unreachable: its body never rendered',
+      );
     }
   });
 
-  testWidgets('a search does not trap the page in the search view', (tester) async {
+  testWidgets('a search does not trap the page in the search view', (
+    tester,
+  ) async {
     await tester.pumpWidget(host());
     await tester.pump();
 
@@ -130,8 +141,11 @@ void main() {
     for (final view in [MusicView.library, MusicView.browse]) {
       await tester.tap(find.text(view.label));
       await tester.pump();
-      expect(showing(headings[view]!, view), isTrue,
-          reason: '${view.name} was still overridden by the search field');
+      expect(
+        showing(headings[view]!, view),
+        isTrue,
+        reason: '${view.name} was still overridden by the search field',
+      );
     }
   });
 

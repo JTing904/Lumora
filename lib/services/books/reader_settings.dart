@@ -4,6 +4,9 @@ import '../storage/json_document_store.dart';
 
 enum ReaderTheme { light, sepia, dark, amoled }
 
+/// How the EPUB reader lays text out. Only [scroll] is implemented; the
+/// reader has no pagination over its HTML view. [paginated] stays so older
+/// saved settings still parse, and every load turns it into [scroll].
 enum ReaderMode { scroll, paginated }
 
 enum MarginPreset { compact, balanced, wide }
@@ -198,16 +201,24 @@ class ReaderSettingsData {
         (t) => t.name == json['theme'],
         orElse: () => ReaderTheme.dark,
       ),
-      mode: ReaderMode.values.firstWhere(
-        (m) => m.name == json['mode'],
-        orElse: () => ReaderMode.scroll,
-      ),
+      mode: _loadableMode(json['mode']),
       textAlign: json['textAlign'] == 'justify'
           ? TextAlign.justify
           : TextAlign.left,
       brightness: (json['brightness'] as num?)?.toDouble() ?? 1.0,
     );
   }
+}
+
+/// A saved 'paginated' came from a reading-mode picker whose second option
+/// was never wired up; it migrates to scroll so nobody is left on a mode the
+/// reader ignores.
+ReaderMode _loadableMode(Object? stored) {
+  final mode = ReaderMode.values.firstWhere(
+    (m) => m.name == stored,
+    orElse: () => ReaderMode.scroll,
+  );
+  return mode == ReaderMode.paginated ? ReaderMode.scroll : mode;
 }
 
 class ReaderSettings {
@@ -306,7 +317,10 @@ class ReaderSettings {
   }
 
   static void updateMode(ReaderMode mode) {
-    settingsNotifier.value = settingsNotifier.value.copyWith(mode: mode);
+    // Paginated is not implemented, so it is never stored.
+    settingsNotifier.value = settingsNotifier.value.copyWith(
+      mode: mode == ReaderMode.paginated ? ReaderMode.scroll : mode,
+    );
     _save();
   }
 

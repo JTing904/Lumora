@@ -6,6 +6,7 @@ import '../../widgets/updater/update_dialog.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/settings/settings_app_bar.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 
 class UpdatesSettingsPage extends StatefulWidget {
   const UpdatesSettingsPage({super.key});
@@ -24,7 +25,10 @@ class _UpdatesSettingsPageState extends State<UpdatesSettingsPage> {
 
     try {
       final updater = AppUpdaterService();
-      final updateInfo = await updater.checkForUpdates(ignoreDismissed: true);
+      final updateInfo = await updater.checkForUpdates(
+        ignoreDismissed: true,
+        throwOnFailure: true,
+      );
 
       if (!context.mounted) return;
 
@@ -43,10 +47,13 @@ class _UpdatesSettingsPageState extends State<UpdatesSettingsPage> {
         );
       }
     } catch (e) {
+      // A failed check is not "up to date": say it failed, in the person's
+      // language, rather than echoing an English exception string.
+      debugPrint('[UpdatesSettingsPage] Update check failed: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10nCurrent().stgcUpdateCheckError(e)),
+            content: Text(l10nCurrent().updatesCheckFailed),
             backgroundColor: context.tokens.danger,
             behavior: SnackBarBehavior.floating,
           ),
@@ -64,150 +71,171 @@ class _UpdatesSettingsPageState extends State<UpdatesSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().updatesTitle),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s20,
-            ),
-            children: [
-              // Header description
-              Padding(
-                padding: const EdgeInsets.only(bottom: ZplaySpacing.s20),
-                child: Text(
-                  l10nCurrent().updatesBody,
-                  style: ZplayType.body.toStyle(color: tokens.textSecondary),
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().updatesTitle),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s16,
+                  vertical: ZplaySpacing.s20,
                 ),
-              ),
+                children: [
+                  // Header description
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: ZplaySpacing.s20),
+                    child: Text(
+                      l10nCurrent().updatesBody,
+                      style: ZplayType.body.toStyle(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
 
-              // Version & check update
-              FutureBuilder<PackageInfo>(
-                future: PackageInfo.fromPlatform(),
-                builder: (context, snapshot) {
-                  final version = snapshot.hasData ? snapshot.data!.version : '1.1.6';
-                  final buildNumber = snapshot.hasData ? snapshot.data!.buildNumber : '2019';
-                  // Deliberately not PackageInfo.appName: on Windows that reads
-                  // the executable's ProductName, which is a lowercase path
-                  // segment ("zplay") because path_provider derives
-                  // %APPDATA%\Roaming\<CompanyName>\<ProductName> from it —
-                  // see windows/runner/Runner.rc. The display name is the brand,
-                  // so it is written out here instead of taken from the
-                  // platform string.
-                  const appName = 'Lumora';
+                  // Version & check update
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      final version = snapshot.hasData
+                          ? snapshot.data!.version
+                          : '';
+                      final buildNumber = snapshot.hasData
+                          ? snapshot.data!.buildNumber
+                          : '2019';
+                      // Deliberately not PackageInfo.appName: on Windows that reads
+                      // the executable's ProductName, which is a lowercase path
+                      // segment ("zplay") because path_provider derives
+                      // %APPDATA%\Roaming\<CompanyName>\<ProductName> from it —
+                      // see windows/runner/Runner.rc. The display name is the brand,
+                      // so it is written out here instead of taken from the
+                      // platform string.
+                      const appName = 'Lumora';
 
-                  return Padding(
-                    padding: const EdgeInsets.all(ZplaySpacing.s20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                      return Padding(
+                        padding: const EdgeInsets.all(ZplaySpacing.s20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: tokens.accentSubtle,
-                                borderRadius: ZplayRadius.smAll,
-                              ),
-                              child: Icon(
-                                Icons.system_update_rounded,
-                                color: tokens.accent,
-                                size: 24,
-                              ),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: tokens.accentSubtle,
+                                    borderRadius: ZplayRadius.smAll,
+                                  ),
+                                  child: Icon(
+                                    Icons.system_update_rounded,
+                                    color: tokens.accent,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        appName,
+                                        style: ZplayType.title.toStyle(
+                                          color: tokens.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        l10nCurrent().stgcInstalledVersion(
+                                          version,
+                                          buildNumber,
+                                        ),
+                                        style: ZplayType.bodySmall.toStyle(
+                                          color: tokens.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    appName,
-                                    style: ZplayType.title.toStyle(
-                                      color: tokens.textPrimary,
-                                    ),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _isCheckingForUpdates
+                                    ? null
+                                    : () => _checkForUpdates(context),
+                                icon: _isCheckingForUpdates
+                                    ? SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: tokens.onAccent,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.refresh_rounded,
+                                        size: 18,
+                                      ),
+                                label: Text(
+                                  _isCheckingForUpdates
+                                      ? l10nCurrent().updatesChecking
+                                      : l10nCurrent().updatesCheck,
+                                  style: ZplayType.label.toStyle(),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: tokens.accent,
+                                  foregroundColor: tokens.onAccent,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: ZplayRadius.smAll,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    l10nCurrent().stgcInstalledVersion(version, buildNumber),
-                                    style: ZplayType.bodySmall.toStyle(
-                                      color: tokens.textSecondary,
-                                    ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
                                   ),
-                                ],
+                                  elevation: 0,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _isCheckingForUpdates
-                                ? null
-                                : () => _checkForUpdates(context),
-                            icon: _isCheckingForUpdates
-                                ? SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: tokens.onAccent,
-                                    ),
-                                  )
-                                : const Icon(Icons.refresh_rounded, size: 18),
-                            label: Text(
-                              _isCheckingForUpdates ? l10nCurrent().updatesChecking : l10nCurrent().updatesCheck,
-                              style: ZplayType.label.toStyle(),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: tokens.accent,
-                              foregroundColor: tokens.onAccent,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: ZplayRadius.smAll,
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      );
+                    },
+                  ),
 
-              const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-              // Release Channel Info
-              Text(
-                l10nCurrent().updatesChannels,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 12),
+                  // Release Channel Info
+                  Text(
+                    l10nCurrent().updatesChannels,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 12),
 
-              _buildInfoTile(
-                context: context,
-                icon: Icons.verified_rounded,
-                title: l10nCurrent().updatesStable,
-                subtitle: l10nCurrent().updatesStableBody,
+                  _buildInfoTile(
+                    context: context,
+                    icon: Icons.verified_rounded,
+                    title: l10nCurrent().updatesStable,
+                    subtitle: l10nCurrent().updatesStableBody,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildInfoTile(
+                    context: context,
+                    icon: Icons.security_rounded,
+                    title: l10nCurrent().updatesInApp,
+                    subtitle: l10nCurrent().updatesInAppBody,
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              _buildInfoTile(
-                context: context,
-                icon: Icons.security_rounded,
-                title: l10nCurrent().updatesInApp,
-                subtitle: l10nCurrent().updatesInAppBody,
-              ),
-            ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildInfoTile({
@@ -237,9 +265,7 @@ class _UpdatesSettingsPageState extends State<UpdatesSettingsPage> {
               children: [
                 Text(
                   title,
-                  style: ZplayType.subtitle.toStyle(
-                    color: tokens.textPrimary,
-                  ),
+                  style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(

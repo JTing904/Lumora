@@ -18,6 +18,7 @@ import '../simkl/simkl_list_source.dart';
 import '../simkl/simkl_service.dart';
 import '../trakt/trakt_list_source.dart';
 import '../trakt/trakt_service.dart';
+import '../../l10n/option_labels.dart';
 
 enum SimilarSectionPosition {
   top('Top (Below Hero Banner)'),
@@ -25,8 +26,9 @@ enum SimilarSectionPosition {
   middle('Middle of Catalog'),
   bottom('Bottom of Page');
 
-  final String label;
-  const SimilarSectionPosition(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const SimilarSectionPosition(this.labelEn);
 }
 
 enum HeroStyle {
@@ -34,8 +36,9 @@ enum HeroStyle {
   compact('Compact Spotlight'),
   minimalist('Minimalist Header');
 
-  final String label;
-  const HeroStyle(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const HeroStyle(this.labelEn);
 }
 
 enum AmbientLightPattern {
@@ -44,8 +47,9 @@ enum AmbientLightPattern {
   fullMesh('Full Deep Ambient Mesh'),
   centerPulse('Pulsing Core');
 
-  final String label;
-  const AmbientLightPattern(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const AmbientLightPattern(this.labelEn);
 }
 
 enum CardDensity {
@@ -53,8 +57,9 @@ enum CardDensity {
   standard('Standard Balanced'),
   cinematic('Cinematic (Large Posters)');
 
-  final String label;
-  const CardDensity(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const CardDensity(this.labelEn);
 }
 
 abstract final class HomePageSettings {
@@ -132,7 +137,8 @@ abstract final class HomePageSettings {
   static MovieSection? _cachedWatchingSimilarSection;
   static MovieSection? _cachedTraktSection;
   static MovieSection? _cachedSimklSection;
-  static final Map<TraktSeeAllList, MovieSection> _cachedTraktPublicSections = {};
+  static final Map<TraktSeeAllList, MovieSection> _cachedTraktPublicSections =
+      {};
   static String? lastListSourceTitle;
 
   /// Drop cached recommendation sections (e.g. when the adult switch flips:
@@ -625,15 +631,9 @@ abstract final class HomePageSettings {
           subtitle: l10n.homeTrendingWeekSub,
         );
       case TraktSeeAllList.popular:
-        return (
-          title: l10n.homePopularNow,
-          subtitle: l10n.homePopularNowSub,
-        );
+        return (title: l10n.homePopularNow, subtitle: l10n.homePopularNowSub);
       case TraktSeeAllList.anticipated:
-        return (
-          title: l10n.homeComingSoon,
-          subtitle: l10n.homeComingSoonSub,
-        );
+        return (title: l10n.homeComingSoon, subtitle: l10n.homeComingSoonSub);
       case TraktSeeAllList.continueWatching:
       case TraktSeeAllList.watchlist:
       case TraktSeeAllList.history:
@@ -701,13 +701,13 @@ abstract final class HomePageSettings {
   }
 
   static Movie _movieFromStremioMeta(StremioMeta meta) => Movie(
-        id: meta.id,
-        type: meta.type,
-        name: meta.name,
-        poster: meta.poster,
-        year: meta.year,
-        addonBaseUrl: 'https://v3-cinemeta.strem.io',
-      );
+    id: meta.id,
+    type: meta.type,
+    name: meta.name,
+    poster: meta.poster,
+    year: meta.year,
+    addonBaseUrl: 'https://v3-cinemeta.strem.io',
+  );
 
   /// Fetches Simkl recommendations if Simkl is authenticated and enabled
   static Future<MovieSection?> fetchSimklRecommendationsSection({

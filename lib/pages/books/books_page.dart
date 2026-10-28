@@ -1,49 +1,39 @@
-import '../../l10n/l10n.dart';
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart';
+
 import 'package:flutter/material.dart';
+
+import '../../l10n/l10n.dart';
 import '../../models/book/book_result.dart';
 import '../../services/books/bookracy_service.dart';
 import '../../services/books/continue_reading_service.dart';
 import '../../services/books/reader_settings.dart';
-import '../../services/layout/form_factor.dart';
-import '../../services/theme/design_tokens.dart';
-import '../../widgets/common/animated_ambient_background.dart';
-import '../../widgets/common/card_badges.dart';
-import '../../widgets/common/custom_scroll_track.dart';
-import '../../widgets/common/error_view.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/pill_button.dart';
-import '../../widgets/common/section_header.dart';
-import '../../widgets/common/tab_strip.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_theme.dart';
 import 'book_detail_sheet.dart';
 import 'widgets/continue_reading_slider.dart';
+import 'widgets/lu_reading_kit.dart';
 import 'widgets/reader_customization_sheet.dart';
 import 'widgets/reader_design_tokens.dart';
-import '../../services/storage/app_image_cache.dart';
 
-/// One entry of the shelf's font-engine selector.
-///
-/// The prototype names Kindle's *Bookerly Serif*; the reader ships Georgia as
-/// its serif (`ReaderTokens.defaultSerifFont`) and has no Bookerly face, so the
-/// slot carries the face that actually renders. The other two are shipped as
-/// named.
+/// One entry of the shelf's font selector: the face's name and the value
+/// written to `ReaderSettingsData.fontFamily`.
 @immutable
 class _FontEngine {
   const _FontEngine(this.label, this.family);
 
   final String label;
-
-  /// The value written to `ReaderSettingsData.fontFamily`.
   final String family;
 }
 
 const List<_FontEngine> _fontEngines = [
   _FontEngine('Poppins', 'Poppins'),
-  _FontEngine('Georgia Serif', ReaderTokens.defaultSerifFont),
+  _FontEngine('Georgia', ReaderTokens.defaultSerifFont),
   _FontEngine('OpenDyslexic', 'OpenDyslexic'),
 ];
 
+/// 书籍: search, the format pills, the reader's quick style, 继续阅读 and a
+/// cover grid. A cover opens its sheet, where it is downloaded and read.
 class BooksPage extends StatefulWidget {
   const BooksPage({super.key});
 
@@ -162,288 +152,239 @@ class _BooksPageState extends State<BooksPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobile = screenWidth < 600;
-    final tokens = context.tokens;
+    final l10n = l10nOf(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final phone = width < 600;
+    final pad = luPagePad(context);
+    final coverW = phone ? 116.0 : (width < 1000 ? 150.0 : 164.0);
+    final query = _searchController.text.trim();
 
-    return Scaffold(
-      backgroundColor: tokens.bg,
-      body: Stack(
-        children: [
-          // ── Ambient Animated Background ──
-          const Positioned.fill(
-            child: AnimatedAmbientBackground(),
-          ),
-
-          // ── Main Content ──
-          SafeArea(
-            bottom: false,
-            child: CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // Top App Bar & Search Header
-                SliverToBoxAdapter(
-                  child: _buildHeader(),
-                ),
-
-                // E-Reader control banner: font engine + type size/margins
-                SliverToBoxAdapter(
-                  child: _buildReaderControlBanner(isMobile),
-                ),
-
-                // Filters (Language & Formats)
-                SliverToBoxAdapter(
-                  child: _buildFilters(),
-                ),
-
-                // Continue Reading Horizontal Slider
-                const SliverToBoxAdapter(
-                  child: ContinueReadingSlider(),
-                ),
-
-                // Catalog Title. The shared rail header, so the shelf's heading
-                // is the same object every other rail in the app uses: one
-                // semibold title and a muted tabular count, with no accent bar
-                // and no box. The header bakes a 16 dp inset of its own; the
-                // 8 dp either side below add up to the grid's 24 dp gutter, so
-                // the heading and the covers land on the same line.
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      ZplaySpacing.s8,
-                      ZplaySpacing.s8,
-                      ZplaySpacing.s8,
-                      ZplaySpacing.s4,
-                    ),
-                    child: SectionHeader(
-                      title: _searchController.text.trim().isNotEmpty
-                          ? l10nCurrent().bk2ResultsFor(_searchController.text.trim())
-                          : l10nCurrent().bkDiscoverBooks,
-                      count:
-                          !_loading && _books.isNotEmpty ? _books.length : null,
-                    ),
-                  ),
-                ),
-
-                // Grid / Loading / Error
-                if (_loading)
-                  _BooksSkeleton(isMobile: isMobile)
-                else if (_error != null)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: ErrorView(
-                      title: l10nCurrent().bkCouldNotLoadBooks,
-                      error: _error,
-                      onRetry: () => _loadBooks(),
-                    ),
-                  )
-                else if (_books.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.search_off_rounded, color: tokens.textMuted, size: 56),
-                          const SizedBox(height: ZplaySpacing.s12),
-                          Text(
-                            l10nCurrent().bkNoBooksFound,
-                            style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
-                          ),
-                          const SizedBox(height: ZplaySpacing.s4),
-                          Text(
-                            l10nCurrent().bkTrySearchingForAnotherTitleAuthor,
-                            style: ZplayType.label.toStyle(color: tokens.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24),
-                    sliver: SliverGrid(
-                      gridDelegate: _booksGridDelegate(isMobile),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final book = _books[index];
-                          return _BookCard(
-                            book: book,
-                            onTap: () => BookDetailSheet.show(context, book),
-                          );
-                        },
-                        childCount: _books.length,
-                      ),
-                    ),
-                  ),
-
-                // Loading More Indicator
-                if (_loadingMore)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s32),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: tokens.accent,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                SliverToBoxAdapter(
-                  // The SafeArea above is bottom:false, so the trailing gap carries the gesture inset.
-                  child: SizedBox(height: ZplaySpacing.s24 + MediaQuery.paddingOf(context).bottom),
-                ),
-              ],
-            ),
-          ),
-          // ── Custom Scroll Track (Desktop Only) ──
-          if (MediaQuery.sizeOf(context).width > 800)
-            Positioned(
-              right: 24,
-              bottom: 40,
-              child: CustomScrollTrack(controller: _scrollController),
+    return Theme(
+      data: luTheme(),
+      child: ColoredBox(
+        color: LuColors.bg,
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader(context, pad, phone)),
+            SliverToBoxAdapter(child: _buildFilters(context, pad)),
+            SliverToBoxAdapter(child: _buildReaderStyle(context, pad)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: ContinueReadingSlider(padding: pad, coverWidth: coverW),
+              ),
             ),
 
-        ],
-      ),
-    );
-  }
-
-  /// The page's own control row.
-  ///
-  /// It is the search field and nothing else. The boxed "Books" chip that used
-  /// to lead this row is gone for the reason Anime's brand pill is gone: the
-  /// shell's top bar carries the brand and Browse's own switcher already says
-  /// which vertical is showing, so a second named box here was 10% of a 540 dp
-  /// canvas spent repeating chrome the user is already looking at. The search
-  /// field was always the row's real job and now keeps the space.
-  ///
-  /// The field is the shared one - the same fill, radius and hairline the
-  /// Search page types into - and it is capped at 540 dp and anchored left, so
-  /// it reads as a field rather than as a banner spanning a television.
-  Widget _buildHeader() {
-    final tokens = context.tokens;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        ZplaySpacing.s20,
-        ZplaySpacing.s16,
-        ZplaySpacing.s20,
-        ZplaySpacing.s12,
-      ),
-      // Capped and left-anchored, so the field reads as a field rather than as
-      // a banner spanning a 960 dp television.
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540),
-          child: Container(
-            width: double.infinity,
-            height: 42,
-            decoration: BoxDecoration(
-              color: tokens.surface,
-              borderRadius: ZplayRadius.smAll,
-              border: Border.fromBorderSide(tokens.hairline),
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-              decoration: InputDecoration(
-                hintText: l10nCurrent().bkSearchMillionsOfBooksAuthors,
-                hintStyle: ZplayType.body.toStyle(color: tokens.textDisabled),
-                prefixIcon: Icon(Icons.search_rounded, color: tokens.textMuted, size: 19),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear_rounded, color: tokens.textSecondary, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: ZplaySpacing.s12,
-                  vertical: ZplaySpacing.s12,
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(pad, 8, pad, 18),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        query.isNotEmpty
+                            ? l10n.bk2ResultsFor(query)
+                            : l10n.bkDiscoverBooks,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LuText.heading,
+                      ),
+                    ),
+                    if (!_loading && _books.isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      Text('${_books.length}', style: LuText.caption),
+                    ],
+                  ],
                 ),
               ),
             ),
-          ),
+
+            if (_loading)
+              LuPosterGridSkeleton(padding: pad, targetWidth: coverW)
+            else if (_error != null)
+              SliverToBoxAdapter(
+                child: LuEmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: l10n.bkCouldNotLoadBooks,
+                  message: _error,
+                  action: LuButton(
+                    label: l10n.actionRetry,
+                    icon: Icons.refresh_rounded,
+                    kind: LuButtonKind.secondary,
+                    compact: true,
+                    onPressed: () => _loadBooks(),
+                  ),
+                ),
+              )
+            else if (_books.isEmpty)
+              SliverToBoxAdapter(
+                child: LuEmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: l10n.bkNoBooksFound,
+                  message: l10n.bkTrySearchingForAnotherTitleAuthor,
+                ),
+              )
+            else
+              LuPosterGrid(
+                itemCount: _books.length,
+                padding: pad,
+                targetWidth: coverW,
+                itemBuilder: (context, i, w) {
+                  final book = _books[i];
+                  final progress = ContinueReadingService.getProgress(book.md5);
+                  final reading =
+                      progress != null && progress.progressPercent > 0.01;
+                  return LuPosterCard(
+                    width: w,
+                    title: book.displayTitle,
+                    poster: book.coverUrl,
+                    subtitle: reading
+                        ? l10n.bk2AuthorPercentRead(
+                            book.displayAuthor,
+                            (progress.progressPercent * 100).round(),
+                          )
+                        : book.displayAuthor,
+                    badge: book.bookFiletype.isEmpty
+                        ? null
+                        : book.bookFiletype.toUpperCase(),
+                    onTap: () => BookDetailSheet.show(context, book),
+                  );
+                },
+              ),
+
+            if (_loadingMore)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: LuColors.gold,
+                    ),
+                  ),
+                ),
+              ),
+
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 48 + MediaQuery.paddingOf(context).bottom,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// The e-reader's own control banner: the font-engine selector and the
-  /// current type size / margin preset, which opens the customisation sheet.
-  ///
-  /// Every control here is backed by [ReaderSettings] — the same notifier the
-  /// reader and its customisation sheet write — so a selection changes the text
-  /// the reader actually renders rather than a local display flag.
-  ///
-  /// It paints no band. The opaque `tokens.surface` box that used to wrap this
-  /// row made a strip of selectors read as a toolbar sitting on the page; the
-  /// selectors are the shared [TabStrip] now, which paints nothing at rest and
-  /// marks the chosen engine with an accent bar under its label, and the single
-  /// action beside them is a [PillButton] — the app's one call-to-action shape.
-  /// [CardFocusRing] is the only edge either control ever draws.
-  Widget _buildReaderControlBanner(bool isMobile) {
-    final tokens = context.tokens;
-    final television = FormFactorService.of(context) == FormFactor.television;
-    final stripHeight = television ? ZplaySpacing.s48 : 44.0;
-
+  /// The page's title and the search box.
+  Widget _buildHeader(BuildContext context, double pad, bool phone) {
+    final l10n = l10nOf(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        ZplaySpacing.s24,
-        0,
-        ZplaySpacing.s24,
-        ZplaySpacing.s12,
+      padding: EdgeInsets.fromLTRB(
+        pad,
+        MediaQuery.paddingOf(context).top + 24,
+        pad,
+        14,
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.booksPageTitle,
+            style: LuText.title.copyWith(fontSize: phone ? 28 : 34),
+          ),
+          if (!phone) Text(l10n.booksPageSubtitle, style: LuText.bodySoft),
+          const SizedBox(height: 18),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: LuSearchBox(
+              controller: _searchController,
+              hint: l10n.bkSearchMillionsOfBooksAuthors,
+              clearLabel: l10n.mgClearSearch,
+              onChanged: _onSearchChanged,
+              onClear: () => _onSearchChanged(''),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The format pills.
+  Widget _buildFilters(BuildContext context, double pad) {
+    final l10n = l10nOf(context);
+    const formats = ['epub', 'pdf', 'mobi', 'azw3', 'fb2', 'txt', 'cbz'];
+    void pick(String? format) {
+      setState(() => _selectedFormat = format);
+      _loadBooks();
+    }
+
+    return Semantics(
+      label: l10n.bkBookFormats,
+      container: true,
+      child: LuPillRow(
+        padding: EdgeInsets.symmetric(horizontal: pad),
+        children: [
+          LuChoicePill(
+            label: l10n.bk2AllFormats,
+            selected: _selectedFormat == null,
+            onTap: () => pick(null),
+          ),
+          for (final f in formats)
+            LuChoicePill(
+              label: f.toUpperCase(),
+              selected: _selectedFormat == f,
+              onTap: () => pick(f),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// The reader's quick style: the face it sets books in, and the size and
+  /// margins, which opens the full customisation sheet. Both write
+  /// [ReaderSettings], which the reader renders.
+  Widget _buildReaderStyle(BuildContext context, double pad) {
+    final l10n = l10nOf(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
       child: ValueListenableBuilder<ReaderSettingsData>(
         valueListenable: ReaderSettings.settingsNotifier,
         builder: (context, settings, _) {
-          final sizeChipLabel = isMobile
-              ? '${settings.fontSize.round()} pt · ${_marginLabel(settings.marginPreset)}'
-              : l10nCurrent().bk2FontSizeMargins(settings.fontSize.round(), _marginLabel(settings.marginPreset));
-
-          return Row(
+          final size = settings.fontSize.round();
+          final margins = _marginLabel(context, settings.marginPreset);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // The label is a hint, not a control, so it is muted type with no
-              // box; on a phone the pills are self-describing and the space is
-              // worth more to the selectors.
-              if (!isMobile) ...[
-                Text(
-                  l10nCurrent().bkFontEngine,
-                  style: ZplayType.label
-                      .copyWith(weight: FontWeight.w600)
-                      .toStyle(color: tokens.textMuted),
-                ),
-                const SizedBox(width: ZplaySpacing.s12),
-              ],
-              Expanded(
-                child: TabStrip<String>(
-                  options: [
-                    for (final engine in _fontEngines)
-                      TabStripOption<String>(
-                        value: engine.family,
-                        label: engine.label,
-                      ),
-                  ],
-                  selected: settings.fontFamily,
-                  onSelected: ReaderSettings.updateFontFamily,
-                  semanticsLabel: l10nCurrent().bkReaderFontEngine,
-                  height: stripHeight,
-                ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: pad),
+                child: LuSectionLabel(l10n.booksReaderStyle),
               ),
-              const SizedBox(width: ZplaySpacing.s12),
-              PillButton(
-                label: sizeChipLabel,
-                variant: PillVariant.secondary,
-                icon: Icons.tune_rounded,
-                onPressed: () => ReaderCustomizationSheet.show(context),
+              Semantics(
+                label: l10n.bkReaderFontEngine,
+                container: true,
+                child: LuPillRow(
+                  padding: EdgeInsets.symmetric(horizontal: pad),
+                  children: [
+                    for (final engine in _fontEngines)
+                      LuChoicePill(
+                        label: engine.label,
+                        fontFamily: engine.family,
+                        selected: settings.fontFamily == engine.family,
+                        onTap: () =>
+                            ReaderSettings.updateFontFamily(engine.family),
+                      ),
+                    LuChoicePill(
+                      label: '${l10n.booksFontSizePt('$size')} · $margins',
+                      icon: Icons.tune_rounded,
+                      selected: false,
+                      onTap: () => ReaderCustomizationSheet.show(context),
+                    ),
+                  ],
+                ),
               ),
             ],
           );
@@ -452,287 +393,12 @@ class _BooksPageState extends State<BooksPage> {
     );
   }
 
-  static String _marginLabel(MarginPreset preset) => switch (preset) {
-    MarginPreset.compact => l10nCurrent().bkCompact,
-    MarginPreset.balanced => l10nCurrent().bkStandard,
-    MarginPreset.wide => l10nCurrent().bkWide,
-  };
-
-  /// The format filter, as the shared [TabStrip].
-  ///
-  /// Eight short, data-driven options that do not fit on a phone: the control
-  /// TabStrip exists for. It paints no fill and no edge of its own — the accent
-  /// bar under the selected label says which format is on, so the shelf no
-  /// longer carries a row of filled chips that read as buttons.
-  Widget _buildFilters() {
-    final television = FormFactorService.of(context) == FormFactor.television;
-    final stripHeight = television ? ZplaySpacing.s48 : 44.0;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        ZplaySpacing.s24,
-        ZplaySpacing.s4,
-        ZplaySpacing.s24,
-        ZplaySpacing.s16,
-      ),
-      child: TabStrip<String?>(
-        options: [
-          TabStripOption<String?>(value: null, label: l10nCurrent().bk2AllFormats),
-          const TabStripOption<String?>(value: 'epub', label: 'EPUB'),
-          const TabStripOption<String?>(value: 'pdf', label: 'PDF'),
-          const TabStripOption<String?>(value: 'mobi', label: 'MOBI'),
-          const TabStripOption<String?>(value: 'azw3', label: 'AZW3'),
-          const TabStripOption<String?>(value: 'fb2', label: 'FB2'),
-          const TabStripOption<String?>(value: 'txt', label: 'TXT'),
-          const TabStripOption<String?>(value: 'cbz', label: 'CBZ'),
-        ],
-        selected: _selectedFormat,
-        onSelected: (format) {
-          setState(() => _selectedFormat = format);
-          _loadBooks();
-        },
-        semanticsLabel: l10nCurrent().bkBookFormats,
-        height: stripHeight,
-      ),
-    );
-  }
-}
-
-/// The shelf's grid geometry, in one place: the live grid and the skeleton are
-/// laid out from this, so the placeholder covers land exactly where the real
-/// cards do and the page does not shift when the first page arrives.
-SliverGridDelegate _booksGridDelegate(bool isMobile) =>
-    SliverGridDelegateWithMaxCrossAxisExtent(
-      maxCrossAxisExtent: isMobile ? 160 : 190,
-      mainAxisSpacing: 22,
-      crossAxisSpacing: 18,
-      childAspectRatio: 0.56,
-    );
-
-/// What the shelf looks like while its first page is in flight.
-///
-/// It replaced a lone [CircularProgressIndicator] centred in an otherwise empty
-/// canvas, which on a television is the entire interface for the first seconds
-/// and says nothing about what is coming. The shapes are the grid's real ones -
-/// a cover box and its caption bars at the geometry the cards will actually
-/// arrive at - so nothing moves when they land. Home's `_HomeSkeleton` and
-/// Anime's skeleton are the precedent.
-class _BooksSkeleton extends StatelessWidget {
-  final bool isMobile;
-
-  const _BooksSkeleton({required this.isMobile});
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24),
-      sliver: SliverGrid(
-        gridDelegate: _booksGridDelegate(isMobile),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: tokens.surface,
-                    borderRadius: ZplayRadius.mdAll,
-                  ),
-                ),
-              ),
-              const SizedBox(height: ZplaySpacing.s8),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: tokens.surface,
-                  borderRadius: ZplayRadius.xsAll,
-                ),
-                child: const SizedBox(height: 12),
-              ),
-              const SizedBox(height: ZplaySpacing.s4),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: 0.55,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: tokens.surface,
-                      borderRadius: ZplayRadius.xsAll,
-                    ),
-                    child: const SizedBox(height: 10),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          childCount: 8,
-        ),
-      ),
-    );
-  }
-}
-
-class _BookCard extends StatelessWidget {
-  final BookResult book;
-  final VoidCallback onTap;
-
-  const _BookCard({
-    required this.book,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = ContinueReadingService.getProgress(book.md5);
-    final tokens = context.tokens;
-
-    return FocusableCard(
-      onTap: onTap,
-      builder: (context, state) {
-        return AnimatedContainer(
-          duration: ZplayMotion.fast,
-          curve: ZplayMotion.standard,
-          // Lift answers the *pointer*, matching the shared card: a D-pad press
-          // must not nudge the cover the user is aiming at, and the ring is what
-          // marks focus. The card used to lift on focus too, which contradicted
-          // its own note about focus adding exactly one edge.
-          transform: Matrix4.translationValues(0, state.hovered ? -3 : 0, 0),
-          // The ring is drawn around the whole card, cover *and* caption. One
-          // edge, no resting border, no accent glow, and a cover shadow that
-          // does not change with focus, so focus adds the ring and moves
-          // nothing. The radius is the shared card radius, so a book tile and a
-          // film poster round to the same shape.
-          child: CardFocusRing(
-            focused: state.focused,
-            radius: ZplayRadius.mdAll,
-            child: Column(
-              // `stretch`, because the ring's stack lays its child out with
-              // loosened constraints: without it the card would size to its
-              // widest child instead of to the grid cell it was given.
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Cover Artwork
-                Expanded(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      borderRadius: ZplayRadius.mdAll,
-                      boxShadow: [ReaderTokens.shadowMd],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: ZplayRadius.mdAll,
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: book.coverUrl.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: book.coverUrl,
-                                    cacheManager: AppImageCache.manager,
-                                    // The cover box is ~190 dp at its widest;
-                                    // bound the decode to ~3x so a shelf of
-                                    // covers does not hold full-resolution art.
-                                    memCacheWidth: 570,
-                                    fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
-                                      color: tokens.surface,
-                                      child: Center(
-                                        child: Icon(Icons.menu_book_rounded, color: tokens.textDisabled, size: 36),
-                                      ),
-                                    ),
-                                    errorWidget: (_, __, ___) => Container(
-                                      color: tokens.surface,
-                                      child: Center(
-                                        child: Icon(Icons.menu_book_rounded, color: tokens.textDisabled, size: 36),
-                                      ),
-                                    ))
-                                : Container(
-                                    color: tokens.surface,
-                                    child: Center(
-                                      child: Icon(Icons.menu_book_rounded, color: tokens.textDisabled, size: 36),
-                                    ),
-                                  ),
-                          ),
-
-                          // Format badge, revealed while focused. The prototype's
-                          // card anatomy puts the type badge on the focused card
-                          // and leaves a resting card bare; it is `Positioned`, so
-                          // appearing moves nothing.
-                          if (state.focused)
-                            Positioned(
-                              top: ZplaySpacing.s8,
-                              left: ZplaySpacing.s8,
-                              child: CardTypeBadge(
-                                label: book.bookFiletype.toUpperCase(),
-                              ),
-                            ),
-
-                          // Year Tag Bottom-Right if available
-                          if (book.year.isNotEmpty)
-                            Positioned(
-                              bottom: ZplaySpacing.s8,
-                              right: ZplaySpacing.s8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: ZplaySpacing.s4,
-                                  vertical: ZplaySpacing.s2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: tokens.bg.withValues(alpha: 0.75),
-                                  borderRadius: ZplayRadius.xsAll,
-                                ),
-                                child: Text(
-                                  book.year,
-                                  style: ZplayType.caption.toStyle(color: tokens.textEmphasis),
-                                ),
-                              ),
-                            ),
-
-                          // In-Progress Bar directly on Cover Bottom Edge. The
-                          // clip rounds it with the cover, so it needs no radius
-                          // of its own.
-                          if (progress != null && progress.progressPercent > 0.01)
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: LinearProgressIndicator(
-                                value: progress.progressPercent,
-                                minHeight: ZplaySpacing.s4,
-                                backgroundColor: tokens.bg.withValues(alpha: 0.5),
-                                valueColor: AlwaysStoppedAnimation<Color>(tokens.accent),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: ZplaySpacing.s8),
-
-                // Title
-                Text(
-                  book.displayTitle,
-                  style: ZplayType.bodySmall
-                      .copyWith(weight: FontWeight.w600)
-                      .toStyle(color: tokens.textPrimary),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: ZplaySpacing.s2),
-
-                // Author, and the prototype's "64% read" reading-progress caption.
-                Text(
-                  progress != null && progress.progressPercent > 0.01
-                      ? l10nCurrent().bk2AuthorPercentRead(book.displayAuthor, (progress.progressPercent * 100).round())
-                      : book.displayAuthor,
-                  style: ZplayType.caption.toStyle(color: tokens.textSecondary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  static String _marginLabel(BuildContext context, MarginPreset preset) {
+    final l10n = l10nOf(context);
+    return switch (preset) {
+      MarginPreset.compact => l10n.bkCompact,
+      MarginPreset.balanced => l10n.bkStandard,
+      MarginPreset.wide => l10n.bkWide,
+    };
   }
 }

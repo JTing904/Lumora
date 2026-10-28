@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../l10n/option_labels.dart';
 
 enum GlassPreset {
   subtle('Subtle Glass'),
@@ -10,8 +11,9 @@ enum GlassPreset {
   frostedCyber('Frosted Cyber'),
   custom('Custom');
 
-  final String label;
-  const GlassPreset(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const GlassPreset(this.labelEn);
 }
 
 /// Global opt-in and customization engine for liquid-glass visual shaders & physics.
@@ -30,14 +32,25 @@ abstract final class GlassSettings {
 
   // ValueNotifiers
   static final ValueNotifier<bool> enabled = ValueNotifier<bool>(false);
-  static final ValueNotifier<GlassPreset> preset = ValueNotifier<GlassPreset>(GlassPreset.standard);
+  static final ValueNotifier<GlassPreset> preset = ValueNotifier<GlassPreset>(
+    GlassPreset.standard,
+  );
   static final ValueNotifier<double> hoverScale = ValueNotifier<double>(1.15);
-  static final ValueNotifier<double> wobbleIntensity = ValueNotifier<double>(1.0);
-  static final ValueNotifier<double> refractionIndex = ValueNotifier<double>(1.52);
-  static final ValueNotifier<double> magnification = ValueNotifier<double>(1.035);
-  static final ValueNotifier<double> chromaticAberration = ValueNotifier<double>(0.0022);
+  static final ValueNotifier<double> wobbleIntensity = ValueNotifier<double>(
+    1.0,
+  );
+  static final ValueNotifier<double> refractionIndex = ValueNotifier<double>(
+    1.52,
+  );
+  static final ValueNotifier<double> magnification = ValueNotifier<double>(
+    1.035,
+  );
+  static final ValueNotifier<double> chromaticAberration =
+      ValueNotifier<double>(0.0022);
   static final ValueNotifier<double> blurSigma = ValueNotifier<double>(2.5);
-  static final ValueNotifier<double> lightIntensity = ValueNotifier<double>(1.45);
+  static final ValueNotifier<double> lightIntensity = ValueNotifier<double>(
+    1.45,
+  );
   static final ValueNotifier<double> borderWidth = ValueNotifier<double>(1.5);
 
   // Version counter to trigger rebuilding dependent widgets
@@ -57,7 +70,8 @@ abstract final class GlassSettings {
     wobbleIntensity.value = prefs.getDouble(_keyWobbleIntensity) ?? 1.0;
     refractionIndex.value = prefs.getDouble(_keyRefractionIndex) ?? 1.52;
     magnification.value = prefs.getDouble(_keyMagnification) ?? 1.035;
-    chromaticAberration.value = prefs.getDouble(_keyChromaticAberration) ?? 0.0022;
+    chromaticAberration.value =
+        prefs.getDouble(_keyChromaticAberration) ?? 0.0022;
     blurSigma.value = prefs.getDouble(_keyBlurSigma) ?? 2.5;
     lightIntensity.value = prefs.getDouble(_keyLightIntensity) ?? 1.45;
     borderWidth.value = prefs.getDouble(_keyBorderWidth) ?? 1.5;
@@ -146,7 +160,9 @@ abstract final class GlassSettings {
     if (newWobbleIntensity != null) wobbleIntensity.value = newWobbleIntensity;
     if (newRefractionIndex != null) refractionIndex.value = newRefractionIndex;
     if (newMagnification != null) magnification.value = newMagnification;
-    if (newChromaticAberration != null) chromaticAberration.value = newChromaticAberration;
+    if (newChromaticAberration != null) {
+      chromaticAberration.value = newChromaticAberration;
+    }
     if (newBlurSigma != null) blurSigma.value = newBlurSigma;
     if (newLightIntensity != null) lightIntensity.value = newLightIntensity;
     if (newBorderWidth != null) borderWidth.value = newBorderWidth;
@@ -196,10 +212,7 @@ abstract final class GlassSettings {
       appearance: LiquidGlassAppearance(
         color: const Color(0x24FFFFFF),
         saturation: 1.12,
-        blur: LiquidGlassBlur(
-          sigmaX: blurSigma.value,
-          sigmaY: blurSigma.value,
-        ),
+        blur: LiquidGlassBlur(sigmaX: blurSigma.value, sigmaY: blurSigma.value),
         shadow: const LiquidGlassShadow(
           blur: 14,
           opacity: 0.35,

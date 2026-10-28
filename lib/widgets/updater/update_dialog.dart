@@ -467,7 +467,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       _otaSub = OtaUpdate()
           .execute(
             widget.updateInfo.downloadUrl,
-            destinationFilename: 'ZPlay_${widget.updateInfo.latestVersion}.apk',
+            destinationFilename: 'Lumora_${widget.updateInfo.latestVersion}.apk',
             sha256checksum: checksum,
           )
           .listen(
@@ -491,8 +491,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       WakelockPlus.disable();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: const Text(
-                            'Please enable "Install unknown apps" permission for ZPlay in Android settings.',
+                          content: Text(
+                            l10nCurrent().wgUpdInstallPermission,
                           ),
                           duration: const Duration(seconds: 5),
                           backgroundColor: context.tokens.warning,
@@ -507,7 +507,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       _isDownloading = false;
                       WakelockPlus.disable();
                       _reportAndroidInstallFailure(
-                        'Update failed: ${event.status}',
+                        l10nCurrent().wgUpdFailed('${event.status}'),
                       );
                       Navigator.of(context).pop();
                       break;
@@ -521,7 +521,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
               WakelockPlus.disable();
               if (mounted) {
                 setState(() => _isDownloading = false);
-                _reportAndroidInstallFailure('Download failed: $error');
+                _reportAndroidInstallFailure(
+                  l10nCurrent().wgUpdDownloadFailed('$error'),
+                );
               }
             },
           );
@@ -529,7 +531,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       WakelockPlus.disable();
       if (mounted) {
         setState(() => _isDownloading = false);
-        _reportAndroidInstallFailure('Update failed: $e');
+        _reportAndroidInstallFailure(l10nCurrent().wgUpdFailed('$e'));
       }
     }
   }
@@ -550,12 +552,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       ..showSnackBar(
         SnackBar(
           content: Text(
-            '$message\n\n'
-            'The install can fail with "App not installed as package conflicts '
-            'with an existing package" when the previously installed copy was '
-            'signed with a different key. Uninstall that copy once and install '
-            'again; export your settings first from Settings → Backup & Restore '
-            '(JSON) to keep them.',
+            '$message\n\n${l10nCurrent().wgUpdSignatureConflictHint}',
           ),
           duration: const Duration(seconds: 10),
           backgroundColor: context.tokens.danger,
@@ -589,7 +586,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       }
 
       final extension = Platform.isWindows ? '.exe' : '.AppImage';
-      final fileName = 'ZPlay-${widget.updateInfo.latestVersion}$extension';
+      final fileName = 'Lumora-${widget.updateInfo.latestVersion}$extension';
       final filePath = path.join(dir.path, fileName);
       final file = File(filePath);
 
@@ -631,9 +628,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
         try {
           await installer.delete();
         } catch (_) {}
-        throw Exception(
-          'The update checksum did not match. The download was deleted.',
-        );
+        throw const _ChecksumMismatch();
       }
 
       if (mounted) {
@@ -653,7 +648,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 ),
                 const SizedBox(width: ZplaySpacing.s12),
                 Text(
-                  'Download Complete',
+                  l10nCurrent().wgUpdDownloadComplete,
                   style: ZplayType.title.toStyle(
                     color: context.tokens.textPrimary,
                   ),
@@ -666,8 +661,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
               children: [
                 Text(
                   Platform.isWindows
-                      ? 'ZPlay will close and install the update.'
-                      : 'Update downloaded to:',
+                      ? l10nCurrent().wgUpdWillCloseAndInstall
+                      : l10nCurrent().wgUpdDownloadedTo,
                   style: ZplayType.body.toStyle(
                     color: context.tokens.textEmphasis,
                   ),
@@ -691,7 +686,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                   const SizedBox(height: ZplaySpacing.s16),
                   Text(
-                    'Make the file executable and run it:\nchmod +x "$fileName"\n./$fileName',
+                    '${l10nCurrent().wgUpdMakeExecutable}\n'
+                    'chmod +x "$fileName"\n./$fileName',
                     style: ZplayType.body.toStyle(
                       color: context.tokens.textEmphasis,
                     ),
@@ -709,7 +705,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                     if (context.mounted) Navigator.of(context).pop();
                   },
                   child: Text(
-                    'Open Folder',
+                    l10nCurrent().wgUpdOpenFolder,
                     style: ZplayType.label.toStyle(
                       color: context.tokens.textEmphasis,
                     ),
@@ -745,7 +741,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   foregroundColor: context.tokens.onAccent,
                 ),
                 child: Text(
-                  Platform.isWindows ? 'Close and install now' : 'OK',
+                  Platform.isWindows
+                      ? l10nCurrent().wgUpdCloseAndInstall
+                      : l10nCurrent().wgUpdOk,
                 ),
               ),
             ],
@@ -760,10 +758,21 @@ class _UpdateDialogState extends State<UpdateDialog> {
       WakelockPlus.disable();
       if (mounted) {
         setState(() => _isDownloading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is _ChecksumMismatch
+                  ? l10nCurrent().wgUpdChecksumMismatch
+                  : l10nCurrent().wgUpdDownloadFailed('$e'),
+            ),
+          ),
+        );
       }
     }
   }
+}
+
+/// The downloaded installer's SHA-256 did not match the signed manifest.
+class _ChecksumMismatch implements Exception {
+  const _ChecksumMismatch();
 }

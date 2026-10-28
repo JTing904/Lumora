@@ -2,10 +2,11 @@ import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:zplay/models/subtitle/subtitle_model.dart';
 import 'package:zplay/services/subtitles/subtitle_service.dart';
-import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Full-featured subtitle selection, search, and timing menu.
 /// Responsive across mobile portrait, mobile landscape, tablet, and desktop screens.
@@ -243,7 +244,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
     final headerPaddingV = (isLandscapeMobile || isCompact) ? 8.0 : 12.0;
     final buttonSize = (isLandscapeMobile || isCompact) ? 30.0 : 34.0;
     final iconSize = (isLandscapeMobile || isCompact) ? 15.0 : 17.0;
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return PlayerGlassCard(
       width: cardWidth,
@@ -413,7 +414,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
   }
 
   Widget _buildHorizontalLanguageBar(bool isOff, int totalVariantsCount) {
-    final tokens = AppThemeService.currentTokens;
+    const tokens = luTokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
@@ -493,7 +494,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final tokens = AppThemeService.currentTokens;
+    const tokens = luTokens;
     return FocusableInkWell(
       borderRadius: ZplayRadius.lgAll,
       onTap: onTap,
@@ -525,7 +526,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                   weight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 )
                 .toStyle(
-                  color: isSelected ? PlayerTheme.ink : PlayerTheme.inkMuted,
+                  color: isSelected ? PlayerTheme.accent : PlayerTheme.inkMuted,
                 ),
           ),
           if (count != null) ...[
@@ -564,7 +565,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
     bool isLandscapeMobile,
   ) {
     final sidebarWidth = isLandscapeMobile ? 138.0 : 155.0;
-    final tokens = AppThemeService.currentTokens;
+    const tokens = luTokens;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -582,7 +583,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
             children: [
               // Subtitles Off Button
               FocusableInkWell(
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 onTap: () {
                   widget.onToggleOff();
                   widget.onClose();
@@ -590,10 +591,10 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
                   decoration: BoxDecoration(
-                    color: isOff ? PlayerTheme.raised : Colors.transparent,
-                    borderRadius: ZplayRadius.smAll,
+                    color: isOff ? LuPanel.selectedFill : Colors.transparent,
+                    borderRadius: LuRadius.field,
                     border: Border.all(
-                      color: isOff ? PlayerTheme.edge : Colors.transparent,
+                      color: isOff ? LuPanel.selectedEdge : Colors.transparent,
                       width: 1,
                     ),
                   ),
@@ -643,16 +644,16 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                   ),
                 ),
                 FocusableInkWell(
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.field,
                   onTap: () => setState(() => _selectedLanguage = '__embedded__'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
                     margin: const EdgeInsets.only(bottom: 2),
                     decoration: BoxDecoration(
-                      color: _selectedLanguage == '__embedded__' ? PlayerTheme.raised : Colors.transparent,
-                      borderRadius: ZplayRadius.smAll,
+                      color: _selectedLanguage == '__embedded__' ? LuPanel.selectedFill : Colors.transparent,
+                      borderRadius: LuRadius.field,
                       border: Border.all(
-                        color: _selectedLanguage == '__embedded__' ? PlayerTheme.edge : Colors.transparent,
+                        color: _selectedLanguage == '__embedded__' ? LuPanel.selectedEdge : Colors.transparent,
                         width: 1,
                       ),
                     ),
@@ -706,16 +707,16 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
 
                 // All Languages Option
                 FocusableInkWell(
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: LuRadius.field,
                   onTap: () => setState(() => _selectedLanguage = '__all__'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
                     margin: const EdgeInsets.only(bottom: 2),
                     decoration: BoxDecoration(
-                      color: _selectedLanguage == '__all__' ? PlayerTheme.raised : Colors.transparent,
-                      borderRadius: ZplayRadius.smAll,
+                      color: _selectedLanguage == '__all__' ? LuPanel.selectedFill : Colors.transparent,
+                      borderRadius: LuRadius.field,
                       border: Border.all(
-                        color: _selectedLanguage == '__all__' ? PlayerTheme.edge : Colors.transparent,
+                        color: _selectedLanguage == '__all__' ? LuPanel.selectedEdge : Colors.transparent,
                         width: 1,
                       ),
                     ),
@@ -748,16 +749,16 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                 ..._dynamicGroups.map((g) {
                   final isSelected = _selectedLanguage == g.language;
                   return FocusableInkWell(
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                     onTap: () => setState(() => _selectedLanguage = g.language),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
                       margin: const EdgeInsets.only(bottom: 2),
                       decoration: BoxDecoration(
-                        color: isSelected ? PlayerTheme.raised : Colors.transparent,
-                        borderRadius: ZplayRadius.smAll,
+                        color: isSelected ? LuPanel.selectedFill : Colors.transparent,
+                        borderRadius: LuRadius.field,
                         border: Border.all(
-                          color: isSelected ? PlayerTheme.edge : Colors.transparent,
+                          color: isSelected ? LuPanel.selectedEdge : Colors.transparent,
                           width: 1,
                         ),
                       ),
@@ -780,7 +781,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                                   )
                                   .toStyle(
                                     color: isSelected
-                                        ? PlayerTheme.ink
+                                        ? PlayerTheme.accent
                                         : PlayerTheme.inkMuted,
                                   ),
                               maxLines: 1,
@@ -824,7 +825,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildFilterToolbar({required bool compact}) {
-    final tokens = AppThemeService.currentTokens;
+    const tokens = luTokens;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: compact ? 6 : 7),
       decoration: BoxDecoration(border: Border(bottom: tokens.hairline)),
@@ -879,12 +880,12 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
       physics: const BouncingScrollPhysics(),
       itemCount: widget.embeddedSubtitles.length,
       itemBuilder: (context, i) {
-        final tokens = context.tokens;
+        const tokens = luTokens;
         final track = widget.embeddedSubtitles[i];
         final isSelected = widget.isSubtitleEnabled && widget.selectedEmbeddedIndex == track.index;
 
         return FocusableInkWell(
-          borderRadius: ZplayRadius.smAll,
+          borderRadius: LuRadius.field,
           onTap: () {
             widget.onSelectEmbedded(track);
             widget.onClose();
@@ -893,10 +894,10 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: ZplaySpacing.s8),
             margin: const EdgeInsets.only(bottom: ZplaySpacing.s4),
             decoration: BoxDecoration(
-              color: isSelected ? PlayerTheme.raised : Colors.transparent,
-              borderRadius: ZplayRadius.smAll,
+              color: isSelected ? LuPanel.selectedFill : Colors.transparent,
+              borderRadius: LuRadius.field,
               border: Border.all(
-                color: isSelected ? PlayerTheme.edge : Colors.transparent,
+                color: isSelected ? LuPanel.selectedEdge : Colors.transparent,
                 width: 1,
               ),
             ),
@@ -943,7 +944,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                                   )
                                   .toStyle(
                                     color: isSelected
-                                        ? PlayerTheme.ink
+                                        ? PlayerTheme.accent
                                         : PlayerTheme.inkMuted,
                                   ),
                               maxLines: 2,
@@ -1011,7 +1012,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildVariantList(List<SubtitleVariant> filteredVariants, {required bool compact}) {
-    final tokens = AppThemeService.currentTokens;
+    const tokens = luTokens;
     if (_isLoadingSearch && filteredVariants.isEmpty) {
       return Center(
         child: Column(
@@ -1060,7 +1061,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                     vertical: ZplaySpacing.s8,
                   ),
                   shape: const RoundedRectangleBorder(
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                 ),
                 icon: const Icon(Icons.search_rounded, size: 15),
@@ -1090,7 +1091,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: PlayerTheme.accent.withValues(alpha: 0.12),
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: LuRadius.field,
               border: Border.all(color: PlayerTheme.accent.withValues(alpha: 0.3)),
             ),
             child: Row(
@@ -1118,7 +1119,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
         final isForced = variant.title.toLowerCase().contains('forced');
 
         return FocusableInkWell(
-          borderRadius: ZplayRadius.smAll,
+          borderRadius: LuRadius.field,
           onTap: () {
             widget.onSelectVariant(variant);
             widget.onClose();
@@ -1127,10 +1128,10 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7.5),
             margin: const EdgeInsets.only(bottom: ZplaySpacing.s4),
             decoration: BoxDecoration(
-              color: isSelected ? PlayerTheme.raised : Colors.transparent,
-              borderRadius: ZplayRadius.smAll,
+              color: isSelected ? LuPanel.selectedFill : Colors.transparent,
+              borderRadius: LuRadius.field,
               border: Border.all(
-                color: isSelected ? PlayerTheme.edge : Colors.transparent,
+                color: isSelected ? LuPanel.selectedEdge : Colors.transparent,
                 width: 1,
               ),
             ),
@@ -1178,7 +1179,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
                                   )
                                   .toStyle(
                                     color: isSelected
-                                        ? PlayerTheme.ink
+                                        ? PlayerTheme.accent
                                         : PlayerTheme.inkMuted,
                                   ),
                               maxLines: 2,
@@ -1266,7 +1267,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildBottomSearchBar({required bool compact}) {
-    final tokens = AppThemeService.currentTokens;
+    const tokens = luTokens;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: ZplaySpacing.s12,

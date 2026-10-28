@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_page_settings.dart';
+import '../../l10n/option_labels.dart';
 
 enum MangaCardDensity {
   compact('Compact (Dense Grid)', 0.88),
   standard('Standard (Balanced)', 1.0),
   spacious('Spacious (Large Posters)', 1.15);
 
-  final String label;
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
   final double scale;
-  const MangaCardDensity(this.label, this.scale);
+  const MangaCardDensity(this.labelEn, this.scale);
 }
 
 enum MangaReadingMode {
@@ -17,8 +19,9 @@ enum MangaReadingMode {
   horizontalLtr('Horizontal (Left to Right)'),
   horizontalRtl('Horizontal (Right to Left / Manga)');
 
-  final String label;
-  const MangaReadingMode(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const MangaReadingMode(this.labelEn);
 }
 
 enum MangaReaderMaxWidth {
@@ -27,9 +30,10 @@ enum MangaReaderMaxWidth {
   standard('Standard (900px)', 900.0),
   wide('Wide (1150px)', 1150.0);
 
-  final String label;
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
   final double? width;
-  const MangaReaderMaxWidth(this.label, this.width);
+  const MangaReaderMaxWidth(this.labelEn, this.width);
 }
 
 enum MangaReaderBackground {
@@ -38,9 +42,10 @@ enum MangaReaderBackground {
   darkSlate('Dark Slate', Color(0xFF131722)),
   sepiaDark('Sepia Dark', Color(0xFF1B1612));
 
-  final String label;
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
   final Color color;
-  const MangaReaderBackground(this.label, this.color);
+  const MangaReaderBackground(this.labelEn, this.color);
 }
 
 enum MangaControlBarStyle {
@@ -48,8 +53,9 @@ enum MangaControlBarStyle {
   dockedBar('Docked Bottom Bar'),
   minimalPill('Minimalist Floating Pill');
 
-  final String label;
-  const MangaControlBarStyle(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const MangaControlBarStyle(this.labelEn);
 }
 
 abstract final class MangaSettings {
@@ -75,17 +81,26 @@ abstract final class MangaSettings {
   static const _keyPageGap = 'manga_page_gap';
 
   // Atmosphere Notifiers
-  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<AmbientLightPattern> ambientLightPattern =
       ValueNotifier<AmbientLightPattern>(AmbientLightPattern.dualOrbs);
-  static final ValueNotifier<double> ambientLightIntensity = ValueNotifier<double>(0.22);
-  static final ValueNotifier<double> ambientLightSpeed = ValueNotifier<double>(1.0);
+  static final ValueNotifier<double> ambientLightIntensity =
+      ValueNotifier<double>(0.22);
+  static final ValueNotifier<double> ambientLightSpeed = ValueNotifier<double>(
+    1.0,
+  );
 
   // Cards & Layout Notifiers
-  static final ValueNotifier<bool> showContinueReading = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> showContinueReading = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<MangaCardDensity> cardDensity =
       ValueNotifier<MangaCardDensity>(MangaCardDensity.standard);
-  static final ValueNotifier<bool> showContentTypeBadge = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> showContentTypeBadge = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<bool> showMangaYear = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> showScrollTrack = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> ambientCardGlow = ValueNotifier<bool>(true);
@@ -101,7 +116,9 @@ abstract final class MangaSettings {
       ValueNotifier<MangaControlBarStyle>(MangaControlBarStyle.floatingGlass);
   static final ValueNotifier<bool> showPageDeck = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> showPageScrubber = ValueNotifier<bool>(true);
-  static final ValueNotifier<bool> enableNextChapterDeck = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> enableNextChapterDeck = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<double> pageGap = ValueNotifier<double>(6.0);
 
   static final ValueNotifier<int> changeNotifier = ValueNotifier<int>(0);
@@ -124,7 +141,8 @@ abstract final class MangaSettings {
       (d) => d.name == densityStr,
       orElse: () => MangaCardDensity.standard,
     );
-    showContentTypeBadge.value = prefs.getBool(_keyShowContentTypeBadge) ?? true;
+    showContentTypeBadge.value =
+        prefs.getBool(_keyShowContentTypeBadge) ?? true;
     showMangaYear.value = prefs.getBool(_keyShowMangaYear) ?? true;
     showScrollTrack.value = prefs.getBool(_keyShowScrollTrack) ?? true;
     ambientCardGlow.value = prefs.getBool(_keyAmbientCardGlow) ?? true;
@@ -155,7 +173,8 @@ abstract final class MangaSettings {
 
     showPageDeck.value = prefs.getBool(_keyShowPageDeck) ?? true;
     showPageScrubber.value = prefs.getBool(_keyShowPageScrubber) ?? true;
-    enableNextChapterDeck.value = prefs.getBool(_keyEnableNextChapterDeck) ?? true;
+    enableNextChapterDeck.value =
+        prefs.getBool(_keyEnableNextChapterDeck) ?? true;
     pageGap.value = prefs.getDouble(_keyPageGap) ?? 6.0;
   }
 

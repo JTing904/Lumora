@@ -15,6 +15,8 @@ import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
 import 'stream_bitrate_badge.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Heading for the "scrape found nothing" state.
 ///
@@ -274,7 +276,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isCompact = screenWidth < 680;
     final drawerWidth = isCompact ? screenWidth * 0.94 : 440.0;
@@ -288,10 +290,9 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
         height: MediaQuery.sizeOf(context).height,
         child: Container(
           decoration: BoxDecoration(
-          color: tokens.surfaceOverlay.withValues(alpha: 0.95),
-          border: Border(
-            left: BorderSide(color: tokens.borderStrong, width: 1.2),
-          ),
+          color: LuPanel.fill,
+          borderRadius: _drawerRadius,
+          border: Border.all(color: LuPanel.edge),
           boxShadow: [
             BoxShadow(
               color: tokens.bg.withValues(alpha: 0.85),
@@ -301,6 +302,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
           ],
         ),
         child: ClipRRect(
+          borderRadius: _drawerRadius,
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: Column(
@@ -332,8 +334,13 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
     );
   }
 
+  /// The drawer's open edge is rounded; its screen edge stays square.
+  static const BorderRadius _drawerRadius = BorderRadius.horizontal(
+    left: Radius.circular(24),
+  );
+
   Widget _buildHeader(int sNum, int eNum, bool isCompact) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.paddingOf(context).top + ZplaySpacing.s12,
@@ -341,7 +348,6 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
         right: isCompact ? ZplaySpacing.s12 : ZplaySpacing.s16,
         bottom: ZplaySpacing.s12,
       ),
-      color: tokens.bg.withValues(alpha: 0.4),
       child: Row(
         children: [
           // Back to Episodes Button
@@ -367,9 +373,9 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: PlayerTheme.accent.withValues(alpha: 0.25),
-                        borderRadius: ZplayRadius.xsAll,
-                        border: Border.all(color: PlayerTheme.accent.withValues(alpha: 0.50)),
+                        color: LuPanel.selectedFill,
+                        borderRadius: LuRadius.pill,
+                        border: Border.all(color: LuPanel.selectedEdge),
                       ),
                       child: Text(
                         l10nCurrent().wgPlySeasonEpisodeBadge(sNum, eNum),
@@ -422,13 +428,13 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
   }
 
   Widget _buildErrorBanner(String message, bool isCompact) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Container(
       margin: EdgeInsets.all(isCompact ? 10 : 14),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: tokens.danger.withValues(alpha: 0.20),
-        borderRadius: ZplayRadius.smAll,
+        borderRadius: LuPanel.rowRadiusAll,
         border: Border.all(color: tokens.danger.withValues(alpha: 0.60), width: 1.2),
         boxShadow: [
           BoxShadow(
@@ -456,7 +462,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
   }
 
   Widget _buildLoadingState() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -482,7 +488,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
   }
 
   Widget _buildEmptyState() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ZplaySpacing.s24),
@@ -511,7 +517,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: PlayerTheme.accent,
                 foregroundColor: tokens.onAccent,
-                shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                shape: const StadiumBorder(),
               ),
             ),
           ],
@@ -521,7 +527,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
   }
 
   Widget _buildSourcesList(bool isCompact) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return ListView.separated(
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.symmetric(
@@ -578,7 +584,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
     StreamSource source,
     bool isCompact,
   ) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final title = source.title ?? source.name ?? l10nOf(context).panelStreamSource;
     final isTorrent = source.infoHash != null && source.infoHash!.isNotEmpty;
     final resolution = _extractResolution(title);
@@ -595,14 +601,12 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
-              color: isHovered
-                  ? tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)
-                  : tokens.bg.withValues(alpha: 0.12),
-              borderRadius: ZplayRadius.smAll,
+              color: isHovered ? LuPanel.rowHover : LuPanel.rowFill,
+              borderRadius: LuPanel.rowRadiusAll,
               border: Border.all(
                 color: isHovered
                     ? PlayerTheme.accent.withValues(alpha: 0.80)
-                    : tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                    : LuPanel.edge,
                 width: isHovered ? 1.4 : 1.0,
               ),
               boxShadow: [
@@ -624,7 +628,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
                     color: isTorrent
                         ? tokens.warning.withValues(alpha: 0.20)
                         : PlayerTheme.accent.withValues(alpha: 0.2),
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   child: Icon(
                     isTorrent ? Icons.cloud_download_rounded : Icons.play_arrow_rounded,
@@ -735,7 +739,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
                           ),
                           backgroundColor: tokens.surfaceOverlay,
                           behavior: SnackBarBehavior.floating,
-                          shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                          shape: const RoundedRectangleBorder(borderRadius: LuRadius.field),
                           duration: const Duration(seconds: 2),
                         ),
                       );
@@ -768,7 +772,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
                   ),
                   child: Icon(
                     Icons.play_arrow_rounded,
-                    color: tokens.textPrimary,
+                    color: isHovered ? tokens.onAccent : tokens.textPrimary,
                     size: 16,
                   ),
                 ),
@@ -790,7 +794,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
   }
 
   Color _getResolutionColor(String res) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     switch (res) {
       case '4K':
         return tokens.accent;

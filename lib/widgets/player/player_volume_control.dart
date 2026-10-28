@@ -6,6 +6,7 @@ import '../../l10n/l10n.dart';
 import '../../services/theme/design_tokens.dart';
 import '../common/focusable_card.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
 
 /// Interactive volume slider with high-gain boost support (up to 250%).
 class PlayerVolumeControl extends StatefulWidget {
@@ -117,7 +118,7 @@ class _PlayerVolumeControlState extends State<PlayerVolumeControl> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final l10n = l10nOf(context);
     final effectiveVol = widget.isMuted ? 0.0 : widget.volume;
     final fillFraction = _getFractionFromVolume(effectiveVol);

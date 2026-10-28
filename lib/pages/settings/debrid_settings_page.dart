@@ -5,6 +5,7 @@ import '../../services/debrid/debrid_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/settings/settings_app_bar.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 
 class DebridSettingsPage extends StatefulWidget {
   const DebridSettingsPage({super.key});
@@ -44,7 +45,8 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
   String _sanitizeKey(String raw) {
     var s = raw.trim();
     if (s.startsWith('Bearer ')) s = s.substring(7).trim();
-    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    if ((s.startsWith('"') && s.endsWith('"')) ||
+        (s.startsWith("'") && s.endsWith("'"))) {
       s = s.substring(1, s.length - 1).trim();
     }
     return s;
@@ -121,7 +123,10 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
     } catch (_) {}
   }
 
-  Future<void> _saveProviderKey(String provider, TextEditingController controller) async {
+  Future<void> _saveProviderKey(
+    String provider,
+    TextEditingController controller,
+  ) async {
     final key = _sanitizeKey(controller.text);
     controller.text = key;
 
@@ -258,291 +263,342 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
 
     final tokens = context.tokens;
 
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().stgcDebridCloudStreaming),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            children: [
-              // Header description
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Text(
-                  l10nCurrent().stgaDebridPageDescription,
-                  style: ZplayType.body.toStyle(color: tokens.textSecondary),
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().stgcDebridCloudStreaming),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
                 ),
-              ),
-
-              // Master Debrid Toggle Card
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  borderRadius: ZplayRadius.mdAll,
-                  border: Border.all(
-                    color: _useDebrid
-                        ? tokens.accent.withValues(alpha: ZplayOpacity.borderStrong)
-                        : Colors.transparent,
+                children: [
+                  // Header description
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: Text(
+                      l10nCurrent().stgaDebridPageDescription,
+                      style: ZplayType.body.toStyle(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+
+                  // Master Debrid Toggle Card
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: ZplayRadius.mdAll,
+                      border: Border.all(
+                        color: _useDebrid
+                            ? tokens.accent.withValues(
+                                alpha: ZplayOpacity.borderStrong,
+                              )
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: tokens.accent.withValues(alpha: ZplayOpacity.borderStrong),
-                            borderRadius: ZplayRadius.smAll,
-                          ),
-                          child: Icon(
-                            Icons.cloud_download_rounded,
-                            color: tokens.accent,
-                            size: 24,
+                        Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: tokens.accent.withValues(
+                                  alpha: ZplayOpacity.borderStrong,
+                                ),
+                                borderRadius: ZplayRadius.smAll,
+                              ),
+                              child: Icon(
+                                Icons.cloud_download_rounded,
+                                color: tokens.accent,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10nCurrent().stgaUseDebridForStreams,
+                                    style: ZplayType.subtitle.toStyle(
+                                      color: tokens.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    l10nCurrent().stgaRouteTorrentsThroughCloud,
+                                    style: ZplayType.bodySmall.toStyle(
+                                      color: tokens.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Switch.adaptive(
+                              value: _useDebrid,
+                              onChanged: (val) async {
+                                setState(() => _useDebrid = val);
+                                await _debrid.saveUseDebridForStreams(val);
+                                if (val) {
+                                  final service = _selectedService;
+                                  if (service == 'None') {
+                                    _showSnack(
+                                      l10nCurrent().stgaSelectDebridAndSaveKey,
+                                      isError: true,
+                                    );
+                                  } else {
+                                    final hasKey = await _debrid
+                                        .hasKeyForService(service);
+                                    if (!hasKey) {
+                                      _showSnack(
+                                        l10nCurrent().stgcServiceNoKey(service),
+                                        isError: true,
+                                      );
+                                    } else {
+                                      _showSnack(
+                                        l10nCurrent().stgcDebridActivatedVia(
+                                          service,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  _showSnack(
+                                    l10nCurrent().stgaDebridDisabledLocal,
+                                  );
+                                }
+                                await DebridService.refreshDebridReady();
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          l10nCurrent().stgaDebridToggleNote,
+                          style: ZplayType.bodySmall.toStyle(
+                            color: tokens.textSecondary,
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10nCurrent().stgaUseDebridForStreams,
-                                style: ZplayType.subtitle.toStyle(
-                                  color: tokens.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                l10nCurrent().stgaRouteTorrentsThroughCloud,
-                                style: ZplayType.bodySmall.toStyle(
-                                  color: tokens.textSecondary,
-                                ),
-                              ),
-                            ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Active Provider Selector
+                  Text(
+                    l10nCurrent().stgaActiveProvider,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10nCurrent().stgaSelectDefaultDebrid,
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Switch.adaptive(
-                          value: _useDebrid,
-                          activeColor: tokens.accent,
+                        const SizedBox(height: 4),
+                        Text(
+                          l10nCurrent().stgaDebridProviderNote,
+                          style: ZplayType.bodySmall.toStyle(
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: services.contains(_selectedService)
+                              ? _selectedService
+                              : 'None',
+                          dropdownColor: tokens.surfaceOverlay,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: tokens.bg,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: ZplayRadius.smAll,
+                              borderSide: BorderSide(
+                                color: tokens.borderDefault,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: ZplayRadius.smAll,
+                              borderSide: BorderSide(
+                                color: tokens.borderDefault,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: ZplayRadius.smAll,
+                              borderSide: BorderSide(color: tokens.accent),
+                            ),
+                          ),
+                          style: ZplayType.subtitle.toStyle(
+                            color: tokens.textPrimary,
+                          ),
+                          items: services.map((s) {
+                            return DropdownMenuItem<String>(
+                              value: s,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    s == 'None'
+                                        ? Icons.block_rounded
+                                        : Icons.flash_on_rounded,
+                                    size: 16,
+                                    color: s == 'None'
+                                        ? tokens.textMuted
+                                        : tokens.accent,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(s),
+                                ],
+                              ),
+                            );
+                          }).toList(),
                           onChanged: (val) async {
-                            setState(() => _useDebrid = val);
-                            await _debrid.saveUseDebridForStreams(val);
-                            if (val) {
-                              final service = _selectedService;
-                              if (service == 'None') {
-                                _showSnack(
-                                  l10nCurrent().stgaSelectDebridAndSaveKey,
-                                  isError: true,
+                            if (val != null) {
+                              setState(() => _selectedService = val);
+                              await _debrid.saveSelectedService(val);
+                              await DebridService.refreshDebridReady();
+                              if (val != 'None') {
+                                final hasKey = await _debrid.hasKeyForService(
+                                  val,
                                 );
-                              } else {
-                                final hasKey = await _debrid.hasKeyForService(service);
                                 if (!hasKey) {
                                   _showSnack(
-                                    l10nCurrent().stgcServiceNoKey(service),
-                                    isError: true,
+                                    l10nCurrent().stgcSelectedNoKey(val),
                                   );
-                                } else {
-                                  _showSnack(l10nCurrent().stgcDebridActivatedVia(service));
+                                  return;
                                 }
                               }
-                            } else {
-                              _showSnack(l10nCurrent().stgaDebridDisabledLocal);
+                              _showSnack(
+                                l10nCurrent().stgcActiveDebridSet(val),
+                              );
                             }
-                            await DebridService.refreshDebridReady();
                           },
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      l10nCurrent().stgaDebridToggleNote,
-                      style: ZplayType.bodySmall.toStyle(
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Provider API Keys
+                  Text(
+                    l10nCurrent().stgaProviderCredentials,
+                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Real-Debrid Card
+                  _buildProviderCard(
+                    name: 'Real-Debrid',
+                    subtitle: _statusMap['Real-Debrid'] != null
+                        ? l10nCurrent().stgcRdLoggedInAs(
+                            '${_statusMap['Real-Debrid']}',
+                          )
+                        : l10nCurrent().stgaGetTokenRealDebrid,
+                    statusBadge: _statusMap['Real-Debrid'],
+                    badgeColor: tokens.success,
+                    controller: _rdKeyCtrl,
+                    isLoading: _loadingMap['Real-Debrid'] == true,
+                    isActive: _selectedService == 'Real-Debrid',
+                    onSave: () => _saveProviderKey('Real-Debrid', _rdKeyCtrl),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // TorBox Card
+                  _buildProviderCard(
+                    name: 'TorBox',
+                    subtitle: _statusMap['TorBox'] != null
+                        ? l10nCurrent().stgcTorboxAccount(
+                            '${_statusMap['TorBox']}',
+                          )
+                        : l10nCurrent().stgaGetKeyTorBox,
+                    statusBadge: _statusMap['TorBox'],
+                    badgeColor: tokens.success,
+                    controller: _torboxKeyCtrl,
+                    isLoading: _loadingMap['TorBox'] == true,
+                    isActive: _selectedService == 'TorBox',
+                    onSave: () => _saveProviderKey('TorBox', _torboxKeyCtrl),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // AllDebrid Card
+                  _buildProviderCard(
+                    name: 'AllDebrid',
+                    subtitle: _statusMap['AllDebrid'] != null
+                        ? l10nCurrent().stgcAllDebridAccount(
+                            '${_statusMap['AllDebrid']}',
+                          )
+                        : l10nCurrent().stgaGetKeyAllDebrid,
+                    statusBadge: _statusMap['AllDebrid'],
+                    badgeColor: tokens.success,
+                    controller: _alldebridKeyCtrl,
+                    isLoading: _loadingMap['AllDebrid'] == true,
+                    isActive: _selectedService == 'AllDebrid',
+                    onSave: () =>
+                        _saveProviderKey('AllDebrid', _alldebridKeyCtrl),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Premiumize Card
+                  _buildProviderCard(
+                    name: 'Premiumize',
+                    subtitle: _statusMap['Premiumize'] != null
+                        ? l10nCurrent().stgaAccountConnected
+                        : l10nCurrent().stgaGetKeyPremiumize,
+                    statusBadge: _statusMap['Premiumize'],
+                    badgeColor: tokens.success,
+                    controller: _premiumizeKeyCtrl,
+                    isLoading: _loadingMap['Premiumize'] == true,
+                    isActive: _selectedService == 'Premiumize',
+                    onSave: () =>
+                        _saveProviderKey('Premiumize', _premiumizeKeyCtrl),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Debrid-Link Card
+                  _buildProviderCard(
+                    name: 'Debrid-Link',
+                    subtitle: _statusMap['Debrid-Link'] != null
+                        ? l10nCurrent().stgcDebridLinkAccount(
+                            '${_statusMap['Debrid-Link']}',
+                          )
+                        : l10nCurrent().stgaGetKeyDebridLink,
+                    statusBadge: _statusMap['Debrid-Link'],
+                    badgeColor: tokens.success,
+                    controller: _debridlinkKeyCtrl,
+                    isLoading: _loadingMap['Debrid-Link'] == true,
+                    isActive: _selectedService == 'Debrid-Link',
+                    onSave: () =>
+                        _saveProviderKey('Debrid-Link', _debridlinkKeyCtrl),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-
-              const SizedBox(height: 24),
-
-              // Active Provider Selector
-              Text(
-                l10nCurrent().stgaActiveProvider,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 10),
-
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10nCurrent().stgaSelectDefaultDebrid,
-                      style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l10nCurrent().stgaDebridProviderNote,
-                      style: ZplayType.bodySmall.toStyle(
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: services.contains(_selectedService) ? _selectedService : 'None',
-                      dropdownColor: tokens.surfaceOverlay,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: tokens.bg,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: ZplayRadius.smAll,
-                          borderSide: BorderSide(color: tokens.borderDefault),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: ZplayRadius.smAll,
-                          borderSide: BorderSide(color: tokens.borderDefault),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: ZplayRadius.smAll,
-                          borderSide: BorderSide(color: tokens.accent),
-                        ),
-                      ),
-                      style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                      items: services.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s,
-                          child: Row(
-                            children: [
-                              Icon(
-                                s == 'None' ? Icons.block_rounded : Icons.flash_on_rounded,
-                                size: 16,
-                                color: s == 'None' ? tokens.textMuted : tokens.accent,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(s),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (val) async {
-                        if (val != null) {
-                          setState(() => _selectedService = val);
-                          await _debrid.saveSelectedService(val);
-                          await DebridService.refreshDebridReady();
-                          if (val != 'None') {
-                            final hasKey = await _debrid.hasKeyForService(val);
-                            if (!hasKey) {
-                              _showSnack(
-                                l10nCurrent().stgcSelectedNoKey(val),
-                              );
-                              return;
-                            }
-                          }
-                          _showSnack(l10nCurrent().stgcActiveDebridSet(val));
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Provider API Keys
-              Text(
-                l10nCurrent().stgaProviderCredentials,
-                style: ZplayType.overline.toStyle(color: tokens.textMuted),
-              ),
-              const SizedBox(height: 10),
-
-              // Real-Debrid Card
-              _buildProviderCard(
-                name: 'Real-Debrid',
-                subtitle: _statusMap['Real-Debrid'] != null
-                    ? l10nCurrent().stgcRdLoggedInAs('${_statusMap['Real-Debrid']}')
-                    : l10nCurrent().stgaGetTokenRealDebrid,
-                statusBadge: _statusMap['Real-Debrid'],
-                badgeColor: tokens.success,
-                controller: _rdKeyCtrl,
-                isLoading: _loadingMap['Real-Debrid'] == true,
-                isActive: _selectedService == 'Real-Debrid',
-                onSave: () => _saveProviderKey('Real-Debrid', _rdKeyCtrl),
-              ),
-              const SizedBox(height: 12),
-
-              // TorBox Card
-              _buildProviderCard(
-                name: 'TorBox',
-                subtitle: _statusMap['TorBox'] != null
-                    ? l10nCurrent().stgcTorboxAccount('${_statusMap['TorBox']}')
-                    : l10nCurrent().stgaGetKeyTorBox,
-                statusBadge: _statusMap['TorBox'],
-                badgeColor: tokens.success,
-                controller: _torboxKeyCtrl,
-                isLoading: _loadingMap['TorBox'] == true,
-                isActive: _selectedService == 'TorBox',
-                onSave: () => _saveProviderKey('TorBox', _torboxKeyCtrl),
-              ),
-              const SizedBox(height: 12),
-
-              // AllDebrid Card
-              _buildProviderCard(
-                name: 'AllDebrid',
-                subtitle: _statusMap['AllDebrid'] != null
-                    ? l10nCurrent().stgcAllDebridAccount('${_statusMap['AllDebrid']}')
-                    : l10nCurrent().stgaGetKeyAllDebrid,
-                statusBadge: _statusMap['AllDebrid'],
-                badgeColor: tokens.success,
-                controller: _alldebridKeyCtrl,
-                isLoading: _loadingMap['AllDebrid'] == true,
-                isActive: _selectedService == 'AllDebrid',
-                onSave: () => _saveProviderKey('AllDebrid', _alldebridKeyCtrl),
-              ),
-              const SizedBox(height: 12),
-
-              // Premiumize Card
-              _buildProviderCard(
-                name: 'Premiumize',
-                subtitle: _statusMap['Premiumize'] != null
-                    ? l10nCurrent().stgaAccountConnected
-                    : l10nCurrent().stgaGetKeyPremiumize,
-                statusBadge: _statusMap['Premiumize'],
-                badgeColor: tokens.success,
-                controller: _premiumizeKeyCtrl,
-                isLoading: _loadingMap['Premiumize'] == true,
-                isActive: _selectedService == 'Premiumize',
-                onSave: () => _saveProviderKey('Premiumize', _premiumizeKeyCtrl),
-              ),
-              const SizedBox(height: 12),
-
-              // Debrid-Link Card
-              _buildProviderCard(
-                name: 'Debrid-Link',
-                subtitle: _statusMap['Debrid-Link'] != null
-                    ? l10nCurrent().stgcDebridLinkAccount('${_statusMap['Debrid-Link']}')
-                    : l10nCurrent().stgaGetKeyDebridLink,
-                statusBadge: _statusMap['Debrid-Link'],
-                badgeColor: tokens.success,
-                controller: _debridlinkKeyCtrl,
-                isLoading: _loadingMap['Debrid-Link'] == true,
-                isActive: _selectedService == 'Debrid-Link',
-                onSave: () => _saveProviderKey('Debrid-Link', _debridlinkKeyCtrl),
-              ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildProviderCard({
@@ -582,9 +638,14 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
               ),
               if (isActive)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: tokens.accent.withValues(alpha: ZplayOpacity.borderStrong),
+                    color: tokens.accent.withValues(
+                      alpha: ZplayOpacity.borderStrong,
+                    ),
                     borderRadius: ZplayRadius.xsAll,
                   ),
                   child: Text(
@@ -594,7 +655,10 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
                 ),
               if (statusBadge != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: (badgeColor ?? tokens.success).withValues(
                       alpha: ZplayOpacity.borderStrong,
@@ -635,7 +699,10 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
                     filled: true,
                     fillColor: tokens.bg,
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: ZplayRadius.smAll,
                       borderSide: BorderSide(color: tokens.borderDefault),
@@ -653,7 +720,11 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
                       children: [
                         if (controller.text.isNotEmpty)
                           IconButton(
-                            icon: Icon(Icons.clear_rounded, color: tokens.textMuted, size: 16),
+                            icon: Icon(
+                              Icons.clear_rounded,
+                              color: tokens.textMuted,
+                              size: 16,
+                            ),
                             padding: const EdgeInsets.all(4),
                             constraints: const BoxConstraints(),
                             tooltip: l10nCurrent().stgaClear,
@@ -664,13 +735,17 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
                           ),
                         IconButton(
                           icon: Icon(
-                            isObscured ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                            isObscured
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
                             color: tokens.textMuted,
                             size: 16,
                           ),
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(),
-                          tooltip: isObscured ? l10nCurrent().stgaShowKey : l10nCurrent().stgaHideKey,
+                          tooltip: isObscured
+                              ? l10nCurrent().stgaShowKey
+                              : l10nCurrent().stgaHideKey,
                           onPressed: () {
                             setState(() {
                               _obscuredMap[name] = !isObscured;
@@ -678,7 +753,11 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
                           },
                         ),
                         IconButton(
-                          icon: Icon(Icons.content_paste_rounded, color: tokens.accent, size: 16),
+                          icon: Icon(
+                            Icons.content_paste_rounded,
+                            color: tokens.accent,
+                            size: 16,
+                          ),
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(),
                           tooltip: l10nCurrent().stgaPasteFromClipboard,
@@ -696,15 +775,23 @@ class _DebridSettingsPageState extends State<DebridSettingsPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.accent,
                   foregroundColor: tokens.onAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: ZplayRadius.smAll,
+                  ),
                   elevation: 0,
                 ),
                 child: isLoading
                     ? SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: tokens.onAccent),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: tokens.onAccent,
+                        ),
                       )
                     : Text(
                         l10nCurrent().stgaSave,

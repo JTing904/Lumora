@@ -11,11 +11,26 @@
 - 自动挑片源：按你实际的网速选画质，原声优先
 - 继续观看、下一集倒数、跳过片头片尾、选集
 - 为你推荐：按你看过、收藏和点赞的内容学习口味
+- 新集提醒：收藏的剧有新一集时会标出来，首页有「新集上线」，追剧日历只显示你的剧
+- 个人资料：昵称、头像照片或颜色，跟着帐号走
+- 观看记录和收藏在多台设备之间合并同步
+- 漫画、书籍（EPUB / PDF）、音乐和有声书
+- 中文 / English 一键切换，每个按钮都能用电视遥控器操作
 - 账号需要邀请码才能注册
 
 ## 下载和安装
 
-正式版和各平台的安装教程（包括 iPhone 自签安装）会放在 [Releases](https://github.com/JTing904/Lumora/releases) 和项目网站上，整理中。
+最新版本在 [Releases](https://github.com/JTing904/Lumora/releases/latest)，安装教程和常见问题在[项目网站](https://jting904.github.io/Lumora/)。
+
+| 文件 | 适用 |
+|---|---|
+| `Lumora-<版本>-Windows-Setup.exe` | Windows 安装版 |
+| `Lumora-<版本>-Windows-Portable.zip` | Windows 免安装版 |
+| `Lumora-<版本>-Android-arm64.apk` | 大部分安卓手机、平板和电视 |
+| `Lumora-<版本>-Android-armv7.apk` | 较旧的安卓设备、便宜的电视盒子 |
+| `Lumora-<版本>-Android-x86_64.apk` | 安卓模拟器 |
+
+app 打开时会自动检查有没有新版本。每个版本附带 `SHA256SUMS` 和它的签名 `SHA256SUMS.sig`，app 内更新会先验证签名再安装。iPhone 版之后推出。
 
 ## 从源码编译
 

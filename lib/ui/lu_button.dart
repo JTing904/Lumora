@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/layout/device_profile.dart';
 import 'lu_focusable.dart';
 import 'lu_theme.dart';
 
@@ -14,7 +15,10 @@ enum LuButtonKind {
   text,
 }
 
-/// Lumora's button: a pill, 56 tall (52 when [compact]).
+/// Lumora's button: a pill, 56 tall (52 when [compact]) on a desktop or a
+/// television, and phone-sized on a phone: 44 tall (40 when [compact]), the
+/// height Android and iOS buttons have, so a hero or a details page does not
+/// read as the ten-foot layout squeezed into a hand.
 class LuButton extends StatelessWidget {
   const LuButton({
     super.key,
@@ -44,7 +48,14 @@ class LuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null && !busy;
-    final height = kind == LuButtonKind.text ? 44.0 : (compact ? 52.0 : 56.0);
+    final phone =
+        MediaQuery.sizeOf(context).shortestSide < 600 &&
+        !DeviceProfile.isTelevision;
+    final height = kind == LuButtonKind.text
+        ? 44.0
+        : phone
+        ? (compact ? 40.0 : 44.0)
+        : (compact ? 52.0 : 56.0);
     final fg = switch (kind) {
       LuButtonKind.primary => LuColors.onGold,
       LuButtonKind.secondary => LuColors.text,
@@ -74,8 +85,8 @@ class LuButton extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2.4, color: fg),
               )
             else if (icon != null)
-              Icon(icon, size: 20, color: fg),
-            if (busy || icon != null) const SizedBox(width: 10),
+              Icon(icon, size: phone ? 18 : 20, color: fg),
+            if (busy || icon != null) SizedBox(width: phone ? 8 : 10),
             Flexible(
               child: Text(
                 label,
@@ -85,6 +96,8 @@ class LuButton extends StatelessWidget {
                   color: fg,
                   fontSize: kind == LuButtonKind.text
                       ? 14
+                      : phone
+                      ? (compact ? 14 : 15)
                       : (compact ? 16 : 18),
                 ),
               ),
@@ -98,7 +111,7 @@ class LuButton extends StatelessWidget {
             duration: LuMotion.focus,
             height: height,
             padding: EdgeInsets.symmetric(
-              horizontal: kind == LuButtonKind.text ? 6 : 28,
+              horizontal: kind == LuButtonKind.text ? 6 : (phone ? 20 : 28),
             ),
             decoration: BoxDecoration(
               color: fill,

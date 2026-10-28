@@ -5,7 +5,10 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import 'package:photo_view/photo_view.dart';
 import '../../../services/books/epub_parser_service.dart';
 import '../../../services/books/reader_settings.dart';
-import '../../../widgets/common/focusable_card.dart';
+import '../../../l10n/l10n.dart';
+import '../../../ui/lu_focusable.dart';
+import '../../../ui/lu_theme.dart';
+import 'lu_reading_kit.dart';
 import 'reader_design_tokens.dart';
 
 class EpubContentView extends StatelessWidget {
@@ -43,13 +46,16 @@ class EpubContentView extends StatelessWidget {
               return {
                 'margin-bottom': '${settings.paragraphSpacing}px',
                 'line-height': '${settings.lineSpacing}',
-                'text-align': settings.textAlign == TextAlign.justify ? 'justify' : 'left',
+                'text-align': settings.textAlign == TextAlign.justify
+                    ? 'justify'
+                    : 'left',
                 if (settings.firstLineIndent) 'text-indent': '1.8em',
               };
             }
             if (tag == 'h1' || tag == 'h2' || tag == 'h3') {
               return {
-                'color': '#${settings.textColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
+                'color':
+                    '#${settings.textColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
                 'margin-top': '${settings.paragraphSpacing * 1.6}px',
                 'margin-bottom': '${settings.paragraphSpacing}px',
                 'font-family': settings.fontFamily,
@@ -60,7 +66,8 @@ class EpubContentView extends StatelessWidget {
           customWidgetBuilder: (element) {
             final tag = element.localName?.toLowerCase();
             if (tag == 'img' || tag == 'image') {
-              final src = element.attributes['src'] ??
+              final src =
+                  element.attributes['src'] ??
                   element.attributes['xlink:href'] ??
                   element.attributes['l:href'] ??
                   element.attributes['href'] ??
@@ -90,8 +97,10 @@ class EpubContentView extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
-        child: FocusableCard(
+        child: LuFocusable(
           onTap: () => _openImageZoom(context, bytes),
+          lift: 1.02,
+          borderRadius: ReaderTokens.rounded8,
           builder: (context, _) => Container(
             constraints: const BoxConstraints(maxHeight: 520),
             decoration: BoxDecoration(
@@ -106,10 +115,7 @@ class EpubContentView extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: ReaderTokens.rounded8,
-              child: Image.memory(
-                bytes,
-                fit: BoxFit.contain,
-              ),
+              child: Image.memory(bytes, fit: BoxFit.contain),
             ),
           ),
         ),
@@ -120,17 +126,35 @@ class EpubContentView extends StatelessWidget {
   void _openImageZoom(BuildContext context, Uint8List bytes) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: ReaderTokens.bg,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            iconTheme: IconThemeData(color: ReaderTokens.textPrimary),
-          ),
-          body: PhotoView(
-            imageProvider: MemoryImage(bytes),
-            minScale: PhotoViewComputedScale.contained,
-            maxScale: PhotoViewComputedScale.covered * 3,
+        builder: (ctx) => Theme(
+          data: luTheme(),
+          child: Scaffold(
+            backgroundColor: LuColors.bg,
+            body: Stack(
+              children: [
+                Positioned.fill(
+                  child: PhotoView(
+                    imageProvider: MemoryImage(bytes),
+                    backgroundDecoration: const BoxDecoration(
+                      color: LuColors.bg,
+                    ),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 3,
+                  ),
+                ),
+                Positioned(
+                  left: 16,
+                  top: MediaQuery.paddingOf(ctx).top + 12,
+                  child: LuGlyphButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    label: l10nOf(ctx).mgBack,
+                    iconSize: 18,
+                    autofocus: true,
+                    onTap: () => Navigator.of(ctx).pop(),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

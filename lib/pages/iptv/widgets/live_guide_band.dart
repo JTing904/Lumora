@@ -12,6 +12,8 @@ import '../../../services/layout/form_factor.dart';
 import '../../../services/theme/design_tokens.dart';
 import '../../../widgets/common/focusable_card.dart';
 import '../../../widgets/common/pill_button.dart';
+import '../../../widgets/player/lu_player_style.dart';
+import '../../../ui/lu_theme.dart';
 
 /// The prototype's Live TV pane: a channel list beside the programme guide for
 /// the selected channel.
@@ -183,7 +185,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
   }
 
   Widget _channelList(BuildContext context, bool isCompact) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final rows = <Widget>[
       for (var i = 0; i < widget.channels.length; i++)
         Padding(
@@ -208,7 +210,8 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: ZplayRadius.mdAll,
+        borderRadius: LuPanel.radiusAll,
+        border: Border.all(color: LuPanel.edge),
       ),
       child: Padding(
         padding: const EdgeInsets.all(ZplaySpacing.s8),
@@ -226,7 +229,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
     HardcodedChannel channel,
     bool isCompact,
   ) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final now = _nowAiring();
     final upcoming = _upcoming(now);
 
@@ -249,7 +252,8 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: ZplayRadius.mdAll,
+        borderRadius: LuPanel.radiusAll,
+        border: Border.all(color: LuPanel.edge),
       ),
       child: Padding(
         padding: const EdgeInsets.all(ZplaySpacing.s16),
@@ -322,7 +326,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
     List<EpgEntry> upcoming,
     bool isCompact,
   ) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     final Widget label = Text(
       l10nCurrent().tvUpcomingOnChannel,
@@ -381,7 +385,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
     HardcodedChannel channel,
     bool isCompact,
   ) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final height = isCompact ? 40.0 : kMinInteractiveDimension;
 
     return Column(
@@ -403,7 +407,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
           onTap: () => widget.onFindStreams(channel),
           builder: (context, state) => CardFocusRing(
             focused: state.focused,
-            radius: ZplayRadius.smAll,
+            radius: LuRadius.field,
             child: AnimatedContainer(
               duration: ZplayMotion.fast,
               curve: ZplayMotion.standard,
@@ -414,7 +418,7 @@ class _LiveGuideBandState extends State<LiveGuideBand> {
                 color: state.highlighted
                     ? tokens.borderStrong
                     : tokens.borderDefault,
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -496,14 +500,14 @@ class _GuideChannelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final isCompact = FormFactorService.of(context) == FormFactor.compact;
 
     return FocusableCard(
       onTap: onTap,
       builder: (context, state) => CardFocusRing(
         focused: state.focused,
-        radius: ZplayRadius.smAll,
+        radius: LuRadius.field,
         child: AnimatedContainer(
           duration: ZplayMotion.fast,
           curve: ZplayMotion.standard,
@@ -513,12 +517,11 @@ class _GuideChannelRow extends StatelessWidget {
             vertical: ZplaySpacing.s8,
           ),
           decoration: BoxDecoration(
-            color: selected
-                ? tokens.accentSubtle
-                : (state.highlighted
-                      ? tokens.borderDefault
-                      : Colors.transparent),
-            borderRadius: ZplayRadius.smAll,
+            color: LuPanel.rowColor(
+              selected: selected,
+              highlighted: state.highlighted,
+            ),
+            borderRadius: LuRadius.field,
           ),
           child: Row(
             children: [
@@ -619,7 +622,7 @@ class _LiveProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final total = entry.stop.difference(entry.start).inSeconds;
     final elapsed = DateTime.now().difference(entry.start).inSeconds;
     final fraction = total <= 0
@@ -667,7 +670,7 @@ class _UpcomingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return DecoratedBox(
       decoration: BoxDecoration(

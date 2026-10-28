@@ -1,11 +1,12 @@
-import '../../../l10n/l10n.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../../l10n/l10n.dart';
 import '../../../services/books/reader_settings.dart';
-import '../../../services/theme/design_tokens.dart';
-import '../../../widgets/common/focusable_card.dart';
-import 'reader_design_tokens.dart';
+import '../../../ui/lu_focusable.dart';
+import '../../../ui/lu_theme.dart';
+import 'lu_reading_kit.dart';
 
 class ComicReaderView extends StatefulWidget {
   final Uint8List imageBytes;
@@ -29,7 +30,8 @@ class ComicReaderView extends StatefulWidget {
   State<ComicReaderView> createState() => _ComicReaderViewState();
 }
 
-class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProviderStateMixin {
+class _ComicReaderViewState extends State<ComicReaderView>
+    with SingleTickerProviderStateMixin {
   late final TransformationController _transformController;
   late final AnimationController _animController;
   Animation<Matrix4>? _zoomAnimation;
@@ -126,13 +128,10 @@ class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProv
   }
 
   void _animateToMatrix(Matrix4 target) {
-    _zoomAnimation = Matrix4Tween(
-      begin: _transformController.value,
-      end: target,
-    ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOutCubic,
-    ));
+    _zoomAnimation =
+        Matrix4Tween(begin: _transformController.value, end: target).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
 
     _animController.reset();
     _zoomAnimation!.addListener(() {
@@ -147,7 +146,8 @@ class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProv
       final scrollDelta = event.scrollDelta.dy;
       if (scrollDelta == 0) return;
 
-      final isCtrlPressed = HardwareKeyboard.instance.isControlPressed ||
+      final isCtrlPressed =
+          HardwareKeyboard.instance.isControlPressed ||
           HardwareKeyboard.instance.isMetaPressed;
 
       if (isCtrlPressed || scrollDelta.abs() < 50) {
@@ -162,6 +162,7 @@ class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProv
     return ValueListenableBuilder<ReaderSettingsData>(
       valueListenable: ReaderSettings.settingsNotifier,
       builder: (context, settings, _) {
+        final l10n = l10nOf(context);
         return Stack(
           children: [
             // ── Interactive Image Canvas ──
@@ -176,7 +177,9 @@ class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProv
                   child: MouseRegion(
                     cursor: _isDragging
                         ? SystemMouseCursors.grabbing
-                        : (_currentScale > 1.05 ? SystemMouseCursors.grab : SystemMouseCursors.basic),
+                        : (_currentScale > 1.05
+                              ? SystemMouseCursors.grab
+                              : SystemMouseCursors.basic),
                     child: InteractiveViewer(
                       transformationController: _transformController,
                       minScale: 0.5,
@@ -184,13 +187,13 @@ class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProv
                       boundaryMargin: const EdgeInsets.all(300),
                       panEnabled: true,
                       scaleEnabled: true,
-                      onInteractionStart: (_) => setState(() => _isDragging = true),
-                      onInteractionEnd: (_) => setState(() => _isDragging = false),
+                      onInteractionStart: (_) =>
+                          setState(() => _isDragging = true),
+                      onInteractionEnd: (_) =>
+                          setState(() => _isDragging = false),
                       child: Center(
                         child: Container(
-                          constraints: const BoxConstraints(
-                            maxWidth: 1400,
-                          ),
+                          constraints: const BoxConstraints(maxWidth: 1400),
                           child: Image.memory(
                             widget.imageBytes,
                             fit: BoxFit.contain,
@@ -204,69 +207,74 @@ class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProv
               ),
             ),
 
-            // ── Floating Zoom Controls Bar ──
+            // ── Floating zoom pill ──
             Positioned(
               right: 24,
               bottom: widget.showControls ? 100 : 32,
-              child: AnimatedOpacity(
-                opacity: widget.showControls || _currentScale > 1.05 ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: ReaderTokens.surfaceOverlay.withValues(alpha: 0.88),
-                    borderRadius: ReaderTokens.rounded32,
-                    border: Border.all(color: ReaderTokens.borderStrong),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Zoom Out Button
-                      _buildToolbarButton(
-                        icon: Icons.remove_rounded,
-                        tooltip: l10nCurrent().bkZoomOutCtrl,
-                        onPressed: () => _zoomBy(0.8),
-                      ),
-
-                      // Zoom Percentage
-                      FocusableCard(
-                        onTap: () => _resetZoom(),
-                        builder: (context, _) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          child: Text(
-                            '${(_currentScale * 100).round()}%',
-                            style: ZplayType.labelNumeric.toStyle(
-                              color: ReaderTokens.textPrimary,
+              child: ExcludeFocus(
+                excluding: !(widget.showControls || _currentScale > 1.05),
+                child: AnimatedOpacity(
+                  opacity: widget.showControls || _currentScale > 1.05
+                      ? 1.0
+                      : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: LuColors.glass,
+                      borderRadius: LuRadius.pill,
+                      border: Border.all(color: LuColors.glassEdge),
+                    ),
+                    child: FocusTraversalGroup(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildToolbarButton(
+                            icon: Icons.remove_rounded,
+                            tooltip: l10n.bkZoomOutCtrl,
+                            onPressed: () => _zoomBy(0.8),
+                          ),
+                          LuFocusable(
+                            onTap: () => _resetZoom(),
+                            semanticLabel: l10n.bkResetZoom,
+                            builder: (context, hi) => Container(
+                              height: 40,
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              child: Text(
+                                '${(_currentScale * 100).round()}%',
+                                style: LuText.label.copyWith(
+                                  fontFamily: LuFonts.display,
+                                  fontWeight: FontWeight.w700,
+                                  color: hi ? LuColors.gold : LuColors.text,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          _buildToolbarButton(
+                            icon: Icons.add_rounded,
+                            tooltip: l10n.bkZoomInCtrl,
+                            onPressed: () => _zoomBy(1.25),
+                          ),
+                          Container(
+                            height: 18,
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            color: LuColors.line,
+                          ),
+                          _buildToolbarButton(
+                            icon: Icons.fit_screen_rounded,
+                            tooltip: l10n.bkResetZoom,
+                            onPressed: () => _resetZoom(),
+                          ),
+                        ],
                       ),
-
-                      // Zoom In Button
-                      _buildToolbarButton(
-                        icon: Icons.add_rounded,
-                        tooltip: l10nCurrent().bkZoomInCtrl,
-                        onPressed: () => _zoomBy(1.25),
-                      ),
-
-                      const SizedBox(width: 4),
-                      Container(height: 18, width: 1, color: ReaderTokens.borderStrong),
-                      const SizedBox(width: 4),
-
-                      // Reset / Fit
-                      _buildToolbarButton(
-                        icon: Icons.fit_screen_rounded,
-                        tooltip: l10nCurrent().bkResetZoom,
-                        onPressed: () => _resetZoom(),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -282,13 +290,13 @@ class _ComicReaderViewState extends State<ComicReaderView> with SingleTickerProv
     required String tooltip,
     required VoidCallback onPressed,
   }) {
-    return IconButton(
-      icon: Icon(icon, color: ReaderTokens.textEmphasis, size: 18),
-      tooltip: tooltip,
-      visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.all(6),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: onPressed,
+    return LuGlyphButton(
+      icon: icon,
+      label: tooltip,
+      size: 40,
+      iconSize: 18,
+      filled: false,
+      onTap: onPressed,
     );
   }
 }

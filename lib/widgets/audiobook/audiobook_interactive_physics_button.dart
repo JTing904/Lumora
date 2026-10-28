@@ -116,12 +116,14 @@ class _AudiobookInteractivePhysicsButtonState
       enabled: widget.enabled,
       onTap: widget.enabled ? widget.onTap : null,
       builder: (context, state) {
-        if (state.focused && !_isFocusedFromKey) {
-          _isFocusedFromKey = true;
-          setState(() => _isHovered = true);
-        } else if (!state.focused && _isFocusedFromKey) {
-          _isFocusedFromKey = false;
-          setState(() => _isHovered = false);
+        // Focus feeds the hover look after this frame: setState while
+        // building asserts in debug builds.
+        if (state.focused != _isFocusedFromKey) {
+          _isFocusedFromKey = state.focused;
+          final hovered = state.focused;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _isHovered = hovered);
+          });
         }
         return MouseRegion(
           cursor: widget.enabled && widget.onTap != null
@@ -162,10 +164,10 @@ class _AudiobookInteractivePhysicsButtonState
               if (!widget.enabled) return;
               setState(() => _isPressed = false);
             },
-            // Activation itself belongs to FocusableCard. The detector is left
-            // for the press states only, so a tap still ripples and a centre
-            // key still activates without doing the work twice.
-            onTap: null,
+            // This detector wins the tap (it also listens for tap-down), so
+            // the tap is handled here; FocusableCard still handles the
+            // remote's centre key. Each input fires once.
+            onTap: widget.enabled ? widget.onTap : null,
             child: _buildPhysicsTransform(activeEffect, glow, state.focused),
           ),
         );

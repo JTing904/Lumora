@@ -2,6 +2,8 @@ import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Top floating subtitle appearance and size scaling toolbar.
 class PlayerSubStyleBar extends StatelessWidget {
@@ -21,7 +23,7 @@ class PlayerSubStyleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = (scale * 100).round();
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return Container(
       alignment: Alignment.topCenter,
@@ -66,7 +68,7 @@ class PlayerSubStyleBar extends StatelessWidget {
               height: 34,
               decoration: BoxDecoration(
                 color: PlayerTheme.raised,
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 border: Border.all(color: PlayerTheme.edgeSoft),
               ),
               child: Row(

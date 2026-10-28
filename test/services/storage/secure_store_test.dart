@@ -123,5 +123,8 @@ void main() {
     expect(SecretKeys.isSecret('service_key_trakt_secret'), isTrue);
     expect(SecretKeys.isSecret('debrid_service'), isFalse);
     expect(SecretKeys.isSecret('trakt_username'), isFalse);
+    // A per-account copy is as secret as the plain key.
+    expect(SecretKeys.isSecret('${SecretKeys.traktAccessToken}@u1'), isTrue);
+    expect(SecretKeys.isSecret('trakt_username@u1'), isFalse);
   });
 }

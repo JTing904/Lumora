@@ -5,6 +5,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/storage/app_image_cache.dart';
 import '../../services/theme/design_tokens.dart';
+import '../player/lu_player_style.dart';
 
 /// The Live TV hero's art: the channel's backdrop when one loads, and the
 /// channel itself - its short code, or its name - when none does.
@@ -103,7 +104,7 @@ class _IptvHeroArtworkState extends State<IptvHeroArtwork> {
   /// Dim on purpose: it sits under the same top scrim as the art it replaces,
   /// so the title, the pills and the buttons keep their contrast over it.
   Widget _wordmark(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final short = widget.channel.short.trim();
     final label = short.isEmpty ? widget.channel.name : short;
     return Align(

@@ -6,19 +6,21 @@ import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../utils/a11y.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// The player family's colour vocabulary, bridged onto the contract token layer.
 ///
 /// The player was written against a private palette — a violet accent, a
 /// near-black panel, 12% and 7% white edges — none of which followed the user's
 /// [AppThemePalette], so every preset rendered the same player. Each member now
-/// resolves through [AppThemeService.currentTokens], which memoises one
+/// resolves through [luTokens], which memoises one
 /// [ZplayTokens] per palette value and re-derives it when [AppThemeService]
 /// switches palette; a palette change therefore reaches all ~15 player widgets
 /// without renaming anything they read.
 ///
 /// The member names stay because those widgets spell them. The player family
-/// will take `context.tokens` directly in a later pass; this bridge keeps a
+/// will take `luTokens` directly in a later pass; this bridge keeps a
 /// single vocabulary until then. Nothing below is `const` any more — a
 /// token-backed colour has no compile-time value, so a call site that needs a
 /// constant must inline a literal instead.
@@ -97,7 +99,7 @@ class PlayerGlassCard extends StatelessWidget {
     required this.child,
     this.width,
     this.height,
-    this.borderRadius = ZplayRadius.lg,
+    this.borderRadius = LuPanel.radius,
     this.padding = EdgeInsets.zero,
     this.border,
     this.shadows,
@@ -120,9 +122,9 @@ class PlayerGlassCard extends StatelessWidget {
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: backgroundColor ?? PlayerTheme.elevated,
+              color: backgroundColor ?? LuPanel.fill,
               borderRadius: BorderRadius.circular(borderRadius),
-              border: border ?? Border.all(color: PlayerTheme.edge, width: 1),
+              border: border ?? Border.all(color: LuPanel.edge, width: 1),
             ),
             child: child,
           ),
@@ -211,7 +213,7 @@ class PlayerIconButton extends StatelessWidget {
               return ValueListenableBuilder<int>(
                 valueListenable: GlassSettings.styleRevision,
                 builder: (context, _, __) {
-                  final tokens = context.tokens;
+                  const tokens = luTokens;
                   final hoverScaleVal = glassEnabled
                       ? GlassSettings.hoverScale.value
                       : 1.0;
@@ -332,8 +334,8 @@ class PlayerIconButton extends StatelessWidget {
                       waitDuration: const Duration(milliseconds: 400),
                       decoration: BoxDecoration(
                         color: PlayerTheme.elevated,
-                        borderRadius: BorderRadius.circular(ZplayRadius.sm),
-                        border: Border.all(color: PlayerTheme.edgeSoft),
+                        borderRadius: LuRadius.field,
+                        border: Border.all(color: LuPanel.edge),
                       ),
                       textStyle: ZplayType.bodySmall.toStyle(
                         color: tokens.textPrimary,
@@ -375,17 +377,21 @@ class PlayerToggleChip extends StatelessWidget {
     return FocusableCard(
       onTap: onClick,
       enabled: !disabled,
-      builder: (context, _) => AnimatedOpacity(
+      builder: (context, state) => AnimatedOpacity(
         duration: const Duration(milliseconds: 150),
         opacity: disabled ? 0.35 : 1.0,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: AnimatedContainer(
+          duration: LuMotion.focus,
+          curve: LuMotion.ease,
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: active ? PlayerTheme.raised : Colors.transparent,
-            borderRadius: ZplayRadius.fullAll,
+            color: active
+                ? LuPanel.selectedFill
+                : (state.highlighted ? LuPanel.rowHover : Colors.transparent),
+            borderRadius: LuRadius.pill,
             border: Border.all(
-              color: active ? PlayerTheme.edge : Colors.transparent,
+              color: active ? LuPanel.selectedEdge : Colors.transparent,
               width: 1,
             ),
           ),
@@ -399,7 +405,7 @@ class PlayerToggleChip extends StatelessWidget {
                       weight: active ? FontWeight.w600 : FontWeight.w500,
                     )
                     .toStyle(
-                      color: active ? PlayerTheme.ink : PlayerTheme.inkMuted,
+                      color: active ? PlayerTheme.accent : PlayerTheme.inkMuted,
                     ),
               ),
               if (count != null) ...[

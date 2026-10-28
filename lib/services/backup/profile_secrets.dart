@@ -1,3 +1,4 @@
+import '../account/account_scope.dart';
 import '../config/service_credentials.dart';
 import '../storage/secret_keys.dart';
 import '../storage/secure_store.dart';
@@ -9,11 +10,25 @@ import '../storage/secure_store.dart';
 /// they are written back through [SecureStore] on import, never through the
 /// plaintext preference map.
 abstract final class ProfileSecrets {
+  /// The credentials kept per Lumora account (see [AccountScope.key]). They
+  /// travel under their plain names and land in whichever account is signed
+  /// in when the profile is imported, so older profiles, which always used
+  /// the plain names, import the same way.
+  static const Set<String> _accountScoped = <String>{
+    SecretKeys.traktAccessToken,
+    SecretKeys.traktRefreshToken,
+    SecretKeys.simklAccessToken,
+  };
+
+  /// Where [key] is kept for the account signed in now.
+  static String _storageKey(String key) =>
+      _accountScoped.contains(key) ? AccountScope.key(key) : key;
+
   /// Reads every supported credential from its secure store.
   static Future<Map<String, String>> export() async {
     final values = <String, String>{};
     for (final key in SecretKeys.values) {
-      final value = await SecureStore.read(key);
+      final value = await SecureStore.read(_storageKey(key));
       if (value != null && value.isNotEmpty) {
         values[key] = value;
       }
@@ -43,7 +58,7 @@ abstract final class ProfileSecrets {
       if (!SecretKeys.values.contains(key) && !knownServiceKeys.contains(key)) {
         continue;
       }
-      await SecureStore.write(key, value);
+      await SecureStore.write(_storageKey(key), value);
     }
   }
 }

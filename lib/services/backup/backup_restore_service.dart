@@ -45,6 +45,16 @@ class BackupRestoreService {
     'pt_iptv_favorite_portal_keys',
   ];
 
+  /// Per-install bookkeeping that describes this device's copy of the app,
+  /// not the person's settings: the version whose "What's new" was last
+  /// shown, and the update the person said "Later" to. Carried across, an
+  /// older install would replay or swallow a changelog and could hide an
+  /// update it never offered, so these never leave or enter a device.
+  static const List<String> _installStateKeys = <String>[
+    'lumora_last_seen_version',
+    'dismissed_update_version',
+  ];
+
   /// Whether a preference key must be left out of an export.
   static bool _isExcluded(String key) =>
       SecretKeys.isSecret(key) ||
@@ -89,6 +99,7 @@ class BackupRestoreService {
     final settingsMap = <String, dynamic>{};
     for (final key in allKeys) {
       if (key.endsWith('__backup') || key.endsWith('__corrupt')) continue;
+      if (_installStateKeys.contains(key)) continue;
       if (full) {
         // Credentials travel in the encrypted `secrets` object below; every
         // other preference (portals, playlists, addons, library documents)
@@ -193,7 +204,7 @@ class BackupRestoreService {
     final tried = candidates.map((path) => '  - $path').join('\n');
     return 'No readable settings file. Looked in:\n'
         '$tried\n'
-        'ZPlay can only read its own app directory without a storage '
+        'Lumora can only read its own app directory without a storage '
         'permission, so push the profile there, or choose it with "From File".';
   }
 
@@ -323,7 +334,7 @@ class BackupRestoreService {
     final declaredSchema = decoded['schemaVersion'];
     if (declaredSchema is num && declaredSchema > profileSchema) {
       throw FormatException(
-        'This profile was written by a newer version of ZPlay '
+        'This profile was written by a newer version of Lumora '
         '(schema ${declaredSchema.toInt()}; this build understands up to '
         '$profileSchema). Update the app and try again.',
       );
@@ -349,6 +360,8 @@ class BackupRestoreService {
       final settings = decoded['settings'] as Map;
       for (final entry in settings.entries) {
         final key = entry.key.toString();
+        // Older exports carried these; the device keeps its own.
+        if (_installStateKeys.contains(key)) continue;
         if (secretsExcluded && _isExcluded(key)) continue;
         // Credentials from a full profile live in the keystore, not here.
         if (hasSecretMap && SecretKeys.isSecret(key)) continue;
@@ -388,18 +401,7 @@ class BackupRestoreService {
     // 2. Restore Theme
     if (decoded.containsKey('theme') && decoded['theme'] is Map) {
       final theme = decoded['theme'] as Map;
-      final paletteId = theme['paletteId']?.toString();
-      if (paletteId != null) {
-        final found = AppThemeService.palettes.firstWhere(
-          (p) => p.id == paletteId,
-          // The same fallback as a fresh install, rather than whichever preset
-          // happens to sit first in the list - otherwise restoring a backup from
-          // an older version lands on a palette the user never chose.
-          orElse: () => AppThemeService.defaultPalette,
-        );
-        await AppThemeService.setPalette(found);
-      }
-
+      // A palette id in an older backup is ignored: Lumora has one accent.
       if (theme['customBg'] is Map) {
         final bgMap = Map<String, dynamic>.from(theme['customBg'] as Map);
         if (bgMap['imageUrl'] != null &&

@@ -19,6 +19,9 @@ import 'cloudstream_repo_modal.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../../widgets/settings/settings_app_bar.dart';
+import '../../models/stream/stream_model.dart' show displayAddonName;
+import '../../widgets/settings/lu_settings_kit.dart';
+import '../../l10n/option_labels.dart';
 
 class AddonsSettingsPage extends StatefulWidget {
   const AddonsSettingsPage({super.key});
@@ -119,7 +122,10 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
     return _normalizeAddonUrl(installed.baseUrl) == _normalizeAddonUrl(url);
   }
 
-  Future<void> _connectDebridAddon(DebridAddonTemplate template, String url) async {
+  Future<void> _connectDebridAddon(
+    DebridAddonTemplate template,
+    String url,
+  ) async {
     final installed = _installedFor(template);
     setState(() => _debridAddonBusyId = template.id);
 
@@ -131,7 +137,12 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10nCurrent().stgcAddonConnectedTo(addon.manifest.name, _selectedDebridService)),
+          content: Text(
+            l10nCurrent().stgcAddonConnectedTo(
+              addon.manifest.name,
+              _selectedDebridService,
+            ),
+          ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: context.tokens.success,
         ),
@@ -381,16 +392,24 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text(l10nCurrent().stgaBrowseLater, style: ZplayType.label.toStyle(color: tokens.textSecondary)),
+                child: Text(
+                  l10nCurrent().stgaBrowseLater,
+                  style: ZplayType.label.toStyle(color: tokens.textSecondary),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.accent,
                   foregroundColor: tokens.onAccent,
-                  shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: ZplayRadius.smAll,
+                  ),
                 ),
-                child: Text(l10nCurrent().stgaInstallAllNow, style: ZplayType.label.toStyle()),
+                child: Text(
+                  l10nCurrent().stgaInstallAllNow,
+                  style: ZplayType.label.toStyle(),
+                ),
               ),
             ],
           );
@@ -540,7 +559,10 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                 CloudStreamMarketplaceModal.show(context);
               },
               icon: Icon(Icons.hub_rounded, size: 16, color: tokens.accent),
-              label: Text(l10nCurrent().stgaBrowseMarketplace, style: ZplayType.label.toStyle(color: tokens.accent)),
+              label: Text(
+                l10nCurrent().stgaBrowseMarketplace,
+                style: ZplayType.label.toStyle(color: tokens.accent),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -621,7 +643,11 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
   }
 
   void _confirmRemoveSelectedCsExtensions(List<CloudStreamSource> installed) {
-    final toRemove = installed.where((e) => _selectedCsExtensionKeys.contains(e.internalName ?? e.name)).toList();
+    final toRemove = installed
+        .where(
+          (e) => _selectedCsExtensionKeys.contains(e.internalName ?? e.name),
+        )
+        .toList();
     if (toRemove.isEmpty) return;
 
     final count = toRemove.length;
@@ -668,7 +694,11 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                   SnackBar(
                     content: Row(
                       children: [
-                        Icon(Icons.check_circle_rounded, color: tokens.textPrimary, size: 18),
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: tokens.textPrimary,
+                          size: 18,
+                        ),
                         const SizedBox(width: ZplaySpacing.s8),
                         Text(l10nCurrent().stgcRemovedCountPlugins(count)),
                       ],
@@ -748,59 +778,63 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
     final addons = _manager.addons;
     final csExtensions = _csManager.installedExtensions;
 
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().stgcAddonsExtensions),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s20,
-            ),
-            children: [
-              // Segmented Tab Selector
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  ZplaySpacing.s4,
-                  ZplaySpacing.s4,
-                  ZplaySpacing.s4,
-                  ZplaySpacing.s4 + ZplaySpacing.s20,
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().stgcAddonsExtensions),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s16,
+                  vertical: ZplaySpacing.s20,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _TabButton(
-                        title: l10nCurrent().stgaStremioAddons,
-                        icon: Icons.extension_rounded,
-                        count: addons.length,
-                        isSelected: _selectedTabIndex == 0,
-                        onTap: () => setState(() => _selectedTabIndex = 0),
-                      ),
+                children: [
+                  // Segmented Tab Selector
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      ZplaySpacing.s4,
+                      ZplaySpacing.s4,
+                      ZplaySpacing.s4,
+                      ZplaySpacing.s4 + ZplaySpacing.s20,
                     ),
-                    Expanded(
-                      child: _TabButton(
-                        title: 'CloudStream',
-                        icon: Icons.cloud_download_rounded,
-                        count: csExtensions.length,
-                        isSelected: _selectedTabIndex == 1,
-                        onTap: () => setState(() => _selectedTabIndex = 1),
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _TabButton(
+                            title: l10nCurrent().stgaStremioAddons,
+                            icon: Icons.extension_rounded,
+                            count: addons.length,
+                            isSelected: _selectedTabIndex == 0,
+                            onTap: () => setState(() => _selectedTabIndex = 0),
+                          ),
+                        ),
+                        Expanded(
+                          child: _TabButton(
+                            title: 'CloudStream',
+                            icon: Icons.cloud_download_rounded,
+                            count: csExtensions.length,
+                            isSelected: _selectedTabIndex == 1,
+                            onTap: () => setState(() => _selectedTabIndex = 1),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
 
-              if (_selectedTabIndex == 0)
-                _buildStremioTab(addons)
-              else
-                _buildCloudStreamTab(),
-            ],
+                  if (_selectedTabIndex == 0)
+                    _buildStremioTab(addons)
+                  else
+                    _buildCloudStreamTab(),
+                ],
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildStremioTab(List<InstalledAddon> addons) {
@@ -860,7 +894,11 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
             padding: const EdgeInsets.all(28),
             child: Column(
               children: [
-                Icon(Icons.extension_off_rounded, size: 40, color: tokens.textDisabled),
+                Icon(
+                  Icons.extension_off_rounded,
+                  size: 40,
+                  color: tokens.textDisabled,
+                ),
                 const SizedBox(height: ZplaySpacing.s12),
                 Text(
                   l10nCurrent().stgaNoAddonsInstalled,
@@ -917,21 +955,22 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                     );
                     setState(() {});
                   },
-                  onUpdateFeature: ({
-                    enableCatalogs,
-                    enableSearch,
-                    enableSubtitles,
-                    enableStreams,
-                  }) async {
-                    await _manager.updateAddonFeature(
-                      addonId: addon.manifest.id,
-                      enableCatalogs: enableCatalogs,
-                      enableSearch: enableSearch,
-                      enableSubtitles: enableSubtitles,
-                      enableStreams: enableStreams,
-                    );
-                    setState(() {});
-                  },
+                  onUpdateFeature:
+                      ({
+                        enableCatalogs,
+                        enableSearch,
+                        enableSubtitles,
+                        enableStreams,
+                      }) async {
+                        await _manager.updateAddonFeature(
+                          addonId: addon.manifest.id,
+                          enableCatalogs: enableCatalogs,
+                          enableSearch: enableSearch,
+                          enableSubtitles: enableSubtitles,
+                          enableStreams: enableStreams,
+                        );
+                        setState(() {});
+                      },
                   onRemove: () => _confirmRemove(addon),
                 ),
               );
@@ -1037,7 +1076,9 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                           borderRadius: ZplayRadius.smAll,
                         ),
                         child: Icon(
-                          isReady ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                          isReady
+                              ? Icons.check_circle_rounded
+                              : Icons.warning_amber_rounded,
                           color: isReady ? tokens.success : tokens.warning,
                           size: 22,
                         ),
@@ -1048,7 +1089,9 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isReady ? l10nCurrent().stgaCsEngineReady : l10nCurrent().stgaRuntimeSetupRequired,
+                              isReady
+                                  ? l10nCurrent().stgaCsEngineReady
+                                  : l10nCurrent().stgaRuntimeSetupRequired,
                               style: ZplayType.subtitle.toStyle(
                                 color: tokens.textPrimary,
                               ),
@@ -1058,12 +1101,15 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                               isReady
                                   ? l10nCurrent().stgaNativeEngineActive
                                   : (isDownloading
-                                      ? (_csDownloader.status.value.isNotEmpty
-                                          ? _csDownloader.status.value
-                                          : l10nCurrent().stgaDownloadingRuntime)
-                                      : (Platform.isAndroid
-                                          ? l10nCurrent().stgaRequiresRuntimeHost
-                                          : l10nCurrent().stgaRequiresSidecarRuntime)),
+                                        ? (_csDownloader.status.value.isNotEmpty
+                                              ? _csDownloader.status.value
+                                              : l10nCurrent()
+                                                    .stgaDownloadingRuntime)
+                                        : (Platform.isAndroid
+                                              ? l10nCurrent()
+                                                    .stgaRequiresRuntimeHost
+                                              : l10nCurrent()
+                                                    .stgaRequiresSidecarRuntime)),
                               style: ZplayType.bodySmall.toStyle(
                                 color: tokens.textSecondary,
                               ),
@@ -1096,7 +1142,9 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                 ClipRRect(
                   borderRadius: ZplayRadius.xsAll,
                   child: LinearProgressIndicator(
-                    value: _csDownloader.progress.value > 0 ? _csDownloader.progress.value : null,
+                    value: _csDownloader.progress.value > 0
+                        ? _csDownloader.progress.value
+                        : null,
                     backgroundColor: tokens.borderDefault,
                     color: tokens.accent,
                     minHeight: 6,
@@ -1142,7 +1190,11 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                     ),
                     borderRadius: ZplayRadius.mdAll,
                   ),
-                  child: Icon(Icons.hub_rounded, color: tokens.onAccent, size: 24),
+                  child: Icon(
+                    Icons.hub_rounded,
+                    color: tokens.onAccent,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1161,17 +1213,26 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: tokens.success.withValues(alpha: ZplayOpacity.overlayHover),
+                              color: tokens.success.withValues(
+                                alpha: ZplayOpacity.overlayHover,
+                              ),
                               borderRadius: ZplayRadius.xsAll,
                               border: Border.all(
-                                color: tokens.success.withValues(alpha: ZplayOpacity.textMuted),
+                                color: tokens.success.withValues(
+                                  alpha: ZplayOpacity.textMuted,
+                                ),
                               ),
                             ),
                             child: Text(
                               l10nCurrent().stga45PlusRepos,
-                              style: ZplayType.caption.toStyle(color: tokens.success),
+                              style: ZplayType.caption.toStyle(
+                                color: tokens.success,
+                              ),
                             ),
                           ),
                         ],
@@ -1211,7 +1272,10 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                 if (mounted) setState(() {});
               },
               builder: (_, state) => Container(
-                padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 12,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.mdAll,
                   gradient: LinearGradient(
@@ -1221,7 +1285,11 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.storefront_rounded, color: tokens.onAccent, size: 20),
+                    Icon(
+                      Icons.storefront_rounded,
+                      color: tokens.onAccent,
+                      size: 20,
+                    ),
                     const SizedBox(width: ZplaySpacing.s8),
                     Flexible(
                       child: Text(
@@ -1239,13 +1307,20 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
               onTap: _addCsRepo,
               enabled: !_isAddingCsRepo,
               builder: (_, state) => Container(
-                padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 12,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.mdAll,
                   border: Border.all(
-                    color: tokens.accent.withValues(alpha: ZplayOpacity.textDisabled),
+                    color: tokens.accent.withValues(
+                      alpha: ZplayOpacity.textDisabled,
+                    ),
                   ),
-                  color: tokens.accent.withValues(alpha: ZplayOpacity.borderSubtle),
+                  color: tokens.accent.withValues(
+                    alpha: ZplayOpacity.borderSubtle,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1254,10 +1329,17 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                       SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accent),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: tokens.accent,
+                        ),
                       )
                     else
-                      Icon(Icons.add_link_rounded, color: tokens.accent, size: 20),
+                      Icon(
+                        Icons.add_link_rounded,
+                        color: tokens.accent,
+                        size: 20,
+                      ),
                     const SizedBox(width: ZplaySpacing.s8),
                     Flexible(
                       child: Text(
@@ -1273,11 +1355,7 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
 
             if (isNarrow) {
               return Column(
-                children: [
-                  browseBtn,
-                  const SizedBox(height: 10),
-                  addRepoBtn,
-                ],
+                children: [browseBtn, const SizedBox(height: 10), addRepoBtn],
               );
             }
 
@@ -1298,8 +1376,12 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
             final isMobile = constraints.maxWidth < 560;
 
             Widget selectAllBtn() {
-              final allKeys = installed.map((e) => e.internalName ?? e.name).toSet();
-              final allSelected = allKeys.isNotEmpty && allKeys.every(_selectedCsExtensionKeys.contains);
+              final allKeys = installed
+                  .map((e) => e.internalName ?? e.name)
+                  .toSet();
+              final allSelected =
+                  allKeys.isNotEmpty &&
+                  allKeys.every(_selectedCsExtensionKeys.contains);
               final anySelected = _selectedCsExtensionKeys.isNotEmpty;
 
               return TextButton.icon(
@@ -1316,23 +1398,34 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                   allSelected
                       ? Icons.check_box_rounded
                       : (anySelected
-                          ? Icons.indeterminate_check_box_rounded
-                          : Icons.check_box_outline_blank_rounded),
+                            ? Icons.indeterminate_check_box_rounded
+                            : Icons.check_box_outline_blank_rounded),
                   size: 16,
                   color: anySelected ? tokens.accent : tokens.textSecondary,
                 ),
                 label: Text(
-                  allSelected ? l10nCurrent().stgaDeselectAll : (anySelected ? l10nCurrent().stgaDeselectAll : l10nCurrent().stgaSelectAll),
+                  allSelected
+                      ? l10nCurrent().stgaDeselectAll
+                      : (anySelected
+                            ? l10nCurrent().stgaDeselectAll
+                            : l10nCurrent().stgaSelectAll),
                   style: ZplayType.caption.toStyle(
                     color: anySelected ? tokens.accent : tokens.textEmphasis,
                   ),
                 ),
                 style: TextButton.styleFrom(
                   backgroundColor: anySelected
-                      ? tokens.accent.withValues(alpha: ZplayOpacity.borderStrong)
+                      ? tokens.accent.withValues(
+                          alpha: ZplayOpacity.borderStrong,
+                        )
                       : tokens.borderSubtle,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: ZplayRadius.smAll,
+                  ),
                   visualDensity: VisualDensity.compact,
                 ),
               );
@@ -1343,14 +1436,21 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                 onPressed: () => _confirmRemoveSelectedCsExtensions(installed),
                 icon: const Icon(Icons.delete_sweep_rounded, size: 14),
                 label: Text(
-                  l10nCurrent().stgcRemoveSelectedCount(_selectedCsExtensionKeys.length),
+                  l10nCurrent().stgcRemoveSelectedCount(
+                    _selectedCsExtensionKeys.length,
+                  ),
                   style: ZplayType.caption.toStyle(),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.danger,
                   foregroundColor: tokens.textPrimary,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: ZplayRadius.smAll,
+                  ),
                   visualDensity: VisualDensity.compact,
                   elevation: 0,
                 ),
@@ -1381,7 +1481,9 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                       Expanded(
                         child: Text(
                           l10nCurrent().stgaInstalledExtensions,
-                          style: ZplayType.overline.toStyle(color: tokens.textMuted),
+                          style: ZplayType.overline.toStyle(
+                            color: tokens.textMuted,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -1397,7 +1499,8 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         selectAllBtn(),
-                        if (_selectedCsExtensionKeys.isNotEmpty) removeSelectedBtn(),
+                        if (_selectedCsExtensionKeys.isNotEmpty)
+                          removeSelectedBtn(),
                       ],
                     ),
                   ],
@@ -1432,7 +1535,11 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
             padding: const EdgeInsets.all(28),
             child: Column(
               children: [
-                Icon(Icons.extension_off_rounded, size: 40, color: tokens.textDisabled),
+                Icon(
+                  Icons.extension_off_rounded,
+                  size: 40,
+                  color: tokens.textDisabled,
+                ),
                 const SizedBox(height: ZplaySpacing.s12),
                 Text(
                   l10nCurrent().stgaNoExtensionsInstalled,
@@ -1470,7 +1577,10 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                   });
                 },
                 onToggle: (val) async {
-                  await _csManager.toggleExtension(ext.internalName ?? ext.name, val);
+                  await _csManager.toggleExtension(
+                    ext.internalName ?? ext.name,
+                    val,
+                  );
                   setState(() {});
                 },
                 onRemove: () => _confirmRemoveCsExtension(ext),
@@ -1511,12 +1621,18 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
             padding: const EdgeInsets.all(ZplaySpacing.s20),
             child: Row(
               children: [
-                Icon(Icons.link_off_rounded, color: tokens.textDisabled, size: 24),
+                Icon(
+                  Icons.link_off_rounded,
+                  color: tokens.textDisabled,
+                  size: 24,
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
                     l10nCurrent().stgaNoReposHint,
-                    style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
+                    style: ZplayType.bodySmall.toStyle(
+                      color: tokens.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -1527,7 +1643,8 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: repos.length,
-            separatorBuilder: (_, __) => const SizedBox(height: ZplaySpacing.s8),
+            separatorBuilder: (_, __) =>
+                const SizedBox(height: ZplaySpacing.s8),
             itemBuilder: (context, index) {
               final repo = repos[index];
               return Padding(
@@ -1537,7 +1654,11 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.folder_copy_rounded, color: tokens.accent, size: 20),
+                    Icon(
+                      Icons.folder_copy_rounded,
+                      color: tokens.accent,
+                      size: 20,
+                    ),
                     const SizedBox(width: ZplaySpacing.s12),
                     Expanded(
                       child: Column(
@@ -1615,14 +1736,15 @@ class _AddonsSettingsPageState extends State<AddonsSettingsPage> {
         }
       },
       icon: const Icon(Icons.download_rounded, size: 16),
-      label: Text(l10nCurrent().stgaSetupEngine, style: ZplayType.label.toStyle()),
+      label: Text(
+        l10nCurrent().stgaSetupEngine,
+        style: ZplayType.label.toStyle(),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: tokens.accent,
         foregroundColor: tokens.onAccent,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: const RoundedRectangleBorder(
-          borderRadius: ZplayRadius.smAll,
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
       ),
     );
   }
@@ -1645,7 +1767,8 @@ class _AddonCard extends StatelessWidget {
     bool? enableSearch,
     bool? enableSubtitles,
     bool? enableStreams,
-  }) onUpdateFeature;
+  })
+  onUpdateFeature;
   final VoidCallback onRemove;
 
   const _AddonCard({
@@ -1664,152 +1787,169 @@ class _AddonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final m = addon.manifest;
-    final isP2p = addon.manifest.id == 'builtin.zplay' || addon.baseUrl == 'builtin:zplay';
-    final isHttp = addon.manifest.id == 'builtin.zplayhttp' || addon.baseUrl == 'builtin:zplayhttp';
+    final isP2p =
+        addon.manifest.id == 'builtin.zplay' ||
+        addon.baseUrl == 'builtin:zplay';
+    final isHttp =
+        addon.manifest.id == 'builtin.zplayhttp' ||
+        addon.baseUrl == 'builtin:zplayhttp';
     final isBuiltIn = isP2p || isHttp || addon.baseUrl.startsWith('builtin:');
 
     final hasCatalogs = m.supportsCatalog || m.catalogs.isNotEmpty;
-    final hasSearch = m.catalogs.any((c) => c.supportsSearch) || m.supportsCatalog;
+    final hasSearch =
+        m.catalogs.any((c) => c.supportsSearch) || m.supportsCatalog;
     final hasStreams = m.supportsStream;
     final hasSubtitles = m.supportsSubtitles;
-    final hasAnyFeature = hasCatalogs || hasSearch || hasStreams || hasSubtitles;
+    final hasAnyFeature =
+        hasCatalogs || hasSearch || hasStreams || hasSubtitles;
 
     final providerColor = isHttp ? tokens.success : tokens.accent;
 
     final subtitleText = isP2p
         ? l10nCurrent().stgaBuiltinTorrServer
         : (isHttp
-            ? l10nCurrent().stgaBuiltinHttpScrapers
-            : (m.supportsSubtitles && m.catalogs.isEmpty
-                ? l10nCurrent().stgcAddonSubtitlesProvider(m.version)
-                : l10nCurrent().stgcAddonCatalogs(m.version, m.catalogs.length, m.supportsSubtitles ? l10nCurrent().stgcAddonSubtitlesSuffix : '')));
+              ? l10nCurrent().stgaBuiltinHttpScrapers
+              : (m.supportsSubtitles && m.catalogs.isEmpty
+                    ? l10nCurrent().stgcAddonSubtitlesProvider(m.version)
+                    : l10nCurrent().stgcAddonCatalogs(
+                        m.version,
+                        m.catalogs.length,
+                        m.supportsSubtitles
+                            ? l10nCurrent().stgcAddonSubtitlesSuffix
+                            : '',
+                      )));
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 560;
 
         Widget dragHandle() => ReorderableDragStartListener(
-              index: index,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.grab,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  margin: const EdgeInsets.only(right: 6),
-                  decoration: BoxDecoration(
-                    color: tokens.borderSubtle,
-                    borderRadius: ZplayRadius.smAll,
-                  ),
-                  child: Icon(
-                    Icons.drag_indicator_rounded,
-                    color: tokens.textMuted,
-                    size: 19,
-                  ),
-                ),
+          index: index,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.grab,
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: tokens.borderSubtle,
+                borderRadius: ZplayRadius.smAll,
               ),
-            );
+              child: Icon(
+                Icons.drag_indicator_rounded,
+                color: tokens.textMuted,
+                size: 19,
+              ),
+            ),
+          ),
+        );
 
         Widget priorityBadge() => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-              margin: const EdgeInsets.only(right: ZplaySpacing.s8),
-              decoration: BoxDecoration(
-                color: providerColor.withValues(alpha: ZplayOpacity.overlayHover),
-                borderRadius: ZplayRadius.xsAll,
-                border: Border.all(
-                  color: providerColor.withValues(alpha: ZplayOpacity.textDisabled),
-                ),
-              ),
-              child: Text(
-                '#${index + 1}',
-                style: ZplayType.caption.toStyle(color: providerColor),
-              ),
-            );
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+          margin: const EdgeInsets.only(right: ZplaySpacing.s8),
+          decoration: BoxDecoration(
+            color: providerColor.withValues(alpha: ZplayOpacity.overlayHover),
+            borderRadius: ZplayRadius.xsAll,
+            border: Border.all(
+              color: providerColor.withValues(alpha: ZplayOpacity.textDisabled),
+            ),
+          ),
+          child: Text(
+            '#${index + 1}',
+            style: ZplayType.caption.toStyle(color: providerColor),
+          ),
+        );
 
         Widget addonIcon() => Container(
-              width: 36,
-              height: 36,
-              padding: const EdgeInsets.all(3.5),
-              decoration: BoxDecoration(
-                borderRadius: ZplayRadius.smAll,
-                color: providerColor.withValues(alpha: ZplayOpacity.overlayHover),
-              ),
-              child: isBuiltIn
-                  ? const ZplayLogo(size: 26)
-                  : (m.logo != null && m.logo!.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: ZplayRadius.xsAll,
-                          child: CachedNetworkImage(
-                            imageUrl: m.logo!,
-                            cacheManager: AppImageCache.manager,
-                            memCacheWidth: 96,
-                            width: 26,
-                            height: 26,
-                            fit: BoxFit.contain,
-                            errorWidget: (_, __, ___) => Icon(
-                              Icons.extension_rounded,
-                              color: providerColor,
-                              size: 19,
-                            ),
+          width: 36,
+          height: 36,
+          padding: const EdgeInsets.all(3.5),
+          decoration: BoxDecoration(
+            borderRadius: ZplayRadius.smAll,
+            color: providerColor.withValues(alpha: ZplayOpacity.overlayHover),
+          ),
+          child: isBuiltIn
+              ? const ZplayLogo(size: 26)
+              : (m.logo != null && m.logo!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: ZplayRadius.xsAll,
+                        child: CachedNetworkImage(
+                          imageUrl: m.logo!,
+                          cacheManager: AppImageCache.manager,
+                          memCacheWidth: 96,
+                          width: 26,
+                          height: 26,
+                          fit: BoxFit.contain,
+                          errorWidget: (_, __, ___) => Icon(
+                            Icons.extension_rounded,
+                            color: providerColor,
+                            size: 19,
                           ),
-                        )
-                      : Icon(
-                          Icons.extension_rounded,
-                          color: providerColor,
-                          size: 19,
-                        )),
-            );
+                        ),
+                      )
+                    : Icon(
+                        Icons.extension_rounded,
+                        color: providerColor,
+                        size: 19,
+                      )),
+        );
 
         Widget upDownButtons() => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20),
-                  color: onMoveUp != null ? tokens.textEmphasis : tokens.textDisabled,
-                  onPressed: onMoveUp,
-                  tooltip: l10nCurrent().stgaMoveUpPriority,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  visualDensity: VisualDensity.compact,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-                  color: onMoveDown != null ? tokens.textEmphasis : tokens.textDisabled,
-                  onPressed: onMoveDown,
-                  tooltip: l10nCurrent().stgaMoveDownPriority,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            );
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20),
+              color: onMoveUp != null
+                  ? tokens.textEmphasis
+                  : tokens.textDisabled,
+              onPressed: onMoveUp,
+              tooltip: l10nCurrent().stgaMoveUpPriority,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+              color: onMoveDown != null
+                  ? tokens.textEmphasis
+                  : tokens.textDisabled,
+              onPressed: onMoveDown,
+              tooltip: l10nCurrent().stgaMoveDownPriority,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        );
 
         Widget switchWidget() => Switch.adaptive(
-              value: addon.enabled,
-              onChanged: onToggle,
-              activeColor: providerColor,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            );
+          value: addon.enabled,
+          onChanged: onToggle,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        );
 
         Widget builtInTag() => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: providerColor.withValues(alpha: ZplayOpacity.overlayHover),
-                borderRadius: ZplayRadius.xsAll,
-              ),
-              child: Text(
-                isP2p ? l10nCurrent().stgaBuiltinTorrent : l10nCurrent().stgaBuiltinHttp,
-                style: ZplayType.overline.toStyle(color: providerColor),
-              ),
-            );
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: providerColor.withValues(alpha: ZplayOpacity.overlayHover),
+            borderRadius: ZplayRadius.xsAll,
+          ),
+          child: Text(
+            isP2p
+                ? l10nCurrent().stgaBuiltinTorrent
+                : l10nCurrent().stgaBuiltinHttp,
+            style: ZplayType.overline.toStyle(color: providerColor),
+          ),
+        );
 
         Widget removeButton() => IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, size: 19),
-              color: tokens.danger.withValues(alpha: ZplayOpacity.textSecondary),
-              onPressed: onRemove,
-              tooltip: l10nCurrent().stgaRemoveAddon,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-              visualDensity: VisualDensity.compact,
-            );
+          icon: const Icon(Icons.delete_outline_rounded, size: 19),
+          color: tokens.danger.withValues(alpha: ZplayOpacity.textSecondary),
+          onPressed: onRemove,
+          tooltip: l10nCurrent().stgaRemoveAddon,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+          visualDensity: VisualDensity.compact,
+        );
 
         return Padding(
           padding: const EdgeInsets.all(14),
@@ -1831,7 +1971,7 @@ class _AddonCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            m.name,
+                            displayAddonName(m.name),
                             style: ZplayType.subtitle.toStyle(
                               color: tokens.textPrimary,
                             ),
@@ -1851,7 +1991,10 @@ class _AddonCard extends StatelessWidget {
                 ),
                 // Mobile Subtitle: Full width of the card, never squished
                 Padding(
-                  padding: const EdgeInsets.only(top: ZplaySpacing.s8, bottom: ZplaySpacing.s2),
+                  padding: const EdgeInsets.only(
+                    top: ZplaySpacing.s8,
+                    bottom: ZplaySpacing.s2,
+                  ),
                   child: Text(
                     subtitleText,
                     style: ZplayType.bodySmall.toStyle(
@@ -1875,7 +2018,7 @@ class _AddonCard extends StatelessWidget {
                             children: [
                               Flexible(
                                 child: Text(
-                                  m.name,
+                                  displayAddonName(m.name),
                                   style: ZplayType.subtitle.toStyle(
                                     color: tokens.textPrimary,
                                   ),
@@ -1910,13 +2053,12 @@ class _AddonCard extends StatelessWidget {
               if (m.description != null && m.description!.isNotEmpty) ...[
                 const SizedBox(height: ZplaySpacing.s8),
                 Text(
-                  m.description!,
+                  localizedOptionLabel(m.description!),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: ZplayType.bodySmall.toStyle(
                     color: tokens.textSecondary,
                   ),
-
                 ),
               ],
 
@@ -1924,7 +2066,10 @@ class _AddonCard extends StatelessWidget {
               if (addon.enabled && hasAnyFeature) ...[
                 const SizedBox(height: ZplaySpacing.s12),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ZplaySpacing.s12,
+                    vertical: 10,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1953,7 +2098,9 @@ class _AddonCard extends StatelessWidget {
                             _FeatureToggleChip(
                               icon: Icons.grid_view_rounded,
                               label: l10nCurrent().stgaCatalogs,
-                              count: m.catalogs.isNotEmpty ? m.catalogs.length : null,
+                              count: m.catalogs.isNotEmpty
+                                  ? m.catalogs.length
+                                  : null,
                               isEnabled: addon.enableCatalogs,
                               onTap: () => onUpdateFeature(
                                 enableCatalogs: !addon.enableCatalogs,
@@ -2010,7 +2157,8 @@ class _AddonCard extends StatelessWidget {
                       ? 'This addon declares itself 18+ in its manifest, so it is '
                             'treated as 18+ only whatever is selected above'
                       : switch (addon.adultRating) {
-                          AddonAdultRating.sfw => 'No adult content from this addon',
+                          AddonAdultRating.sfw =>
+                            'No adult content from this addon',
                           AddonAdultRating.hybrid =>
                             'Shows with Adult Content off; its catalogs appear under 18+ in Discover',
                           AddonAdultRating.nsfw =>
@@ -2030,34 +2178,33 @@ class _AddonCard extends StatelessWidget {
                     child: Wrap(
                       spacing: 6,
                       runSpacing: 4,
-                      children: m.types.map(
-                        (type) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: ZplaySpacing.s8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tokens.borderSubtle,
-                            borderRadius: ZplayRadius.xsAll,
-                          ),
-                          child: Text(
-                            type,
-                            style: ZplayType.caption.toStyle(
-                              color: tokens.textSecondary,
+                      children: m.types
+                          .map(
+                            (type) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: ZplaySpacing.s8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.borderSubtle,
+                                borderRadius: ZplayRadius.xsAll,
+                              ),
+                              child: Text(
+                                type,
+                                style: ZplayType.caption.toStyle(
+                                  color: tokens.textSecondary,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ).toList(),
+                          )
+                          .toList(),
                     ),
                   ),
                   if (isMobile) ...[
                     const SizedBox(width: ZplaySpacing.s8),
                     upDownButtons(),
                   ],
-                  if (!isBuiltIn) ...[
-                    const SizedBox(width: 6),
-                    removeButton(),
-                  ],
+                  if (!isBuiltIn) ...[const SizedBox(width: 6), removeButton()],
                 ],
               ),
             ],
@@ -2094,7 +2241,6 @@ class _AddonCard extends StatelessWidget {
       label: label,
       isEnabled: selected,
       showStateIcon: selected,
-      activeColor: color,
       onTap: () {
         if (selected) return;
         onRatingChanged(rating);
@@ -2108,7 +2254,6 @@ class _FeatureToggleChip extends StatelessWidget {
   final String label;
   final int? count;
   final bool isEnabled;
-  final Color? activeColor;
   final bool showStateIcon;
   final VoidCallback onTap;
 
@@ -2117,7 +2262,6 @@ class _FeatureToggleChip extends StatelessWidget {
     required this.label,
     this.count,
     required this.isEnabled,
-    this.activeColor,
     this.showStateIcon = true,
     required this.onTap,
   });
@@ -2127,7 +2271,7 @@ class _FeatureToggleChip extends StatelessWidget {
     final tokens = context.tokens;
     // A default parameter value has to be a compile-time constant, so the
     // palette accent cannot be one; it is resolved here instead.
-    final accent = activeColor ?? tokens.accent;
+    final accent = tokens.accent;
 
     return FocusableCard(
       onTap: onTap,
@@ -2138,11 +2282,11 @@ class _FeatureToggleChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: isEnabled
                 ? (state.highlighted
-                    ? accent.withValues(alpha: ZplayOpacity.textDisabled)
-                    : accent.withValues(alpha: ZplayOpacity.overlayHover))
+                      ? accent.withValues(alpha: ZplayOpacity.textDisabled)
+                      : accent.withValues(alpha: ZplayOpacity.overlayHover))
                 : (state.highlighted
-                    ? tokens.borderDefault
-                    : tokens.borderSubtle),
+                      ? tokens.borderDefault
+                      : tokens.borderSubtle),
             borderRadius: ZplayRadius.smAll,
             border: Border.all(
               color: isEnabled
@@ -2228,7 +2372,9 @@ class _AddAddonButton extends StatelessWidget {
               Icon(Icons.add_rounded, color: tokens.accent, size: 22),
             const SizedBox(width: 10),
             Text(
-              isLoading ? l10nCurrent().stgaInstalling : l10nCurrent().stgaAddAddon,
+              isLoading
+                  ? l10nCurrent().stgaInstalling
+                  : l10nCurrent().stgaAddAddon,
               style: ZplayType.subtitle.toStyle(color: tokens.accent),
             ),
           ],
@@ -2266,75 +2412,77 @@ class _DebridAddonCard extends StatelessWidget {
     final tokens = context.tokens;
 
     Widget connectButton() => FocusableCard(
-          onTap: onConnect,
-          enabled: isServiceReady && !isBusy,
-          builder: (_, state) => AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: !isServiceReady
-                  ? tokens.borderSubtle
-                  : (state.highlighted
-                      ? tokens.accent.withValues(alpha: ZplayOpacity.overlayHover)
-                      : tokens.accent.withValues(alpha: ZplayOpacity.borderFaint)),
-              borderRadius: ZplayRadius.smAll,
-              border: Border.all(
-                color: isServiceReady
-                    ? tokens.accent.withValues(alpha: ZplayOpacity.textDisabled)
-                    : tokens.borderDefault,
+      onTap: onConnect,
+      enabled: isServiceReady && !isBusy,
+      builder: (_, state) => AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: !isServiceReady
+              ? tokens.borderSubtle
+              : (state.highlighted
+                    ? tokens.accent.withValues(alpha: ZplayOpacity.overlayHover)
+                    : tokens.accent.withValues(
+                        alpha: ZplayOpacity.borderFaint,
+                      )),
+          borderRadius: ZplayRadius.smAll,
+          border: Border.all(
+            color: isServiceReady
+                ? tokens.accent.withValues(alpha: ZplayOpacity.textDisabled)
+                : tokens.borderDefault,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isBusy)
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: tokens.accent,
+                ),
+              )
+            else
+              Icon(
+                Icons.link_rounded,
+                size: 15,
+                color: isServiceReady ? tokens.accent : tokens.textDisabled,
+              ),
+            const SizedBox(width: 6),
+            Text(
+              isBusy ? l10nCurrent().stgaConnecting : l10nCurrent().stgaConnect,
+              style: ZplayType.bodySmall.toStyle(
+                color: isServiceReady ? tokens.accent : tokens.textDisabled,
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isBusy)
-                  SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: tokens.accent,
-                    ),
-                  )
-                else
-                  Icon(
-                    Icons.link_rounded,
-                    size: 15,
-                    color: isServiceReady ? tokens.accent : tokens.textDisabled,
-                  ),
-                const SizedBox(width: 6),
-                Text(
-                  isBusy ? l10nCurrent().stgaConnecting : l10nCurrent().stgaConnect,
-                  style: ZplayType.bodySmall.toStyle(
-                    color: isServiceReady ? tokens.accent : tokens.textDisabled,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+          ],
+        ),
+      ),
+    );
 
     Widget disconnectButton() => FocusableCard(
-          onTap: onDisconnect,
-          enabled: !isBusy,
-          builder: (_, state) => AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: state.highlighted
-                  ? tokens.danger.withValues(alpha: ZplayOpacity.overlayHover)
-                  : tokens.surface,
-              borderRadius: ZplayRadius.smAll,
-              border: Border.all(
-                color: tokens.danger.withValues(alpha: ZplayOpacity.textDisabled),
-              ),
-            ),
-            child: Text(
-              l10nCurrent().stgaDisconnect,
-              style: ZplayType.bodySmall.toStyle(color: tokens.danger),
-            ),
+      onTap: onDisconnect,
+      enabled: !isBusy,
+      builder: (_, state) => AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: state.highlighted
+              ? tokens.danger.withValues(alpha: ZplayOpacity.overlayHover)
+              : tokens.surface,
+          borderRadius: ZplayRadius.smAll,
+          border: Border.all(
+            color: tokens.danger.withValues(alpha: ZplayOpacity.textDisabled),
           ),
-        );
+        ),
+        child: Text(
+          l10nCurrent().stgaDisconnect,
+          style: ZplayType.bodySmall.toStyle(color: tokens.danger),
+        ),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -2349,13 +2497,11 @@ class _DebridAddonCard extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.smAll,
-                  color: tokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: tokens.accent.withValues(
+                    alpha: ZplayOpacity.overlayHover,
+                  ),
                 ),
-                child: Icon(
-                  Icons.hub_rounded,
-                  color: tokens.accent,
-                  size: 19,
-                ),
+                child: Icon(Icons.hub_rounded, color: tokens.accent, size: 19),
               ),
               const SizedBox(width: ZplaySpacing.s12),
               Expanded(
@@ -2387,7 +2533,9 @@ class _DebridAddonCard extends StatelessWidget {
                             ),
                             child: Text(
                               l10nCurrent().stgaConnected,
-                              style: ZplayType.caption.toStyle(color: tokens.accent),
+                              style: ZplayType.caption.toStyle(
+                                color: tokens.accent,
+                              ),
                             ),
                           ),
                         ],
@@ -2395,7 +2543,7 @@ class _DebridAddonCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      template.description,
+                      localizedOptionLabel(template.description),
                       style: ZplayType.bodySmall.toStyle(
                         color: tokens.textSecondary,
                       ),
@@ -2414,7 +2562,9 @@ class _DebridAddonCard extends StatelessWidget {
                       ? l10nCurrent().stgcUsesYourServiceKey(selectedService)
                       : l10nCurrent().stgaNoDebridProviderYet,
                   style: ZplayType.caption.toStyle(
-                    color: isServiceReady ? tokens.textMuted : tokens.textDisabled,
+                    color: isServiceReady
+                        ? tokens.textMuted
+                        : tokens.textDisabled,
                   ),
                 ),
               ),
@@ -2551,9 +2701,7 @@ class _CloudStreamCard extends StatelessWidget {
                   color: isSelected ? tokens.accent : tokens.borderSubtle,
                   borderRadius: ZplayRadius.xsAll,
                   border: Border.all(
-                    color: isSelected
-                        ? tokens.accent
-                        : tokens.textDisabled,
+                    color: isSelected ? tokens.accent : tokens.textDisabled,
                     width: 1.5,
                   ),
                 ),
@@ -2585,11 +2733,7 @@ class _CloudStreamCard extends StatelessWidget {
                         size: 22,
                       ),
                     )
-                  : Icon(
-                      Icons.cloud_rounded,
-                      color: tokens.accent,
-                      size: 22,
-                    ),
+                  : Icon(Icons.cloud_rounded, color: tokens.accent, size: 22),
             ),
           ),
           const SizedBox(width: 14),
@@ -2607,7 +2751,9 @@ class _CloudStreamCard extends StatelessWidget {
                         child: Text(
                           source.name,
                           style: ZplayType.subtitle.toStyle(
-                            color: isSelected ? tokens.accent : tokens.textPrimary,
+                            color: isSelected
+                                ? tokens.accent
+                                : tokens.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -2616,7 +2762,10 @@ class _CloudStreamCard extends StatelessWidget {
                       if (source.lang != null && source.lang!.isNotEmpty) ...[
                         const SizedBox(width: ZplaySpacing.s8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: tokens.borderDefault,
                             borderRadius: ZplayRadius.xsAll,
@@ -2642,7 +2791,8 @@ class _CloudStreamCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    source.description ?? l10nCurrent().stgaCsDefaultDescription,
+                    source.description ??
+                        l10nCurrent().stgaCsDefaultDescription,
                     style: ZplayType.bodySmall.toStyle(
                       color: tokens.textSecondary,
                     ),
@@ -2658,7 +2808,6 @@ class _CloudStreamCard extends StatelessWidget {
           // Switch
           Switch(
             value: source.enabled,
-            activeColor: tokens.accent,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             onChanged: onToggle,
           ),
@@ -2678,4 +2827,3 @@ class _CloudStreamCard extends StatelessWidget {
     );
   }
 }
-

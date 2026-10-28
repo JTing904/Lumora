@@ -98,6 +98,19 @@ class MusicService {
     }
   }
 
+  /// Stable ids of the home rails [fetchFeaturedSections] returns, in order.
+  ///
+  /// Ids rather than titles: the page maps each to a localized title, so the
+  /// service stays free of display text.
+  static const String railTrending = 'trending';
+  static const String railPop = 'pop';
+  static const String railHipHop = 'hipHop';
+  static const String railElectronic = 'electronic';
+  static const String railRock = 'rock';
+  static const String railSoundtracks = 'soundtracks';
+  static const String railChill = 'chill';
+
+  /// The home rails, keyed by the rail ids above.
   Future<Map<String, List<MusicTrack>>> fetchFeaturedSections() async {
     final results = <String, List<MusicTrack>>{};
 
@@ -105,17 +118,17 @@ class MusicService {
       // 1. Chart Top Tracks
       final chartTracks = await _deezer.getChartTracks(limit: 25);
       if (chartTracks.isNotEmpty) {
-        results['🔥 Top Global & Trending Hits'] = chartTracks;
+        results[railTrending] = chartTracks;
       }
 
       // 2. Genre / Mood Searches
       final queries = {
-        '🌟 Pop Essentials': 'Top Pop Hits',
-        '🎙️ Hip-Hop & Rap Heavyweights': 'Hip Hop Hits',
-        '🎧 Electronic, Dance & EDM': 'Electronic Dance',
-        '🎸 Rock Classics & Alternative': 'Rock Essentials',
-        '🎬 Film & Anime Soundtracks': 'Hans Zimmer Soundtracks',
-        '🌙 Chill, Lofi & Ambient Beats': 'Lofi Beats Chill',
+        railPop: 'Top Pop Hits',
+        railHipHop: 'Hip Hop Hits',
+        railElectronic: 'Electronic Dance',
+        railRock: 'Rock Essentials',
+        railSoundtracks: 'Hans Zimmer Soundtracks',
+        railChill: 'Lofi Beats Chill',
       };
 
       for (final entry in queries.entries) {

@@ -1,17 +1,21 @@
-import '../../l10n/l10n.dart';
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
+
+import '../../l10n/l10n.dart';
 import '../../models/book/book_result.dart';
 import '../../models/book/reading_progress.dart';
 import '../../services/books/continue_reading_service.dart';
-import '../../services/books/reader_settings.dart';
-import '../../services/theme/design_tokens.dart';
-import '../../services/window/window_service.dart';
 import '../../services/discord/discord_rpc_service.dart';
+import '../../services/window/window_service.dart';
+import '../../ui/lu_theme.dart';
+import 'widgets/lu_reading_kit.dart';
 
+/// A PDF, page by page, under a top bar (back, zoom, full screen) and a
+/// bottom bar (pages and a slider) that fade away while reading.
 class PdfReaderPage extends StatefulWidget {
   final File file;
   final BookResult book;
@@ -30,6 +34,21 @@ class PdfReaderPage extends StatefulWidget {
 
 class _PdfReaderPageState extends State<PdfReaderPage> {
   late final PdfViewerController _pdfController;
+  final FocusNode _pageFocus = FocusNode(debugLabel: 'pdf reader page');
+  final FocusNode _chromeFocus = FocusNode(debugLabel: 'pdf reader chrome');
+
+  /// The top and bottom bars, as groups: focus inside one of them is a
+  /// control's, wherever else it sits is the page's.
+  final FocusNode _topBarGroup = FocusNode(
+    debugLabel: 'pdf reader top bar',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+  final FocusNode _bottomBarGroup = FocusNode(
+    debugLabel: 'pdf reader bottom bar',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
   int _currentPage = 1;
   int _pageCount = 1;
   bool _showControls = true;
@@ -52,16 +71,27 @@ class _PdfReaderPageState extends State<PdfReaderPage> {
   @override
   void dispose() {
     _controlsTimer?.cancel();
+    _pageFocus.dispose();
+    _chromeFocus.dispose();
+    _topBarGroup.dispose();
+    _bottomBarGroup.dispose();
     DiscordRpcService.instance.clearToIdle();
     super.dispose();
   }
 
+  /// Focus is on one of the bars' controls rather than the page.
+  bool get _chromeHasFocus => _topBarGroup.hasFocus || _bottomBarGroup.hasFocus;
+
   void _startControlsTimer() {
     _controlsTimer?.cancel();
     _controlsTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted && _showControls) {
-        setState(() => _showControls = false);
+      if (!mounted || !_showControls) return;
+      // Never hide the bars from under a remote's focus.
+      if (_chromeHasFocus) {
+        _startControlsTimer();
+        return;
       }
+      setState(() => _showControls = false);
     });
   }
 
@@ -69,7 +99,15 @@ class _PdfReaderPageState extends State<PdfReaderPage> {
     setState(() => _showControls = !_showControls);
     if (_showControls) {
       _startControlsTimer();
+    } else if (_chromeHasFocus) {
+      _pageFocus.requestFocus();
     }
+  }
+
+  void _hideControls() {
+    _controlsTimer?.cancel();
+    setState(() => _showControls = false);
+    _pageFocus.requestFocus();
   }
 
   void _saveProgress(int page, int total) {
@@ -97,23 +135,46 @@ class _PdfReaderPageState extends State<PdfReaderPage> {
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
 
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
-        event.logicalKey == LogicalKeyboardKey.pageDown) {
+    // While a control has focus the arrows move between controls, Select is
+    // the control's, and Escape hides the bars.
+    if (_chromeHasFocus) {
+      if (key == LogicalKeyboardKey.escape) {
+        _hideControls();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    if (key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.pageDown) {
       if (_currentPage < _pageCount) {
         _pdfController.goToPage(pageNumber: _currentPage + 1);
       }
       return KeyEventResult.handled;
-    } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-        event.logicalKey == LogicalKeyboardKey.pageUp) {
+    } else if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.pageUp) {
       if (_currentPage > 1) {
         _pdfController.goToPage(pageNumber: _currentPage - 1);
       }
       return KeyEventResult.handled;
-    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+    } else if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      // A remote's Select shows the bars and moves into them.
+      setState(() => _showControls = true);
+      _startControlsTimer();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _showControls) _chromeFocus.requestFocus();
+      });
+      return KeyEventResult.handled;
+    } else if (key == LogicalKeyboardKey.escape) {
       Navigator.of(context).pop();
       return KeyEventResult.handled;
-    } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+    } else if (key == LogicalKeyboardKey.keyF) {
       WindowService.instance.toggleFullscreen();
       return KeyEventResult.handled;
     }
@@ -123,15 +184,27 @@ class _PdfReaderPageState extends State<PdfReaderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return ValueListenableBuilder<ReaderSettingsData>(
-      valueListenable: ReaderSettings.settingsNotifier,
-      builder: (context, settings, _) {
-        return Focus(
+    final l10n = l10nOf(context);
+    final top = MediaQuery.paddingOf(context).top;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final percent = ((_currentPage / (_pageCount > 0 ? _pageCount : 1)) * 100)
+        .round();
+
+    return Theme(
+      data: luTheme(),
+      child: PopScope(
+        // A remote's Back from the bars hides them first.
+        canPop: !(_showControls && _chromeHasFocus),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _hideControls();
+        },
+        child: Focus(
+          focusNode: _pageFocus,
           autofocus: true,
           onKeyEvent: _handleKeyEvent,
+          onFocusChange: (_) => setState(() {}),
           child: Scaffold(
-            backgroundColor: tokens.bg,
+            backgroundColor: LuColors.bg,
             body: Stack(
               children: [
                 // ── PDF Viewer ──
@@ -144,7 +217,12 @@ class _PdfReaderPageState extends State<PdfReaderPage> {
                       controller: _pdfController,
                       initialPageNumber: widget.initialPage,
                       params: PdfViewerParams(
-                        backgroundColor: tokens.surfaceRaised,
+                        backgroundColor: LuColors.surface,
+                        // The page's own keys turn it; pdfrx's handler would
+                        // take focus on every tap and drag and eat them.
+                        keyHandlerParams: const PdfViewerKeyHandlerParams(
+                          enabled: false,
+                        ),
                         onPageChanged: (pageNumber) {
                           if (pageNumber != null) {
                             setState(() => _currentPage = pageNumber);
@@ -162,161 +240,216 @@ class _PdfReaderPageState extends State<PdfReaderPage> {
                   ),
                 ),
 
-                // ── Top Header Controls Overlay ──
+                // ── Top bar ──
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeInOut,
-                  top: _showControls ? 0 : -80,
+                  top: _showControls ? 0 : -(96 + top),
                   left: 0,
                   right: 0,
-                  child: Container(
-                    height: 64,
-                    padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s16),
-                    // The shared tinted chrome: the canvas at 0.82 with no
-                    // hairline and no drop shadow. The old bar was opaque with a
-                    // 1 dp bottom border and an elevation, which is the band the
-                    // rest of the app has dropped; 0.82 is the same value Home's
-                    // settled chrome uses, and it stays legible over a white PDF
-                    // page where a fully transparent strip would not.
-                    decoration: BoxDecoration(
-                      color: tokens.bg.withValues(alpha: 0.82),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_back_ios_new_rounded, color: tokens.textPrimary, size: 20),
-                          tooltip: l10nCurrent().bkBackToLibrary,
-                          onPressed: () => Navigator.of(context).pop(),
+                  child: ExcludeFocus(
+                    excluding: !_showControls,
+                    child: Focus(
+                      focusNode: _topBarGroup,
+                      onFocusChange: (_) => setState(() {}),
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(16, top + 10, 16, 24),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xF00A0A0C), Color(0x000A0A0C)],
+                          ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        child: FocusTraversalGroup(
+                          child: Row(
                             children: [
-                              Text(
-                                widget.book.displayTitle,
-                                style: ZplayType.body
-                                    .copyWith(weight: FontWeight.w700)
-                                    .toStyle(color: tokens.textPrimary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              LuGlyphButton(
+                                icon: Icons.arrow_back_ios_new_rounded,
+                                label: l10n.bkBackToLibrary,
+                                iconSize: 18,
+                                focusNode: _chromeFocus,
+                                onTap: () => Navigator.of(context).pop(),
                               ),
-                              Text(
-                                widget.book.displayAuthor,
-                                style: ZplayType.bodySmall.toStyle(
-                                  color: tokens.textEmphasis,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.book.displayTitle,
+                                      style: LuText.body.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      widget.book.displayAuthor,
+                                      style: LuText.caption.copyWith(
+                                        color: LuColors.textSoft,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(width: 8),
+                              LuGlyphButton(
+                                icon: Icons.zoom_in_rounded,
+                                label: l10n.bkZoomIn,
+                                onTap: () => _pdfController.zoomUp(),
+                              ),
+                              const SizedBox(width: 8),
+                              LuGlyphButton(
+                                icon: Icons.zoom_out_rounded,
+                                label: l10n.bkZoomOut,
+                                onTap: () => _pdfController.zoomDown(),
+                              ),
+                              const SizedBox(width: 8),
+                              LuGlyphButton(
+                                icon: Icons.fullscreen_rounded,
+                                label: l10n.bkFullscreenF,
+                                iconSize: 22,
+                                onTap: () =>
+                                    WindowService.instance.toggleFullscreen(),
                               ),
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(Icons.zoom_in_rounded, color: tokens.textPrimary, size: 22),
-                          tooltip: l10nCurrent().bkZoomIn,
-                          onPressed: () => _pdfController.zoomUp(),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.zoom_out_rounded, color: tokens.textPrimary, size: 22),
-                          tooltip: l10nCurrent().bkZoomOut,
-                          onPressed: () => _pdfController.zoomDown(),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.fullscreen_rounded, color: tokens.textPrimary, size: 24),
-                          tooltip: l10nCurrent().bkFullscreenF,
-                          onPressed: () => WindowService.instance.toggleFullscreen(),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
 
-                // ── Bottom Navigation Controls Overlay ──
+                // ── Bottom bar ──
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeInOut,
-                  bottom: _showControls ? 0 : -90,
+                  bottom: _showControls ? 0 : -(120 + bottom),
                   left: 0,
                   right: 0,
-                  child: Container(
-                    height: 72,
-                    padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s20),
-                    // Tinted like the top bar, and no hairline: see it for why
-                    // 0.82 rather than fully transparent.
-                    decoration: BoxDecoration(
-                      color: tokens.bg.withValues(alpha: 0.82),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.chevron_left_rounded, color: tokens.textPrimary, size: 28),
-                          tooltip: l10nCurrent().bkPreviousPage,
-                          onPressed: _currentPage > 1
-                              ? () => _pdfController.goToPage(pageNumber: _currentPage - 1)
-                              : null,
+                  child: ExcludeFocus(
+                    excluding: !_showControls,
+                    child: Focus(
+                      focusNode: _bottomBarGroup,
+                      onFocusChange: (_) => setState(() {}),
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(16, 24, 16, bottom + 12),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Color(0xF00A0A0C), Color(0x000A0A0C)],
+                          ),
                         ),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                        child: FocusTraversalGroup(
+                          child: Row(
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    l10nCurrent().bk2PdfPageOfTotal(_currentPage, _pageCount),
-                                    style: ZplayType.bodySmall
-                                        .copyWith(weight: FontWeight.w600)
-                                        .toStyle(color: tokens.textEmphasis),
-                                  ),
-                                  Text(
-                                    '${((_currentPage / (_pageCount > 0 ? _pageCount : 1)) * 100).round()}%',
-                                    style: ZplayType.bodySmall
-                                        .copyWith(weight: FontWeight.w700)
-                                        .toStyle(color: tokens.accent),
-                                  ),
-                                ],
+                              LuGlyphButton(
+                                icon: Icons.chevron_left_rounded,
+                                label: l10n.bkPreviousPage,
+                                iconSize: 26,
+                                onTap: _currentPage > 1
+                                    ? () => _pdfController.goToPage(
+                                        pageNumber: _currentPage - 1,
+                                      )
+                                    : null,
                               ),
-                              SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-                                  activeTrackColor: tokens.accent,
-                                  inactiveTrackColor: tokens.borderStrong,
-                                  thumbColor: tokens.accent,
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              l10n.bk2PdfPageOfTotal(
+                                                _currentPage,
+                                                _pageCount,
+                                              ),
+                                              style: LuText.label.copyWith(
+                                                color: LuColors.text,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '$percent%',
+                                            style: LuText.label.copyWith(
+                                              color: LuColors.gold,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SliderTheme(
+                                        data: const SliderThemeData(
+                                          trackHeight: 4,
+                                          thumbShape: RoundSliderThumbShape(
+                                            enabledThumbRadius: 7,
+                                          ),
+                                          overlayShape: RoundSliderOverlayShape(
+                                            overlayRadius: 14,
+                                          ),
+                                          activeTrackColor: LuColors.gold,
+                                          inactiveTrackColor: Color(0x33FFFFFF),
+                                          thumbColor: LuColors.gold,
+                                          overlayColor: Color(0x33F2B544),
+                                        ),
+                                        child: Slider(
+                                          value: _currentPage.toDouble().clamp(
+                                            1.0,
+                                            _pageCount > 1
+                                                ? _pageCount.toDouble()
+                                                : 1.0,
+                                          ),
+                                          min: 1,
+                                          max: _pageCount > 1
+                                              ? _pageCount.toDouble()
+                                              : 1.0,
+                                          divisions: _pageCount > 1
+                                              ? _pageCount - 1
+                                              : 1,
+                                          onChanged: (val) {
+                                            _pdfController.goToPage(
+                                              pageNumber: val.round(),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                child: Slider(
-                                  value: _currentPage.toDouble(),
-                                  min: 1,
-                                  max: _pageCount > 1 ? _pageCount.toDouble() : 1.0,
-                                  divisions: _pageCount > 1 ? _pageCount - 1 : 1,
-                                  onChanged: (val) {
-                                    final target = val.round();
-                                    _pdfController.goToPage(pageNumber: target);
-                                  },
-                                ),
+                              ),
+                              LuGlyphButton(
+                                icon: Icons.chevron_right_rounded,
+                                label: l10n.bkNextPage,
+                                iconSize: 26,
+                                onTap: _currentPage < _pageCount
+                                    ? () => _pdfController.goToPage(
+                                        pageNumber: _currentPage + 1,
+                                      )
+                                    : null,
                               ),
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(Icons.chevron_right_rounded, color: tokens.textPrimary, size: 28),
-                          tooltip: l10nCurrent().bkNextPage,
-                          onPressed: _currentPage < _pageCount
-                              ? () => _pdfController.goToPage(pageNumber: _currentPage + 1)
-                              : null,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

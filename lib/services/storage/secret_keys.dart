@@ -44,7 +44,12 @@ abstract final class SecretKeys {
     iptvVerifiedPortals,
   };
 
-  /// Whether [prefKey] names a credential rather than ordinary settings.
-  static bool isSecret(String prefKey) =>
-      values.contains(prefKey) || prefKey.startsWith(serviceCredentialPrefix);
+  /// Whether [prefKey] names a credential rather than ordinary settings,
+  /// including a per-account copy (`trakt_access_token@<user id>`, see
+  /// `AccountScope.key`).
+  static bool isSecret(String prefKey) {
+    final at = prefKey.indexOf('@');
+    final base = at < 0 ? prefKey : prefKey.substring(0, at);
+    return values.contains(base) || prefKey.startsWith(serviceCredentialPrefix);
+  }
 }

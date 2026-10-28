@@ -115,7 +115,8 @@ class ContinueWatchingItem {
       'episodeId': episodeId,
       'positionSeconds': positionSeconds,
       'totalDurationSeconds': totalDurationSeconds,
-      'lastWatchedAt': lastWatchedAt.toIso8601String(),
+      // UTC, so devices in other time zones compare the same instant.
+      'lastWatchedAt': lastWatchedAt.toUtc().toIso8601String(),
       'addonName': addonName,
       'isTorrent': isTorrent,
       'magnetUrl': magnetUrl,

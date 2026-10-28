@@ -128,8 +128,12 @@ extension BrowseVerticalX on BrowseVertical {
 /// The stack's index is looked up in the returned verticals rather than read
 /// off the enum. An enum index is wrong twice over once a vertical is gated:
 /// it addresses a child that is not in the list at all.
-({List<BrowseVertical> verticals, List<TabStripOption<BrowseVertical>> options, List<Widget> pages})
-    _buildVerticals(AppLocalizations l10n, {required bool adultEnabled}) {
+({
+  List<BrowseVertical> verticals,
+  List<TabStripOption<BrowseVertical>> options,
+  List<Widget> pages,
+})
+_buildVerticals(AppLocalizations l10n, {required bool adultEnabled}) {
   // `BrowseVertical.values` minus the verticals the current settings do not
   // offer. Only [BrowseVertical.adult] is conditional today; the filter is
   // written as a per-vertical rule so adding another gated vertical does not
@@ -244,24 +248,24 @@ class _BrowsePageState extends State<BrowsePage> {
     // the stack's `index` read the same element of the same list, so they
     // cannot name different verticals even while the visible set is changing
     // underneath them.
-  final verticals = _buildVerticals(
-    l10nOf(context),
-    adultEnabled: adultEnabled,
-  );
-  // `_onAdultContentChanged` moves the selection off a vertical that has just
-  // stopped being offered, so the lookup succeeds. The clamp is the index
-  // guard for [IndexedStack], which throws on an out-of-range index, and it
-  // lands on `moviesAndTv` - the first visible vertical, and the default
-  // selection, for the same reason it is the default.
-  final selectedIndex = verticals.verticals
-      .indexOf(_vertical)
-      .clamp(0, verticals.pages.length - 1);
-  final selected = verticals.verticals[selectedIndex];
+    final verticals = _buildVerticals(
+      l10nOf(context),
+      adultEnabled: adultEnabled,
+    );
+    // `_onAdultContentChanged` moves the selection off a vertical that has just
+    // stopped being offered, so the lookup succeeds. The clamp is the index
+    // guard for [IndexedStack], which throws on an out-of-range index, and it
+    // lands on `moviesAndTv` - the first visible vertical, and the default
+    // selection, for the same reason it is the default.
+    final selectedIndex = verticals.verticals
+        .indexOf(_vertical)
+        .clamp(0, verticals.pages.length - 1);
+    final selected = verticals.verticals[selectedIndex];
     // Ten-foot pills are sized like the shell rail's TV rows and the band grows
     // with them, per the prototype's TV variant; the pointer height matches the
     // rail's own pointer row so the two read as one chrome.
-    final television =
-        FormFactorService.of(context) == FormFactor.television;
+    final television = FormFactorService.of(context) == FormFactor.television;
+    final phone = FormFactorService.of(context) == FormFactor.compact;
     // The page gutter every Lumora page uses. The verticals keep their own
     // 16 dp inset, so the stack below is indented by the difference.
     final double gutter = MediaQuery.sizeOf(context).width < 600
@@ -304,51 +308,100 @@ class _BrowsePageState extends State<BrowsePage> {
         // would justify the scroll-driven tint Home's glass bar uses.
         Padding(
           padding: EdgeInsets.only(
-            top: (television ? ZplaySpacing.s20 : ZplaySpacing.s16) +
-                inset.top,
+            top: (television ? ZplaySpacing.s20 : ZplaySpacing.s16) + inset.top,
             left: gutter + inset.left,
             right: gutter + inset.right,
             bottom: television ? ZplaySpacing.s16 : ZplaySpacing.s12,
           ),
           // The verticals, then the two pages that left Home: AI 选片 and
           // 追剧日历 open over the shell with their own back.
-          child: Wrap(
-            spacing: ZplaySpacing.s12,
-            runSpacing: ZplaySpacing.s12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              TabStrip<BrowseVertical>(
-                options: verticals.options,
-                selected: selected,
-                onSelected: (vertical) =>
-                    setState(() => _vertical = vertical),
-                semanticsLabel: 'Browse verticals',
-                height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
-              ),
-              LuButton(
-                label: l10nOf(context).moreAiPicks,
-                icon: Icons.auto_awesome_rounded,
-                kind: LuButtonKind.secondary,
-                compact: true,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const WeWatchQuizPage(),
-                  ),
+          // A phone puts the two pages under the verticals in equal halves;
+          // wider screens keep everything on one wrapping line.
+          child: phone
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TabStrip<BrowseVertical>(
+                      options: verticals.options,
+                      selected: selected,
+                      onSelected: (vertical) =>
+                          setState(() => _vertical = vertical),
+                      semanticsLabel: 'Browse verticals',
+                      height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
+                    ),
+                    const SizedBox(height: ZplaySpacing.s12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: LuButton(
+                            label: l10nOf(context).moreAiPicks,
+                            icon: Icons.auto_awesome_rounded,
+                            kind: LuButtonKind.secondary,
+                            compact: true,
+                            expand: true,
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const WeWatchQuizPage(),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: ZplaySpacing.s12),
+                        Expanded(
+                          child: LuButton(
+                            label: l10nOf(context).moreCalendar,
+                            icon: Icons.calendar_month_rounded,
+                            kind: LuButtonKind.secondary,
+                            compact: true,
+                            expand: true,
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const TvCalendarPage(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Wrap(
+                  spacing: ZplaySpacing.s12,
+                  runSpacing: ZplaySpacing.s12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    TabStrip<BrowseVertical>(
+                      options: verticals.options,
+                      selected: selected,
+                      onSelected: (vertical) =>
+                          setState(() => _vertical = vertical),
+                      semanticsLabel: 'Browse verticals',
+                      height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
+                    ),
+                    LuButton(
+                      label: l10nOf(context).moreAiPicks,
+                      icon: Icons.auto_awesome_rounded,
+                      kind: LuButtonKind.secondary,
+                      compact: true,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const WeWatchQuizPage(),
+                        ),
+                      ),
+                    ),
+                    LuButton(
+                      label: l10nOf(context).moreCalendar,
+                      icon: Icons.calendar_month_rounded,
+                      kind: LuButtonKind.secondary,
+                      compact: true,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const TvCalendarPage(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              LuButton(
-                label: l10nOf(context).moreCalendar,
-                icon: Icons.calendar_month_rounded,
-                kind: LuButtonKind.secondary,
-                compact: true,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const TvCalendarPage(),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
         Expanded(
           // Clipped, and this is the boundary the shell's own clip cannot

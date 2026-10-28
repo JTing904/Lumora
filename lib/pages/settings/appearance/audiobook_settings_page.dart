@@ -1,17 +1,17 @@
 import '../../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
-import '../palette_picker.dart';
+import '../../../l10n/option_labels.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import '../../../services/theme/app_theme_service.dart';
 import '../../../services/theme/design_tokens.dart';
 import '../../../services/audiobook/audiobook_settings.dart';
-import '../../../services/home/home_page_settings.dart';
 import '../../../widgets/audiobook/audiobook_interactive_physics_button.dart';
 import '../../../widgets/audiobook/audiobook_waveform_seekbar.dart';
 import '../../../widgets/common/animated_ambient_background.dart';
 import '../../../widgets/common/focusable_card.dart';
 import '../../../widgets/common/segmented_tabs.dart';
 import '../../../widgets/settings/settings_app_bar.dart';
+import '../../music/lu_media_kit.dart';
 import 'audiobook_player_studio_page.dart';
 
 class AudiobookSettingsPage extends StatefulWidget {
@@ -32,59 +32,66 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
   Widget build(BuildContext context) {
     final palette = AppThemeService.currentPalette.value;
 
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().stgcAudiobookUiStudio),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            children: [
-              // ── 1. Color Themes & Accents ──
-              _buildSectionHeader(l10nCurrent().stgbColorThemesAccents),
-              const SizedBox(height: 12),
-              _buildThemesGrid(),
+    // The Lumora media look (gold controls on near-black), the same theme
+    // the Music and Audiobooks pages themselves are drawn in.
+    return Theme(
+      data: luMediaTheme(),
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().stgcAudiobookUiStudio),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                children: [
+                  // ── 2. Ambient Background Lighting ──
+                  _buildSectionHeader(l10nCurrent().stgbAmbientLightingGlows),
+                  const SizedBox(height: 12),
+                  _buildAmbientLightsCard(palette),
 
-              const SizedBox(height: 28),
+                  const SizedBox(height: 28),
 
-              // ── 2. Ambient Background Lighting ──
-              _buildSectionHeader(l10nCurrent().stgbAmbientLightingGlows),
-              const SizedBox(height: 12),
-              _buildAmbientLightsCard(palette),
+                  // ── 3. Discovery & Posters ──
+                  _buildSectionHeader(
+                    l10nCurrent().stgbDiscoveryAudiobookPosters,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDiscoveryConfigCard(palette),
 
-              const SizedBox(height: 28),
+                  const SizedBox(height: 28),
 
-              // ── 3. Discovery & Posters ──
-              _buildSectionHeader(l10nCurrent().stgbDiscoveryAudiobookPosters),
-              const SizedBox(height: 12),
-              _buildDiscoveryConfigCard(palette),
+                  // ── Enter Visual Player Studio Banner ──
+                  _buildEnterPlayerStudioBanner(palette),
 
-              const SizedBox(height: 28),
+                  const SizedBox(height: 28),
 
-              // ── Enter Visual Player Studio Banner ──
-              _buildEnterPlayerStudioBanner(palette),
+                  // ── 4. Player Presets ──
+                  _buildSectionHeader(l10nCurrent().stgbChooseAudioPreset),
+                  const SizedBox(height: 12),
+                  _buildPlayerPresetSelector(palette),
 
-              const SizedBox(height: 28),
+                  const SizedBox(height: 28),
 
-              // ── 4. Player Presets ──
-              _buildSectionHeader(l10nCurrent().stgbChooseAudioPreset),
-              const SizedBox(height: 12),
-              _buildPlayerPresetSelector(palette),
+                  // ── 5. Make Your Custom Player Studio ──
+                  _buildSectionHeader(
+                    l10nCurrent().stgbMakeCustomAudiobookPlayer,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCustomPlayerStudioCard(palette),
 
-              const SizedBox(height: 28),
-
-              // ── 5. Make Your Custom Player Studio ──
-              _buildSectionHeader(l10nCurrent().stgbMakeCustomAudiobookPlayer),
-              const SizedBox(height: 12),
-              _buildCustomPlayerStudioCard(palette),
-
-              const SizedBox(height: 36),
-            ],
+                  const SizedBox(height: 36),
+                ],
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildSectionHeader(String title) {
@@ -94,9 +101,6 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
       style: ZplayType.overline.toStyle(color: tokens.textMuted),
     );
   }
-
-  // ── 1. Themes Grid ──
-  Widget _buildThemesGrid() => const PalettePicker();
 
   // ── 2. Ambient Lighting ──
   Widget _buildAmbientLightsCard(AppThemePalette palette) {
@@ -116,147 +120,16 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                   style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
                 ),
                 subtitle: Text(
-                  l10nCurrent().stgcAuroraThemedTo(palette.name),
-                  style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
+                  l10nCurrent().stgcAuroraThemedTo(localizedOptionLabel(palette.name)),
+                  style: ZplayType.bodySmall.toStyle(
+                    color: tokens.textSecondary,
+                  ),
                 ),
                 value: enabled,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setEnableAmbientLights(val),
+                onChanged: (val) =>
+                    AudiobookSettings.setEnableAmbientLights(val),
               );
             },
-          ),
-
-          const SizedBox(height: 12),
-          Divider(color: tokens.borderDefault),
-          const SizedBox(height: 12),
-
-          Text(
-            l10nCurrent().stgbLightingFlowPattern,
-            style: ZplayType.label.toStyle(color: tokens.textEmphasis),
-          ),
-          const SizedBox(height: 8),
-          ValueListenableBuilder<AmbientLightPattern>(
-            valueListenable: AudiobookSettings.ambientLightPattern,
-            builder: (context, currentPattern, _) {
-              return SegmentedTabs<AmbientLightPattern>(
-                selected: currentPattern,
-                onSelected: (p) {
-                  AudiobookSettings.setAmbientLightPattern(p);
-                },
-                options: [
-                  for (final p in AmbientLightPattern.values)
-                    SegmentedTabOption(value: p, label: p.label),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 16),
-
-          // Intensity Slider
-          ValueListenableBuilder<double>(
-            valueListenable: AudiobookSettings.ambientLightIntensity,
-            builder: (context, intensity, _) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(l10nCurrent().stgbGlowStrengthOpacity, style: ZplayType.label.toStyle(color: tokens.textEmphasis)),
-                      Text('${(intensity * 100).round()}%', style: ZplayType.labelNumeric.toStyle(color: palette.primaryColor)),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: palette.primaryColor,
-                      inactiveTrackColor: Colors.white.withValues(alpha: ZplayOpacity.borderMedium),
-                      thumbColor: palette.primaryColor,
-                      trackHeight: 3,
-                    ),
-                    child: Slider(
-                      value: intensity,
-                      min: 0.08,
-                      max: 0.60,
-                      divisions: 26,
-                      onChanged: (val) => AudiobookSettings.setAmbientLightIntensity(val),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          // Speed Slider
-          ValueListenableBuilder<double>(
-            valueListenable: AudiobookSettings.ambientLightSpeed,
-            builder: (context, speed, _) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(l10nCurrent().stgbMotionDriftSpeed, style: ZplayType.label.toStyle(color: tokens.textEmphasis)),
-                      Text('${speed.toStringAsFixed(1)}x', style: ZplayType.labelNumeric.toStyle(color: palette.primaryColor)),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: palette.primaryColor,
-                      inactiveTrackColor: Colors.white.withValues(alpha: ZplayOpacity.borderMedium),
-                      thumbColor: palette.primaryColor,
-                      trackHeight: 3,
-                    ),
-                    child: Slider(
-                      value: speed,
-                      min: 0.2,
-                      max: 3.0,
-                      divisions: 14,
-                      onChanged: (val) => AudiobookSettings.setAmbientLightSpeed(val),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 10),
-
-          // Atmosphere Live Preview Box
-          Container(
-            height: 80,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: ZplayRadius.smAll,
-              border: Border.all(color: tokens.borderDefault),
-            ),
-            child: ClipRRect(
-              borderRadius: ZplayRadius.smAll,
-              child: Stack(
-                children: [
-                  const Positioned.fill(child: AnimatedAmbientBackground()),
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: tokens.bg.withValues(alpha: 0.5),
-                        borderRadius: ZplayRadius.lgAll,
-                        border: Border.all(color: tokens.borderStrong),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.headphones_rounded, color: palette.primaryColor, size: 14),
-                          const SizedBox(width: 6),
-                          Text(l10nCurrent().stgbLiveAtmospherePreview, style: ZplayType.caption.toStyle(color: tokens.textPrimary)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -276,10 +149,17 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
             builder: (context, enabled, _) {
               return SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbShowHeroCarousel, style: ZplayType.subtitle.toStyle(color: tokens.textPrimary)),
-                subtitle: Text(l10nCurrent().stgbAudiobookHeroDesc, style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary)),
+                title: Text(
+                  l10nCurrent().stgbShowHeroCarousel,
+                  style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                ),
+                subtitle: Text(
+                  l10nCurrent().stgbAudiobookHeroDesc,
+                  style: ZplayType.bodySmall.toStyle(
+                    color: tokens.textSecondary,
+                  ),
+                ),
                 value: enabled,
-                activeColor: palette.primaryColor,
                 onChanged: (val) => AudiobookSettings.setEnableSpotlight(val),
               );
             },
@@ -290,11 +170,19 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
             builder: (context, show, _) {
               return SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbShowContinueListening, style: ZplayType.subtitle.toStyle(color: tokens.textPrimary)),
-                subtitle: Text(l10nCurrent().stgbContinueListeningDesc, style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary)),
+                title: Text(
+                  l10nCurrent().stgbShowContinueListening,
+                  style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                ),
+                subtitle: Text(
+                  l10nCurrent().stgbContinueListeningDesc,
+                  style: ZplayType.bodySmall.toStyle(
+                    color: tokens.textSecondary,
+                  ),
+                ),
                 value: show,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setShowContinueListening(val),
+                onChanged: (val) =>
+                    AudiobookSettings.setShowContinueListening(val),
               );
             },
           ),
@@ -303,7 +191,10 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
           Divider(color: tokens.borderDefault),
           const SizedBox(height: 12),
 
-          Text(l10nCurrent().stgbAudiobookCardDensity, style: ZplayType.label.toStyle(color: tokens.textEmphasis)),
+          Text(
+            l10nCurrent().stgbAudiobookCardDensity,
+            style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+          ),
           const SizedBox(height: 8),
           ValueListenableBuilder<AudiobookCardDensity>(
             valueListenable: AudiobookSettings.cardDensity,
@@ -328,36 +219,12 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
             builder: (context, show, _) {
               return SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbShowGenreBadges, style: ZplayType.body.toStyle(color: tokens.textPrimary)),
+                title: Text(
+                  l10nCurrent().stgbShowGenreBadges,
+                  style: ZplayType.body.toStyle(color: tokens.textPrimary),
+                ),
                 value: show,
-                activeColor: palette.primaryColor,
                 onChanged: (val) => AudiobookSettings.setShowCategoryPills(val),
-              );
-            },
-          ),
-
-          ValueListenableBuilder<bool>(
-            valueListenable: AudiobookSettings.showDurationBadge,
-            builder: (context, show, _) {
-              return SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbShowAudiobookRuntime, style: ZplayType.body.toStyle(color: tokens.textPrimary)),
-                value: show,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setShowDurationBadge(val),
-              );
-            },
-          ),
-
-          ValueListenableBuilder<bool>(
-            valueListenable: AudiobookSettings.cardHoverGlow,
-            builder: (context, show, _) {
-              return SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbPosterHoverGlowElevation, style: ZplayType.body.toStyle(color: tokens.textPrimary)),
-                value: show,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setCardHoverGlow(val),
               );
             },
           ),
@@ -378,75 +245,114 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
-                color: isSelected ? palette.primaryColor.withValues(alpha: 0.12) : null,
+                color: isSelected
+                    ? palette.primaryColor.withValues(alpha: 0.12)
+                    : null,
                 borderRadius: ZplayRadius.mdAll,
                 border: Border.all(
-                  color: isSelected ? palette.primaryColor : tokens.borderDefault,
+                  color: isSelected
+                      ? palette.primaryColor
+                      : tokens.borderDefault,
                   width: isSelected ? 2 : 1,
                 ),
               ),
-              child: ListTile(
-                onTap: () => AudiobookSettings.setSelectedPlayerPreset(preset),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: isSelected ? palette.primaryColor : tokens.borderSubtle,
-                    shape: BoxShape.circle,
+              child: Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  onTap: () =>
+                      AudiobookSettings.setSelectedPlayerPreset(preset),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                  child: Icon(
-                    preset == AudiobookPlayerPreset.modernGlass
-                        ? Icons.blur_on_rounded
-                        : preset == AudiobookPlayerPreset.vinylStudio
-                            ? Icons.album_rounded
-                            : preset == AudiobookPlayerPreset.minimalCapsule
-                                ? Icons.view_compact_rounded
-                                : preset == AudiobookPlayerPreset.immersiveCanvas
-                                    ? Icons.fullscreen_rounded
-                                    : Icons.dashboard_customize_rounded,
-                    color: isSelected ? tokens.onAccent : tokens.textEmphasis,
-                    size: 22,
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? palette.primaryColor
+                          : tokens.borderSubtle,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      preset == AudiobookPlayerPreset.modernGlass
+                          ? Icons.blur_on_rounded
+                          : preset == AudiobookPlayerPreset.vinylStudio
+                          ? Icons.album_rounded
+                          : preset == AudiobookPlayerPreset.minimalCapsule
+                          ? Icons.view_compact_rounded
+                          : preset == AudiobookPlayerPreset.immersiveCanvas
+                          ? Icons.fullscreen_rounded
+                          : Icons.dashboard_customize_rounded,
+                      color: isSelected ? tokens.onAccent : tokens.textEmphasis,
+                      size: 22,
+                    ),
                   ),
-                ),
-                title: Text(
-                  preset.label,
-                  style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                ),
-                subtitle: Text(
-                  preset.description,
-                  style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (preset == AudiobookPlayerPreset.customStudio)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AudiobookPlayerStudioPage()),
-                            );
-                          },
-                          icon: Icon(Icons.tune_rounded, size: 14, color: palette.primaryColor),
-                          label: Text(
-                            l10nCurrent().stgbOpenStudio,
-                            style: ZplayType.label.toStyle(color: palette.primaryColor),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: palette.primaryColor.withValues(alpha: 0.5)),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                  title: Text(
+                    preset.label,
+                    style: ZplayType.subtitle.toStyle(
+                      color: tokens.textPrimary,
+                    ),
+                  ),
+                  subtitle: Text(
+                    preset.description,
+                    style: ZplayType.bodySmall.toStyle(
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (preset == AudiobookPlayerPreset.customStudio)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const AudiobookPlayerStudioPage(),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              Icons.tune_rounded,
+                              size: 14,
+                              color: palette.primaryColor,
+                            ),
+                            label: Text(
+                              l10nCurrent().stgbOpenStudio,
+                              style: ZplayType.label.toStyle(
+                                color: palette.primaryColor,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: palette.primaryColor.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: ZplayRadius.smAll,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    if (isSelected)
-                      Icon(Icons.check_circle_rounded, color: palette.primaryColor, size: 22),
-                  ],
+                      if (isSelected)
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: palette.primaryColor,
+                          size: 22,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -490,29 +396,43 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: Icon(Icons.dashboard_customize_rounded, color: tokens.onAccent, size: 28),
+              child: Icon(
+                Icons.dashboard_customize_rounded,
+                color: tokens.onAccent,
+                size: 28,
+              ),
             ),
             const SizedBox(width: 18),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  // Wraps, so the badge drops under the title on a phone.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         l10nCurrent().stgbVisualPlayerStudio,
-                        style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                        style: ZplayType.title.toStyle(
+                          color: tokens.textPrimary,
+                        ),
                       ),
-                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: palette.primaryColor.withValues(alpha: 0.3),
                           borderRadius: ZplayRadius.xsAll,
                         ),
                         child: Text(
                           l10nCurrent().stgbFullStudio,
-                          style: ZplayType.overline.toStyle(color: palette.primaryColor),
+                          style: ZplayType.overline.toStyle(
+                            color: palette.primaryColor,
+                          ),
                         ),
                       ),
                     ],
@@ -520,25 +440,38 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                   const SizedBox(height: 5),
                   Text(
                     l10nCurrent().stgbVisualPlayerStudioDesc,
-                    style: ZplayType.bodySmall.toStyle(color: tokens.textEmphasis),
+                    style: ZplayType.bodySmall.toStyle(
+                      color: tokens.textEmphasis,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const AudiobookPlayerStudioPage()),
+                        MaterialPageRoute(
+                          builder: (_) => const AudiobookPlayerStudioPage(),
+                        ),
                       );
                     },
-                    icon: Icon(Icons.tune_rounded, size: 18, color: tokens.onAccent),
+                    icon: Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: tokens.onAccent,
+                    ),
                     label: Text(
                       l10nCurrent().stgbEnterPlayerStudio,
                       style: ZplayType.label.toStyle(color: tokens.onAccent),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: palette.primaryColor,
-                      shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: ZplayRadius.smAll,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 11,
+                      ),
                     ),
                   ),
                 ],
@@ -564,7 +497,9 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
             decoration: BoxDecoration(
               color: tokens.bg,
               borderRadius: ZplayRadius.mdAll,
-              border: Border.all(color: palette.primaryColor.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: palette.primaryColor.withValues(alpha: 0.3),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -574,20 +509,34 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.auto_fix_high_rounded, color: palette.primaryColor, size: 16),
+                        Icon(
+                          Icons.auto_fix_high_rounded,
+                          color: palette.primaryColor,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
-                        Text(l10nCurrent().stgbInteractiveStudioPreview, style: ZplayType.label.toStyle(color: tokens.textPrimary)),
+                        Text(
+                          l10nCurrent().stgbInteractiveStudioPreview,
+                          style: ZplayType.label.toStyle(
+                            color: tokens.textPrimary,
+                          ),
+                        ),
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: palette.primaryColor.withValues(alpha: 0.2),
                         borderRadius: ZplayRadius.xsAll,
                       ),
                       child: Text(
                         l10nCurrent().stgbLiveCaps,
-                        style: ZplayType.overline.toStyle(color: palette.primaryColor),
+                        style: ZplayType.overline.toStyle(
+                          color: palette.primaryColor,
+                        ),
                       ),
                     ),
                   ],
@@ -608,10 +557,17 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: tokens.surface,
-                          border: Border.all(color: tokens.textDisabled, width: 3),
+                          border: Border.all(
+                            color: tokens.textDisabled,
+                            width: 3,
+                          ),
                         ),
                         child: Center(
-                          child: Icon(Icons.graphic_eq_rounded, color: palette.primaryColor, size: 36),
+                          child: Icon(
+                            Icons.graphic_eq_rounded,
+                            color: palette.primaryColor,
+                            size: 36,
+                          ),
                         ),
                       );
                     }
@@ -627,7 +583,11 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                         ),
                       ),
                       child: Center(
-                        child: Icon(Icons.headphones_rounded, color: tokens.onAccent, size: 36),
+                        child: Icon(
+                          Icons.headphones_rounded,
+                          color: tokens.onAccent,
+                          size: 36,
+                        ),
                       ),
                     );
                   },
@@ -641,7 +601,9 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                 const SizedBox(height: 2),
                 Text(
                   'Brandon Sanderson • Chapter 1: Stormblessed',
-                  style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
+                  style: ZplayType.bodySmall.toStyle(
+                    color: tokens.textSecondary,
+                  ),
                 ),
 
                 const SizedBox(height: 14),
@@ -668,11 +630,18 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                   children: [
                     // Rewind 10s
                     IconButton(
-                      icon: Icon(Icons.replay_10_rounded, color: tokens.textEmphasis, size: 24),
+                      icon: Icon(
+                        Icons.replay_10_rounded,
+                        color: tokens.textEmphasis,
+                        size: 24,
+                      ),
                       onPressed: () {
                         setState(() {
-                          final p = _previewPosition - const Duration(seconds: 10);
-                          _previewPosition = p < Duration.zero ? Duration.zero : p;
+                          final p =
+                              _previewPosition - const Duration(seconds: 10);
+                          _previewPosition = p < Duration.zero
+                              ? Duration.zero
+                              : p;
                         });
                       },
                     ),
@@ -683,8 +652,14 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                       valueListenable: AudiobookSettings.customPlayButtonStyle,
                       builder: (context, playBtnStyle, _) {
                         return FocusableCard(
-                          onTap: () => setState(() => _previewIsPlaying = !_previewIsPlaying),
-                          builder: (_, state) => _buildCustomPlayButtonWidget(playBtnStyle, palette, _previewIsPlaying),
+                          onTap: () => setState(
+                            () => _previewIsPlaying = !_previewIsPlaying,
+                          ),
+                          builder: (_, state) => _buildCustomPlayButtonWidget(
+                            playBtnStyle,
+                            palette,
+                            _previewIsPlaying,
+                          ),
                         );
                       },
                     ),
@@ -693,11 +668,18 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
 
                     // Forward 10s
                     IconButton(
-                      icon: Icon(Icons.forward_10_rounded, color: tokens.textEmphasis, size: 24),
+                      icon: Icon(
+                        Icons.forward_10_rounded,
+                        color: tokens.textEmphasis,
+                        size: 24,
+                      ),
                       onPressed: () {
                         setState(() {
-                          final p = _previewPosition + const Duration(seconds: 10);
-                          _previewPosition = p > _previewDuration ? _previewDuration : p;
+                          final p =
+                              _previewPosition + const Duration(seconds: 10);
+                          _previewPosition = p > _previewDuration
+                              ? _previewDuration
+                              : p;
                         });
                       },
                     ),
@@ -708,12 +690,17 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                     InkWell(
                       onTap: () {
                         setState(() {
-                          _previewSpeed = _previewSpeed >= 2.0 ? 1.0 : _previewSpeed + 0.25;
+                          _previewSpeed = _previewSpeed >= 2.0
+                              ? 1.0
+                              : _previewSpeed + 0.25;
                         });
                       },
                       borderRadius: ZplayRadius.smAll,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: tokens.borderDefault,
                           borderRadius: ZplayRadius.smAll,
@@ -721,7 +708,9 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                         ),
                         child: Text(
                           '${_previewSpeed.toStringAsFixed(2)}x',
-                          style: ZplayType.labelNumeric.toStyle(color: palette.primaryColor),
+                          style: ZplayType.labelNumeric.toStyle(
+                            color: palette.primaryColor,
+                          ),
                         ),
                       ),
                     ),
@@ -734,7 +723,10 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
           const SizedBox(height: 20),
 
           // ── Customize Seek Bar Style ──
-          Text(l10nCurrent().stgbSeekBarScrubberStyle, style: ZplayType.label.toStyle(color: tokens.textEmphasis)),
+          Text(
+            l10nCurrent().stgbSeekBarScrubberStyle,
+            style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+          ),
           const SizedBox(height: 8),
           ValueListenableBuilder<AudiobookSeekbarStyle>(
             valueListenable: AudiobookSettings.customSeekbarStyle,
@@ -755,7 +747,10 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
           const SizedBox(height: 16),
 
           // ── Customize Play / Pause Button Style ──
-          Text(l10nCurrent().stgbPlayPauseStyling, style: ZplayType.label.toStyle(color: tokens.textEmphasis)),
+          Text(
+            l10nCurrent().stgbPlayPauseStyling,
+            style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+          ),
           const SizedBox(height: 8),
           ValueListenableBuilder<AudiobookPlayButtonStyle>(
             valueListenable: AudiobookSettings.customPlayButtonStyle,
@@ -776,7 +771,10 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
           const SizedBox(height: 16),
 
           // ── Customize Artwork Display ──
-          Text(l10nCurrent().stgbArtworkDisplayStyle, style: ZplayType.label.toStyle(color: tokens.textEmphasis)),
+          Text(
+            l10nCurrent().stgbArtworkDisplayStyle,
+            style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+          ),
           const SizedBox(height: 8),
           ValueListenableBuilder<AudiobookArtworkStyle>(
             valueListenable: AudiobookSettings.customArtworkStyle,
@@ -797,7 +795,10 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
           const SizedBox(height: 16),
 
           // ── Hover & Touch Physics ──
-          Text(l10nCurrent().stgbButtonHoverPhysics, style: ZplayType.label.toStyle(color: tokens.textEmphasis)),
+          Text(
+            l10nCurrent().stgbButtonHoverPhysics,
+            style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+          ),
           const SizedBox(height: 8),
           ValueListenableBuilder<AudiobookHoverEffect>(
             valueListenable: AudiobookSettings.customHoverEffect,
@@ -827,7 +828,11 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                 l10nCurrent().stgbPlayerLayoutComponents,
                 style: ZplayType.label.toStyle(color: tokens.textPrimary),
               ),
-              Icon(Icons.drag_indicator_rounded, color: palette.primaryColor, size: 18),
+              Icon(
+                Icons.drag_indicator_rounded,
+                color: palette.primaryColor,
+                size: 18,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -858,66 +863,25 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: ListTile(
                       dense: true,
-                      leading: Icon(icon, color: palette.primaryColor, size: 18),
-                      title: Text(label, style: ZplayType.label.toStyle(color: tokens.textPrimary)),
-                      trailing: Icon(Icons.drag_handle_rounded, color: tokens.textMuted, size: 18),
+                      leading: Icon(
+                        icon,
+                        color: palette.primaryColor,
+                        size: 18,
+                      ),
+                      title: Text(
+                        label,
+                        style: ZplayType.label.toStyle(
+                          color: tokens.textPrimary,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.drag_handle_rounded,
+                        color: tokens.textMuted,
+                        size: 18,
+                      ),
                     ),
                   );
                 }).toList(),
-              );
-            },
-          ),
-
-          const SizedBox(height: 14),
-
-          ValueListenableBuilder<bool>(
-            valueListenable: AudiobookSettings.enableLiquidGlass,
-            builder: (context, enabled, _) {
-              return SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbLiquidGlassPlayerBlur, style: ZplayType.body.toStyle(color: tokens.textPrimary)),
-                value: enabled,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setEnableLiquidGlass(val),
-              );
-            },
-          ),
-
-          ValueListenableBuilder<bool>(
-            valueListenable: AudiobookSettings.showSpeedControl,
-            builder: (context, show, _) {
-              return SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbShowSpeedSelector, style: ZplayType.body.toStyle(color: tokens.textPrimary)),
-                value: show,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setShowSpeedControl(val),
-              );
-            },
-          ),
-
-          ValueListenableBuilder<bool>(
-            valueListenable: AudiobookSettings.showSkip10Buttons,
-            builder: (context, show, _) {
-              return SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbShowSkipButtons, style: ZplayType.body.toStyle(color: tokens.textPrimary)),
-                value: show,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setShowSkip10Buttons(val),
-              );
-            },
-          ),
-
-          ValueListenableBuilder<bool>(
-            valueListenable: AudiobookSettings.showChaptersQuickButton,
-            builder: (context, show, _) {
-              return SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10nCurrent().stgbShowChaptersDrawerButton, style: ZplayType.body.toStyle(color: tokens.textPrimary)),
-                value: show,
-                activeColor: palette.primaryColor,
-                onChanged: (val) => AudiobookSettings.setShowChaptersQuickButton(val),
               );
             },
           ),
@@ -932,17 +896,25 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AudiobookPlayerStudioPage()),
+                  MaterialPageRoute(
+                    builder: (_) => const AudiobookPlayerStudioPage(),
+                  ),
                 );
               },
-              icon: Icon(Icons.dashboard_customize_rounded, size: 18, color: tokens.onAccent),
+              icon: Icon(
+                Icons.dashboard_customize_rounded,
+                size: 18,
+                color: tokens.onAccent,
+              ),
               label: Text(
                 l10nCurrent().stgbLaunchFullStudio,
                 style: ZplayType.label.toStyle(color: tokens.onAccent),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: palette.primaryColor,
-                shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: ZplayRadius.smAll,
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
@@ -952,7 +924,11 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
     );
   }
 
-  Widget _buildCustomPlayButtonWidget(AudiobookPlayButtonStyle style, AppThemePalette palette, bool isPlaying) {
+  Widget _buildCustomPlayButtonWidget(
+    AudiobookPlayButtonStyle style,
+    AppThemePalette palette,
+    bool isPlaying,
+  ) {
     final tokens = context.tokens;
     final icon = isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded;
     final hoverEffect = AudiobookSettings.customHoverEffect.value;
@@ -1034,7 +1010,9 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
             Icon(icon, color: tokens.onAccent, size: 22),
             const SizedBox(width: 6),
             Text(
-              isPlaying ? l10nCurrent().stgbPauseCaps : l10nCurrent().stgbPlayCaps,
+              isPlaying
+                  ? l10nCurrent().stgbPauseCaps
+                  : l10nCurrent().stgbPlayCaps,
               style: ZplayType.label.toStyle(color: tokens.onAccent),
             ),
           ],

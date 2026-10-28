@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/stream/stream_model.dart';
 import '../../services/stream/stream_bitrate_resolver.dart';
 import '../../services/theme/design_tokens.dart';
+import 'lu_player_style.dart';
 
 /// A source-card chip carrying the stream's video bitrate.
 ///
@@ -76,7 +77,7 @@ class _StreamBitrateBadgeState extends State<StreamBitrateBadge> {
         exactKbps ?? widget.source.estimatedBitrateKbps(widget.runtimeMinutes);
     if (kbps == null) return const SizedBox.shrink();
 
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final color = kbps >= 15000
         ? tokens.success
         : kbps >= 4000

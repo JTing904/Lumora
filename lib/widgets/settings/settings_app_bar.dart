@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/theme/design_tokens.dart';
+import '../../ui/lu_theme.dart';
 
 /// The one app bar every settings sub-page draws.
 ///
@@ -59,7 +60,6 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
     return AppBar(
       // No fill. The page's own canvas is the band; anything opaque here is the
       // seam this widget exists to remove.
@@ -82,7 +82,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
         // One title style and one scale for every page, so no page can restyle
         // its own - and `titleLarge` is that scale app-wide.
         title,
-        style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
+        style: LuText.title.copyWith(fontSize: 24),
       ),
       actions: actions,
     );

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../storage/secure_store.dart';
 import 'env_service.dart';
 import 'legacy_upstream_credentials.dart';
+import '../../l10n/option_labels.dart';
 
 /// A third-party credential an integration needs. The user can supply one in
 /// Settings, a private build can inject one with `--dart-define`, and whatever
@@ -63,7 +64,10 @@ abstract final class ServiceCredentials {
 
   /// Where the user obtains their own value, e.g. 'wyzie.ru'. Shown in Settings.
   /// For the credentials nobody can obtain, it states why instead.
-  static String sourceHintFor(ServiceCredential credential) {
+  static String sourceHintFor(ServiceCredential credential) =>
+      localizedOptionLabel(_sourceHintEn(credential));
+
+  static String _sourceHintEn(ServiceCredential credential) {
     switch (credential) {
       case ServiceCredential.wyzie:
         return 'Free key at store.wyzie.io/redeem';
@@ -73,7 +77,7 @@ abstract final class ServiceCredentials {
       case ServiceCredential.vidgod:
       case ServiceCredential.xdownloader:
         return 'A credential for a third-party service that did not issue it '
-            'to ZPlay. Leave blank unless you have your own.';
+            'to Lumora. Leave blank unless you have your own.';
       case ServiceCredential.trakt:
         return 'Create a free app at app.trakt.tv/settings/apps/api/new and copy '
             'its Client ID. Without this, Trakt cannot be paired at all.';

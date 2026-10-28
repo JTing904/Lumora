@@ -14,6 +14,8 @@ import '../../widgets/common/pill_button.dart';
 import '../../widgets/iptv/iptv_health_badge.dart';
 import '../../widgets/player/player_glass.dart';
 import 'iptv_player_page.dart';
+import '../../widgets/player/lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 class IptvChannelSheet extends StatefulWidget {
   final HardcodedChannel channel;
@@ -25,7 +27,8 @@ class IptvChannelSheet extends StatefulWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => IptvChannelSheet(channel: channel),
+      builder: (_) =>
+          Theme(data: luPanelTheme(), child: IptvChannelSheet(channel: channel)),
     );
   }
 
@@ -154,7 +157,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
         SnackBar(
           content: Text(l10nCurrent().tv2RemovedStreamFeeds(count)),
           duration: const Duration(seconds: 2),
-          backgroundColor: context.tokens.surfaceOverlay,
+          backgroundColor: luTokens.surfaceOverlay,
         ),
       );
     }
@@ -162,7 +165,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final ch = widget.channel;
     final primaryColor = ch.gradient.isNotEmpty ? ch.gradient.first : tokens.accent;
     // Second stop of a channel's data-driven gradient; falls back to the info hue.
@@ -201,7 +204,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
           // had to compete with.
           decoration: BoxDecoration(
             color: tokens.surface,
-            borderRadius: ZplayRadius.sheetTop,
+            borderRadius: LuPanel.sheetTop,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -233,7 +236,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                        borderRadius: ZplayRadius.mdAll,
+                        borderRadius: LuPanel.rowRadiusAll,
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -289,7 +292,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                       Tooltip(
                         message: _isSelecting ? l10nCurrent().tvCancelSelection : l10nCurrent().tvManageDeleteChannels,
                         child: FocusableInkWell(
-                          borderRadius: ZplayRadius.smAll,
+                          borderRadius: LuRadius.field,
                           onTap: () {
                             setState(() {
                               _isSelecting = !_isSelecting;
@@ -310,7 +313,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
 
                     // Close Button
                     FocusableInkWell(
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                       onTap: () => Navigator.pop(context),
                       child: SizedBox(
                         width: 44,
@@ -332,7 +335,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                     // drew a second box on a surface that already reads as one.
                     decoration: BoxDecoration(
                       color: tokens.borderSubtle,
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                     ),
                     child: TextField(
                       controller: _searchController,
@@ -379,13 +382,13 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                   // hairline that used to sit on top of it was a second edge.
                   decoration: BoxDecoration(
                     color: tokens.accentSubtle,
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   child: Row(
                     children: [
                       // Select All / Deselect All
                       FocusableInkWell(
-                        borderRadius: ZplayRadius.smAll,
+                        borderRadius: LuRadius.field,
                         onTap: () {
                           setState(() {
                             if (allSelected) {
@@ -423,14 +426,14 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                       const Spacer(),
                       // Delete Selected
                       FocusableInkWell(
-                        borderRadius: ZplayRadius.smAll,
+                        borderRadius: LuRadius.field,
                         enabled: _selectedUrls.isNotEmpty,
                         onTap: _selectedUrls.isEmpty ? null : _deleteSelectedStreams,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 7),
                           decoration: BoxDecoration(
                             color: _selectedUrls.isEmpty ? tokens.borderStrong : tokens.danger,
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -462,7 +465,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
                     color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
-                    borderRadius: ZplayRadius.smAll,
+                    borderRadius: LuRadius.field,
                   ),
                   child: Row(
                     children: [
@@ -563,7 +566,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                                   ),
                                   const SizedBox(height: ZplaySpacing.s8),
                                   FocusableInkWell(
-                                    borderRadius: ZplayRadius.smAll,
+                                    borderRadius: LuRadius.field,
                                     onTap: () {
                                       _searchController.clear();
                                       setState(() => _searchQuery = '');
@@ -610,7 +613,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                                     : _playHit(hit),
                                 builder: (context, state) => CardFocusRing(
                                   focused: state.focused,
-                                  radius: ZplayRadius.mdAll,
+                                  radius: LuPanel.rowRadiusAll,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: ZplaySpacing.s16,
@@ -624,7 +627,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                                       color: isSelected
                                           ? tokens.accentSubtle
                                           : (state.highlighted ? tokens.borderDefault : Colors.transparent),
-                                      borderRadius: ZplayRadius.mdAll,
+                                      borderRadius: LuPanel.rowRadiusAll,
                                     ),
                                     child: Row(
                                       children: [
@@ -791,7 +794,7 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                     // text-only control - the primary pill above is the only
                     // filled button in the bar.
                     FocusableInkWell(
-                      borderRadius: ZplayRadius.mdAll,
+                      borderRadius: LuPanel.rowRadiusAll,
                       enabled: !isScanning,
                       onTap: isScanning ? null : () => _ctrl.getMoreChannels(),
                       child: Padding(

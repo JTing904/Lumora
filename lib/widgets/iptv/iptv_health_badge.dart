@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/iptv/iptv_storage.dart';
 import '../../services/theme/design_tokens.dart';
+import '../player/lu_player_style.dart';
 
 /// What the app already knows about one portal feed's liveness.
 ///
@@ -77,7 +78,7 @@ class IptvHealthBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final (color, label) = switch (health) {
       IptvHitHealth.working => (tokens.success, l10nCurrent().wgIptvHealthAlive),
       IptvHitHealth.unknown => (tokens.textDisabled, l10nCurrent().wgIptvHealthUnchecked),

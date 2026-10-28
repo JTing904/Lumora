@@ -14,8 +14,12 @@ import '../../services/addon/addon_manager.dart';
 import '../../services/theme/app_theme_service.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../ui/lu_focusable.dart';
+import '../../ui/lu_text_field.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_avatar.dart';
 import '../../ui/lu_language_toggle.dart';
 import '../../ui/lu_theme.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 import '../../services/debrid/debrid_service.dart';
 import '../../services/theme/glass_settings.dart';
 import '../../services/trakt/trakt_service.dart';
@@ -495,10 +499,10 @@ class _SettingsPageState extends State<SettingsPage> {
     final simklAuth = await SimklService.instance.isAuthenticated();
     final pkg = await PackageInfo.fromPlatform().catchError(
       (_) => PackageInfo(
-        appName: 'ZPlay',
-        packageName: 'io.github.tzero86.zplay',
-        version: '1.1.6',
-        buildNumber: '2019',
+        appName: 'Lumora',
+        packageName: 'io.github.jting904.lumora',
+        version: '',
+        buildNumber: '',
       ),
     );
 
@@ -756,6 +760,20 @@ class _SettingsPageState extends State<SettingsPage> {
     _scrollToSection(label);
   }
 
+  /// Lights the last section whose heading is at or above the top of the
+  /// pane, so the sidebar says where the page is after a scroll by any means.
+  void _followScroll() {
+    String? current;
+    for (final label in _sectionLabels) {
+      final box =
+          _sectionKeys[label]?.currentContext?.findRenderObject() as RenderBox?;
+      if (box == null || !box.attached) continue;
+      if (box.localToGlobal(Offset.zero).dy <= 160) current = label;
+    }
+    current ??= _sectionLabels.first;
+    if (current != _activeSection) setState(() => _activeSection = current!);
+  }
+
   void _scrollToSection(String label) {
     final sectionContext = _sectionKeys[label]?.currentContext;
     if (sectionContext == null) return;
@@ -903,533 +921,567 @@ class _SettingsPageState extends State<SettingsPage> {
             // split pane needs. Below that the two do not both fit, so the hub
             // stacks as the single column it was.
             final split = constraints.maxWidth >= 720;
-            final content = Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
-                // `SingleChildScrollView` + `Column`, not a `ListView`.
-                //
-                // A `ListView` builds only what is near the viewport, so on a
-                // 540 dp television the sections below the fold have no element
-                // and no `currentContext` - and the sidebar's `ensureVisible`
-                // would silently do nothing for every section but the first few.
-                // A settings hub is a dozen rows, so building them all costs
-                // nothing and makes every anchor real.
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    split ? ZplaySpacing.s24 : ZplaySpacing.s16,
-                    ZplaySpacing.s20,
-                    split ? ZplaySpacing.s24 : ZplaySpacing.s16,
-                    ZplaySpacing.s32 + bottomInset,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Align(
-                        alignment: Alignment.centerRight,
-                        child: LuLanguageToggle(),
-                      ),
-                      const SizedBox(height: ZplaySpacing.s16),
-                      // Signed in: who, sign out, invites. Signed out: the
-                      // way in, since browsing needs no account.
-                      if (AccountService.configured)
-                        ValueListenableBuilder(
-                          valueListenable: AccountService.session,
-                          builder: (context, session, _) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (session != null) ...[
-                                const _ProfileCard(),
-                                const SizedBox(height: 32),
-                              ],
-                              _buildSection(
-                                context,
-                                'ACCOUNT',
-                                first: true,
-                                rows: session == null
-                                    ? [
-                                        _SettingsNavRow(
-                                          icon: Icons.login_rounded,
-                                          iconColor: tokens.accent,
-                                          title: l10nOf(context).authSignIn,
-                                          subtitle: l10nOf(
-                                            context,
-                                          ).authSignInSubtitle,
-                                          valueText: l10nOf(context).authSignUp,
-                                          onTap: () => LoginPage.open(context),
-                                        ),
-                                      ]
-                                    : [
-                                        _SettingsNavRow(
-                                          icon: Icons.account_circle_rounded,
-                                          iconColor: tokens.accent,
-                                          title: l10nOf(context)
-                                              .accountSignedInAs(
-                                                AccountService.email ?? '',
-                                              ),
-                                          subtitle: l10nOf(
-                                            context,
-                                          ).accountSignOutSubtitle,
-                                          valueText: l10nOf(
-                                            context,
-                                          ).accountSignOut,
-                                          onTap: () => _confirmSignOut(context),
-                                        ),
-                                        ValueListenableBuilder<bool>(
-                                          valueListenable:
-                                              ContentSettings.isAdmin,
-                                          builder: (context, admin, _) => admin
-                                              ? _SettingsNavRow(
-                                                  icon: Icons
-                                                      .confirmation_number_outlined,
-                                                  iconColor: tokens.accent,
-                                                  title: l10nOf(
-                                                    context,
-                                                  ).inviteManage,
-                                                  subtitle: l10nOf(
-                                                    context,
-                                                  ).inviteManageSubtitle,
-                                                  valueText: l10nOf(
-                                                    context,
-                                                  ).accountAdmin,
-                                                  onTap: () =>
-                                                      Navigator.of(
-                                                        context,
-                                                      ).push(
-                                                        MaterialPageRoute<void>(
-                                                          builder: (_) =>
-                                                              const InviteCodesPage(),
-                                                        ),
-                                                      ),
-                                                )
-                                              : const SizedBox.shrink(),
-                                        ),
-                                      ],
-                              ),
-                            ],
-                          ),
+            // The sidebar follows the pane: as the page scrolls, the section
+            // whose heading has reached the top is the one it lights.
+            final content = NotificationListener<ScrollUpdateNotification>(
+              onNotification: (n) {
+                if (split && n.depth == 0) _followScroll();
+                return false;
+              },
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  // `SingleChildScrollView` + `Column`, not a `ListView`.
+                  //
+                  // A `ListView` builds only what is near the viewport, so on a
+                  // 540 dp television the sections below the fold have no element
+                  // and no `currentContext` - and the sidebar's `ensureVisible`
+                  // would silently do nothing for every section but the first few.
+                  // A settings hub is a dozen rows, so building them all costs
+                  // nothing and makes every anchor real.
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      split ? ZplaySpacing.s24 : ZplaySpacing.s16,
+                      ZplaySpacing.s20,
+                      split ? ZplaySpacing.s24 : ZplaySpacing.s16,
+                      ZplaySpacing.s32 + bottomInset,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Align(
+                          alignment: Alignment.centerRight,
+                          child: LuLanguageToggle(),
                         ),
-                      _buildSection(
-                        context,
-                        'PLAYBACK',
-                        first: !AccountService.configured,
-                        rows: [
-                          // 更多内容: manga, books, audiobooks, music and the
-                          // other verticals that have no tab of their own.
-                          _SettingsNavRow(
-                            icon: Icons.grid_view_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).navMore,
-                            subtitle: l10nOf(context).settingsMoreSubtitle,
-                            onTap: () =>
-                                AppShellScope.of(context)?.go(ShellSlot.browse),
-                          ),
-                          // Video & Anime4K Upscaling
-                          ValueListenableBuilder<Anime4KPreset>(
-                            valueListenable: PlayerSettings.anime4kPreset,
-                            builder: (context, anime4kPreset, _) {
-                              return _SettingsNavRow(
-                                icon: Icons.auto_awesome_rounded,
-                                iconColor: tokens.accent,
-                                title: l10nOf(context).settingsVideoTitle,
-                                subtitle: l10nOf(context).settingsVideoSubtitle,
-                                valueText: anime4kPreset == Anime4KPreset.off
-                                    ? l10nOf(context).stateOff
-                                    : anime4kPreset.label
-                                          .split('(')
-                                          .first
-                                          .trim(),
-                                onTap: () =>
-                                    _navigateTo(const VideoSettingsPage()),
-                              );
-                            },
-                          ),
-                          // Built-in P2P Torrent Source Toggle (ZPlay)
-                          ValueListenableBuilder<bool>(
-                            valueListenable: P2pSettingsService.isP2pEnabled,
-                            builder: (context, isP2p, _) {
-                              return _SettingsSwitchRow(
-                                icon: Icons.hub_rounded,
-                                iconColor: isP2p
-                                    ? tokens.warning
-                                    : tokens.textSecondary,
-                                title: l10nOf(context).settingsP2pTitle,
-                                subtitle: isP2p
-                                    ? l10nOf(context).settingsP2pActiveSubtitle
-                                    : l10nOf(
-                                        context,
-                                      ).settingsP2pDisabledSubtitle,
-                                valueText: isP2p
-                                    ? l10nOf(context).settingsP2pActiveValue
-                                    : l10nOf(context).settingsP2pHttpValue,
-                                value: isP2p,
-                                onChanged: (val) async {
-                                  await P2pSettingsService.setP2pEnabled(val);
-                                },
-                                onInfoTap: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) =>
-                                        const P2pWarningDialog(),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-
-                      _buildSection(
-                        context,
-                        'SOURCES',
-                        rows: [
-                          // Metadata & Catalogs (Addons)
-                          _SettingsNavRow(
-                            icon: Icons.extension_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).settingsAddonsTitle,
-                            subtitle: l10nOf(context).settingsAddonsSubtitle,
-                            valueText: l10nOf(
-                              context,
-                            ).settingsAddonsInstalled(addonCount),
-                            onTap: () =>
-                                _navigateTo(const AddonsSettingsPage()),
-                          ),
-                          // Built-in Providers (ZPlayHTTP)
-                          ListenableBuilder(
-                            listenable:
-                                BuiltinProvidersSettingsService.instance,
-                            builder: (context, _) {
-                              final isCustom = BuiltinProvidersSettingsService
-                                  .instance
-                                  .isCustom;
-                              return _SettingsNavRow(
-                                icon: Icons.dns_rounded,
-                                iconColor: isCustom
-                                    ? tokens.accent
-                                    : tokens.success,
-                                title: l10nOf(context).settingsBuiltinTitle,
-                                subtitle: l10nOf(
+                        const SizedBox(height: ZplaySpacing.s16),
+                        // Signed in: who, sign out, invites. Signed out: the
+                        // way in, since browsing needs no account.
+                        if (AccountService.configured)
+                          ValueListenableBuilder(
+                            valueListenable: AccountService.session,
+                            builder: (context, session, _) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (session != null) ...[
+                                  const _ProfileCard(),
+                                  const SizedBox(height: 32),
+                                ],
+                                _buildSection(
                                   context,
-                                ).settingsBuiltinSubtitle,
-                                valueText: isCustom
-                                    ? l10nOf(context).settingsBuiltinCustom
-                                    : l10nOf(context).settingsBuiltinDefault,
-                                onTap: () => _navigateTo(
-                                  const BuiltinProvidersSettingsPage(),
+                                  'ACCOUNT',
+                                  first: true,
+                                  rows: session == null
+                                      ? [
+                                          LuSettingsNavRow(
+                                            icon: Icons.login_rounded,
+                                            iconColor: tokens.accent,
+                                            title: l10nOf(context).authSignIn,
+                                            subtitle: l10nOf(
+                                              context,
+                                            ).authSignInSubtitle,
+                                            valueText: l10nOf(
+                                              context,
+                                            ).authSignUp,
+                                            onTap: () =>
+                                                LoginPage.open(context),
+                                          ),
+                                        ]
+                                      : [
+                                          LuSettingsNavRow(
+                                            icon: Icons.account_circle_rounded,
+                                            iconColor: tokens.accent,
+                                            title: l10nOf(context)
+                                                .accountSignedInAs(
+                                                  AccountService.email ?? '',
+                                                ),
+                                            subtitle: l10nOf(
+                                              context,
+                                            ).accountSignOutSubtitle,
+                                            valueText: l10nOf(
+                                              context,
+                                            ).accountSignOut,
+                                            onTap: () =>
+                                                _confirmSignOut(context),
+                                          ),
+                                          ValueListenableBuilder<bool>(
+                                            valueListenable:
+                                                ContentSettings.isAdmin,
+                                            builder: (context, admin, _) =>
+                                                admin
+                                                ? LuSettingsNavRow(
+                                                    icon: Icons
+                                                        .confirmation_number_outlined,
+                                                    iconColor: tokens.accent,
+                                                    title: l10nOf(
+                                                      context,
+                                                    ).inviteManage,
+                                                    subtitle: l10nOf(
+                                                      context,
+                                                    ).inviteManageSubtitle,
+                                                    valueText: l10nOf(
+                                                      context,
+                                                    ).accountAdmin,
+                                                    onTap: () =>
+                                                        Navigator.of(
+                                                          context,
+                                                        ).push(
+                                                          MaterialPageRoute<
+                                                            void
+                                                          >(
+                                                            builder: (_) =>
+                                                                const InviteCodesPage(),
+                                                          ),
+                                                        ),
+                                                  )
+                                                : const SizedBox.shrink(),
+                                          ),
+                                        ],
                                 ),
-                              );
-                            },
-                          ),
-                          // Debrid & Cloud Streaming
-                          _SettingsNavRow(
-                            icon: Icons.cloud_download_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).settingsDebridTitle,
-                            subtitle: l10nOf(context).settingsDebridSubtitle,
-                            valueText: _useDebrid
-                                ? (_debridProvider != 'None'
-                                      ? _debridProvider
-                                      : l10nOf(context).stateActive)
-                                : l10nOf(context).stateDisabled,
-                            onTap: () =>
-                                _navigateTo(const DebridSettingsPage()),
-                          ),
-                        ],
-                      ),
-
-                      _buildSection(
-                        context,
-                        'INTEGRATIONS',
-                        rows: [
-                          // Trakt Sync
-                          _SettingsNavRow(
-                            icon: Icons.movie_filter_rounded,
-                            iconColor: _traktBrand,
-                            title: l10nOf(context).settingsTraktTitle,
-                            subtitle: l10nOf(context).settingsTraktSubtitle,
-                            valueText: _traktConnected
-                                ? l10nOf(context).stateConnected
-                                : l10nOf(context).stateOffline,
-                            onTap: () => _navigateTo(const TraktSettingsPage()),
-                          ),
-                          // Simkl Sync
-                          _SettingsNavRow(
-                            icon: Icons.tv_rounded,
-                            iconColor: _simklBrand,
-                            title: l10nOf(context).settingsSimklTitle,
-                            subtitle: l10nOf(context).settingsSimklSubtitle,
-                            valueText: _simklConnected
-                                ? l10nOf(context).stateConnected
-                                : l10nOf(context).stateOffline,
-                            onTap: () => _navigateTo(const SimklSettingsPage()),
-                          ),
-                          // TMDb API Key (bring your own)
-                          ListenableBuilder(
-                            listenable: TmdbService.apiKey,
-                            builder: (context, _) => _SettingsNavRow(
-                              icon: Icons.theaters_rounded,
-                              iconColor: tokens.accent,
-                              title: l10nOf(context).settingsTmdbTitle,
-                              subtitle: l10nOf(context).settingsTmdbSubtitle,
-                              valueText: TmdbService.isConfigured
-                                  ? l10nOf(context).settingsTmdbYourKey
-                                  : l10nOf(context).stateNotSet,
-                              onTap: () =>
-                                  _navigateTo(const TmdbSettingsPage()),
+                              ],
                             ),
                           ),
-                          // Service API Keys (bring your own)
-                          ListenableBuilder(
-                            listenable: _serviceCredentials,
-                            builder: (context, _) {
-                              final provided = ServiceCredential.values
-                                  .where(ServiceCredentials.isUserProvided)
-                                  .length;
-                              return _SettingsNavRow(
-                                icon: Icons.key_rounded,
-                                iconColor: tokens.accent,
-                                title: l10nOf(context).settingsServiceKeysTitle,
-                                subtitle: l10nOf(
-                                  context,
-                                ).settingsServiceKeysSubtitle,
-                                valueText: l10nOf(context)
-                                    .settingsServiceKeysCount(
-                                      provided,
-                                      ServiceCredential.values.length,
-                                    ),
-                                onTap: () => _navigateTo(
-                                  const ServiceKeysSettingsPage(),
-                                ),
-                              );
-                            },
-                          ),
-                          // Discord Rich Presence (Desktop Only)
-                          if (Platform.isWindows ||
-                              Platform.isLinux ||
-                              Platform.isMacOS)
+                        _buildSection(
+                          context,
+                          'PLAYBACK',
+                          first: !AccountService.configured,
+                          rows: [
+                            // 更多内容: manga, books, audiobooks, music and the
+                            // other verticals that have no tab of their own.
+                            LuSettingsNavRow(
+                              icon: Icons.grid_view_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).navMore,
+                              subtitle: l10nOf(context).settingsMoreSubtitle,
+                              onTap: () => AppShellScope.of(
+                                context,
+                              )?.go(ShellSlot.browse),
+                            ),
+                            // Video & Anime4K Upscaling
+                            ValueListenableBuilder<Anime4KPreset>(
+                              valueListenable: PlayerSettings.anime4kPreset,
+                              builder: (context, anime4kPreset, _) {
+                                return LuSettingsNavRow(
+                                  icon: Icons.auto_awesome_rounded,
+                                  iconColor: tokens.accent,
+                                  title: l10nOf(context).settingsVideoTitle,
+                                  subtitle: l10nOf(
+                                    context,
+                                  ).settingsVideoSubtitle,
+                                  valueText: anime4kPreset == Anime4KPreset.off
+                                      ? l10nOf(context).stateOff
+                                      : anime4kPreset.label
+                                            .split('(')
+                                            .first
+                                            .trim(),
+                                  onTap: () =>
+                                      _navigateTo(const VideoSettingsPage()),
+                                );
+                              },
+                            ),
+                            // Built-in P2P Torrent Source Toggle (ZPlay)
                             ValueListenableBuilder<bool>(
-                              valueListenable:
-                                  DiscordRpcService.instance.isEnabled,
-                              builder: (context, isDiscordEnabled, _) {
-                                return _SettingsSwitchRow(
-                                  icon: Icons.sports_esports_rounded,
-                                  iconColor: isDiscordEnabled
-                                      ? _discordBrand
+                              valueListenable: P2pSettingsService.isP2pEnabled,
+                              builder: (context, isP2p, _) {
+                                return LuSettingsSwitchRow(
+                                  icon: Icons.hub_rounded,
+                                  iconColor: isP2p
+                                      ? tokens.warning
                                       : tokens.textSecondary,
-                                  title: l10nOf(context).settingsDiscordTitle,
-                                  subtitle: isDiscordEnabled
+                                  title: l10nOf(context).settingsP2pTitle,
+                                  subtitle: isP2p
                                       ? l10nOf(
                                           context,
-                                        ).settingsDiscordEnabledSubtitle
+                                        ).settingsP2pActiveSubtitle
                                       : l10nOf(
                                           context,
-                                        ).settingsDiscordDisabledSubtitle,
-                                  valueText: isDiscordEnabled
-                                      ? l10nOf(context).stateActive
-                                      : l10nOf(context).stateDisabled,
-                                  value: isDiscordEnabled,
+                                        ).settingsP2pDisabledSubtitle,
+                                  valueText: isP2p
+                                      ? l10nOf(context).settingsP2pActiveValue
+                                      : l10nOf(context).settingsP2pHttpValue,
+                                  value: isP2p,
                                   onChanged: (val) async {
-                                    await DiscordRpcService.instance.setEnabled(
+                                    await P2pSettingsService.setP2pEnabled(val);
+                                  },
+                                  onInfoTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) =>
+                                          const P2pWarningDialog(),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+
+                        _buildSection(
+                          context,
+                          'SOURCES',
+                          rows: [
+                            // Metadata & Catalogs (Addons)
+                            LuSettingsNavRow(
+                              icon: Icons.extension_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).settingsAddonsTitle,
+                              subtitle: l10nOf(context).settingsAddonsSubtitle,
+                              valueText: l10nOf(
+                                context,
+                              ).settingsAddonsInstalled(addonCount),
+                              onTap: () =>
+                                  _navigateTo(const AddonsSettingsPage()),
+                            ),
+                            // Built-in Providers (ZPlayHTTP)
+                            ListenableBuilder(
+                              listenable:
+                                  BuiltinProvidersSettingsService.instance,
+                              builder: (context, _) {
+                                final isCustom = BuiltinProvidersSettingsService
+                                    .instance
+                                    .isCustom;
+                                return LuSettingsNavRow(
+                                  icon: Icons.dns_rounded,
+                                  iconColor: isCustom
+                                      ? tokens.accent
+                                      : tokens.success,
+                                  title: l10nOf(context).settingsBuiltinTitle,
+                                  subtitle: l10nOf(
+                                    context,
+                                  ).settingsBuiltinSubtitle,
+                                  valueText: isCustom
+                                      ? l10nOf(context).settingsBuiltinCustom
+                                      : l10nOf(context).settingsBuiltinDefault,
+                                  onTap: () => _navigateTo(
+                                    const BuiltinProvidersSettingsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            // Debrid & Cloud Streaming
+                            LuSettingsNavRow(
+                              icon: Icons.cloud_download_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).settingsDebridTitle,
+                              subtitle: l10nOf(context).settingsDebridSubtitle,
+                              valueText: _useDebrid
+                                  ? (_debridProvider != 'None'
+                                        ? _debridProvider
+                                        : l10nOf(context).stateActive)
+                                  : l10nOf(context).stateDisabled,
+                              onTap: () =>
+                                  _navigateTo(const DebridSettingsPage()),
+                            ),
+                          ],
+                        ),
+
+                        _buildSection(
+                          context,
+                          'INTEGRATIONS',
+                          rows: [
+                            // Trakt Sync
+                            LuSettingsNavRow(
+                              icon: Icons.movie_filter_rounded,
+                              iconColor: _traktBrand,
+                              title: l10nOf(context).settingsTraktTitle,
+                              subtitle: l10nOf(context).settingsTraktSubtitle,
+                              valueText: _traktConnected
+                                  ? l10nOf(context).stateConnected
+                                  : l10nOf(context).stateOffline,
+                              onTap: () =>
+                                  _navigateTo(const TraktSettingsPage()),
+                            ),
+                            // Simkl Sync
+                            LuSettingsNavRow(
+                              icon: Icons.tv_rounded,
+                              iconColor: _simklBrand,
+                              title: l10nOf(context).settingsSimklTitle,
+                              subtitle: l10nOf(context).settingsSimklSubtitle,
+                              valueText: _simklConnected
+                                  ? l10nOf(context).stateConnected
+                                  : l10nOf(context).stateOffline,
+                              onTap: () =>
+                                  _navigateTo(const SimklSettingsPage()),
+                            ),
+                            // TMDb API Key (bring your own)
+                            ListenableBuilder(
+                              listenable: TmdbService.apiKey,
+                              builder: (context, _) => LuSettingsNavRow(
+                                icon: Icons.theaters_rounded,
+                                iconColor: tokens.accent,
+                                title: l10nOf(context).settingsTmdbTitle,
+                                subtitle: l10nOf(context).settingsTmdbSubtitle,
+                                valueText: TmdbService.isConfigured
+                                    ? l10nOf(context).settingsTmdbYourKey
+                                    : l10nOf(context).stateNotSet,
+                                onTap: () =>
+                                    _navigateTo(const TmdbSettingsPage()),
+                              ),
+                            ),
+                            // Service API Keys (bring your own)
+                            ListenableBuilder(
+                              listenable: _serviceCredentials,
+                              builder: (context, _) {
+                                final provided = ServiceCredential.values
+                                    .where(ServiceCredentials.isUserProvided)
+                                    .length;
+                                return LuSettingsNavRow(
+                                  icon: Icons.key_rounded,
+                                  iconColor: tokens.accent,
+                                  title: l10nOf(
+                                    context,
+                                  ).settingsServiceKeysTitle,
+                                  subtitle: l10nOf(
+                                    context,
+                                  ).settingsServiceKeysSubtitle,
+                                  valueText: l10nOf(context)
+                                      .settingsServiceKeysCount(
+                                        provided,
+                                        ServiceCredential.values.length,
+                                      ),
+                                  onTap: () => _navigateTo(
+                                    const ServiceKeysSettingsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            // Discord Rich Presence (Desktop Only)
+                            if (Platform.isWindows ||
+                                Platform.isLinux ||
+                                Platform.isMacOS)
+                              ValueListenableBuilder<bool>(
+                                valueListenable:
+                                    DiscordRpcService.instance.isEnabled,
+                                builder: (context, isDiscordEnabled, _) {
+                                  return LuSettingsSwitchRow(
+                                    icon: Icons.sports_esports_rounded,
+                                    iconColor: isDiscordEnabled
+                                        ? _discordBrand
+                                        : tokens.textSecondary,
+                                    title: l10nOf(context).settingsDiscordTitle,
+                                    subtitle: isDiscordEnabled
+                                        ? l10nOf(
+                                            context,
+                                          ).settingsDiscordEnabledSubtitle
+                                        : l10nOf(
+                                            context,
+                                          ).settingsDiscordDisabledSubtitle,
+                                    valueText: isDiscordEnabled
+                                        ? l10nOf(context).stateActive
+                                        : l10nOf(context).stateDisabled,
+                                    value: isDiscordEnabled,
+                                    onChanged: (val) async {
+                                      await DiscordRpcService.instance
+                                          .setEnabled(val);
+                                    },
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
+
+                        _buildSection(
+                          context,
+                          'APPEARANCE',
+                          rows: [
+                            // Appearance & Interface
+                            ValueListenableBuilder<bool>(
+                              valueListenable: GlassSettings.enabled,
+                              builder: (context, glassEnabled, _) {
+                                return ValueListenableBuilder<AppThemePalette>(
+                                  valueListenable:
+                                      AppThemeService.currentPalette,
+                                  builder: (context, currentPalette, _) {
+                                    return LuSettingsNavRow(
+                                      icon: Icons.palette_rounded,
+                                      iconColor: tokens.accent,
+                                      title: l10nOf(
+                                        context,
+                                      ).settingsAppearanceTitle,
+                                      subtitle: l10nOf(
+                                        context,
+                                      ).settingsAppearanceSubtitle,
+                                      valueText: glassEnabled
+                                          ? l10nOf(context).settingsGlassOn
+                                          : null,
+                                      onTap: () => _navigateTo(
+                                        const AppearanceSettingsPage(),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+
+                        _buildSection(
+                          context,
+                          'CONTENT',
+                          rows: [
+                            // TV Airing Calendar Toggle
+                            ValueListenableBuilder<bool>(
+                              valueListenable: HomePageSettings.enableCalendar,
+                              builder: (context, isCalEnabled, _) {
+                                return LuSettingsSwitchRow(
+                                  icon: Icons.calendar_month_rounded,
+                                  iconColor: isCalEnabled
+                                      ? tokens.info
+                                      : tokens.textSecondary,
+                                  title: l10nOf(context).settingsCalendarTitle,
+                                  subtitle: isCalEnabled
+                                      ? l10nOf(
+                                          context,
+                                        ).settingsCalendarOnSubtitle
+                                      : l10nOf(
+                                          context,
+                                        ).settingsCalendarOffSubtitle,
+                                  valueText: isCalEnabled
+                                      ? l10nOf(context).stateEnabled
+                                      : l10nOf(context).stateDisabled,
+                                  value: isCalEnabled,
+                                  onChanged: (val) async {
+                                    await HomePageSettings.setEnableCalendar(
                                       val,
                                     );
                                   },
                                 );
                               },
                             ),
-                        ],
-                      ),
-
-                      _buildSection(
-                        context,
-                        'APPEARANCE',
-                        rows: [
-                          // Appearance & Interface
-                          ValueListenableBuilder<bool>(
-                            valueListenable: GlassSettings.enabled,
-                            builder: (context, glassEnabled, _) {
-                              return ValueListenableBuilder<AppThemePalette>(
-                                valueListenable: AppThemeService.currentPalette,
-                                builder: (context, currentPalette, _) {
-                                  return _SettingsNavRow(
-                                    icon: Icons.palette_rounded,
-                                    iconColor: tokens.accent,
-                                    title: l10nOf(
-                                      context,
-                                    ).settingsAppearanceTitle,
-                                    subtitle: l10nOf(
-                                      context,
-                                    ).settingsAppearanceSubtitle,
-                                    valueText: glassEnabled
-                                        ? '${currentPalette.name} · ${l10nOf(context).settingsGlassOn}'
-                                        : currentPalette.name,
-                                    onTap: () => _navigateTo(
-                                      const AppearanceSettingsPage(),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-
-                      _buildSection(
-                        context,
-                        'CONTENT',
-                        rows: [
-                          // TV Airing Calendar Toggle
-                          ValueListenableBuilder<bool>(
-                            valueListenable: HomePageSettings.enableCalendar,
-                            builder: (context, isCalEnabled, _) {
-                              return _SettingsSwitchRow(
-                                icon: Icons.calendar_month_rounded,
-                                iconColor: isCalEnabled
-                                    ? tokens.info
-                                    : tokens.textSecondary,
-                                title: l10nOf(context).settingsCalendarTitle,
-                                subtitle: isCalEnabled
-                                    ? l10nOf(context).settingsCalendarOnSubtitle
-                                    : l10nOf(
-                                        context,
-                                      ).settingsCalendarOffSubtitle,
-                                valueText: isCalEnabled
-                                    ? l10nOf(context).stateEnabled
-                                    : l10nOf(context).stateDisabled,
-                                value: isCalEnabled,
-                                onChanged: (val) async {
-                                  await HomePageSettings.setEnableCalendar(val);
-                                },
-                              );
-                            },
-                          ),
-                          // AI Recommendation Quiz Toggle
-                          ValueListenableBuilder<bool>(
-                            valueListenable: HomePageSettings.enableAiQuiz,
-                            builder: (context, isAiEnabled, _) {
-                              return _SettingsSwitchRow(
-                                icon: Icons.auto_awesome_rounded,
-                                iconColor: isAiEnabled
-                                    ? tokens.accent
-                                    : tokens.textSecondary,
-                                title: l10nOf(context).settingsAiQuizTitle,
-                                subtitle: isAiEnabled
-                                    ? l10nOf(context).settingsAiQuizOnSubtitle
-                                    : l10nOf(context).settingsAiQuizOffSubtitle,
-                                valueText: isAiEnabled
-                                    ? l10nOf(context).stateEnabled
-                                    : l10nOf(context).stateDisabled,
-                                value: isAiEnabled,
-                                onChanged: (val) async {
-                                  await HomePageSettings.setEnableAiQuiz(val);
-                                },
-                              );
-                            },
-                          ),
-                          // Adult Content (18+) Global Switch - admins only
-                          ValueListenableBuilder<bool>(
-                            valueListenable: ContentSettings.isAdmin,
-                            builder: (context, isAdmin, _) => !isAdmin
-                                ? const SizedBox.shrink()
-                                : ValueListenableBuilder<bool>(
-                                    valueListenable:
-                                        ContentSettings.adultEnabled,
-                                    builder: (context, isAdultOn, _) {
-                                      return _SettingsSwitchRow(
-                                        icon: Icons.eighteen_up_rating_rounded,
-                                        iconColor: isAdultOn
-                                            ? tokens.danger
-                                            : tokens.textSecondary,
-                                        title: l10nOf(
+                            // AI Recommendation Quiz Toggle
+                            ValueListenableBuilder<bool>(
+                              valueListenable: HomePageSettings.enableAiQuiz,
+                              builder: (context, isAiEnabled, _) {
+                                return LuSettingsSwitchRow(
+                                  icon: Icons.auto_awesome_rounded,
+                                  iconColor: isAiEnabled
+                                      ? tokens.accent
+                                      : tokens.textSecondary,
+                                  title: l10nOf(context).settingsAiQuizTitle,
+                                  subtitle: isAiEnabled
+                                      ? l10nOf(context).settingsAiQuizOnSubtitle
+                                      : l10nOf(
                                           context,
-                                        ).settingsAdultTitle,
-                                        subtitle: isAdultOn
-                                            ? l10nOf(
-                                                context,
-                                              ).settingsAdultOnSubtitle
-                                            : l10nOf(
-                                                context,
-                                              ).settingsAdultOffSubtitle,
-                                        valueText: isAdultOn
-                                            ? l10nOf(context).stateOn
-                                            : l10nOf(context).stateOff,
-                                        value: isAdultOn,
-                                        onChanged: (val) async {
-                                          await ContentSettings.setAdultEnabled(
-                                            val,
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
-                      ),
+                                        ).settingsAiQuizOffSubtitle,
+                                  valueText: isAiEnabled
+                                      ? l10nOf(context).stateEnabled
+                                      : l10nOf(context).stateDisabled,
+                                  value: isAiEnabled,
+                                  onChanged: (val) async {
+                                    await HomePageSettings.setEnableAiQuiz(val);
+                                  },
+                                );
+                              },
+                            ),
+                            // Adult Content (18+) Global Switch - admins only
+                            ValueListenableBuilder<bool>(
+                              valueListenable: ContentSettings.isAdmin,
+                              builder: (context, isAdmin, _) => !isAdmin
+                                  ? const SizedBox.shrink()
+                                  : ValueListenableBuilder<bool>(
+                                      valueListenable:
+                                          ContentSettings.adultEnabled,
+                                      builder: (context, isAdultOn, _) {
+                                        return LuSettingsSwitchRow(
+                                          icon:
+                                              Icons.eighteen_up_rating_rounded,
+                                          iconColor: isAdultOn
+                                              ? tokens.danger
+                                              : tokens.textSecondary,
+                                          title: l10nOf(
+                                            context,
+                                          ).settingsAdultTitle,
+                                          subtitle: isAdultOn
+                                              ? l10nOf(
+                                                  context,
+                                                ).settingsAdultOnSubtitle
+                                              : l10nOf(
+                                                  context,
+                                                ).settingsAdultOffSubtitle,
+                                          valueText: isAdultOn
+                                              ? l10nOf(context).stateOn
+                                              : l10nOf(context).stateOff,
+                                          value: isAdultOn,
+                                          onChanged: (val) async {
+                                            await ContentSettings.setAdultEnabled(
+                                              val,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
 
-                      _buildSection(
-                        context,
-                        'APP',
-                        rows: [
-                          // Backup & Restore (JSON)
-                          _SettingsNavRow(
-                            icon: Icons.backup_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).settingsBackupTitle,
-                            subtitle: l10nOf(context).settingsBackupSubtitle,
-                            valueText: 'JSON',
-                            onTap: _showBackupRestoreDialog,
-                          ),
-                          // Cache cleanup (artwork + metadata, never user state)
-                          _SettingsNavRow(
-                            icon: Icons.cleaning_services_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).settingsClearCacheTitle,
-                            subtitle: l10nOf(
-                              context,
-                            ).settingsClearCacheSubtitle,
-                            onTap: _confirmAndClearCache,
-                          ),
-                          // App Updates & System
-                          _SettingsNavRow(
-                            icon: Icons.system_update_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).settingsUpdatesTitle,
-                            subtitle: l10nOf(context).settingsUpdatesSubtitle,
-                            valueText: _appVersion != null
-                                ? 'v$_appVersion'
-                                : l10nOf(context).settingsUpdatesCheck,
-                            onTap: () =>
-                                _navigateTo(const UpdatesSettingsPage()),
-                          ),
-                          // Diagnostics (local-only report)
-                          _SettingsNavRow(
-                            icon: Icons.monitor_heart_outlined,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).diagnosticsTitle,
-                            subtitle: l10nOf(
-                              context,
-                            ).settingsDiagnosticsSubtitle,
-                            onTap: () => _navigateTo(const DiagnosticsPage()),
-                          ),
-                          // Language (English / Arabic / system)
-                          _SettingsNavRow(
-                            icon: Icons.translate_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).languageTitle,
-                            subtitle: l10nOf(context).settingsLanguageSubtitle,
-                            onTap: () =>
-                                _navigateTo(const LanguageSettingsPage()),
-                          ),
-                          // About ZPlay
-                          _SettingsNavRow(
-                            icon: Icons.info_outline_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nOf(context).settingsAboutTitle,
-                            subtitle: l10nOf(context).settingsAboutSubtitle,
-                            onTap: () => _navigateTo(const AboutSettingsPage()),
-                          ),
-                        ],
-                      ),
-                    ],
+                        _buildSection(
+                          context,
+                          'APP',
+                          rows: [
+                            // Backup & Restore (JSON)
+                            LuSettingsNavRow(
+                              icon: Icons.backup_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).settingsBackupTitle,
+                              subtitle: l10nOf(context).settingsBackupSubtitle,
+                              valueText: 'JSON',
+                              onTap: _showBackupRestoreDialog,
+                            ),
+                            // Cache cleanup (artwork + metadata, never user state)
+                            LuSettingsNavRow(
+                              icon: Icons.cleaning_services_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).settingsClearCacheTitle,
+                              subtitle: l10nOf(
+                                context,
+                              ).settingsClearCacheSubtitle,
+                              onTap: _confirmAndClearCache,
+                            ),
+                            // App Updates & System
+                            LuSettingsNavRow(
+                              icon: Icons.system_update_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).settingsUpdatesTitle,
+                              subtitle: l10nOf(context).settingsUpdatesSubtitle,
+                              valueText: _appVersion != null
+                                  ? 'v$_appVersion'
+                                  : l10nOf(context).settingsUpdatesCheck,
+                              onTap: () =>
+                                  _navigateTo(const UpdatesSettingsPage()),
+                            ),
+                            // Diagnostics (local-only report)
+                            LuSettingsNavRow(
+                              icon: Icons.monitor_heart_outlined,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).diagnosticsTitle,
+                              subtitle: l10nOf(
+                                context,
+                              ).settingsDiagnosticsSubtitle,
+                              onTap: () => _navigateTo(const DiagnosticsPage()),
+                            ),
+                            // Language (English / Arabic / system)
+                            LuSettingsNavRow(
+                              icon: Icons.translate_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).languageTitle,
+                              subtitle: l10nOf(
+                                context,
+                              ).settingsLanguageSubtitle,
+                              onTap: () =>
+                                  _navigateTo(const LanguageSettingsPage()),
+                            ),
+                            // About ZPlay
+                            LuSettingsNavRow(
+                              icon: Icons.info_outline_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).settingsAboutTitle,
+                              subtitle: l10nOf(context).settingsAboutSubtitle,
+                              onTap: () =>
+                                  _navigateTo(const AboutSettingsPage()),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1463,231 +1515,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
 /// A navigating settings row inside a grouped section: bare 20 px leading icon,
 /// title and subtitle, with the row's value right-aligned ahead of the chevron.
-class _SettingsNavRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final String? valueText;
-  final VoidCallback onTap;
-
-  const _SettingsNavRow({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    this.valueText,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // The whole row is the control and the ring is the row's own rect: on a
-    // television the ring says what a press hits, and the whole row does.
-    return LuFocusable(
-      onTap: onTap,
-      lift: 1,
-      borderRadius: const BorderRadius.all(Radius.circular(14)),
-      builder: (context, hi) => _SettingsRowBody(
-        icon: icon,
-        title: title,
-        subtitle: subtitle,
-        valueText: valueText,
-        highlighted: hi,
-        trailing: const Icon(
-          Icons.chevron_right_rounded,
-          size: 22,
-          color: LuColors.textFaint,
-        ),
-      ),
-    );
-  }
-}
-
-/// One settings row's anatomy: a gold glyph in a soft disc, the name and what
-/// it does, the value it holds, and the trailing control.
-class _SettingsRowBody extends StatelessWidget {
-  const _SettingsRowBody({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.highlighted,
-    required this.trailing,
-    this.valueText,
-    this.titleTrailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool highlighted;
-  final Widget trailing;
-  final String? valueText;
-  final Widget? titleTrailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: LuMotion.focus,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: highlighted ? const Color(0x0FFFFFFF) : Colors.transparent,
-        borderRadius: const BorderRadius.all(Radius.circular(14)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0x1FF2B544),
-            ),
-            child: Icon(icon, size: 19, color: LuColors.gold),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: LuText.body.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: highlighted
-                              ? LuColors.goldLight
-                              : LuColors.text,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (titleTrailing != null) ...[
-                      const SizedBox(width: 6),
-                      titleTrailing!,
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: LuText.caption.copyWith(color: LuColors.textMuted),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          if (valueText != null) ...[
-            const SizedBox(width: 12),
-            // Capped, so on a narrow phone it gives way to the title rather
-            // than pushing it to nothing.
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.sizeOf(context).width < 600 ? 72 : 220,
-              ),
-              child: Text(
-                valueText!,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: LuText.caption.copyWith(
-                  color: highlighted ? LuColors.text : LuColors.textMuted,
-                ),
-                maxLines: 1,
-              ),
-            ),
-          ],
-          const SizedBox(width: 8),
-          trailing,
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Settings Switch Row
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A toggle settings row inside a grouped section. Same anatomy as
-/// [_SettingsNavRow], with the switch at the trailing edge instead of a chevron.
-class _SettingsSwitchRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final String? valueText;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final VoidCallback? onInfoTap;
-
-  const _SettingsSwitchRow({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    this.valueText,
-    required this.value,
-    required this.onChanged,
-    this.onInfoTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // The row is the focus target and its activation runs the same
-    // [onChanged] the switch runs, so a remote and a pointer change the setting
-    // identically.
-    return LuFocusable(
-      onTap: () => onChanged(!value),
-      lift: 1,
-      borderRadius: const BorderRadius.all(Radius.circular(14)),
-      builder: (context, hi) => _SettingsRowBody(
-        icon: icon,
-        title: title,
-        subtitle: subtitle,
-        valueText: valueText,
-        highlighted: hi,
-        titleTrailing: onInfoTap == null
-            ? null
-            : IconButton(
-                icon: const Icon(
-                  Icons.info_outline_rounded,
-                  size: 16,
-                  color: LuColors.textMuted,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                style: IconButton.styleFrom(
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                tooltip: l10nOf(context).settingsP2pInfoTooltip,
-                onPressed: onInfoTap,
-              ),
-        // `ExcludeFocus`: the row is the focus target; a pointer still lands
-        // on the switch itself.
-        trailing: ExcludeFocus(
-          child: Transform.scale(
-            scale: 0.9,
-            child: Switch.adaptive(
-              value: value,
-              activeThumbColor: LuColors.onGold,
-              activeTrackColor: LuColors.gold,
-              inactiveThumbColor: LuColors.textMuted,
-              inactiveTrackColor: const Color(0x1FFFFFFF),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// What a settings section id is called in the active language.
 ///
 /// The id stays English because it is the anchor key; only this mapping is
@@ -1824,10 +1651,18 @@ class _SettingsSidebarItem extends StatelessWidget {
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard();
 
+  // Redrawn by itself when the profile is saved: a const card under the
+  // session builder would otherwise keep the old name and colour.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: AccountService.session,
+    builder: (context, _) => _card(context),
+  );
+
+  Widget _card(BuildContext context) {
+    final l10n = l10nOf(context);
     final email = AccountService.email ?? '';
-    final initial = email.isEmpty ? '?' : email.characters.first.toUpperCase();
+    final name = AccountService.displayName;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1839,23 +1674,11 @@ class _ProfileCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: LuColors.gold,
-            ),
-            child: Text(
-              initial,
-              style: const TextStyle(
-                fontFamily: LuFonts.display,
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: LuColors.onGold,
-              ),
-            ),
+          LuAvatar(
+            letter: AccountService.initial,
+            color: Color(AccountService.avatarColor),
+            imageUrl: AccountService.avatarUrl,
+            size: 60,
           ),
           const SizedBox(width: 18),
           Expanded(
@@ -1863,16 +1686,23 @@ class _ProfileCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  email,
+                  name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: LuText.heading,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LuText.caption.copyWith(color: LuColors.textMuted),
                 ),
                 const SizedBox(height: 4),
                 ValueListenableBuilder<bool>(
                   valueListenable: ContentSettings.isAdmin,
                   builder: (context, admin, _) => Text(
-                    admin ? l10nOf(context).accountAdmin : 'Lumora',
+                    admin ? l10n.accountAdmin : 'Lumora',
                     style: LuText.caption.copyWith(
                       color: admin ? LuColors.gold : LuColors.textMuted,
                       fontWeight: admin ? FontWeight.w700 : FontWeight.w400,
@@ -1882,7 +1712,275 @@ class _ProfileCard extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          // On a narrow phone the label would squeeze the name to "…".
+          if (MediaQuery.sizeOf(context).width < 480)
+            LuFocusable(
+              semanticLabel: l10n.profileEdit,
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (_) => const _EditProfileDialog(),
+              ),
+              builder: (context, highlighted) => Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: highlighted
+                      ? const Color(0x29FFFFFF)
+                      : const Color(0x14FFFFFF),
+                ),
+                child: const Icon(Icons.edit_rounded, color: LuColors.text),
+              ),
+            )
+          else
+            LuButton(
+              label: l10n.profileEdit,
+              icon: Icons.edit_rounded,
+              kind: LuButtonKind.secondary,
+              compact: true,
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const _EditProfileDialog(),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+/// Nickname and avatar colour, saved to the account.
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog();
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: AccountService.displayName,
+  );
+  late int _color = AccountService.avatarColorIndex;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // The preview letter follows the name as it is typed.
+    _name.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  bool _photoBusy = false;
+
+  Future<void> _pickPhoto() async {
+    final l10n = l10nOf(context);
+    final Uint8List? bytes;
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+      bytes = picked?.files.single.bytes;
+    } catch (_) {
+      // No file picker here (some TV boxes).
+      if (mounted) setState(() => _error = l10n.profilePhotoFailed);
+      return;
+    }
+    if (bytes == null || !mounted) return;
+    setState(() {
+      _photoBusy = true;
+      _error = null;
+    });
+    try {
+      await AccountService.uploadAvatar(bytes);
+    } catch (_) {
+      if (mounted) setState(() => _error = l10n.profilePhotoFailed);
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    setState(() => _photoBusy = true);
+    try {
+      await AccountService.removeAvatar();
+    } catch (_) {
+      if (mounted) setState(() => _error = l10nOf(context).profileSaveFailed);
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final l10n = l10nOf(context);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AccountService.updateProfile(name: _name.text, colorIndex: _color);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      Navigator.of(context).pop();
+      messenger?.showSnackBar(SnackBar(content: Text(l10n.profileSaved)));
+    } catch (_) {
+      if (mounted) setState(() => _error = l10n.profileSaveFailed);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = l10nOf(context);
+    final letter = _name.text.trim().isEmpty
+        ? AccountService.initial
+        : _name.text.trim().characters.first.toUpperCase();
+    return Theme(
+      data: luTheme(),
+      child: Dialog(
+        backgroundColor: LuColors.surface,
+        shape: const RoundedRectangleBorder(borderRadius: LuRadius.card),
+        insetPadding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    LuAvatar(
+                      letter: letter,
+                      color: Color(AccountService.avatarColors[_color]),
+                      imageUrl: AccountService.avatarUrl,
+                      size: 52,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(l10n.profileEdit, style: LuText.title),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: LuSpace.l),
+                LuTextField(
+                  label: l10n.profileNameLabel,
+                  controller: _name,
+                  hint: l10n.profileNameHint,
+                  // Desktop only: on a phone, tablet or TV focusing the
+                  // field opens the on-screen keyboard over the dialog.
+                  autofocus:
+                      Platform.isWindows ||
+                      Platform.isLinux ||
+                      Platform.isMacOS,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
+                ),
+                const SizedBox(height: LuSpace.m),
+                Wrap(
+                  spacing: LuSpace.s,
+                  runSpacing: LuSpace.s,
+                  children: [
+                    LuButton(
+                      label: l10n.profilePhotoUpload,
+                      icon: Icons.add_a_photo_rounded,
+                      kind: LuButtonKind.secondary,
+                      compact: true,
+                      busy: _photoBusy,
+                      onPressed: _busy ? null : _pickPhoto,
+                    ),
+                    if (AccountService.avatarUrl != null)
+                      LuButton(
+                        label: l10n.profilePhotoRemove,
+                        kind: LuButtonKind.text,
+                        onPressed: _busy || _photoBusy ? null : _removePhoto,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: LuSpace.l),
+                Text(l10n.profileColorLabel, style: LuText.label),
+                const SizedBox(height: LuSpace.s),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (var i = 0; i < AccountService.avatarColors.length; i++)
+                      LuFocusable(
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(999),
+                        ),
+                        semanticLabel: '${l10n.profileColorLabel} ${i + 1}',
+                        onTap: () => setState(() => _color = i),
+                        builder: (context, highlighted) => AnimatedContainer(
+                          duration: LuMotion.focus,
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(AccountService.avatarColors[i]),
+                            border: Border.all(
+                              color: i == _color
+                                  ? LuColors.text
+                                  : Colors.transparent,
+                              width: 3,
+                            ),
+                          ),
+                          child: i == _color
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  size: 20,
+                                  color: LuColors.onGold,
+                                )
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: LuSpace.m),
+                  Text(
+                    _error!,
+                    style: LuText.body.copyWith(
+                      fontSize: 14,
+                      color: LuColors.danger,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: LuSpace.l),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    LuButton(
+                      label: l10n.profileCancel,
+                      kind: LuButtonKind.text,
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: LuSpace.s),
+                    LuButton(
+                      label: l10n.profileSave,
+                      compact: true,
+                      busy: _busy,
+                      onPressed: _photoBusy ? null : _save,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

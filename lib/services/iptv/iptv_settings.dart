@@ -2,13 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_page_settings.dart';
 import 'iptv_network.dart';
+import '../../l10n/option_labels.dart';
 
 enum PortalCardStyle {
   rich('Rich Card with Badges'),
   compact('Compact Row');
 
-  final String label;
-  const PortalCardStyle(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const PortalCardStyle(this.labelEn);
 }
 
 enum PortalBrowserLayout {
@@ -16,8 +18,9 @@ enum PortalBrowserLayout {
   list('Detailed List with EPG'),
   compactList('Compact Channel List');
 
-  final String label;
-  const PortalBrowserLayout(this.label);
+  final String labelEn;
+  String get label => localizedOptionLabel(labelEn);
+  const PortalBrowserLayout(this.labelEn);
 }
 
 abstract final class IptvSettings {
@@ -74,13 +77,16 @@ abstract final class IptvSettings {
 
   // Live TV Values
   static final ValueNotifier<bool> enableSpotlight = ValueNotifier<bool>(true);
-  static final ValueNotifier<HeroStyle> heroStyle =
-      ValueNotifier<HeroStyle>(HeroStyle.immersive);
+  static final ValueNotifier<HeroStyle> heroStyle = ValueNotifier<HeroStyle>(
+    HeroStyle.immersive,
+  );
   static final ValueNotifier<bool> heroAutoRotate = ValueNotifier<bool>(true);
   static final ValueNotifier<int> heroRotateSeconds = ValueNotifier<int>(7);
   static final ValueNotifier<CardDensity> cardDensity =
       ValueNotifier<CardDensity>(CardDensity.standard);
-  static final ValueNotifier<double> cardHoverZoom = ValueNotifier<double>(1.06);
+  static final ValueNotifier<double> cardHoverZoom = ValueNotifier<double>(
+    1.06,
+  );
   static final ValueNotifier<bool> showHdBadge = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> showCategoryTag = ValueNotifier<bool>(true);
 
@@ -90,7 +96,9 @@ abstract final class IptvSettings {
   /// wants the clean poster can drop this one and keep the other.
   static final ValueNotifier<bool> showHealthBadge = ValueNotifier<bool>(true);
   // Lumora's ground is flat; the glows are opt-in.
-  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> enableAmbientLights = ValueNotifier<bool>(
+    false,
+  );
   static final ValueNotifier<List<String>> visibleCategories =
       ValueNotifier<List<String>>(List.from(defaultCategories));
 
@@ -98,7 +106,9 @@ abstract final class IptvSettings {
   static final ValueNotifier<PortalCardStyle> portalCardStyle =
       ValueNotifier<PortalCardStyle>(PortalCardStyle.rich);
   static final ValueNotifier<bool> showPortalExpiry = ValueNotifier<bool>(true);
-  static final ValueNotifier<bool> showPortalConnections = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> showPortalConnections = ValueNotifier<bool>(
+    true,
+  );
   static final ValueNotifier<int> defaultPortalTab = ValueNotifier<int>(0);
   static final ValueNotifier<CatalogSource> defaultScrapeSource =
       ValueNotifier<CatalogSource>(CatalogSource.cloudVault);
@@ -109,8 +119,12 @@ abstract final class IptvSettings {
   static final ValueNotifier<int> browserGridColumns = ValueNotifier<int>(4);
   static final ValueNotifier<bool> showStreamLogos = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> showEpgSnippet = ValueNotifier<bool>(true);
-  static final ValueNotifier<bool> showCategoryCount = ValueNotifier<bool>(true);
-  static final ValueNotifier<double> sidebarWidth = ValueNotifier<double>(260.0);
+  static final ValueNotifier<bool> showCategoryCount = ValueNotifier<bool>(
+    true,
+  );
+  static final ValueNotifier<double> sidebarWidth = ValueNotifier<double>(
+    260.0,
+  );
 
   /// Whether the built-in public playlists may widen a curated channel's
   /// sources.
@@ -120,8 +134,9 @@ abstract final class IptvSettings {
   /// carries can still be found in the free sports playlist, which is the point
   /// of the switch: the hit is labelled with the source it came from, so the
   /// user can always see that it is not one of their own panels.
-  static final ValueNotifier<bool> includeFreeSources =
-      ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> includeFreeSources = ValueNotifier<bool>(
+    true,
+  );
 
   static final ValueNotifier<int> changeNotifier = ValueNotifier<int>(0);
 
@@ -184,7 +199,8 @@ abstract final class IptvSettings {
       orElse: () => PortalCardStyle.rich,
     );
     showPortalExpiry.value = prefs.getBool(_keyShowPortalExpiry) ?? true;
-    showPortalConnections.value = prefs.getBool(_keyShowPortalConnections) ?? true;
+    showPortalConnections.value =
+        prefs.getBool(_keyShowPortalConnections) ?? true;
     defaultPortalTab.value = prefs.getInt(_keyDefaultPortalTab) ?? 0;
 
     final scrapeSrcStr = prefs.getString(_keyDefaultScrapeSource);

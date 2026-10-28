@@ -1,60 +1,44 @@
-import '../../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../services/layout/form_factor.dart';
 import '../../../services/manga/manga_settings.dart';
-import '../../../services/theme/design_tokens.dart';
-import '../../../widgets/common/focusable_card.dart';
+import '../../../ui/lu_focusable.dart';
+import '../../../ui/lu_theme.dart';
+import 'manga_labels.dart';
 
-/// The prototype's `.reader-control-banner`: the reader's atmosphere and page
-/// mode, on the shelf rather than three taps deep in a settings sheet.
+/// The reader's atmosphere and page mode, on the shelf rather than three taps
+/// deep in a settings sheet.
 ///
-/// Both controls write real settings that the reader already honours —
+/// Both controls write real settings the reader honours -
 /// [MangaSettings.readerBackground] (the page colour the reader paints) and
-/// [MangaSettings.defaultReadingMode] (the mode a chapter opens in) — so this
-/// bar changes what the reader does instead of restating a preference that has
-/// no effect.
+/// [MangaSettings.defaultReadingMode] (the mode a chapter opens in).
 ///
-/// Nothing here carries a resting border or a band. A chip's selected state is
-/// its fill and its label colour, and the only outline a chip ever wears is the
-/// app's single 3 dp accent focus ring, painted over it. Both are paint-only, so
-/// neither selection nor focus moves a chip or the row it sits in. The banner
-/// itself is bare: it sits on the shelf's own canvas under the page's transparent
-/// chrome, and the `tokens.surface` fill with a bottom hairline it used to draw
-/// was a second opaque band inside a page whose whole language is canvas first.
+/// The atmosphere is one disclosure pill beside the page-mode pill on every
+/// screen: on a phone a row of four atmosphere pills took two lines of the
+/// shelf, and on a 540 dp television the banner must stay one 48 dp row.
 class MangaReaderControlBar extends StatelessWidget {
-  const MangaReaderControlBar({super.key});
+  const MangaReaderControlBar({super.key, this.horizontalPadding});
+
+  /// The page's side margin; the bar's own default otherwise.
+  final double? horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
     final isCompact = FormFactorService.of(context) == FormFactor.compact;
+    final pad = horizontalPadding ?? (isCompact ? 16.0 : 24.0);
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? ZplaySpacing.s16 : ZplaySpacing.s24,
-        vertical: ZplaySpacing.s8,
+      // 6 rather than 8: the focus ring's 2 dp edge sits around each pill,
+      // and a television's banner must stay one 64 dp row.
+      padding: EdgeInsets.symmetric(horizontal: pad, vertical: 6),
+      child: const Row(
+        children: [
+          Flexible(child: MangaAtmosphereChip()),
+          SizedBox(width: 12),
+          Flexible(child: MangaPageModeChip()),
+        ],
       ),
-      child: isCompact
-          ? const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                MangaAtmosphereChips(),
-                SizedBox(height: ZplaySpacing.s8),
-                MangaPageModeChip(),
-              ],
-            )
-          // Two disclosure chips, one line, always. A 540 dp television
-          // canvas cannot afford the chip group here - see
-          // [MangaAtmosphereChip] - and a `Row` of two fixed-size chips
-          // cannot wrap, so this banner is one 48 dp row whatever the
-          // settings behind it say.
-          : const Row(
-              children: [
-                MangaAtmosphereChip(),
-                SizedBox(width: ZplaySpacing.s16),
-                MangaPageModeChip(),
-              ],
-            ),
     );
   }
 }
@@ -69,23 +53,25 @@ class MangaAtmosphereChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
+    final l10n = l10nOf(context);
     return ValueListenableBuilder<MangaReaderBackground>(
       valueListenable: MangaSettings.readerBackground,
       builder: (context, current, _) => Wrap(
-        spacing: ZplaySpacing.s8,
-        runSpacing: ZplaySpacing.s8,
+        spacing: 8,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           if (showLabel)
-            Text(
-              l10nCurrent().mgReaderAtmosphere,
-              style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Text(
+                l10n.mgReaderAtmosphere,
+                style: LuText.label.copyWith(color: LuColors.textMuted),
+              ),
             ),
           for (final background in MangaReaderBackground.values)
             ReaderChoiceChip(
-              label: background.label,
+              label: mangaBackgroundLabel(l10n, background),
               swatch: background.color,
               selected: background == current,
               onTap: () => MangaSettings.setReaderBackground(background),
@@ -96,8 +82,9 @@ class MangaAtmosphereChips extends StatelessWidget {
   }
 }
 
-/// One chip in a reader control row. Shared by the atmosphere group and the
-/// page-mode selector so both read as the same control.
+/// One pill in a reader control row. Shared by the atmosphere group and the
+/// page-mode selector so both read as the same control: gold tint and gold
+/// words when chosen, an outline at rest, the gold ring on focus.
 class ReaderChoiceChip extends StatelessWidget {
   const ReaderChoiceChip({
     super.key,
@@ -120,53 +107,60 @@ class ReaderChoiceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final foreground = selected ? tokens.accent : tokens.textEmphasis;
-
-    return FocusableCard(
+    final fg = selected ? LuColors.gold : LuColors.textSoft;
+    return LuFocusable(
       onTap: onTap,
-      builder: (context, state) => CardFocusRing(
-        focused: state.focused,
-        radius: ZplayRadius.xsAll,
-        child: AnimatedContainer(
-          duration: ZplayMotion.fast,
-          curve: ZplayMotion.standard,
-          height: FocusMetrics.controlHeight(context),
-          padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected
-                ? tokens.accentSubtle
-                : (state.highlighted ? tokens.borderStrong : tokens.borderDefault),
-            borderRadius: ZplayRadius.xsAll,
+      semanticLabel: label,
+      builder: (context, hi) => AnimatedContainer(
+        duration: LuMotion.focus,
+        height: FocusMetrics.controlHeight(context),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          borderRadius: LuRadius.pill,
+          color: selected
+              ? const Color(0x29F2B544)
+              : (hi ? const Color(0x1AFFFFFF) : const Color(0x0DFFFFFF)),
+          border: Border.all(
+            color: selected ? const Color(0x80F2B544) : LuColors.line,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (swatch != null) ...[
-                Container(
-                  width: ZplaySpacing.s12,
-                  height: ZplaySpacing.s12,
-                  decoration: BoxDecoration(
-                    color: swatch,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: tokens.borderStrong),
-                  ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (swatch != null) ...[
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: swatch,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0x66FFFFFF)),
                 ),
-                const SizedBox(width: ZplaySpacing.s8),
-              ],
-              Text(
-                label,
-                // Weight is fixed across states: a chip that thickened its
-                // label when selected would widen, and the row would reflow.
-                style: ZplayType.label.toStyle(color: foreground),
               ),
-              if (trailingIcon != null) ...[
-                const SizedBox(width: ZplaySpacing.s4),
-                Icon(trailingIcon, size: 18, color: foreground),
-              ],
+              const SizedBox(width: 8),
             ],
-          ),
+            // Flexible + ellipsis: "Page Mode: Webtoon Scroll" at 1.3x text
+            // on a 328 dp phone row would otherwise overflow the pill.
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                // Weight is fixed across states, so choosing never reflows.
+                style: LuText.body.copyWith(
+                  fontSize: 14,
+                  height: 1.2,
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (trailingIcon != null) ...[
+              const SizedBox(width: 4),
+              Icon(trailingIcon, size: 18, color: fg),
+            ],
+          ],
         ),
       ),
     );
@@ -175,19 +169,14 @@ class ReaderChoiceChip extends StatelessWidget {
 
 /// Opens [values] as a focusable menu anchored under the chip at [context].
 ///
-/// Shared by the page-mode and atmosphere chips so the two cannot drift into
-/// two menu behaviours. `PopupMenuItem` rows are focusable and traversable,
-/// which a bare `PopupMenuButton` child is not: it draws no focus indicator of
-/// its own, so on a television the chip would be a control with no visible
-/// position. The chip is therefore the trigger and the anchor, and the menu is
-/// the only thing this builds.
+/// `PopupMenuItem` rows are focusable and traversable, so a remote moves
+/// through the choices and Select picks one.
 Future<T?> _openChoiceMenu<T>(
   BuildContext context, {
   required List<T> values,
   required T current,
   required String Function(T value) label,
 }) async {
-  final tokens = context.tokens;
   final box = context.findRenderObject() as RenderBox?;
   final overlayBox =
       Overlay.of(context).context.findRenderObject() as RenderBox?;
@@ -201,14 +190,14 @@ Future<T?> _openChoiceMenu<T>(
 
   return showMenu<T>(
     context: context,
-    color: tokens.surfaceOverlay,
-    shape: RoundedRectangleBorder(
-      borderRadius: ZplayRadius.smAll,
-      side: tokens.hairlineStrong,
+    color: LuColors.surfaceHigh,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(16)),
+      side: BorderSide(color: LuColors.line),
     ),
     position: RelativeRect.fromLTRB(
       topLeft.dx,
-      bottomRight.dy + ZplaySpacing.s4,
+      bottomRight.dy + 6,
       overlayBox.size.width - bottomRight.dx,
       0,
     ),
@@ -216,42 +205,46 @@ Future<T?> _openChoiceMenu<T>(
       for (final value in values)
         PopupMenuItem<T>(
           value: value,
-          child: Text(
-            label(value),
-            style: ZplayType.body.toStyle(
-              color: value == current ? tokens.accent : tokens.textPrimary,
-            ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                child: value == current
+                    ? const Icon(
+                        Icons.check_rounded,
+                        size: 18,
+                        color: LuColors.gold,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label(value),
+                style: LuText.body.copyWith(
+                  fontSize: 15,
+                  color: value == current ? LuColors.gold : LuColors.text,
+                ),
+              ),
+            ],
           ),
         ),
     ],
   );
 }
 
-/// The prototype's `Page Mode: Webtoon Scroll ▾` chip, over the three modes the
-/// reader actually implements.
-///
-/// The menu is opened by the chip's own activation, so the control is one focus
-/// target: `PopupMenuItem` rows are focusable and traversable, which a bare
-/// [PopupMenuButton] child would not have been — it draws no focus indicator of
-/// its own, so on a television the chip would have been a control with no
-/// visible position.
+/// The page-mode pill (`Page mode: Webtoon Scroll ▾`) over the three modes
+/// the reader implements. Activating it opens the menu, so the control is one
+/// focus target.
 class MangaPageModeChip extends StatelessWidget {
   const MangaPageModeChip({super.key});
 
-  /// `Vertical Continuous (Webtoon)` is too long for a chip; the reader's own
-  /// setting page still shows the full label.
-  static String shortLabel(MangaReadingMode mode) => switch (mode) {
-    MangaReadingMode.webtoon => l10nCurrent().mgWebtoonScroll,
-    MangaReadingMode.horizontalLtr => l10nCurrent().mgHorizontalLtr,
-    MangaReadingMode.horizontalRtl => l10nCurrent().mgHorizontalRtl,
-  };
-
   Future<void> _openMenu(BuildContext context, MangaReadingMode current) async {
+    final l10n = l10nOf(context);
     final picked = await _openChoiceMenu<MangaReadingMode>(
       context,
       values: MangaReadingMode.values,
       current: current,
-      label: (mode) => mode.label,
+      label: (mode) => mangaReadingModeLabel(l10n, mode),
     );
 
     if (picked != null) await MangaSettings.setDefaultReadingMode(picked);
@@ -259,13 +252,14 @@ class MangaPageModeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = l10nOf(context);
     return ValueListenableBuilder<MangaReadingMode>(
       valueListenable: MangaSettings.defaultReadingMode,
       builder: (context, mode, _) => Builder(
         builder: (chipContext) => ReaderChoiceChip(
-          label: l10nCurrent().mg2PageModeLabel(shortLabel(mode)),
+          label: l10n.mg2PageModeLabel(mangaReadingModeShort(l10n, mode)),
           selected: false,
-          trailingIcon: Icons.arrow_drop_down_rounded,
+          trailingIcon: Icons.expand_more_rounded,
           onTap: () => _openMenu(chipContext, mode),
         ),
       ),
@@ -273,18 +267,9 @@ class MangaPageModeChip extends StatelessWidget {
   }
 }
 
-/// The atmosphere group as one disclosure chip, for the shelf banner.
-///
-/// [MangaAtmosphereChips] is right for a pointer and for a phone. On a 540 dp
-/// television canvas it is the wrong shape entirely: a label plus four 48 dp
-/// chips inside an `Expanded` reflow across two or three `Wrap` rows, and the
-/// banner then spends ~120 dp - nearly a quarter of the screen - restating a
-/// setting the user changes once. That is what the shelf looked like on the TV:
-/// a filter block that had eaten the grid.
-///
-/// One chip keeps the control, its focus target, its swatch and its effect on
-/// the reader, and gives the shelf its screen back. The group is still the
-/// control for a pointer, where it is the better shape.
+/// The atmosphere group as one disclosure pill, for the shelf banner away
+/// from a phone: it keeps the control, its swatch and its effect on the
+/// reader in one 48 dp target.
 class MangaAtmosphereChip extends StatelessWidget {
   const MangaAtmosphereChip({super.key});
 
@@ -292,11 +277,12 @@ class MangaAtmosphereChip extends StatelessWidget {
     BuildContext context,
     MangaReaderBackground current,
   ) async {
+    final l10n = l10nOf(context);
     final picked = await _openChoiceMenu<MangaReaderBackground>(
       context,
       values: MangaReaderBackground.values,
       current: current,
-      label: (background) => background.label,
+      label: (background) => mangaBackgroundLabel(l10n, background),
     );
 
     if (picked != null) await MangaSettings.setReaderBackground(picked);
@@ -304,14 +290,15 @@ class MangaAtmosphereChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = l10nOf(context);
     return ValueListenableBuilder<MangaReaderBackground>(
       valueListenable: MangaSettings.readerBackground,
       builder: (context, current, _) => Builder(
         builder: (chipContext) => ReaderChoiceChip(
-          label: l10nCurrent().mg2AtmosphereLabel(current.label),
+          label: l10n.mg2AtmosphereLabel(mangaBackgroundLabel(l10n, current)),
           swatch: current.color,
           selected: false,
-          trailingIcon: Icons.arrow_drop_down_rounded,
+          trailingIcon: Icons.expand_more_rounded,
           onTap: () => _openMenu(chipContext, current),
         ),
       ),
@@ -322,8 +309,7 @@ class MangaAtmosphereChip extends StatelessWidget {
 /// The minimum size an actionable control may present, per form factor.
 ///
 /// A television is pointed at from across a room with a five-way pad, so every
-/// target on it is at least the 48 dp comfortable minimum; a phone is held, and
-/// the prototype's own chips are smaller there.
+/// target on it is at least the 48 dp comfortable minimum; a phone is held.
 abstract final class FocusMetrics {
   static double controlHeight(BuildContext context) =>
       FormFactorService.of(context) == FormFactor.compact

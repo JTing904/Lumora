@@ -76,6 +76,7 @@ import '../../models/download/download_task_model.dart';
 import '../../services/download/download_service.dart';
 import '../../utils/download/download_path_helper.dart';
 import '../../utils/security/log_redaction.dart';
+import '../../widgets/player/lu_player_style.dart';
 
 class _PlayerTogglePlayPauseIntent extends Intent {
   const _PlayerTogglePlayPauseIntent();
@@ -4059,7 +4060,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     // Read once per build rather than per key press, and from the one classifier
     // the shell owns. On a television the arrows belong to the focus system.
     final isTelevision = FormFactorService.of(context) == FormFactor.television;
@@ -4413,7 +4414,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   /// overlay underneath built the poster again on every source change, which is
   /// what read as the player flashing the artwork.
   Widget _buildResumeSearchScreen() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final String? logoUrl = widget.logoUrl ?? widget.detail?.logo;
     final String? backdropUrl = widget.backdropUrl;
     // Artwork ladder, best first: the player's own logo, the metadata's logo,
@@ -4658,7 +4659,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   void _handleCopyStreamUrl() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final url = _activeStreamUrl ?? _currentSource.url;
     if (url != null && url.isNotEmpty) {
       Clipboard.setData(ClipboardData(text: url));
@@ -4702,7 +4703,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildControlsOverlay() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final buffered = _buffered;
 
     final isColl = widget.detail?.isCollection == true;
@@ -5428,7 +5429,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildVolumeHud() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final effectiveVol = _isMuted ? 0.0 : _volume;
     final isBoosting = !_isMuted && _volume > 1.001;
     final pct = (effectiveVol * 100).round();
@@ -5573,7 +5574,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildBrightnessHud() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final pct = (_brightness * 100).round();
     final isBoosting = _brightness > 1.001;
     final boostColor = _brightness > 1.35 ? tokens.warning : tokens.info;
@@ -5709,7 +5710,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildFastForwardHud() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Positioned(
       top: 54,
       left: 0,
@@ -5758,7 +5759,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildMobileLeftLockButton() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Positioned(
       left: 28,
       top: 0,
@@ -5807,7 +5808,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildMobileUnlockButton() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Positioned(
       left: 28,
       top: 0,
@@ -5888,7 +5889,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildAudioHud() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
@@ -5951,7 +5952,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   }
 
   Widget _buildAspectHud() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
@@ -6006,7 +6007,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       return const SizedBox.shrink();
     }
 
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final text = describeUpscaleAdvisory(
       advisory,
       _decodedWidth ?? 0,
@@ -6110,7 +6111,7 @@ class _CenterBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Container(
       width: 76,
       height: 76,

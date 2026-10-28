@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/theme/app_theme_service.dart';
 import '../../services/music/music_settings.dart';
+import '../../ui/lu_theme.dart';
 
 class MusicWaveformSeekbar extends StatefulWidget {
   final Duration position;
@@ -11,6 +13,13 @@ class MusicWaveformSeekbar extends StatefulWidget {
   final MusicSeekbarStyle style;
   final bool compact;
 
+  /// How far one LEFT or RIGHT press seeks while the bar has focus.
+  ///
+  /// Null keeps the bar out of the focus traversal altogether (the settings
+  /// previews); set, the bar is one remote stop with a visible ring, so a
+  /// remote or keyboard can scrub without a pointer.
+  final Duration? keyStep;
+
   const MusicWaveformSeekbar({
     super.key,
     required this.position,
@@ -19,6 +28,7 @@ class MusicWaveformSeekbar extends StatefulWidget {
     this.isPlaying = false,
     this.style = MusicSeekbarStyle.waveformEqualizer,
     this.compact = false,
+    this.keyStep,
   });
 
   @override
@@ -28,6 +38,13 @@ class MusicWaveformSeekbar extends StatefulWidget {
 class _MusicWaveformSeekbarState extends State<MusicWaveformSeekbar> with SingleTickerProviderStateMixin {
   bool _isDragging = false;
   double _dragProgress = 0.0;
+  bool _focused = false;
+
+  /// The target of the last key seek, and when it was asked for. The player
+  /// reports the new position a beat after a seek, so a run of presses builds
+  /// on the previous target rather than on a position that has not moved yet.
+  Duration? _keyTarget;
+  DateTime? _keyTargetAt;
   late final AnimationController _waveAnimController;
 
   static final List<double> _waveSamples = List.generate(64, (i) {
@@ -80,8 +97,58 @@ class _MusicWaveformSeekbarState extends State<MusicWaveformSeekbar> with Single
     widget.onSeek(Duration(milliseconds: targetMs));
   }
 
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    final step = widget.keyStep;
+    if (step == null || event is KeyUpEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    final int sign;
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      sign = -1;
+    } else if (key == LogicalKeyboardKey.arrowRight) {
+      sign = 1;
+    } else {
+      // UP and DOWN stay the traversal's, so the remote can leave the bar.
+      return KeyEventResult.ignored;
+    }
+    final total = widget.duration;
+    if (total <= Duration.zero) return KeyEventResult.handled;
+    final now = DateTime.now();
+    final recent = _keyTargetAt != null &&
+        now.difference(_keyTargetAt!) < const Duration(milliseconds: 800);
+    final base = recent && _keyTarget != null ? _keyTarget! : widget.position;
+    var target = base + step * sign;
+    if (target < Duration.zero) target = Duration.zero;
+    if (target > total) target = total;
+    _keyTarget = target;
+    _keyTargetAt = now;
+    widget.onSeek(target);
+    return KeyEventResult.handled;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bar = _buildBar(context);
+    if (widget.keyStep == null) return bar;
+    return Focus(
+      onKeyEvent: _onKey,
+      onFocusChange: (focused) => setState(() => _focused = focused),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.all(Radius.circular(14)),
+          border: Border.all(
+            color: _focused ? LuColors.gold : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        // The slider style is focusable on its own; the bar is the one stop.
+        child: ExcludeFocus(child: bar),
+      ),
+    );
+  }
+
+  Widget _buildBar(BuildContext context) {
     final palette = AppThemeService.currentPalette.value;
     final posDuration = _isDragging
         ? Duration(milliseconds: (_dragProgress * widget.duration.inMilliseconds).round())

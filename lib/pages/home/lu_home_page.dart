@@ -8,8 +8,11 @@ import '../../models/continue_watching/continue_watching_item.dart';
 import '../../models/movie/movie.dart';
 import '../../services/continue_watching/continue_watching_service.dart';
 import '../../services/content/adult_guard.dart';
+import '../../services/content/content_settings.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/metadata/tmdb_catalog.dart';
+import '../../services/my_list/my_list_service.dart';
+import '../../services/my_list/new_episode_service.dart';
 import '../../services/p2p/p2p_settings_service.dart';
 import '../../services/playback/play_launcher.dart';
 import '../../services/recommend/recommender.dart';
@@ -62,6 +65,8 @@ class _LuHomePageState extends State<LuHomePage> {
   void initState() {
     super.initState();
     LocaleSettings.locale.addListener(_onLocaleChanged);
+    // 有新集: checks My List's series in the background.
+    NewEpisodeService.ensureStarted();
     // After the first frame: loading reads the page's language, which
     // initState may not.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -169,7 +174,12 @@ class _LuHomePageState extends State<LuHomePage> {
     final pad = phone ? 16.0 : (tv ? 48.0 : LuSpace.page);
     final posterW = phone ? 116.0 : (tv ? 150.0 : 160.0);
     final continueW = phone ? 240.0 : 320.0;
-    final rankW = phone ? 104.0 : 150.0;
+    // Top 10 on a phone: a smaller poster and a numeral well under its full
+    // height, so about three cards show across instead of two. Keyed on the
+    // shortest side so a phone held sideways stays compact; a television keeps
+    // the full ten-foot look whatever its reported size.
+    final compactRank = size.shortestSide < 600 && !DeviceProfile.isTelevision;
+    final rankW = compactRank ? 92.0 : 150.0;
     final scaler = MediaQuery.textScalerOf(context);
 
     return Theme(
@@ -232,53 +242,108 @@ class _LuHomePageState extends State<LuHomePage> {
                 },
               ),
             ),
+            SliverToBoxAdapter(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([
+                  NewEpisodeService.info,
+                  MyListService.items,
+                  ContentSettings.adultEnabled,
+                ]),
+                builder: (context, _) {
+                  final shows = NewEpisodeService.newEpisodes();
+                  if (shows.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: LuRail(
+                      title: l10n.newEpRail,
+                      padding: pad,
+                      height: LuPosterCard.heightFor(posterW, scaler) + 8,
+                      itemCount: shows.length,
+                      itemBuilder: (context, i) {
+                        final show = shows[i];
+                        return LuPosterCard(
+                          width: posterW,
+                          title: show.title,
+                          poster: show.poster,
+                          badge: l10n.newEpBadge,
+                          subtitle: show.latestCode(l10n),
+                          onTap: () => PlayLauncher.openDetails(
+                            context,
+                            Movie(
+                              id: show.detailsId,
+                              name: show.title,
+                              poster: show.poster,
+                              year: show.year?.toString(),
+                              type: 'series',
+                              addonBaseUrl: 'https://v3-cinemeta.strem.io',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
             if (_top.length >= 5)
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 36),
-                  child: LuRail(
-                    title: l10n.homeTop10,
-                    padding: pad,
-                    spacing: 28,
-                    height: LuRankCard.heightFor(rankW) + 16,
-                    itemCount: _top.length,
-                    itemBuilder: (context, i) {
-                      final m = _top[i];
-                      return LuRankCard(
-                        rank: i + 1,
-                        title: m.name,
-                        poster: m.poster,
-                        posterWidth: rankW,
-                        badge: _kind(m),
-                        onTap: () => PlayLauncher.openDetails(context, m),
-                      );
-                    },
+                child: ValueListenableBuilder<Map<String, NewEpisodeInfo>>(
+                  valueListenable: NewEpisodeService.info,
+                  builder: (context, _, _) => Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: LuRail(
+                      title: l10n.homeTop10,
+                      padding: pad,
+                      spacing: compactRank ? 12 : 28,
+                      height: LuRankCard.heightFor(rankW) + 16,
+                      itemCount: _top.length,
+                      itemBuilder: (context, i) {
+                        final m = _top[i];
+                        return LuRankCard(
+                          rank: i + 1,
+                          title: m.name,
+                          poster: m.poster,
+                          posterWidth: rankW,
+                          numeralScale: compactRank ? 0.62 : 1,
+                          badge: _hasNew(m) ? l10n.newEpBadge : _kind(m),
+                          onTap: () => PlayLauncher.openDetails(context, m),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
             for (final row in _rows)
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 36),
-                  child: LuRail(
-                    title: row.title(l10n),
-                    padding: pad,
-                    height: LuPosterCard.heightFor(posterW, scaler) + 8,
-                    itemCount: row.movies.length,
-                    itemBuilder: (context, i) {
-                      final m = row.movies[i];
-                      return LuPosterCard(
-                        width: posterW,
-                        title: m.name,
-                        poster: m.poster,
-                        rating: m.imdbRating,
-                        subtitle: [
-                          if (m.year != null) m.year!,
-                          _kind(m),
-                        ].join(' · '),
-                        onTap: () => PlayLauncher.openDetails(context, m),
-                      );
-                    },
+                child: ValueListenableBuilder<Map<String, NewEpisodeInfo>>(
+                  valueListenable: NewEpisodeService.info,
+                  builder: (context, _, _) => Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: LuRail(
+                      title: row.title(l10n),
+                      padding: pad,
+                      height: LuPosterCard.heightFor(posterW, scaler) + 8,
+                      itemCount: row.movies.length,
+                      itemBuilder: (context, i) {
+                        final m = row.movies[i];
+                        final fresh = _newInfo(m);
+                        return LuPosterCard(
+                          width: posterW,
+                          title: m.name,
+                          poster: m.poster,
+                          rating: m.imdbRating,
+                          badge: fresh == null ? null : l10n.newEpBadge,
+                          subtitle: [
+                            if (fresh?.latestCode(l10n) case final code?)
+                              code
+                            else if (m.year != null)
+                              m.year!,
+                            _kind(m),
+                          ].join(' · '),
+                          onTap: () => PlayLauncher.openDetails(context, m),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -326,6 +391,15 @@ class _LuHomePageState extends State<LuHomePage> {
       ),
     );
   }
+
+  /// The My List entry for [m] when it has a new episode (有新集).
+  NewEpisodeInfo? _newInfo(Movie m) {
+    if (m.type != 'series') return null;
+    final info = NewEpisodeService.forId(m.id);
+    return info != null && info.isNew ? info : null;
+  }
+
+  bool _hasNew(Movie m) => _newInfo(m) != null;
 
   String _kind(Movie m) {
     final l10n = l10nOf(context);

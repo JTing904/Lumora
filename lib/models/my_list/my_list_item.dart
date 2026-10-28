@@ -34,6 +34,17 @@ class MyListItem {
     return 'title:$type:$clean:${year ?? 0}';
   }
 
+  /// [uniqueKey] plus the key each of its other ids would give. Another
+  /// device may keep the same title under any of them (an IMDb id here, only
+  /// a TMDb id there), so a removal is remembered under all of them.
+  List<String> get aliasKeys => {
+    uniqueKey,
+    if (imdbId != null && imdbId!.isNotEmpty) 'imdb:$imdbId',
+    if (tmdbId != null) 'tmdb:$type:$tmdbId',
+    if (traktId != null) 'trakt:$traktId',
+    if (simklId != null) 'simkl:$simklId',
+  }.toList();
+
   bool matches(MyListItem other) {
     if (imdbId != null && other.imdbId != null && imdbId!.isNotEmpty && other.imdbId!.isNotEmpty) {
       return imdbId == other.imdbId;
@@ -182,7 +193,9 @@ class MyListItem {
       'year': year,
       'type': type,
       'poster': poster,
-      'addedAt': addedAt.toIso8601String(),
+      // UTC with its 'Z', like the sync's tombstones; older offset-less
+      // local values still parse as local time.
+      'addedAt': addedAt.toUtc().toIso8601String(),
       'source': source.name,
     };
   }

@@ -4,15 +4,18 @@ import '../../services/scraper/builtin_providers_settings_service.dart';
 import '../../widgets/common/animated_ambient_background.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../widgets/settings/settings_app_bar.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 
 class BuiltinProvidersSettingsPage extends StatefulWidget {
   const BuiltinProvidersSettingsPage({super.key});
 
   @override
-  State<BuiltinProvidersSettingsPage> createState() => _BuiltinProvidersSettingsPageState();
+  State<BuiltinProvidersSettingsPage> createState() =>
+      _BuiltinProvidersSettingsPageState();
 }
 
-class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsPage> {
+class _BuiltinProvidersSettingsPageState
+    extends State<BuiltinProvidersSettingsPage> {
   final _service = BuiltinProvidersSettingsService.instance;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -37,204 +40,232 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
     final isCompact = screenWidth < 500;
     final isUltraCompact = screenWidth < 380;
     final isTabletOrDesktop = screenWidth >= 800;
-    final horizontalPadding = isCompact ? 12.0 : (isTabletOrDesktop ? 24.0 : 16.0);
+    final horizontalPadding = isCompact
+        ? 12.0
+        : (isTabletOrDesktop ? 24.0 : 16.0);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      // The body's own `AnimatedAmbientBackground` is this page's canvas, so the
-      // transparent header is made to float on that same canvas instead of on a
-      // second, phase-mismatched one: the body runs behind the bar and the list
-      // clears it with its own top padding (below).
-      extendBodyBehindAppBar: true,
-      appBar: SettingsAppBar(
-        title: l10nCurrent().provTitle,
-        actions: [
-          ListenableBuilder(
-            listenable: _service,
-            builder: (context, _) {
-              if (!_service.isCustom) return const SizedBox.shrink();
-              return TextButton.icon(
-                style: TextButton.styleFrom(
-                  foregroundColor: tokens.accent,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                icon: const Icon(Icons.restore_rounded, size: 18),
-                label: Text(l10nCurrent().animeReset, style: ZplayType.label.toStyle()),
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) {
-                      final tokens = ctx.tokens;
-                      return AlertDialog(
-                        backgroundColor: tokens.surfaceOverlay,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: ZplayRadius.lgAll,
-                        ),
-                        title: Text(
-                          l10nCurrent().provResetConfirm,
-                          style: ZplayType.title.toStyle(
-                            color: tokens.textPrimary,
-                          ),
-                        ),
-                        content: Text(
-                          l10nCurrent().provResetBody,
-                          style: ZplayType.body.toStyle(
-                            color: tokens.textEmphasis,
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            child: Text(
-                              l10nCurrent().commonCancel,
-                              style: ZplayType.label.toStyle(
-                                color: tokens.textSecondary,
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(ctx, false),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: tokens.accent,
-                              foregroundColor: tokens.onAccent,
-                            ),
-                            child: Text(l10nCurrent().animeReset),
-                            onPressed: () => Navigator.pop(ctx, true),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                  if (confirm == true) {
-                    await _service.resetToDefault();
-                  }
-                },
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: AnimatedAmbientBackground(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 820),
-            child: ListenableBuilder(
+    return LuSettingsTheme(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        // The body's own `AnimatedAmbientBackground` is this page's canvas, so the
+        // transparent header is made to float on that same canvas instead of on a
+        // second, phase-mismatched one: the body runs behind the bar and the list
+        // clears it with its own top padding (below).
+        extendBodyBehindAppBar: true,
+        appBar: SettingsAppBar(
+          title: l10nCurrent().provTitle,
+          actions: [
+            ListenableBuilder(
               listenable: _service,
               builder: (context, _) {
-                final isCustom = _service.isCustom;
-                final allOrdered = _service.getOrderedProviders();
-                final filtered = _searchQuery.isEmpty
-                    ? allOrdered
-                    : allOrdered
-                        .where((p) =>
-                            p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                            p.id.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                            p.description.toLowerCase().contains(_searchQuery.toLowerCase()))
-                        .toList();
-
-                final activeCount = allOrdered.where((p) => _service.isProviderEnabled(p.id)).length;
-                final totalCount = allOrdered.length;
-
-                return ListView(
-                  // The body runs behind the transparent header
-                  // (`extendBodyBehindAppBar`), so the list pays the bar's
-                  // height once here: exactly what the old opaque band charged
-                  // the layout for.
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPadding,
-                    kToolbarHeight + MediaQuery.paddingOf(context).top + 16,
-                    horizontalPadding,
-                    32 + bottomInset,
+                if (!_service.isCustom) return const SizedBox.shrink();
+                return TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: tokens.accent,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
-                  children: [
-                    // Mode Selector Header (Responsive)
-                    _buildModeSelector(isCustom, isCompact),
-
-                    const SizedBox(height: 18),
-
-                    if (!isCustom) ...[
-                      // Default mode info banner
-                      _buildDefaultModeCard(totalCount, isCompact),
-                    ] else ...[
-                      // Custom mode explanation & priority banner
-                      _buildPriorityNoticeBanner(isCompact),
-
-                      const SizedBox(height: 16),
-
-                      // Search & Quick Action Toolbar (Responsive)
-                      _buildToolbar(activeCount, totalCount, isCompact),
-
-                      const SizedBox(height: 14),
-
-                      // Reorderable list or filtered list
-                      if (filtered.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-                          alignment: Alignment.center,
-                          child: Column(
-                            children: [
-                              Icon(Icons.search_off_rounded, size: 44, color: tokens.textDisabled),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No providers found matching "$_searchQuery"',
-                                textAlign: TextAlign.center,
-                                style: ZplayType.body.toStyle(color: tokens.textSecondary),
-                              ),
-                            ],
+                  icon: const Icon(Icons.restore_rounded, size: 18),
+                  label: Text(
+                    l10nCurrent().animeReset,
+                    style: ZplayType.label.toStyle(),
+                  ),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) {
+                        final tokens = ctx.tokens;
+                        return AlertDialog(
+                          backgroundColor: tokens.surfaceOverlay,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: ZplayRadius.lgAll,
                           ),
-                        )
-                      else if (_searchQuery.isNotEmpty)
-                        // Static list when filtered by search query
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final provider = filtered[index];
-                            final rank = _service.getProviderRank(provider.id);
-                            return _buildProviderTile(
-                              provider,
-                              rank,
-                              isFiltered: true,
-                              isCompact: isCompact,
-                              isUltraCompact: isUltraCompact,
-                            );
-                          },
-                        )
-                      else
-                        // Reorderable List
-                        Theme(
-                          data: Theme.of(context).copyWith(
-                            canvasColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
+                          title: Text(
+                            l10nCurrent().provResetConfirm,
+                            style: ZplayType.title.toStyle(
+                              color: tokens.textPrimary,
+                            ),
                           ),
-                          child: ReorderableListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            buildDefaultDragHandles: false,
-                            itemCount: allOrdered.length,
-                            onReorder: (oldIndex, newIndex) {
-                              _service.reorder(oldIndex, newIndex);
-                            },
-                            itemBuilder: (context, index) {
-                              final provider = allOrdered[index];
-                              return KeyedSubtree(
-                                key: ValueKey('provider_${provider.id}'),
-                                child: _buildProviderTile(
-                                  provider,
-                                  index,
-                                  isFiltered: false,
-                                  isCompact: isCompact,
-                                  isUltraCompact: isUltraCompact,
+                          content: Text(
+                            l10nCurrent().provResetBody,
+                            style: ZplayType.body.toStyle(
+                              color: tokens.textEmphasis,
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              child: Text(
+                                l10nCurrent().commonCancel,
+                                style: ZplayType.label.toStyle(
+                                  color: tokens.textSecondary,
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ],
+                              ),
+                              onPressed: () => Navigator.pop(ctx, false),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: tokens.accent,
+                                foregroundColor: tokens.onAccent,
+                              ),
+                              child: Text(l10nCurrent().animeReset),
+                              onPressed: () => Navigator.pop(ctx, true),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    if (confirm == true) {
+                      await _service.resetToDefault();
+                    }
+                  },
                 );
               },
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: AnimatedAmbientBackground(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: ListenableBuilder(
+                listenable: _service,
+                builder: (context, _) {
+                  final isCustom = _service.isCustom;
+                  final allOrdered = _service.getOrderedProviders();
+                  final filtered = _searchQuery.isEmpty
+                      ? allOrdered
+                      : allOrdered
+                            .where(
+                              (p) =>
+                                  p.name.toLowerCase().contains(
+                                    _searchQuery.toLowerCase(),
+                                  ) ||
+                                  p.id.toLowerCase().contains(
+                                    _searchQuery.toLowerCase(),
+                                  ) ||
+                                  p.description.toLowerCase().contains(
+                                    _searchQuery.toLowerCase(),
+                                  ),
+                            )
+                            .toList();
+
+                  final activeCount = allOrdered
+                      .where((p) => _service.isProviderEnabled(p.id))
+                      .length;
+                  final totalCount = allOrdered.length;
+
+                  return ListView(
+                    // The body runs behind the transparent header
+                    // (`extendBodyBehindAppBar`), so the list pays the bar's
+                    // height once here: exactly what the old opaque band charged
+                    // the layout for.
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      kToolbarHeight + MediaQuery.paddingOf(context).top + 16,
+                      horizontalPadding,
+                      32 + bottomInset,
+                    ),
+                    children: [
+                      // Mode Selector Header (Responsive)
+                      _buildModeSelector(isCustom, isCompact),
+
+                      const SizedBox(height: 18),
+
+                      if (!isCustom) ...[
+                        // Default mode info banner
+                        _buildDefaultModeCard(totalCount, isCompact),
+                      ] else ...[
+                        // Custom mode explanation & priority banner
+                        _buildPriorityNoticeBanner(isCompact),
+
+                        const SizedBox(height: 16),
+
+                        // Search & Quick Action Toolbar (Responsive)
+                        _buildToolbar(activeCount, totalCount, isCompact),
+
+                        const SizedBox(height: 14),
+
+                        // Reorderable list or filtered list
+                        if (filtered.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 36,
+                            ),
+                            alignment: Alignment.center,
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.search_off_rounded,
+                                  size: 44,
+                                  color: tokens.textDisabled,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No providers found matching "$_searchQuery"',
+                                  textAlign: TextAlign.center,
+                                  style: ZplayType.body.toStyle(
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (_searchQuery.isNotEmpty)
+                          // Static list when filtered by search query
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              final provider = filtered[index];
+                              final rank = _service.getProviderRank(
+                                provider.id,
+                              );
+                              return _buildProviderTile(
+                                provider,
+                                rank,
+                                isFiltered: true,
+                                isCompact: isCompact,
+                                isUltraCompact: isUltraCompact,
+                              );
+                            },
+                          )
+                        else
+                          // Reorderable List
+                          Theme(
+                            data: Theme.of(context).copyWith(
+                              canvasColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                            ),
+                            child: ReorderableListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              buildDefaultDragHandles: false,
+                              itemCount: allOrdered.length,
+                              onReorder: (oldIndex, newIndex) {
+                                _service.reorder(oldIndex, newIndex);
+                              },
+                              itemBuilder: (context, index) {
+                                final provider = allOrdered[index];
+                                return KeyedSubtree(
+                                  key: ValueKey('provider_${provider.id}'),
+                                  child: _buildProviderTile(
+                                    provider,
+                                    index,
+                                    isFiltered: false,
+                                    isCompact: isCompact,
+                                    isUltraCompact: isUltraCompact,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -346,7 +377,9 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                   Text(
                     title,
                     style: ZplayType.subtitle.toStyle(
-                      color: isSelected ? tokens.textPrimary : tokens.textEmphasis,
+                      color: isSelected
+                          ? tokens.textPrimary
+                          : tokens.textEmphasis,
                     ),
                   ),
                   const SizedBox(height: 1),
@@ -356,7 +389,9 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                     overflow: TextOverflow.ellipsis,
                     style: ZplayType.caption.toStyle(
                       color: isSelected
-                          ? activeColor.withValues(alpha: ZplayOpacity.textPrimary)
+                          ? activeColor.withValues(
+                              alpha: ZplayOpacity.textPrimary,
+                            )
                           : tokens.textMuted,
                     ),
                   ),
@@ -390,10 +425,16 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: tokens.success.withValues(alpha: ZplayOpacity.borderStrong),
+                  color: tokens.success.withValues(
+                    alpha: ZplayOpacity.borderStrong,
+                  ),
                   borderRadius: ZplayRadius.smAll,
                 ),
-                child: Icon(Icons.check_circle_rounded, color: tokens.success, size: 24),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  color: tokens.success,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -402,12 +443,18 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                   children: [
                     Text(
                       l10nCurrent().provDefaultActive,
-                      style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
+                      style: ZplayType.subtitle.toStyle(
+                        color: tokens.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'All $totalCount ZPlayHTTP providers are active and scraped concurrently.',
-                      style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
+                      l10nCurrent().localeName == 'zh'
+                          ? '全部 $totalCount 个内置片源都已启用，并同时搜索。'
+                          : 'All $totalCount built-in providers are active and scraped concurrently.',
+                      style: ZplayType.bodySmall.toStyle(
+                        color: tokens.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -428,14 +475,25 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
               style: OutlinedButton.styleFrom(
                 foregroundColor: tokens.accent,
                 side: BorderSide(
-                  color: tokens.accent.withValues(alpha: ZplayOpacity.borderStrong),
+                  color: tokens.accent.withValues(
+                    alpha: ZplayOpacity.borderStrong,
+                  ),
                 ),
-                shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: ZplayRadius.smAll,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
               icon: const Icon(Icons.tune_rounded, size: 17),
-              label: Text(l10nCurrent().provSwitchCustom, style: ZplayType.label.toStyle()),
-              onPressed: () => _service.setMode(BuiltinProvidersMode.customMode),
+              label: Text(
+                l10nCurrent().provSwitchCustom,
+                style: ZplayType.label.toStyle(),
+              ),
+              onPressed: () =>
+                  _service.setMode(BuiltinProvidersMode.customMode),
             ),
           ),
         ],
@@ -470,7 +528,11 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
               color: tokens.accent.withValues(alpha: ZplayOpacity.borderStrong),
               borderRadius: ZplayRadius.smAll,
             ),
-            child: Icon(Icons.arrow_upward_rounded, color: tokens.accent, size: 18),
+            child: Icon(
+              Icons.arrow_upward_rounded,
+              color: tokens.accent,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -484,7 +546,9 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                 const SizedBox(height: 3),
                 Text(
                   l10nCurrent().provPriorityBody,
-                  style: ZplayType.bodySmall.toStyle(color: tokens.textEmphasis),
+                  style: ZplayType.bodySmall.toStyle(
+                    color: tokens.textEmphasis,
+                  ),
                 ),
               ],
             ),
@@ -514,11 +578,21 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
               decoration: InputDecoration(
                 hintText: l10nCurrent().provSearch,
-                hintStyle: ZplayType.bodySmall.toStyle(color: tokens.textDisabled),
-                prefixIcon: Icon(Icons.search_rounded, size: 18, color: tokens.textMuted),
+                hintStyle: ZplayType.bodySmall.toStyle(
+                  color: tokens.textDisabled,
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  size: 18,
+                  color: tokens.textMuted,
+                ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear_rounded, size: 16, color: tokens.textMuted),
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          size: 16,
+                          color: tokens.textMuted,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -555,21 +629,33 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                   TextButton.icon(
                     style: TextButton.styleFrom(
                       foregroundColor: tokens.accent,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.select_all_rounded, size: 15),
-                    label: Text(l10nCurrent().provEnableAll, style: ZplayType.label.toStyle()),
+                    label: Text(
+                      l10nCurrent().provEnableAll,
+                      style: ZplayType.label.toStyle(),
+                    ),
                     onPressed: () => _service.enableAll(),
                   ),
                   TextButton.icon(
                     style: TextButton.styleFrom(
                       foregroundColor: tokens.textSecondary,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.deselect_rounded, size: 15),
-                    label: Text(l10nCurrent().provDisableAll, style: ZplayType.label.toStyle()),
+                    label: Text(
+                      l10nCurrent().provDisableAll,
+                      style: ZplayType.label.toStyle(),
+                    ),
                     onPressed: () => _service.disableAll(),
                   ),
                 ],
@@ -599,11 +685,21 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                   onChanged: (val) => setState(() => _searchQuery = val.trim()),
                   decoration: InputDecoration(
                     hintText: l10nCurrent().provSearch2,
-                    hintStyle: ZplayType.bodySmall.toStyle(color: tokens.textDisabled),
-                    prefixIcon: Icon(Icons.search_rounded, size: 18, color: tokens.textMuted),
+                    hintStyle: ZplayType.bodySmall.toStyle(
+                      color: tokens.textDisabled,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      size: 18,
+                      color: tokens.textMuted,
+                    ),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: Icon(Icons.clear_rounded, size: 16, color: tokens.textMuted),
+                            icon: Icon(
+                              Icons.clear_rounded,
+                              size: 16,
+                              color: tokens.textMuted,
+                            ),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
@@ -639,20 +735,32 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
             TextButton.icon(
               style: TextButton.styleFrom(
                 foregroundColor: tokens.accent,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
               icon: const Icon(Icons.select_all_rounded, size: 16),
-              label: Text(l10nCurrent().provEnableAll, style: ZplayType.label.toStyle()),
+              label: Text(
+                l10nCurrent().provEnableAll,
+                style: ZplayType.label.toStyle(),
+              ),
               onPressed: () => _service.enableAll(),
             ),
             const SizedBox(width: 6),
             TextButton.icon(
               style: TextButton.styleFrom(
                 foregroundColor: tokens.textSecondary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
               icon: const Icon(Icons.deselect_rounded, size: 16),
-              label: Text(l10nCurrent().provDisableAll, style: ZplayType.label.toStyle()),
+              label: Text(
+                l10nCurrent().provDisableAll,
+                style: ZplayType.label.toStyle(),
+              ),
               onPressed: () => _service.disableAll(),
             ),
             const Spacer(),
@@ -689,8 +797,8 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
         border: Border.all(
           color: isEnabled
               ? (isTop3
-                  ? tokens.accent.withValues(alpha: ZplayOpacity.borderStrong)
-                  : tokens.borderDefault)
+                    ? tokens.accent.withValues(alpha: ZplayOpacity.borderStrong)
+                    : tokens.borderDefault)
               : tokens.borderSubtle,
         ),
       ),
@@ -730,7 +838,9 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                 borderRadius: ZplayRadius.smAll,
                 border: Border.all(
                   color: isTop3 && isEnabled
-                      ? tokens.accent.withValues(alpha: ZplayOpacity.borderStrong)
+                      ? tokens.accent.withValues(
+                          alpha: ZplayOpacity.borderStrong,
+                        )
                       : Colors.transparent,
                 ),
               ),
@@ -758,21 +868,28 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                           provider.name,
                           overflow: TextOverflow.ellipsis,
                           style: ZplayType.subtitle.toStyle(
-                            color: isEnabled ? tokens.textPrimary : tokens.textMuted,
+                            color: isEnabled
+                                ? tokens.textPrimary
+                                : tokens.textMuted,
                           ),
                         ),
                       ),
                       if (!isEnabled) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1.5,
+                          ),
                           decoration: BoxDecoration(
                             color: tokens.borderSubtle,
                             borderRadius: ZplayRadius.xsAll,
                           ),
                           child: Text(
                             l10nCurrent().subOff,
-                            style: ZplayType.caption.toStyle(color: tokens.textMuted),
+                            style: ZplayType.caption.toStyle(
+                              color: tokens.textMuted,
+                            ),
                           ),
                         ),
                       ],
@@ -784,7 +901,9 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: ZplayType.caption.toStyle(
-                      color: isEnabled ? tokens.textSecondary : tokens.textDisabled,
+                      color: isEnabled
+                          ? tokens.textSecondary
+                          : tokens.textDisabled,
                     ),
                   ),
                 ],
@@ -801,7 +920,9 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
                   width: isCompact ? 28 : 34,
                   height: isCompact ? 28 : 34,
                 ),
-                color: isEnabled && index > 0 ? tokens.textEmphasis : tokens.textDisabled,
+                color: isEnabled && index > 0
+                    ? tokens.textEmphasis
+                    : tokens.textDisabled,
                 tooltip: l10nCurrent().provMoveUp,
                 onPressed: isEnabled && index > 0
                     ? () => _service.moveProvider(provider.id, -1)
@@ -830,7 +951,6 @@ class _BuiltinProvidersSettingsPageState extends State<BuiltinProvidersSettingsP
               scale: isCompact ? 0.82 : 0.95,
               child: Switch.adaptive(
                 value: isEnabled,
-                activeColor: tokens.accent,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 onChanged: (val) => _service.toggleProvider(provider.id, val),
               ),

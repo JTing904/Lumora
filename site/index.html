@@ -3,11 +3,618 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lumora</title>
-<meta http-equiv="refresh" content="0; url=https://github.com/JTing904/Lumora">
+<title>Lumora — films, series, anime and live TV in one app</title>
+<meta name="description" content="Lumora is a free, cinema-style app for films, series, anime and live TV on Windows, Android and Android TV. Your Continue Watching and My List follow you to every device.">
+<meta property="og:title" content="Lumora">
+<meta property="og:description" content="Light, shadow and every story worth watching. Films, series, anime and live TV in one cinema-style app.">
+<meta property="og:image" content="https://jting904.github.io/Lumora/img/home-en.webp">
+<meta name="theme-color" content="#0a0a0c">
 <link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #141418;
+    --surface-2: #1c1c22;
+    --edge: rgba(255, 255, 255, 0.08);
+    --line: #2e2d29;
+    --gold: #f2b544;
+    --gold-light: #ffd27a;
+    --on-gold: #1a1408;
+    --text: #f4f1ea;
+    --soft: #d8d3c8;
+    --muted: #b4afa5;
+    --faint: #8f8a80;
+    --radius: 24px;
+    --page: min(1180px, calc(100% - 32px));
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Noto Sans SC", system-ui, sans-serif; line-height: 1.6;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: inherit; }
+  .wrap { width: var(--page); margin: 0 auto; }
+  .display { font-family: "Outfit", "Noto Sans SC", sans-serif; }
+
+  /* One language at a time */
+  html[lang="en"] [lang="zh"], html[lang="zh"] [lang="en"] { display: none !important; }
+
+  /* Nav */
+  .nav {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(10, 10, 12, 0.72);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid transparent; transition: border-color .2s;
+  }
+  .nav.scrolled { border-bottom-color: var(--edge); }
+  .nav .wrap { display: flex; align-items: center; gap: 24px; height: 68px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  .brand span { font-family: "Outfit", sans-serif; font-weight: 700; font-size: 22px; letter-spacing: .3px; }
+  .nav-links { display: flex; gap: 22px; margin-left: 12px; }
+  .nav-links a { text-decoration: none; color: var(--muted); font-size: 15px; font-weight: 500; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .lang { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+  .lang button {
+    border: 0; background: transparent; color: var(--muted);
+    font: 600 13px "Noto Sans SC", sans-serif; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .lang button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold); }
+  .icon-link { color: var(--muted); display: inline-flex; }
+  .icon-link:hover { color: var(--text); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    height: 54px; padding: 0 26px; border-radius: 999px; border: 0;
+    font: 700 16px "Noto Sans SC", sans-serif; text-decoration: none; cursor: pointer;
+    transition: transform .15s ease, background .15s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-gold { background: var(--gold); color: var(--on-gold); box-shadow: 0 10px 30px rgba(242, 181, 68, .25); }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-ghost { background: rgba(255, 255, 255, .06); color: var(--text); border: 1px solid var(--edge); }
+  .btn-ghost:hover { background: rgba(255, 255, 255, .1); }
+  .btn svg { width: 20px; height: 20px; flex: none; }
+
+  /* Hero */
+  .hero { position: relative; padding: 72px 0 40px; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -20% -10% auto -10%; height: 900px; pointer-events: none;
+    background:
+      radial-gradient(700px 420px at 18% 18%, rgba(242, 181, 68, .20), transparent 65%),
+      radial-gradient(600px 400px at 85% 10%, rgba(154, 106, 28, .18), transparent 70%);
+  }
+  .hero .wrap { position: relative; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--gold); font-size: 13px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+  }
+  .eyebrow::before { content: ""; width: 18px; height: 2px; background: var(--gold); border-radius: 2px; }
+  .hero h1 { margin: 18px 0; max-width: 880px; font-size: clamp(38px, 6.2vw, 72px); line-height: 1.06; font-weight: 800; letter-spacing: -0.5px; }
+  .hero h1 em { font-style: normal; color: var(--gold); }
+  .hero p.lead { max-width: 640px; font-size: clamp(17px, 2vw, 20px); color: var(--soft); margin: 0 0 30px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .micro { margin-top: 16px; color: var(--faint); font-size: 14px; }
+  .micro b { color: var(--muted); font-weight: 500; }
+
+  .stage { position: relative; margin-top: 56px; }
+  .laptop {
+    position: relative; border-radius: 18px; padding: 10px; width: 88%;
+    background: linear-gradient(180deg, #2a2924, #16161a); border: 1px solid var(--edge);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, .7);
+  }
+  .laptop img { border-radius: 10px; width: 100%; aspect-ratio: 1598 / 901; object-fit: cover; }
+  .phone {
+    position: absolute; right: 0; bottom: -28px; width: 23%; min-width: 150px;
+    border-radius: 34px; padding: 8px; background: #0f0f12;
+    border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 30px 90px rgba(0, 0, 0, .75);
+  }
+  .phone img { border-radius: 26px; width: 100%; aspect-ratio: 400 / 878; object-fit: cover; }
+
+  /* Platforms strip */
+  .platforms { padding: 64px 0 24px; }
+  .platforms ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 28px; color: var(--muted); }
+  .platforms li { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+  .platforms li svg { width: 20px; height: 20px; color: var(--soft); }
+  .platforms li.soon { color: var(--faint); }
+
+  /* Sections */
+  section { scroll-margin-top: 80px; }
+  .section { padding: 96px 0; }
+  .section-head { max-width: 720px; margin-bottom: 44px; }
+  .section-head h2 { font-size: clamp(30px, 4vw, 46px); line-height: 1.12; margin: 12px 0 14px; font-weight: 800; }
+  .section-head p { color: var(--muted); font-size: 18px; margin: 0; }
+  .center { text-align: center; margin-left: auto; margin-right: auto; }
+
+  .feature { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; padding: 56px 0; }
+  .feature.flip { grid-template-columns: 1.25fr 1fr; }
+  .feature.flip .copy { order: 2; }
+  .feature h3 { font-size: clamp(26px, 3vw, 36px); line-height: 1.15; margin: 12px 0 14px; font-weight: 800; }
+  .feature p { color: var(--muted); font-size: 17px; margin: 0 0 12px; }
+  .feature ul { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .feature li { display: flex; gap: 10px; color: var(--soft); }
+  .feature li::before { content: "✦"; color: var(--gold); font-size: 13px; line-height: 1.9; }
+  .shot { border-radius: 18px; overflow: hidden; border: 1px solid var(--edge); box-shadow: 0 30px 90px rgba(0, 0, 0, .6); background: var(--surface); }
+  .shot img { width: 100%; aspect-ratio: 1598 / 901; object-fit: cover; }
+  .duo { position: relative; }
+  .duo { margin-right: 28px; }
+  .duo .phone { right: -28px; bottom: -36px; width: 24%; min-width: 120px; }
+
+  /* Small features */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--edge); border-radius: 20px; padding: 24px; }
+  .card .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: rgba(242, 181, 68, .12); color: var(--gold); margin-bottom: 16px; }
+  .card .ico svg { width: 22px; height: 22px; }
+  .card h4 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  /* Download */
+  .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .dl {
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--edge); border-radius: var(--radius); padding: 28px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .dl.recommended { border-color: rgba(242, 181, 68, .45); box-shadow: 0 0 0 1px rgba(242, 181, 68, .18) inset; }
+  .dl .top { display: flex; align-items: center; gap: 12px; }
+  .dl .top svg { width: 30px; height: 30px; color: var(--text); }
+  .dl h3 { margin: 0; font-size: 22px; }
+  .dl .tag { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--on-gold); background: var(--gold); padding: 3px 10px; border-radius: 999px; }
+  .dl p { margin: 0; color: var(--muted); font-size: 15px; }
+  .dl .btn { width: 100%; }
+  .dl .alt { font-size: 14px; color: var(--muted); }
+  .dl .alt a { color: var(--gold); text-decoration: none; }
+  .dl .alt a:hover { text-decoration: underline; }
+  .dl.soon { opacity: .75; }
+  .version { margin-top: 18px; color: var(--faint); font-size: 14px; text-align: center; }
+  .version a { color: var(--muted); }
+
+  /* Install guide */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .tabs button { border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: 600 15px "Noto Sans SC", sans-serif; padding: 10px 18px; border-radius: 999px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
+  .panel { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--radius); padding: 30px 32px; }
+  .panel[hidden] { display: none; }
+  .steps { counter-reset: s; list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 36px 1fr; gap: 14px; color: var(--soft); }
+  .steps li::before { content: counter(s); width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(242, 181, 68, .14); color: var(--gold); font-weight: 700; }
+  .steps b { color: var(--text); }
+  .note { margin-top: 22px; padding: 14px 16px; border-radius: 14px; background: rgba(242, 181, 68, .08); color: var(--soft); font-size: 15px; border: 1px solid rgba(242, 181, 68, .2); }
+
+  /* Invite */
+  .invite { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .invite .num { font-family: "Outfit", sans-serif; font-size: 40px; font-weight: 800; color: var(--gold); line-height: 1; margin-bottom: 12px; }
+
+  /* FAQ */
+  .faq { max-width: 820px; margin: 0 auto; display: grid; gap: 12px; }
+  .faq details { background: var(--surface); border: 1px solid var(--edge); border-radius: 18px; padding: 0 22px; }
+  .faq summary { list-style: none; cursor: pointer; padding: 20px 0; font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; gap: 16px; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; color: var(--gold); font-size: 22px; line-height: 1; }
+  .faq details[open] summary::after { content: "–"; }
+  .faq details p { margin: 0 0 20px; color: var(--muted); }
+  .faq a { color: var(--gold); }
+
+  /* Closing */
+  .closing {
+    text-align: center; padding: 96px 24px; border-radius: 32px; margin-bottom: 72px;
+    background: radial-gradient(600px 300px at 50% 0%, rgba(242, 181, 68, .22), transparent 70%), var(--surface);
+    border: 1px solid var(--edge);
+  }
+  .closing h2 { font-size: clamp(32px, 4.6vw, 54px); margin: 0 0 12px; font-weight: 800; }
+  .closing p { color: var(--muted); margin: 0 0 30px; font-size: 18px; }
+  .closing .cta-row { justify-content: center; }
+
+  footer { border-top: 1px solid var(--edge); padding: 36px 0 48px; color: var(--faint); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+  footer .grow { flex: 1; }
+
+  /* Reveal on scroll */
+  .reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+  }
+
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .dl-grid { grid-template-columns: 1fr; }
+    .feature, .feature.flip { grid-template-columns: 1fr; gap: 30px; padding: 40px 0; }
+    .feature.flip .copy { order: 0; }
+    .nav-links { display: none; }
+  }
+  @media (max-width: 640px) {
+    .section { padding: 64px 0; }
+    .hero { padding-top: 44px; }
+    .laptop { width: 100%; padding: 6px; border-radius: 12px; }
+    .laptop img { border-radius: 8px; }
+    .phone { width: 34%; right: -4px; bottom: -40px; border-radius: 22px; padding: 5px; min-width: 0; }
+    .phone img { border-radius: 18px; }
+    .duo { margin-right: 0; }
+    .duo .phone { width: 30%; right: -4px; min-width: 0; }
+    .grid, .invite { grid-template-columns: 1fr; }
+    .panel { padding: 22px 18px; }
+    .cta-row .btn { width: 100%; }
+    .nav .wrap { gap: 12px; }
+    .closing { border-radius: 24px; padding: 64px 18px; }
+  }
+</style>
 </head>
-<body style="background:#0a0a0c;color:#f4f1ea;font-family:system-ui,sans-serif">
-<p><a style="color:#f2b544" href="https://github.com/JTing904/Lumora">Lumora on GitHub</a></p>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-win" viewBox="0 0 24 24"><path fill="currentColor" d="M3 5.5 10.5 4.4v7.1H3zm0 13 7.5 1.1v-7H3zm8.4 1.3L21 21.2v-8.6h-9.6zm0-15.5v7.1H21V2.8z"/></symbol>
+  <symbol id="i-android" viewBox="0 0 24 24"><path fill="currentColor" d="M17.6 9.48 19.44 6.3a.38.38 0 0 0-.14-.52.38.38 0 0 0-.52.14l-1.87 3.23a11.4 11.4 0 0 0-9.82 0L5.22 5.92a.38.38 0 0 0-.52-.14.38.38 0 0 0-.14.52L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52M7 15.25A1.25 1.25 0 1 1 8.25 14 1.25 1.25 0 0 1 7 15.25m10 0A1.25 1.25 0 1 1 18.25 14 1.25 1.25 0 0 1 17 15.25"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15.5zM8 20h8"/></symbol>
+  <symbol id="i-apple" viewBox="0 0 24 24"><path fill="currentColor" d="M16.4 12.6c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3.1 2.4 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.6-1-2.7-4M14 5.4c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m5 5 8 7-8 7zM19 5v14"/></symbol>
+  <symbol id="i-remote" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm4 4.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM10 15h4m-4 3h4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 12a7 7 0 0 1 14 0M8.5 12a3.5 3.5 0 0 1 7 0M12 12v.01M4 19h16"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15m0 5v-5h5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 21h4"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M15 9a4 4 0 1 1-1.2 2.9L4 21.6M7 18.6l2 2M10 15.6l2 2"/></symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/logo.png" alt=""><span>Lumora</span></a>
+    <nav class="nav-links">
+      <a href="#features"><span lang="en">Features</span><span lang="zh">功能</span></a>
+      <a href="#download"><span lang="en">Download</span><span lang="zh">下载</span></a>
+      <a href="#install"><span lang="en">Install</span><span lang="zh">安装教程</span></a>
+      <a href="#faq"><span lang="en">FAQ</span><span lang="zh">常见问题</span></a>
+    </nav>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="zh" aria-pressed="false">中文</button>
+      </div>
+      <a class="icon-link" href="https://github.com/JTing904/Lumora" aria-label="GitHub"><svg width="22" height="22"><use href="#i-github"/></svg></a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow"><span lang="en">Free · Invite only</span><span lang="zh">免费 · 邀请制</span></span>
+      <h1 class="display">
+        <span lang="en">Films, series and anime.<br><em>One cinematic app.</em></span>
+        <span lang="zh">电影、剧集、动漫，<br><em>一个 app 全看。</em></span>
+      </h1>
+      <p class="lead">
+        <span lang="en">Lumora finds a source that plays, remembers where you stopped, and keeps your list on every screen you own — Windows, Android and your TV.</span>
+        <span lang="zh">Lumora 帮你找到能播的片源，记住你看到哪里，你的收藏在电脑、手机、电视上都跟着走。</span>
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-gold" id="hero-dl" href="#download">
+          <svg><use href="#i-dl"/></svg>
+          <span id="hero-dl-label"><span lang="en">Download for free</span><span lang="zh">免费下载</span></span>
+        </a>
+        <a class="btn btn-ghost" href="#download"><span lang="en">All platforms</span><span lang="zh">所有平台</span></a>
+      </div>
+      <div class="micro">
+        <span lang="en"><b class="ver">v1.0.1</b> · Windows · Android · Android TV · English &amp; 中文</span>
+        <span lang="zh"><b class="ver">v1.0.1</b> · Windows · 安卓 · 安卓电视 · 中文和英文</span>
+      </div>
+
+      <div class="stage reveal">
+        <div class="laptop">
+          <img lang="en" src="img/home-en.webp" alt="Lumora's home screen on Windows" width="1598" height="901">
+          <img lang="zh" src="img/home-zh.webp" alt="Lumora 在 Windows 上的首页" width="1598" height="901">
+        </div>
+        <div class="phone"><img src="img/phone-home.webp" alt="Lumora on a phone" width="400" height="878" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="platforms">
+    <div class="wrap">
+      <ul>
+        <li><svg><use href="#i-win"/></svg>Windows</li>
+        <li><svg><use href="#i-android"/></svg><span lang="en">Android phone &amp; tablet</span><span lang="zh">安卓手机、平板</span></li>
+        <li><svg><use href="#i-tv"/></svg><span lang="en">Android TV</span><span lang="zh">安卓电视</span></li>
+        <li class="soon"><svg><use href="#i-apple"/></svg><span lang="en">iPhone — coming later</span><span lang="zh">iPhone — 之后推出</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <section class="section" id="features">
+    <div class="wrap">
+      <div class="section-head center reveal">
+        <span class="eyebrow"><span lang="en">Why Lumora</span><span lang="zh">为什么选 Lumora</span></span>
+        <h2 class="display"><span lang="en">Light, shadow and every story worth watching</span><span lang="zh">光与影，和每一个值得看的故事</span></h2>
+        <p><span lang="en">Lumora = Luminous + Aura. A dark, cinema-style home for everything you watch.</span><span lang="zh">Lumora = Luminous（光）+ Aura（氛围）。一个像电影院一样的家，放你想看的一切。</span></p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="copy">
+          <span class="eyebrow"><span lang="en">Details</span><span lang="zh">详情页</span></span>
+          <h3><span lang="en">Pick up exactly where you left off</span><span lang="zh">从上次停下的地方继续</span></h3>
+          <p><span lang="en">Every title opens on what matters: play, the next episode, every season, and the trailer.</span><span lang="zh">每部片一打开就是重点：播放、下一集、所有季，还有预告片。</span></p>
+          <ul>
+            <li><span lang="en">"Continue E3" follows your progress, episode by episode</span><span lang="zh">「继续 第 3 集」跟着你的进度走</span></li>
+            <li><span lang="en">Thumbs up or down to teach it your taste</span><span lang="zh">按赞或按踩，它会越来越懂你</span></li>
+          </ul>
+        </div>
+        <div class="duo">
+          <div class="shot"><img src="img/details.webp" alt="A title's details and seasons" width="1598" height="901" loading="lazy"></div>
+          <div class="phone"><img src="img/phone-details.webp" alt="Details on a phone" width="400" height="878" loading="lazy"></div>
+        </div>
+      </div>
+
+      <div class="feature flip reveal">
+        <div class="copy">
+          <span class="eyebrow"><span lang="en">Series · Movies · Anime</span><span lang="zh">电视剧 · 电影 · 动漫</span></span>
+          <h3><span lang="en">From Hollywood to donghua</span><span lang="zh">从好莱坞到国漫</span></h3>
+          <p><span lang="en">Browse by region, genre and year, see what was just updated, and find Chinese dramas, anime and variety shows by their Chinese titles.</span><span lang="zh">按地区、类型、年份浏览，看看最近更新了什么；国产剧、动漫、综艺也能用中文片名找到。</span></p>
+          <ul>
+            <li><span lang="en">Automatically picks the fastest source for your connection</span><span lang="zh">按你的网速自动挑最快的片源</span></li>
+            <li><span lang="en">Original-language audio first</span><span lang="zh">优先原声</span></li>
+          </ul>
+        </div>
+        <div class="shot"><img src="img/anime.webp" alt="The anime page" width="1598" height="901" loading="lazy"></div>
+      </div>
+
+      <div class="feature reveal">
+        <div class="copy">
+          <span class="eyebrow"><span lang="en">Your account</span><span lang="zh">你的帐号</span></span>
+          <h3><span lang="en">Your list follows you</span><span lang="zh">换设备，记录还在</span></h3>
+          <p><span lang="en">Start an episode on your computer and finish it on your tablet. Continue Watching and My List sync to your account, and each person on a shared device keeps their own.</span><span lang="zh">在电脑上开始看，在平板上看完。继续观看和收藏会同步到你的帐号；一台设备几个人用，也各看各的记录。</span></p>
+          <ul>
+            <li><span lang="en">Sign in with email, GitHub or Discord</span><span lang="zh">用邮箱、GitHub 或 Discord 登录</span></li>
+            <li><span lang="en">Browse freely; sign in when you press play</span><span lang="zh">不登录也能逛，按播放时再登录</span></li>
+          </ul>
+        </div>
+        <div class="duo">
+          <div class="shot"><img src="img/mylist.webp" alt="My List, synced to the account" width="1598" height="901" loading="lazy"></div>
+          <div class="phone"><img src="img/phone-home.webp" alt="Continue Watching on a phone" width="400" height="878" loading="lazy"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="grid">
+        <div class="card reveal"><div class="ico"><svg><use href="#i-bolt"/></svg></div><h4><span lang="en">Fastest source</span><span lang="zh">最快片源</span></h4><p><span lang="en">Measures your line and plays what it can keep up with.</span><span lang="zh">先测网速，再挑跟得上的片源。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-skip"/></svg></div><h4><span lang="en">Skip &amp; next</span><span lang="zh">跳片头、下一集</span></h4><p><span lang="en">Skip intros and roll into the next episode.</span><span lang="zh">一键跳过片头，自动接下一集。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-remote"/></svg></div><h4><span lang="en">Made for remotes</span><span lang="zh">遥控器友好</span></h4><p><span lang="en">Every button works with a TV remote's arrows.</span><span lang="zh">每个按钮都能用电视遥控器的方向键操作。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-globe"/></svg></div><h4>EN / 中文</h4><p><span lang="en">Switch the whole app's language in one tap.</span><span lang="zh">一键切换整个 app 的语言。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-live"/></svg></div><h4><span lang="en">Live TV</span><span lang="zh">直播</span></h4><p><span lang="en">Free channel lists, grouped and searchable.</span><span lang="zh">免费频道列表，分类整理，可以搜索。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-dl"/></svg></div><h4><span lang="en">Downloads</span><span lang="zh">下载</span></h4><p><span lang="en">Save an episode for the train.</span><span lang="zh">下载下来，路上也能看。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-sync"/></svg></div><h4><span lang="en">Sync</span><span lang="zh">同步</span></h4><p><span lang="en">Progress and lists on every device.</span><span lang="zh">进度和收藏，每台设备都一样。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-key"/></svg></div><h4><span lang="en">Invite only</span><span lang="zh">邀请制</span></h4><p><span lang="en">A small, friendly circle: one code, one account.</span><span lang="zh">小圈子：一个邀请码，开一个帐号。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-bell"/></svg></div><h4><span lang="en">New episodes</span><span lang="zh">新集提醒</span></h4><p><span lang="en">Shows in your list get a badge the day a new episode airs.</span><span lang="zh">收藏的剧一出新集就会标出来，追剧日历只显示你的剧。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-user"/></svg></div><h4><span lang="en">Your profile</span><span lang="zh">个人资料</span></h4><p><span lang="en">A nickname and a photo or colour that follow your account.</span><span lang="zh">昵称、头像照片或颜色，换设备也跟着走。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-book"/></svg></div><h4><span lang="en">Manga &amp; books</span><span lang="zh">漫画和书籍</span></h4><p><span lang="en">Webtoon or page-by-page, EPUB and PDF, right where you stopped.</span><span lang="zh">条漫或翻页、EPUB 和 PDF，从上次读到的地方继续。</span></p></div>
+        <div class="card reveal"><div class="ico"><svg><use href="#i-music"/></svg></div><h4><span lang="en">Music &amp; audiobooks</span><span lang="zh">音乐和有声书</span></h4><p><span lang="en">A full player with lyrics, queue, chapters and speed.</span><span lang="zh">完整的播放器：歌词、播放队列、章节和倍速。</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download">
+    <div class="wrap">
+      <div class="section-head center reveal">
+        <span class="eyebrow"><span lang="en">Download</span><span lang="zh">下载</span></span>
+        <h2 class="display"><span lang="en">Get Lumora</span><span lang="zh">下载 Lumora</span></h2>
+        <p><span lang="en">Free. Updates arrive inside the app.</span><span lang="zh">免费。以后的更新会在 app 里提示你。</span></p>
+      </div>
+      <div class="dl-grid">
+        <div class="dl reveal" data-os="windows">
+          <div class="top"><svg><use href="#i-win"/></svg><h3>Windows</h3><span class="tag" hidden><span lang="en">Your device</span><span lang="zh">你的设备</span></span></div>
+          <p><span lang="en">Windows 10 or 11, 64-bit.</span><span lang="zh">Windows 10 或 11，64 位。</span></p>
+          <a class="btn btn-gold" data-asset="Windows-Setup.exe" href="https://github.com/JTing904/Lumora/releases/latest"><svg><use href="#i-dl"/></svg><span lang="en">Download installer</span><span lang="zh">下载安装版</span></a>
+          <div class="alt"><span lang="en">No install?</span><span lang="zh">不想安装？</span> <a data-asset="Windows-Portable.zip" href="https://github.com/JTing904/Lumora/releases/latest"><span lang="en">Portable ZIP</span><span lang="zh">免安装版 ZIP</span></a></div>
+        </div>
+        <div class="dl reveal" data-os="android">
+          <div class="top"><svg><use href="#i-android"/></svg><h3><span lang="en">Android</span><span lang="zh">安卓</span></h3><span class="tag" hidden><span lang="en">Your device</span><span lang="zh">你的设备</span></span></div>
+          <p><span lang="en">Phones, tablets and Android TV boxes.</span><span lang="zh">手机、平板、安卓电视盒子都能用。</span></p>
+          <a class="btn btn-gold" data-asset="Android-arm64.apk" href="https://github.com/JTing904/Lumora/releases/latest"><svg><use href="#i-dl"/></svg><span lang="en">Download APK</span><span lang="zh">下载 APK</span></a>
+          <div class="alt"><span lang="en">Older phone or cheap TV box?</span><span lang="zh">旧手机或便宜的电视盒子？</span> <a data-asset="Android-armv7.apk" href="https://github.com/JTing904/Lumora/releases/latest"><span lang="en">32-bit APK</span><span lang="zh">32 位 APK</span></a></div>
+        </div>
+        <div class="dl soon reveal">
+          <div class="top"><svg><use href="#i-apple"/></svg><h3>iPhone</h3></div>
+          <p><span lang="en">Coming later. iPhone builds need a Mac to sign, and that's next on the list.</span><span lang="zh">之后推出。iPhone 版要用 Mac 签名，已经排在下一步。</span></p>
+          <span class="btn btn-ghost" aria-disabled="true"><span lang="en">Coming soon</span><span lang="zh">敬请期待</span></span>
+        </div>
+      </div>
+      <p class="version">
+        <span lang="en">Latest: <b class="ver">v1.0.1</b> · <a href="https://github.com/JTing904/Lumora/releases/latest">All files and release notes</a></span>
+        <span lang="zh">最新版本：<b class="ver">v1.0.1</b> · <a href="https://github.com/JTing904/Lumora/releases/latest">全部文件和更新说明</a></span>
+      </p>
+    </div>
+  </section>
+
+  <section class="section" id="install" style="padding-top:0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow"><span lang="en">Install guide</span><span lang="zh">安装教程</span></span>
+        <h2 class="display"><span lang="en">Up and running in two minutes</span><span lang="zh">两分钟装好</span></h2>
+      </div>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="win">Windows</button>
+        <button role="tab" aria-selected="false" data-tab="android"><span lang="en">Android</span><span lang="zh">安卓</span></button>
+        <button role="tab" aria-selected="false" data-tab="tv"><span lang="en">Android TV</span><span lang="zh">安卓电视</span></button>
+        <button role="tab" aria-selected="false" data-tab="ios">iPhone</button>
+      </div>
+
+      <div class="panel reveal" data-panel="win">
+        <ol class="steps">
+          <li><div><span lang="en">Download the <b>Windows installer</b> above and open it.</span><span lang="zh">在上面下载 <b>Windows 安装版</b>，双击打开。</span></div></li>
+          <li><div><span lang="en">If <b>"Windows protected your PC"</b> appears, click <b>More info → Run anyway</b>. Lumora isn't signed with a paid certificate, so Windows asks first.</span><span lang="zh">如果跳出 <b>「Windows 已保护你的电脑」</b>，点 <b>「更多信息」→「仍要运行」</b>。Lumora 没有付费签名证书，所以 Windows 会先问一下。</span></div></li>
+          <li><div><span lang="en">Follow the installer, then open <b>Lumora</b> from the Start menu.</span><span lang="zh">按安装程序的步骤走，装好后从「开始」菜单打开 <b>Lumora</b>。</span></div></li>
+        </ol>
+        <div class="note"><span lang="en">Portable ZIP: unzip anywhere and open <b>Lumora.exe</b> inside the Lumora folder.</span><span lang="zh">免安装版：解压到任意位置，打开 Lumora 文件夹里的 <b>Lumora.exe</b>。</span></div>
+      </div>
+
+      <div class="panel" data-panel="android" hidden>
+        <ol class="steps">
+          <li><div><span lang="en">On your phone, download the <b>APK</b> above.</span><span lang="zh">用手机在上面下载 <b>APK</b>。</span></div></li>
+          <li><div><span lang="en">Open it. Android asks to <b>allow installs from this source</b> — turn it on for your browser, then go back.</span><span lang="zh">打开下载好的文件。安卓会问要不要 <b>允许安装未知来源的应用</b>，帮你的浏览器打开这个选项，再返回。</span></div></li>
+          <li><div><span lang="en">Tap <b>Install</b>, then <b>Open</b>.</span><span lang="zh">按 <b>安装</b>，装好后按 <b>打开</b>。</span></div></li>
+        </ol>
+        <div class="note"><span lang="en">Play Protect may warn about an unknown app. Tap <b>More details → Install anyway</b>.</span><span lang="zh">Play 保护机制可能会警告「未知应用」，按 <b>「详细信息」→「仍然安装」</b> 就行。</span></div>
+      </div>
+
+      <div class="panel" data-panel="tv" hidden>
+        <ol class="steps">
+          <li><div><span lang="en">On the TV, install <b>Downloader</b> (by AFTVnews) from the Play Store.</span><span lang="zh">在电视的 Play 商店安装 <b>Downloader</b>（AFTVnews 出品）。</span></div></li>
+          <li><div><span lang="en">In Downloader, enter <b>jting904.github.io/Lumora</b>, scroll to Download and pick the Android APK.</span><span lang="zh">在 Downloader 里输入 <b>jting904.github.io/Lumora</b>，滑到「下载」，选安卓 APK。</span></div></li>
+          <li><div><span lang="en">Allow Downloader to install apps when asked, then install and open Lumora. Everything works with the remote.</span><span lang="zh">系统询问时允许 Downloader 安装应用，装好就能打开 Lumora。全程用遥控器就能操作。</span></div></li>
+        </ol>
+      </div>
+
+      <div class="panel" data-panel="ios" hidden>
+        <p style="margin:0;color:var(--soft)"><span lang="en">The iPhone version isn't out yet. When it is, this page will walk you through installing it step by step.</span><span lang="zh">iPhone 版还没推出。推出后，这里会一步一步教你怎么安装。</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow"><span lang="en">Invite only</span><span lang="zh">邀请制</span></span>
+        <h2 class="display"><span lang="en">How to get in</span><span lang="zh">怎么加入</span></h2>
+        <p><span lang="en">Anyone can install and browse. To watch, you need an account, and an account needs an invite.</span><span lang="zh">谁都可以安装和浏览。要看片需要帐号，开帐号需要邀请码。</span></p>
+      </div>
+      <div class="invite">
+        <div class="card reveal"><div class="num">1</div><h4><span lang="en">Get a code</span><span lang="zh">拿到邀请码</span></h4><p><span lang="en">Ask the friend who shared Lumora with you for an invite code.</span><span lang="zh">找分享 Lumora 给你的朋友要一个邀请码。</span></p></div>
+        <div class="card reveal"><div class="num">2</div><h4><span lang="en">Sign up</span><span lang="zh">注册</span></h4><p><span lang="en">Use your email and the code, or sign in with GitHub or Discord and enter it once.</span><span lang="zh">用邮箱加邀请码注册；或用 GitHub、Discord 登录后输入一次邀请码。</span></p></div>
+        <div class="card reveal"><div class="num">3</div><h4><span lang="en">Press play</span><span lang="zh">开始看</span></h4><p><span lang="en">Confirm your email if asked, sign in, and you're in on every device.</span><span lang="zh">按要求确认邮箱、登录，所有设备都能用了。</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq" style="padding-top:0">
+    <div class="wrap">
+      <div class="section-head center reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2 class="display"><span lang="en">Questions</span><span lang="zh">常见问题</span></h2>
+      </div>
+      <div class="faq">
+        <details class="reveal"><summary><span lang="en">Is Lumora free?</span><span lang="zh">Lumora 要钱吗？</span></summary><p><span lang="en">Yes. No subscription, no ads in the app.</span><span lang="zh">不用。没有订阅，app 里也没有广告。</span></p></details>
+        <details class="reveal"><summary><span lang="en">I didn't get the confirmation email.</span><span lang="zh">我没收到确认信。</span></summary><p><span lang="en">Check spam or junk — school and work mailboxes often file it there. The sender is Lumora. The link opens a page saying your email is confirmed; then sign in inside the app.</span><span lang="zh">看看垃圾邮件 —— 学校和公司的邮箱常常把它放在那里。寄件人是 Lumora。点链接后会看到「邮箱已确认」的页面，然后回 app 登录就行。</span></p></details>
+        <details class="reveal"><summary><span lang="en">I forgot my password.</span><span lang="zh">忘记密码怎么办？</span></summary><p><span lang="en">On the sign-in page, enter your email and tap "Forgot password?". We email a code; type it into Lumora on any device and choose a new password.</span><span lang="zh">在登录页填邮箱，按「忘记密码？」。我们会寄一个验证码，在任何一台设备的 Lumora 里输入，就能设新密码。</span></p></details>
+        <details class="reveal"><summary><span lang="en">Do my history and list carry over to a new device?</span><span lang="zh">换新设备，记录和收藏还在吗？</span></summary><p><span lang="en">Yes. Sign in with the same account and your Continue Watching and My List come along.</span><span lang="zh">在。用同一个帐号登录，继续观看和收藏都会跟过来。</span></p></details>
+        <details class="reveal"><summary><span lang="en">Windows says the app might be unsafe.</span><span lang="zh">Windows 说这个 app 可能不安全？</span></summary><p><span lang="en">That's SmartScreen showing for apps without a paid certificate. Click "More info → Run anyway". Every release ships with signed checksums, and the app's updater only installs releases that match them.</span><span lang="zh">那是 SmartScreen 对没有付费证书的 app 的提示，点「更多信息 → 仍要运行」即可。每个版本都附有签名的校验码，app 自动更新只会安装对得上的版本。</span></p></details>
+        <details class="reveal"><summary><span lang="en">How do updates work?</span><span lang="zh">怎么更新？</span></summary><p><span lang="en">Lumora checks for new versions and asks before installing. You can also download the latest version from this page anytime.</span><span lang="zh">Lumora 会自己检查新版本，安装前会先问你。你也可以随时在这个页面下载最新版。</span></p></details>
+        <details class="reveal"><summary><span lang="en">Is it open source?</span><span lang="zh">是开源的吗？</span></summary><p><span lang="en">Yes, under GPL-3.0, built on <a href="https://github.com/tzero86/ZPlay">ZPlay</a>. The code is on <a href="https://github.com/JTing904/Lumora">GitHub</a>.</span><span lang="zh">是，以 GPL-3.0 发布，基于 <a href="https://github.com/tzero86/ZPlay">ZPlay</a>。代码在 <a href="https://github.com/JTing904/Lumora">GitHub</a> 上。</span></p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="closing reveal">
+      <h2 class="display"><span lang="en">Ready to press play?</span><span lang="zh">准备好开播了吗？</span></h2>
+      <p><span lang="en">Download Lumora, ask a friend for an invite, and settle in.</span><span lang="zh">下载 Lumora，找朋友要个邀请码，坐好开看。</span></p>
+      <div class="cta-row">
+        <a class="btn btn-gold" href="#download"><svg><use href="#i-dl"/></svg><span lang="en">Download for free</span><span lang="zh">免费下载</span></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/logo.png" alt=""><span>Lumora</span></a>
+    <span class="grow"><span lang="en">Lumora = Luminous + Aura · GPL-3.0 · based on ZPlay</span><span lang="zh">Lumora = Luminous + Aura · GPL-3.0 · 基于 ZPlay</span></span>
+    <a href="https://github.com/JTing904/Lumora">GitHub</a>
+    <a href="https://github.com/JTing904/Lumora/releases"><span lang="en">Releases</span><span lang="zh">所有版本</span></a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+
+  // Language: remembered, else the browser's.
+  function setLang(l) {
+    root.lang = l;
+    document.querySelectorAll('.lang button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.lang === l));
+    });
+    try { localStorage.setItem('lumora-lang', l); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem('lumora-lang'); } catch (e) {}
+  setLang(saved || ((navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en'));
+  document.querySelectorAll('.lang button').forEach(function (b) {
+    b.addEventListener('click', function () { setLang(b.dataset.lang); });
+  });
+
+  // Nav hairline once the page moves.
+  var nav = document.getElementById('nav');
+  addEventListener('scroll', function () { nav.classList.toggle('scrolled', scrollY > 8); }, { passive: true });
+
+  // Install guide tabs.
+  var tabs = document.querySelectorAll('.tabs button');
+  function showTab(id) {
+    tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tab === id)); });
+    document.querySelectorAll('.panel').forEach(function (p) {
+      p.hidden = p.dataset.panel !== id;
+      if (!p.hidden) p.classList.add('in');
+    });
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { showTab(t.dataset.tab); }); });
+
+  // The visitor's platform: highlight it and aim the hero button at it.
+  var ua = navigator.userAgent;
+  var os = /Android/i.test(ua) ? 'android' : /Windows/i.test(ua) ? 'windows' : null;
+  if (os) {
+    var card = document.querySelector('.dl[data-os="' + os + '"]');
+    if (card) {
+      card.classList.add('recommended');
+      card.querySelector('.tag').hidden = false;
+    }
+    showTab(os === 'android' ? 'android' : 'win');
+    document.getElementById('hero-dl-label').innerHTML = os === 'android'
+      ? '<span lang="en">Download for Android</span><span lang="zh">下载安卓版</span>'
+      : '<span lang="en">Download for Windows</span><span lang="zh">下载 Windows 版</span>';
+  }
+
+  // Point every download button at the newest release's file.
+  fetch('https://api.github.com/repos/JTing904/Lumora/releases/latest')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      if (!rel || !rel.assets) return;
+      document.querySelectorAll('.ver').forEach(function (v) { v.textContent = rel.tag_name; });
+      document.querySelectorAll('[data-asset]').forEach(function (a) {
+        var hit = rel.assets.find(function (x) { return x.name.endsWith(a.dataset.asset); });
+        if (hit) a.href = hit.browser_download_url;
+      });
+      if (os) {
+        var want = os === 'android' ? 'Android-arm64.apk' : 'Windows-Setup.exe';
+        var hit = rel.assets.find(function (x) { return x.name.endsWith(want); });
+        if (hit) document.getElementById('hero-dl').href = hit.browser_download_url;
+      }
+    })
+    .catch(function () {});
+
+  // Fade sections in as they arrive.
+  var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { rootMargin: '0px 0px -8% 0px' }) : null;
+  document.querySelectorAll('.reveal').forEach(function (el) { io ? io.observe(el) : el.classList.add('in'); });
+})();
+</script>
 </body>
 </html>

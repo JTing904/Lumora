@@ -11,6 +11,7 @@ import 'player_glass.dart';
 import 'player_seek_bar.dart';
 import 'player_volume_control.dart';
 import '../common/focusable_card.dart';
+import 'lu_player_style.dart';
 
 /// Full bottom transport bar containing timeline scrubber, play controls, and menu triggers.
 class PlayerTransport extends StatelessWidget {
@@ -116,7 +117,7 @@ class PlayerTransport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final l10n = l10nOf(context);
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isCompact = screenWidth < 680;
@@ -504,7 +505,7 @@ class _PlayerTextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return FocusableCard(
       onTap: onPressed,
       builder: (context, state) {
@@ -570,7 +571,7 @@ class _PlayerPlayPauseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return FocusableCard(
       onTap: onTap,
       focusNode: focusNode,

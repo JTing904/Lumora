@@ -14,11 +14,11 @@ import '../../services/audiobook/epub_cover.dart';
 import '../../services/audiobook/epub_splitter.dart';
 import '../../services/audiobook/paper2audio_service.dart';
 import '../../services/theme/design_tokens.dart';
-import '../../widgets/common/animated_ambient_background.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/pill_button.dart';
-import '../../widgets/common/segmented_tabs.dart';
-import '../../widgets/player/player_glass.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_confirm.dart';
+import '../../ui/lu_text_field.dart';
+import '../../ui/lu_theme.dart';
+import '../music/lu_media_kit.dart';
 import 'audiobook_player_screen.dart';
 
 /// Worker for running EPUB splitting and word analysis off the UI thread via `compute`.
@@ -26,14 +26,25 @@ Future<List<EpubPart>> _splitWorker(String path) {
   return EpubSplitter.splitIfNeeded(File(path));
 }
 
-class GenerateAudiobookScreen extends StatefulWidget {
+/// The audiobook studio: turn an EPUB into an audiobook, or import audio
+/// files of your own.
+class GenerateAudiobookScreen extends StatelessWidget {
   const GenerateAudiobookScreen({super.key});
 
   @override
-  State<GenerateAudiobookScreen> createState() => _GenerateAudiobookScreenState();
+  Widget build(BuildContext context) =>
+      Theme(data: luMediaTheme(), child: const _GenerateAudiobookBody());
 }
 
-class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
+class _GenerateAudiobookBody extends StatefulWidget {
+  const _GenerateAudiobookBody();
+
+  @override
+  State<_GenerateAudiobookBody> createState() =>
+      _GenerateAudiobookScreenState();
+}
+
+class _GenerateAudiobookScreenState extends State<_GenerateAudiobookBody>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final Paper2AudioService _paperService = Paper2AudioService.instance;
@@ -85,7 +96,9 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
     () async {
       await _paperService.refreshAll();
       if (!mounted) return;
-      final hasPending = _paperService.jobs.value.any((j) => !j.isDone && !j.isFailed);
+      final hasPending = _paperService.jobs.value.any(
+        (j) => !j.isDone && !j.isFailed,
+      );
       if (hasPending) {
         _pollingTimer = Timer(const Duration(seconds: 8), _schedulePolling);
       }
@@ -115,8 +128,6 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
   }
 
   Future<void> _processAndGenerateFromEpub(File file) async {
-    final tokens = context.tokens;
-
     setState(() => _isUploading = true);
     try {
       // Analyze and split if oversized (>250k words) on background thread
@@ -134,36 +145,40 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
       if (parts.length > 1) {
         if (!mounted) return;
         final totalWords = parts.fold<int>(0, (a, p) => a + p.wordCount);
-        final confirm = await showDialog<bool>(
+        final confirm = await showLuMediaDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: tokens.surfaceOverlay,
-            shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.mdAll),
-            title: Row(
-              children: [
-                Icon(Icons.call_split_rounded, color: tokens.accent),
-                const SizedBox(width: 10),
-                Text(l10nCurrent().abkEpubExceeds250kWords,
-                    style: ZplayType.title.copyWith(size: 16).toStyle(color: tokens.textPrimary)),
-              ],
+          title: l10nCurrent().abkEpubExceeds250kWords,
+          icon: Icons.call_split_rounded,
+          body: (ctx, _) => Text(
+            l10nCurrent().abkSplitMessage(
+              _formatWords(totalWords),
+              '${parts.length}',
+              parts
+                  .map(
+                    (p) => l10nCurrent().abkSplitPartLine(
+                      p.suggestedName,
+                      _formatWords(p.wordCount),
+                    ),
+                  )
+                  .join('\n'),
             ),
-            content: Text(
-              'This book has ~${_formatWords(totalWords)} words. It will automatically be split into ${parts.length} parts along chapter boundaries and queued:\n\n'
-              '${parts.map((p) => '• ${p.suggestedName} (~${_formatWords(p.wordCount)} words)').join('\n')}',
-              style: ZplayType.label.toStyle(color: tokens.textEmphasis),
-            ),
-            actions: [
-              PillButton(
-                label: l10nCurrent().abkCancel,
-                variant: PillVariant.secondary,
-                onPressed: () => Navigator.pop(ctx, false),
-              ),
-              PillButton(
-                label: l10nCurrent().abkSplitGenerate,
-                onPressed: () => Navigator.pop(ctx, true),
-              ),
-            ],
+            style: LuText.bodySoft,
           ),
+          actions: (ctx) => [
+            LuButton(
+              label: l10nCurrent().abkCancel,
+              kind: LuButtonKind.secondary,
+              compact: true,
+              autofocus: true,
+              onPressed: () => Navigator.pop(ctx, false),
+            ),
+            LuButton(
+              label: l10nCurrent().abkSplitGenerate,
+              icon: Icons.call_split_rounded,
+              compact: true,
+              onPressed: () => Navigator.pop(ctx, true),
+            ),
+          ],
         );
 
         if (confirm != true) {
@@ -184,10 +199,13 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(parts.length == 1
-              ? l10nCurrent().abkUploadCompleteGenerationStarted
-              : l10nCurrent().abk2UploadedPartsGenerationStarted(parts.length)),
-          backgroundColor: tokens.success,
+          content: Text(
+            parts.length == 1
+                ? l10nCurrent().abkUploadCompleteGenerationStarted
+                : l10nCurrent().abk2UploadedPartsGenerationStarted(
+                    parts.length,
+                  ),
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -195,7 +213,7 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10nCurrent().abk2GenerationFailed(e)), backgroundColor: tokens.danger),
+        SnackBar(content: Text(l10nCurrent().abk2GenerationFailed(e))),
       );
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -211,7 +229,10 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
 
   void _playGeneratedAudiobook(GeneratedAudiobookJob job) {
     if (!job.isDone) return;
-    final title = job.fileName.replaceAll(RegExp(r'\.epub$', caseSensitive: false), '');
+    final title = job.fileName.replaceAll(
+      RegExp(r'\.epub$', caseSensitive: false),
+      '',
+    );
     final streamOrLocalPath = job.localAudioPath ?? job.downloadUrl!;
 
     final book = Audiobook(
@@ -219,23 +240,19 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
       audioBookId: 'p2a_${job.runId}',
       dynamicSlugId: job.runId,
       title: title,
-      author: 'AI Generated • Kokoro TTS',
+      author: l10nCurrent().abkAiGeneratedKokoro,
       coverImage: job.coverPath ?? '',
       source: 'Paper2Audio AI',
       pageUrl: streamOrLocalPath,
     );
 
-    final chapters = [
-      AudiobookChapter(title: title, url: streamOrLocalPath),
-    ];
+    final chapters = [AudiobookChapter(title: title, url: streamOrLocalPath)];
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AudiobookPlayerScreen(
-          audiobook: book,
-          chapters: chapters,
-        ),
+        builder: (_) =>
+            AudiobookPlayerScreen(audiobook: book, chapters: chapters),
       ),
     );
   }
@@ -252,38 +269,11 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
   }
 
   Future<void> _deleteGeneratedJob(GeneratedAudiobookJob job) async {
-    final tokens = context.tokens;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: tokens.surfaceOverlay,
-        shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.mdAll),
-        title: Text(l10nCurrent().abk2RemoveGenerationJob),
-        content: Text(l10nCurrent().abk2RemoveFromGenerationList(job.fileName)),
-        actions: [
-          PillButton(
-            label: l10nCurrent().abkCancel,
-            variant: PillVariant.secondary,
-            onPressed: () => Navigator.pop(ctx, false),
-          ),
-          // Destructive: kept as a labelled row rather than a pill, because the
-          // pill has no destructive variant and the one it would borrow says
-          // nothing about the irreversible action.
-          FocusableInkWell(
-            onTap: () => Navigator.pop(ctx, true),
-            borderRadius: ZplayRadius.smAll,
-            hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: ZplaySpacing.s12,
-                vertical: ZplaySpacing.s8,
-              ),
-              child: Text(l10nCurrent().abkRemove, style: ZplayType.label.toStyle(color: tokens.danger)),
-            ),
-          ),
-        ],
-      ),
+    final ok = await showLuConfirm(
+      context,
+      title: l10nCurrent().abk2RemoveGenerationJob,
+      message: l10nCurrent().abk2RemoveFromGenerationList(job.fileName),
+      confirmLabel: l10nCurrent().abkRemove,
     );
     if (ok == true) {
       await _paperService.removeJob(job.runId);
@@ -296,11 +286,18 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
   // ───────────────────────────────────────────────────────────────────────────
 
   Future<void> _openCustomAudiobookUploadDialog() async {
-    final tokens = context.tokens;
-
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['mp3', 'm4b', 'm4a', 'aac', 'flac', 'opus', 'wav', 'ogg'],
+      allowedExtensions: [
+        'mp3',
+        'm4b',
+        'm4a',
+        'aac',
+        'flac',
+        'opus',
+        'wav',
+        'ogg',
+      ],
       allowMultiple: true,
       withData: false,
     );
@@ -315,160 +312,127 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
     if (pickedFiles.isEmpty || !mounted) return;
 
     final titleController = TextEditingController(
-      text: p.basenameWithoutExtension(pickedFiles.first.path).replaceAll(RegExp(r'[._]'), ' ').trim(),
+      text: p
+          .basenameWithoutExtension(pickedFiles.first.path)
+          .replaceAll(RegExp(r'[._]'), ' ')
+          .trim(),
     );
-    final authorController = TextEditingController(text: 'Unknown Author');
+    final authorController = TextEditingController(
+      text: l10nCurrent().abkUnknownAuthor,
+    );
     File? pickedCoverFile;
 
-    await showDialog(
+    await showLuMediaDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlgState) {
-          return AlertDialog(
-            backgroundColor: tokens.surfaceOverlay,
-            shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.lgAll),
-            title: Row(
+      title: l10nCurrent().abkAddPersonalAudiobook,
+      icon: Icons.upload_file_rounded,
+      // The controllers go with the dialog's body: its fields still read them
+      // while the route animates out, after the dialog's future completes.
+      body: (ctx, setDlgState) => _DisposeOnUnmount(
+        onDispose: () {
+          titleController.dispose();
+          authorController.dispose();
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10nCurrent().abk2SelectedAudioFiles(pickedFiles.length),
+              style: LuText.label,
+            ),
+            const SizedBox(height: 6),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 90),
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: LuColors.field,
+                borderRadius: LuRadius.field,
+              ),
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final f in pickedFiles)
+                    Text('• ${p.basename(f.path)}', style: LuText.caption),
+                ],
+              ),
+            ),
+            const SizedBox(height: LuSpace.l),
+            LuTextField(
+              label: l10nCurrent().abkAudiobookTitle,
+              controller: titleController,
+            ),
+            const SizedBox(height: LuSpace.m),
+            LuTextField(
+              label: l10nCurrent().abkAuthorNarrator,
+              controller: authorController,
+            ),
+            const SizedBox(height: LuSpace.l),
+            Row(
               children: [
-                Icon(Icons.upload_file_rounded, color: tokens.accent),
-                const SizedBox(width: 10),
-                Text(l10nCurrent().abkAddPersonalAudiobook,
-                    style: ZplayType.title.copyWith(size: 16.5).toStyle(color: tokens.textPrimary)),
+                ClipRRect(
+                  borderRadius: const BorderRadius.all(Radius.circular(10)),
+                  child: SizedBox.square(
+                    dimension: 48,
+                    child: LuMediaArt(
+                      filePath: pickedCoverFile?.path,
+                      cacheWidth: 144,
+                      icon: Icons.image_rounded,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: LuSpace.m),
+                LuButton(
+                  label: pickedCoverFile == null
+                      ? l10nCurrent().abkSelectCoverArt
+                      : l10nCurrent().abkChangeCover,
+                  icon: Icons.photo_library_outlined,
+                  kind: LuButtonKind.text,
+                  onPressed: () async {
+                    final imgResult = await FilePicker.platform.pickFiles(
+                      type: FileType.image,
+                      withData: false,
+                    );
+                    if (imgResult != null &&
+                        imgResult.files.single.path != null) {
+                      setDlgState(() {
+                        pickedCoverFile = File(imgResult.files.single.path!);
+                      });
+                    }
+                  },
+                ),
               ],
             ),
-            content: SizedBox(
-              width: 440,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10nCurrent().abk2SelectedAudioFiles(pickedFiles.length),
-                      style: ZplayType.bodySmall
-                          .copyWith(size: 12.5, weight: FontWeight.w600)
-                          .toStyle(color: tokens.textEmphasis),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 90),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: tokens.surface,
-                        borderRadius: ZplayRadius.smAll,
-                      ),
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: pickedFiles.map((f) => Text(
-                          '• ${p.basename(f.path)}',
-                          style: ZplayType.caption.copyWith(size: 11.5).toStyle(color: tokens.textSecondary),
-                        )).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: titleController,
-                      style: ZplayType.body.toStyle(color: tokens.textPrimary),
-                      decoration: InputDecoration(
-                        labelText: l10nCurrent().abkAudiobookTitle,
-                        labelStyle: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-                        filled: true,
-                        fillColor: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
-                        border: const OutlineInputBorder(borderRadius: ZplayRadius.smAll),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: authorController,
-                      style: ZplayType.body.toStyle(color: tokens.textPrimary),
-                      decoration: InputDecoration(
-                        labelText: l10nCurrent().abkAuthorNarrator,
-                        labelStyle: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-                        filled: true,
-                        fillColor: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
-                        border: const OutlineInputBorder(borderRadius: ZplayRadius.smAll),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    // Cover Picker Button
-                    Row(
-                      children: [
-                        if (pickedCoverFile != null)
-                          ClipRRect(
-                            borderRadius: ZplayRadius.smAll,
-                            child: Image.file(pickedCoverFile!, width: 44, height: 44, fit: BoxFit.cover),
-                          )
-                        else
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: tokens.borderStrong,
-                              borderRadius: ZplayRadius.smAll,
-                            ),
-                            child: Icon(Icons.image_rounded, color: tokens.textMuted),
-                          ),
-                        const SizedBox(width: 12),
-                        FocusableInkWell(
-                          onTap: () async {
-                            final imgResult = await FilePicker.platform.pickFiles(
-                              type: FileType.image,
-                              withData: false,
-                            );
-                            if (imgResult != null && imgResult.files.single.path != null) {
-                              setDlgState(() {
-                                pickedCoverFile = File(imgResult.files.single.path!);
-                              });
-                            }
-                          },
-                          borderRadius: ZplayRadius.smAll,
-                          hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: ZplaySpacing.s8,
-                              vertical: ZplaySpacing.s8,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.photo_library_rounded, size: 16, color: tokens.accent),
-                                const SizedBox(width: ZplaySpacing.s8),
-                                Text(
-                                  pickedCoverFile == null ? l10nCurrent().abkSelectCoverArt : l10nCurrent().abkChangeCover,
-                                  style: ZplayType.label.toStyle(color: tokens.accent),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              PillButton(
-                label: l10nCurrent().abkCancel,
-                variant: PillVariant.secondary,
-                onPressed: () => Navigator.pop(ctx),
-              ),
-              PillButton(
-                label: l10nCurrent().abkImportToLibrary,
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _customService.importAudiobook(
-                    audioFiles: pickedFiles,
-                    title: titleController.text,
-                    author: authorController.text,
-                    coverImageFile: pickedCoverFile,
-                  );
-                  if (mounted) setState(() {});
-                },
-              ),
-            ],
-          );
-        },
+          ],
+        ),
       ),
+      actions: (ctx) => [
+        LuButton(
+          label: l10nCurrent().abkCancel,
+          kind: LuButtonKind.secondary,
+          compact: true,
+          onPressed: () => Navigator.pop(ctx),
+        ),
+        LuButton(
+          label: l10nCurrent().abkImportToLibrary,
+          icon: Icons.library_add_rounded,
+          compact: true,
+          onPressed: () async {
+            // Read before the pop: the controllers are disposed with the
+            // dialog.
+            final title = titleController.text;
+            final author = authorController.text;
+            Navigator.pop(ctx);
+            await _customService.importAudiobook(
+              audioFiles: pickedFiles,
+              title: title,
+              author: author,
+              coverImageFile: pickedCoverFile,
+            );
+            if (mounted) setState(() {});
+          },
+        ),
+      ],
     );
   }
 
@@ -479,10 +443,8 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AudiobookPlayerScreen(
-          audiobook: audiobook,
-          chapters: chapters,
-        ),
+        builder: (_) =>
+            AudiobookPlayerScreen(audiobook: audiobook, chapters: chapters),
       ),
     );
   }
@@ -493,91 +455,76 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
     return Scaffold(
-      backgroundColor: tokens.bg,
-      body: Column(
+      backgroundColor: LuColors.bg,
+      body: Stack(
         children: [
-          _buildHeader(),
-          Expanded(
-            child: AnimatedAmbientBackground(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildGeneratorTab(),
-                  _buildUploadedTab(),
-                ],
+          const Positioned.fill(child: LuMediaGlow()),
+          Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [_buildGeneratorTab(), _buildUploadedTab()],
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  /// The route's own chrome.
-  ///
-  /// This is a pushed route, so the shell paints nothing above it and this row
-  /// *is* the top chrome: it is transparent, carries no hairline, and spends the
-  /// status-bar inset itself — an opaque band with an edge across the top would
-  /// re-create the shell seam this design language removed.
+  /// The route's own chrome: back, the studio's name, and the two tabs as
+  /// pills.
   Widget _buildHeader() {
-    final tokens = context.tokens;
+    final l10n = l10nOf(context);
+    final pad = luMediaPad(context);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        ZplaySpacing.s16,
-        MediaQuery.paddingOf(context).top + ZplaySpacing.s12,
-        ZplaySpacing.s16,
-        ZplaySpacing.s12,
+        pad,
+        MediaQuery.paddingOf(context).top + 14,
+        pad,
+        12,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              FocusableInkWell(
+              LuMediaIconButton(
+                icon: Icons.arrow_back_rounded,
+                tooltip: l10n.abkBackTip,
                 onTap: () => Navigator.pop(context),
-                borderRadius: ZplayRadius.fullAll,
-                hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Icon(
-                    Icons.arrow_back_ios_rounded,
-                    color: tokens.textEmphasis,
-                    size: 20,
-                    shadows: const [
-                      Shadow(color: Color(0x99000000), blurRadius: 6, offset: Offset(0, 1)),
-                    ],
-                  ),
-                ),
               ),
-              const SizedBox(width: ZplaySpacing.s12),
-              Icon(Icons.auto_stories_rounded, color: tokens.accent, size: 22),
+              const SizedBox(width: LuSpace.m),
+              const Icon(
+                Icons.auto_stories_rounded,
+                color: LuColors.gold,
+                size: 24,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  l10nCurrent().abkAudiobookStudioGenerator,
-                  style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                  l10n.abkAudiobookStudioGenerator,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LuText.heading,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: ZplaySpacing.s12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SegmentedTabs<int>(
-              semanticsLabel: l10nCurrent().abkAudiobookStudioTabs,
-              height: 44,
-              selected: _tabController.index,
-              onSelected: (i) => _tabController.animateTo(i),
-              options: [
-                SegmentedTabOption(value: 0, label: l10nCurrent().abk2AiEpubGeneratorTts),
-                SegmentedTabOption(value: 1, label: l10nCurrent().abk2MyUploadedAudiobooks),
-              ],
-            ),
+          const SizedBox(height: LuSpace.m),
+          LuPillTabs<int>(
+            semanticsLabel: l10n.abkAudiobookStudioTabs,
+            selected: _tabController.index,
+            onSelected: (i) => _tabController.animateTo(i),
+            options: [
+              LuPillOption(value: 0, label: l10n.abk2AiEpubGeneratorTts),
+              LuPillOption(value: 1, label: l10n.abk2MyUploadedAudiobooks),
+            ],
           ),
         ],
       ),
@@ -620,24 +567,19 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      l10nCurrent().abk2GenerationQueueCompleted(jobs.length),
-                      style: ZplayType.overline
-                          .copyWith(size: 12, weight: FontWeight.w700, letterSpacing: 1.1)
-                          .toStyle(color: tokens.textMuted),
-                    ),
-                    Tooltip(
-                      message: l10nCurrent().abkRefreshStatus,
-                      child: FocusableInkWell(
-                        onTap: () => _paperService.refreshAll(),
-                        borderRadius: ZplayRadius.fullAll,
-                        hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-                        child: SizedBox(
-                          width: 48,
-                          height: 48,
-                          child: Icon(Icons.refresh_rounded, size: 18, color: tokens.textSecondary),
-                        ),
+                    Expanded(
+                      child: Text(
+                        l10nCurrent().abk2GenerationQueueCompleted(jobs.length),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LuText.heading.copyWith(fontSize: 18),
                       ),
+                    ),
+                    LuMediaIconButton(
+                      icon: Icons.refresh_rounded,
+                      tooltip: l10nCurrent().abkRefreshStatus,
+                      quiet: true,
+                      onTap: () => _paperService.refreshAll(),
                     ),
                   ],
                 ),
@@ -649,11 +591,15 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: tokens.surface,
-                      borderRadius: ZplayRadius.mdAll,
+                      borderRadius: LuRadius.card,
                     ),
                     child: Column(
                       children: [
-                        Icon(Icons.headphones_rounded, size: 40, color: tokens.textDisabled),
+                        Icon(
+                          Icons.headphones_rounded,
+                          size: 40,
+                          color: tokens.textDisabled,
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           l10nCurrent().abkNoGeneratedAudiobooksYet,
@@ -664,7 +610,9 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                         const SizedBox(height: 4),
                         Text(
                           l10nCurrent().abkPickAnEpubAboveToSynthesize,
-                          style: ZplayType.bodySmall.toStyle(color: tokens.textMuted),
+                          style: ZplayType.bodySmall.toStyle(
+                            color: tokens.textMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -690,7 +638,7 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: ZplayRadius.mdAll,
+        borderRadius: LuRadius.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,9 +650,13 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                 height: 36,
                 decoration: BoxDecoration(
                   color: tokens.accent.withValues(alpha: 0.2),
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: const BorderRadius.all(Radius.circular(10)),
                 ),
-                child: Icon(Icons.record_voice_over_rounded, color: tokens.accent, size: 20),
+                child: Icon(
+                  Icons.record_voice_over_rounded,
+                  color: tokens.accent,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -719,7 +671,9 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                     ),
                     Text(
                       selectedVoice.description,
-                      style: ZplayType.caption.copyWith(size: 11.5).toStyle(color: tokens.textSecondary),
+                      style: ZplayType.caption
+                          .copyWith(size: 11.5)
+                          .toStyle(color: tokens.textSecondary),
                     ),
                   ],
                 ),
@@ -732,15 +686,20 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
             decoration: BoxDecoration(
               // A form field keeps a fill even without its hairline — the same
               // faint wash the dialogs' text fields use.
-              color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
-              borderRadius: ZplayRadius.smAll,
+              color: tokens.textPrimary.withValues(
+                alpha: ZplayOpacity.borderFaint,
+              ),
+              borderRadius: const BorderRadius.all(Radius.circular(10)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedVoiceId,
                 isExpanded: true,
                 dropdownColor: tokens.surfaceOverlay,
-                icon: Icon(Icons.arrow_drop_down_rounded, color: tokens.textEmphasis),
+                icon: Icon(
+                  Icons.arrow_drop_down_rounded,
+                  color: tokens.textEmphasis,
+                ),
                 items: kPaper2AudioVoices.map((voice) {
                   return DropdownMenuItem<String>(
                     value: voice.id,
@@ -749,13 +708,20 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                       children: [
                         Text(
                           voice.label,
-                          style: ZplayType.label.copyWith(weight: FontWeight.w600).toStyle(color: tokens.textPrimary),
+                          style: ZplayType.label
+                              .copyWith(weight: FontWeight.w600)
+                              .toStyle(color: tokens.textPrimary),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: tokens.borderDefault,
-                            borderRadius: ZplayRadius.xsAll,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(6),
+                            ),
                           ),
                           child: Text(
                             voice.group,
@@ -783,7 +749,12 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
     final tokens = context.tokens;
 
     if (_isLoadingEpubs) {
-      return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
 
     if (_detectedEpubs.isEmpty) {
@@ -796,49 +767,41 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              l10nCurrent().abk2DownloadedBooksFromLibrary(_detectedEpubs.length),
-              style: ZplayType.overline
-                  .copyWith(size: 12, weight: FontWeight.w700, letterSpacing: 1.1)
-                  .toStyle(color: tokens.textMuted),
-            ),
-            FocusableInkWell(
-              onTap: _loadDownloadedEpubs,
-              borderRadius: ZplayRadius.smAll,
-              hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ZplaySpacing.s8,
-                  vertical: ZplaySpacing.s8,
+            Expanded(
+              child: Text(
+                l10nCurrent().abk2DownloadedBooksFromLibrary(
+                  _detectedEpubs.length,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.refresh_rounded, size: 14, color: tokens.accent),
-                    const SizedBox(width: ZplaySpacing.s4),
-                    Text(l10nCurrent().abkRescanBooks, style: ZplayType.caption.toStyle(color: tokens.accent)),
-                  ],
-                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LuText.heading.copyWith(fontSize: 18),
               ),
+            ),
+            LuButton(
+              label: l10nCurrent().abkRescanBooks,
+              icon: Icons.refresh_rounded,
+              kind: LuButtonKind.text,
+              onPressed: _loadDownloadedEpubs,
             ),
           ],
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 165,
+          height: 180,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
             physics: const BouncingScrollPhysics(),
             itemCount: _detectedEpubs.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, idx) {
               final epub = _detectedEpubs[idx];
               return Container(
-                width: 260,
-                padding: const EdgeInsets.all(10),
+                width: 280,
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: tokens.surface,
-                  borderRadius: ZplayRadius.mdAll,
+                  borderRadius: LuRadius.card,
                 ),
                 child: Row(
                   children: [
@@ -848,12 +811,18 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                       height: 145,
                       decoration: BoxDecoration(
                         color: tokens.borderStrong,
-                        borderRadius: ZplayRadius.smAll,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(10),
+                        ),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: epub.coverPath != null
                           ? Image.file(File(epub.coverPath!), fit: BoxFit.cover)
-                          : Icon(Icons.book_rounded, color: tokens.textDisabled, size: 30),
+                          : Icon(
+                              Icons.book_rounded,
+                              color: tokens.textDisabled,
+                              size: 30,
+                            ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -865,51 +834,28 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                             epub.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: ZplayType.label.copyWith(weight: FontWeight.w700).toStyle(color: tokens.textPrimary),
+                            style: ZplayType.label
+                                .copyWith(weight: FontWeight.w700)
+                                .toStyle(color: tokens.textPrimary),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            l10nCurrent().abk2FileSizeMb((epub.fileSizeBytes / (1024 * 1024)).toStringAsFixed(1)),
-                            style: ZplayType.caption.toStyle(color: tokens.textMuted),
+                            l10nCurrent().abk2FileSizeMb(
+                              (epub.fileSizeBytes / (1024 * 1024))
+                                  .toStringAsFixed(1),
+                            ),
+                            style: ZplayType.caption.toStyle(
+                              color: tokens.textMuted,
+                            ),
                           ),
                           const Spacer(),
-                          // Keeps the file's compact accent chip rather than a
-                          // pill: [PillButton]'s only fills are the white primary
-                          // and the dark scrim, and a white pill on each detected
-                          // book would out-shout the section it sits in. The ring
-                          // is the shared one, so the chip is still reachable and
-                          // marked like every other control.
-                          FocusableCard(
-                            onTap: _isUploading
-                                ? null
-                                : () => _processAndGenerateFromEpub(File(epub.filePath)),
-                            enabled: !_isUploading,
-                            cursor: _isUploading
-                                ? SystemMouseCursors.basic
-                                : SystemMouseCursors.click,
-                            builder: (context, state) => CardFocusRing(
-                              focused: state.focused,
-                              radius: ZplayRadius.smAll,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: tokens.accent,
-                                  borderRadius: ZplayRadius.smAll,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.record_voice_over_rounded, size: 14, color: tokens.onAccent),
-                                    const SizedBox(width: ZplaySpacing.s8),
-                                    Text(
-                                      l10nCurrent().abkGenerate,
-                                      style: ZplayType.bodySmall
-                                          .copyWith(weight: FontWeight.w700)
-                                          .toStyle(color: tokens.onAccent),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                          LuButton(
+                            label: l10nCurrent().abkGenerate,
+                            icon: Icons.record_voice_over_rounded,
+                            compact: true,
+                            busy: _isUploading,
+                            onPressed: () => _processAndGenerateFromEpub(
+                              File(epub.filePath),
                             ),
                           ),
                         ],
@@ -925,63 +871,67 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
     );
   }
 
-  Widget _buildUploadExternalCard() {
-    final tokens = context.tokens;
-
-    return FocusableInkWell(
-      onTap: _isUploading ? null : _pickAndUploadEpub,
-      enabled: !_isUploading,
-      borderRadius: ZplayRadius.mdAll,
-      hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              tokens.accent.withValues(alpha: 0.15),
-              tokens.info.withValues(alpha: 0.05),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  /// A wide studio action: a gold glyph, two lines and a chevron.
+  Widget _studioBanner({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+    bool busy = false,
+  }) {
+    return LuMediaTile(
+      onTap: onTap,
+      semanticLabel: title,
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: const BoxDecoration(
+              color: Color(0x29F2B544),
+              borderRadius: LuRadius.field,
+            ),
+            child: busy
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  )
+                : Icon(icon, color: LuColors.gold, size: 26),
           ),
-          borderRadius: ZplayRadius.mdAll,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: tokens.accent.withValues(alpha: 0.25),
-                borderRadius: ZplayRadius.mdAll,
-              ),
-              child: _isUploading
-                  ? Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: CircularProgressIndicator(color: tokens.onAccent, strokeWidth: 2.5))
-                  : Icon(Icons.upload_file_rounded, color: tokens.onAccent, size: 26),
+          const SizedBox(width: LuSpace.m),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: LuText.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(subtitle, style: LuText.caption),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isUploading ? l10nCurrent().abkAnalyzingUploadingBook : l10nCurrent().abkSelectExternalEpubFile,
-                    style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    l10nCurrent().abkPickAnyEpubFileFromYour,
-                    style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: tokens.textSecondary, size: 24),
-          ],
-        ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: LuColors.textMuted,
+            size: 26,
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildUploadExternalCard() {
+    return _studioBanner(
+      icon: Icons.upload_file_rounded,
+      title: _isUploading
+          ? l10nCurrent().abkAnalyzingUploadingBook
+          : l10nCurrent().abkSelectExternalEpubFile,
+      subtitle: l10nCurrent().abkPickAnyEpubFileFromYour,
+      busy: _isUploading,
+      onTap: _isUploading ? null : _pickAndUploadEpub,
     );
   }
 
@@ -989,7 +939,10 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
     final tokens = context.tokens;
     final isDone = job.isDone;
     final isFailed = job.isFailed;
-    final cleanTitle = job.fileName.replaceAll(RegExp(r'\.epub$', caseSensitive: false), '');
+    final cleanTitle = job.fileName.replaceAll(
+      RegExp(r'\.epub$', caseSensitive: false),
+      '',
+    );
 
     Color statusColor;
     String statusLabel;
@@ -1001,7 +954,9 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
       statusLabel = l10nCurrent().abkFailed;
     } else {
       statusColor = tokens.warning;
-      statusLabel = l10nCurrent().abk2SynthesizingPercent((job.progress * 100).round());
+      statusLabel = l10nCurrent().abk2SynthesizingPercent(
+        (job.progress * 100).round(),
+      );
     }
 
     return Container(
@@ -1009,7 +964,7 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: ZplayRadius.mdAll,
+        borderRadius: LuRadius.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1022,12 +977,17 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                 height: 64,
                 decoration: BoxDecoration(
                   color: tokens.borderStrong,
-                  borderRadius: ZplayRadius.smAll,
+                  borderRadius: const BorderRadius.all(Radius.circular(10)),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: job.coverPath != null && File(job.coverPath!).existsSync()
+                child:
+                    job.coverPath != null && File(job.coverPath!).existsSync()
                     ? Image.file(File(job.coverPath!), fit: BoxFit.cover)
-                    : Icon(Icons.headphones_rounded, color: tokens.textDisabled, size: 24),
+                    : Icon(
+                        Icons.headphones_rounded,
+                        color: tokens.textDisabled,
+                        size: 24,
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1036,7 +996,9 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                   children: [
                     Text(
                       cleanTitle,
-                      style: ZplayType.body.copyWith(weight: FontWeight.w700).toStyle(color: tokens.textPrimary),
+                      style: ZplayType.body
+                          .copyWith(weight: FontWeight.w700)
+                          .toStyle(color: tokens.textPrimary),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1044,10 +1006,15 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.15),
-                            borderRadius: ZplayRadius.xsAll,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(6),
+                            ),
                           ),
                           child: Text(
                             statusLabel,
@@ -1059,7 +1026,9 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                         const SizedBox(width: 8),
                         Text(
                           l10nCurrent().abk2JobVoiceLabel(job.voiceId),
-                          style: ZplayType.caption.toStyle(color: tokens.textMuted),
+                          style: ZplayType.caption.toStyle(
+                            color: tokens.textMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -1067,15 +1036,12 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                 ),
               ),
               // Delete Button
-              FocusableInkWell(
+              LuMediaIconButton(
+                icon: Icons.delete_outline_rounded,
+                tooltip: l10nCurrent().abkDeleteJobTip,
+                quiet: true,
+                iconColor: LuColors.textMuted,
                 onTap: () => _deleteGeneratedJob(job),
-                borderRadius: ZplayRadius.fullAll,
-                hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Icon(Icons.delete_outline_rounded, size: 18, color: tokens.textMuted),
-                ),
               ),
             ],
           ),
@@ -1083,7 +1049,7 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
           if (!isDone && !isFailed) ...[
             const SizedBox(height: 12),
             ClipRRect(
-              borderRadius: ZplayRadius.xsAll,
+              borderRadius: const BorderRadius.all(Radius.circular(6)),
               child: LinearProgressIndicator(
                 value: job.progress > 0 ? job.progress : null,
                 backgroundColor: tokens.borderStrong,
@@ -1098,7 +1064,8 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
             Row(
               children: [
                 Expanded(
-                  child: PillButton(
+                  child: LuButton(
+                    compact: true,
                     label: l10nCurrent().abkPlayInApp,
                     icon: Icons.play_arrow_rounded,
                     expand: true,
@@ -1107,10 +1074,11 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                 ),
                 const SizedBox(width: 8),
                 if (job.downloadUrl != null)
-                  PillButton(
+                  LuButton(
+                    compact: true,
                     label: l10nCurrent().abkCopyStreamUrl,
                     icon: Icons.link_rounded,
-                    variant: PillVariant.secondary,
+                    kind: LuButtonKind.secondary,
                     onPressed: () => _copyStreamUrl(job.downloadUrl!),
                   ),
               ],
@@ -1139,55 +1107,11 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
               physics: const BouncingScrollPhysics(),
               children: [
                 // Upload Personal Audiobook Banner
-                FocusableInkWell(
+                _studioBanner(
+                  icon: Icons.library_add_rounded,
+                  title: l10nCurrent().abkUploadPersonalAudiobookFiles,
+                  subtitle: l10nCurrent().abkImportYourOwnMp3M4bM4a,
                   onTap: _openCustomAudiobookUploadDialog,
-                  borderRadius: ZplayRadius.mdAll,
-                  hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-                  child: Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          tokens.success.withValues(alpha: 0.15),
-                          tokens.info.withValues(alpha: 0.05),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: ZplayRadius.mdAll,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: tokens.success.withValues(alpha: 0.2),
-                            borderRadius: ZplayRadius.mdAll,
-                          ),
-                          child: Icon(Icons.library_add_rounded, color: tokens.success, size: 26),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10nCurrent().abkUploadPersonalAudiobookFiles,
-                                style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                l10nCurrent().abkImportYourOwnMp3M4bM4a,
-                                style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.chevron_right_rounded, color: tokens.textSecondary, size: 24),
-                      ],
-                    ),
-                  ),
                 ),
 
                 const SizedBox(height: 24),
@@ -1195,7 +1119,11 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                 Text(
                   l10nCurrent().abk2ImportedAudiobooksCount(books.length),
                   style: ZplayType.overline
-                      .copyWith(size: 12, weight: FontWeight.w700, letterSpacing: 1.1)
+                      .copyWith(
+                        size: 12,
+                        weight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                      )
                       .toStyle(color: tokens.textMuted),
                 ),
                 const SizedBox(height: 10),
@@ -1206,11 +1134,15 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: tokens.surface,
-                      borderRadius: ZplayRadius.mdAll,
+                      borderRadius: LuRadius.card,
                     ),
                     child: Column(
                       children: [
-                        Icon(Icons.library_music_rounded, size: 40, color: tokens.textDisabled),
+                        Icon(
+                          Icons.library_music_rounded,
+                          size: 40,
+                          color: tokens.textDisabled,
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           l10nCurrent().abkNoPersonalAudiobooksAddedYet,
@@ -1221,7 +1153,9 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
                         const SizedBox(height: 4),
                         Text(
                           l10nCurrent().abkTapTheBannerAboveToImport,
-                          style: ZplayType.bodySmall.toStyle(color: tokens.textMuted),
+                          style: ZplayType.bodySmall.toStyle(
+                            color: tokens.textMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -1245,7 +1179,7 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: ZplayRadius.mdAll,
+        borderRadius: LuRadius.card,
       ),
       child: Row(
         children: [
@@ -1255,12 +1189,16 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
             height: 64,
             decoration: BoxDecoration(
               color: tokens.borderStrong,
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: const BorderRadius.all(Radius.circular(10)),
             ),
             clipBehavior: Clip.antiAlias,
             child: book.coverPath != null && File(book.coverPath!).existsSync()
                 ? Image.file(File(book.coverPath!), fit: BoxFit.cover)
-                : Icon(Icons.music_note_rounded, color: tokens.textDisabled, size: 24),
+                : Icon(
+                    Icons.music_note_rounded,
+                    color: tokens.textDisabled,
+                    size: 24,
+                  ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1269,69 +1207,76 @@ class _GenerateAudiobookScreenState extends State<GenerateAudiobookScreen>
               children: [
                 Text(
                   book.title,
-                  style: ZplayType.body.copyWith(weight: FontWeight.w700).toStyle(color: tokens.textPrimary),
+                  style: ZplayType.body
+                      .copyWith(weight: FontWeight.w700)
+                      .toStyle(color: tokens.textPrimary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  l10nCurrent().abk2AuthorPartsSize(book.author, book.audioFilePaths.length, sizeMb),
-                  style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
+                  l10nCurrent().abk2AuthorPartsSize(
+                    book.author,
+                    book.audioFilePaths.length,
+                    sizeMb,
+                  ),
+                  style: ZplayType.bodySmall.toStyle(
+                    color: tokens.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          PillButton(
+          LuButton(
+            compact: true,
             label: l10nCurrent().abkPlay,
             icon: Icons.play_arrow_rounded,
             onPressed: () => _playUploadedAudiobook(book),
           ),
           const SizedBox(width: 6),
-          FocusableInkWell(
+          LuMediaIconButton(
+            icon: Icons.delete_outline_rounded,
+            tooltip: l10nCurrent().abkDelete,
+            quiet: true,
+            iconColor: LuColors.textMuted,
             onTap: () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: tokens.surfaceOverlay,
-                  shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.mdAll),
-                  title: Text(l10nCurrent().abk2DeleteAudiobook),
-                  content: Text(l10nCurrent().abk2DeleteFromLibrary(book.title)),
-                  actions: [
-                    PillButton(
-                      label: l10nCurrent().abkCancel,
-                      variant: PillVariant.secondary,
-                      onPressed: () => Navigator.pop(ctx, false),
-                    ),
-                    FocusableInkWell(
-                      onTap: () => Navigator.pop(ctx, true),
-                      borderRadius: ZplayRadius.smAll,
-                      hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: ZplaySpacing.s12,
-                          vertical: ZplaySpacing.s8,
-                        ),
-                        child: Text(l10nCurrent().abkDelete, style: ZplayType.label.toStyle(color: tokens.danger)),
-                      ),
-                    ),
-                  ],
-                ),
+              final ok = await showLuConfirm(
+                context,
+                title: l10nCurrent().abk2DeleteAudiobook,
+                message: l10nCurrent().abk2DeleteFromLibrary(book.title),
+                confirmLabel: l10nCurrent().abkDelete,
               );
-              if (ok == true) {
+              if (ok) {
                 await _customService.deleteAudiobook(book.id);
                 if (mounted) setState(() {});
               }
             },
-            borderRadius: ZplayRadius.fullAll,
-            hoverColor: tokens.textPrimary.withValues(alpha: 0.08),
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Icon(Icons.delete_outline_rounded, size: 18, color: tokens.textMuted),
-            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Runs [onDispose] when it leaves the tree, after the widgets below it have
+/// let go of whatever it disposes.
+class _DisposeOnUnmount extends StatefulWidget {
+  const _DisposeOnUnmount({required this.onDispose, required this.child});
+
+  final VoidCallback onDispose;
+  final Widget child;
+
+  @override
+  State<_DisposeOnUnmount> createState() => _DisposeOnUnmountState();
+}
+
+class _DisposeOnUnmountState extends State<_DisposeOnUnmount> {
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

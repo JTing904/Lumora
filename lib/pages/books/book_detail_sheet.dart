@@ -1,19 +1,20 @@
-import '../../l10n/l10n.dart';
 import 'dart:io';
-import 'package:cached_network_image/cached_network_image.dart';
+
 import 'package:flutter/material.dart';
+
+import '../../l10n/l10n.dart';
 import '../../models/book/book_result.dart';
 import '../../services/books/book_download_service.dart';
 import '../../services/books/continue_reading_service.dart';
+import '../../services/layout/device_profile.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_theme.dart';
+import '../account/login_page.dart' show SignInRequired;
 import '../audiobooks/generate_audiobook_screen.dart';
 import 'epub_reader_page.dart';
 import 'pdf_reader_page.dart';
-import '../../services/storage/app_image_cache.dart';
-import '../../services/theme/design_tokens.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/pill_button.dart';
-import '../../widgets/common/section_header.dart';
-import '../account/login_page.dart' show SignInRequired;
+import 'widgets/lu_reading_kit.dart';
 
 class BookDetailSheet extends StatefulWidget {
   final BookResult book;
@@ -101,8 +102,8 @@ class _BookDetailSheetState extends State<BookDetailSheet> {
       setState(() => _isDownloading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10nCurrent().bk2FailedToDownloadBook(e)),
-          backgroundColor: context.tokens.danger,
+          content: Text(l10nOf(context).bk2FailedToDownloadBook(e)),
+          backgroundColor: LuColors.danger,
         ),
       );
     }
@@ -140,405 +141,272 @@ class _BookDetailSheetState extends State<BookDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    final l10n = l10nOf(context);
     final book = widget.book;
     final progress = ContinueReadingService.getProgress(book.md5);
     final hasProgress = progress != null && progress.progressPercent > 0;
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    // The discs beside the read button match its height: LuButton is 44 tall
+    // on a phone and 56 elsewhere, by the same test.
+    final glyphSize =
+        MediaQuery.sizeOf(context).shortestSide < 600 &&
+            !DeviceProfile.isTelevision
+        ? 44.0
+        : 56.0;
+    final facts = [
+      book.bookFiletype.toUpperCase(),
+      if (book.bookSize.isNotEmpty) book.bookSize,
+      if (book.year.isNotEmpty) book.year,
+      if (book.bookLang.isNotEmpty) book.bookLang,
+    ].where((f) => f.isNotEmpty).toList();
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.88,
-      ),
-      decoration: BoxDecoration(
-        color: tokens.surfaceOverlay,
-        borderRadius: ZplayRadius.sheetTop,
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black87,
-            blurRadius: 36,
-            offset: Offset(0, -10),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(
-                top: ZplaySpacing.s12,
-                bottom: ZplaySpacing.s8,
-              ),
-              width: 44,
-              height: 4.5,
-              decoration: BoxDecoration(
-                color: tokens.textDisabled,
-                borderRadius: ZplayRadius.xsAll,
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(
-                ZplaySpacing.s24,
-                ZplaySpacing.s8,
-                ZplaySpacing.s24,
-                ZplaySpacing.s32,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Row: Cover + Metadata info
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Book Cover Card
-                      Hero(
-                        tag: 'book_cover_${book.md5}',
-                        child: Container(
-                          width: 124,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            borderRadius: ZplayRadius.mdAll,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.6),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: ZplayRadius.mdAll,
-                            child: book.coverUrl.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: book.coverUrl,
-                                    cacheManager: AppImageCache.manager,
-                                    fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
-                                      color: tokens.surface,
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.menu_book_rounded,
-                                          color: tokens.textDisabled,
-                                          size: 36,
-                                        ),
-                                      ),
-                                    ),
-                                    errorWidget: (_, __, ___) => Container(
-                                      color: tokens.surface,
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.menu_book_rounded,
-                                          color: tokens.textDisabled,
-                                          size: 36,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : Container(
-                                    color: tokens.surface,
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.menu_book_rounded,
-                                        color: tokens.textDisabled,
-                                        size: 36,
-                                      ),
-                                    ),
-                                  ),
+    return LuSheetFrame(
+      maxHeightFactor: 0.88,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          12,
+          24,
+          32 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(14)),
+                      child: SizedBox(
+                        width: phone ? 112 : 136,
+                        child: AspectRatio(
+                          aspectRatio: 2 / 3,
+                          child: LuImage(
+                            url: book.coverUrl,
+                            cacheWidth: 420,
+                            fallback: const Icon(
+                              Icons.menu_book_rounded,
+                              color: LuColors.textFaint,
+                              size: 36,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: ZplaySpacing.s16),
-
-                      // Title & Metadata
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              book.displayTitle,
-                              style: ZplayType.title.toStyle(
-                                color: tokens.textPrimary,
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            book.displayTitle,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: LuText.heading.copyWith(
+                              fontSize: phone ? 20 : 24,
+                              fontWeight: FontWeight.w800,
+                              height: 1.25,
                             ),
-                            const SizedBox(height: ZplaySpacing.s8),
-                            Text(
-                              book.displayAuthor,
-                              style: ZplayType.body
-                                  .copyWith(size: 13)
-                                  .toStyle(color: tokens.textSecondary),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            book.displayAuthor,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: LuText.body.copyWith(
+                              color: LuColors.textSoft,
                             ),
-                            const SizedBox(height: ZplaySpacing.s12),
-
-                            // One metadata line, not a row of filled chips.
-                            // The sheet used to wear four badges whose only job
-                            // was to name the format, the size, the year and the
-                            // language; type weight and the interpunct carry
-                            // that structure without four boxes competing with
-                            // the cover for the eye.
-                            Text(
-                              [
-                                book.bookFiletype.toUpperCase(),
-                                if (book.bookSize.isNotEmpty) book.bookSize,
-                                if (book.year.isNotEmpty) book.year,
-                                if (book.bookLang.isNotEmpty) book.bookLang,
-                              ].join(' · '),
-                              style: ZplayType.label.toStyle(
-                                color: tokens.textSecondary,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                          ),
+                          if (facts.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                for (final f in facts) LuBadge(f, muted: true),
+                              ],
                             ),
                           ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: ZplaySpacing.s24),
-
-                  // Reading progress, as a label and a bar. It used to be a
-                  // bordered `tokens.surface` box; the numbers and the bar are
-                  // the content, so the box around them was a second frame for
-                  // no information.
-                  if (hasProgress) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          progress.fileType == 'pdf'
-                              ? l10nCurrent().bk2PageOfTotal(progress.currentPage, progress.totalPages)
-                              : l10nCurrent().bk2ChapterOfTotal(progress.chapterIndex + 1, progress.totalChapters),
-                          style: ZplayType.bodySmall
-                              .copyWith(weight: FontWeight.w600)
-                              .toStyle(color: tokens.textEmphasis),
-                        ),
-                        Text(
-                          l10nCurrent().bk2PercentCompleted((progress.progressPercent * 100).round()),
-                          style: ZplayType.bodySmall
-                              .copyWith(weight: FontWeight.bold)
-                              .toStyle(color: tokens.accent),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: ZplaySpacing.s8),
-                    ClipRRect(
-                      borderRadius: ZplayRadius.xsAll,
-                      child: LinearProgressIndicator(
-                        value: progress.progressPercent,
-                        backgroundColor: tokens.borderStrong,
-                        color: tokens.accent,
-                        minHeight: 5,
+                        ],
                       ),
                     ),
-                    const SizedBox(height: ZplaySpacing.s20),
                   ],
+                ),
+                const SizedBox(height: 24),
 
-                  // Actions. The primary is the app's one call-to-action shape
-                  // (`PillButton`), which carries the single focus ring; the
-                  // download percentage is in its label, so the spinner that
-                  // used to sit inside the old Material button is gone with the
-                  // accent-filled rectangle it lived in. The two glyph actions
-                  // beside it are circular, ringed targets - a labelled pill for
-                  // each would crowd a row that already carries the CTA.
+                if (hasProgress) ...[
                   Row(
                     children: [
                       Expanded(
-                        child: PillButton(
-                          label: _isDownloading
-                              ? l10nCurrent().bk2DownloadingPercent((_downloadProgress * 100).round())
-                              : hasProgress
-                              ? l10nCurrent().bkResumeReading
-                              : l10nCurrent().bkReadNow,
-                          icon: hasProgress
-                              ? Icons.play_arrow_rounded
-                              : Icons.auto_stories_rounded,
-                          onPressed: _checkingStatus || _isDownloading
-                              ? null
-                              : _startReadOrDownload,
-                          expand: true,
+                        child: Text(
+                          progress.fileType == 'pdf'
+                              ? l10n.bk2PageOfTotal(
+                                  progress.currentPage,
+                                  progress.totalPages,
+                                )
+                              : l10n.bk2ChapterOfTotal(
+                                  progress.chapterIndex + 1,
+                                  progress.totalChapters,
+                                ),
+                          style: LuText.label,
                         ),
                       ),
-
-                      if (book.isEpub) ...[
-                        const SizedBox(width: ZplaySpacing.s12),
-                        _SheetIconAction(
-                          icon: Icons.record_voice_over_rounded,
-                          tooltip: l10nCurrent().bkGenerateAiAudiobookTts,
-                          onTap: () async {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SignInRequired(
-                                  child: GenerateAudiobookScreen(),
-                                ),
-                              ),
-                            );
-                          },
+                      Text(
+                        l10n.bk2PercentCompleted(
+                          (progress.progressPercent * 100).round(),
                         ),
-                      ],
-
-                      if (_isDownloaded) ...[
-                        const SizedBox(width: ZplaySpacing.s12),
-                        _SheetIconAction(
-                          icon: Icons.delete_outline_rounded,
-                          tooltip: l10nCurrent().bkDeleteDownloadedFile,
-                          danger: true,
-                          onTap: () async {
-                            await BookDownloadService.instance.deleteBook(
-                              book.md5,
-                              book.bookFiletype,
-                            );
-                            _checkDownloadStatus();
-                          },
+                        style: LuText.label.copyWith(
+                          color: LuColors.gold,
+                          fontWeight: FontWeight.w700,
                         ),
-                      ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: ZplaySpacing.s24),
-
-                  // Metadata list. The rows were inside a bordered surface
-                  // card; a definition list's rows are its content, so the box
-                  // is gone and the shared section header names the group. The
-                  // header bakes a 16 dp inset of its own - the translate
-                  // cancels it, the same way the details pages do, so the
-                  // heading lines up with the cover above it.
-                  if (book.publisher.isNotEmpty ||
-                      book.isbn.isNotEmpty ||
-                      book.series.isNotEmpty) ...[
-                    Transform.translate(
-                      offset: const Offset(-ZplaySpacing.s16, 0),
-                      child: SectionHeader(title: l10nCurrent().bk2Information),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: LuRadius.pill,
+                    child: LinearProgressIndicator(
+                      value: progress.progressPercent,
+                      backgroundColor: const Color(0x26FFFFFF),
+                      color: LuColors.gold,
+                      minHeight: 5,
                     ),
-                    const SizedBox(height: ZplaySpacing.s4),
-                    if (book.publisher.isNotEmpty)
-                      _buildInfoRow(l10nCurrent().bkPublisher, book.publisher),
-                    if (book.series.isNotEmpty)
-                      _buildInfoRow(l10nCurrent().bkSeries, book.series),
-                    if (book.isbn.isNotEmpty) _buildInfoRow('ISBN', book.isbn),
-                    if (book.bookLang.isNotEmpty)
-                      _buildInfoRow(l10nCurrent().bkLanguage, book.bookLang),
-                    _buildInfoRow(
-                      l10nCurrent().bkFileFormat,
-                      book.bookFiletype.toUpperCase(),
-                    ),
-                    if (book.bookSize.isNotEmpty)
-                      _buildInfoRow(l10nCurrent().bkSize, book.bookSize),
-                    const SizedBox(height: ZplaySpacing.s16),
-                  ],
-
-                  // Description
-                  if (book.description.isNotEmpty) ...[
-                    Transform.translate(
-                      offset: const Offset(-ZplaySpacing.s16, 0),
-                      child: SectionHeader(title: l10nCurrent().bk2Overview),
-                    ),
-                    const SizedBox(height: ZplaySpacing.s4),
-                    Text(
-                      book.description,
-                      style: ZplayType.body
-                          .copyWith(size: 13, height: 1.5)
-                          .toStyle(color: tokens.textEmphasis),
-                    ),
-                  ],
+                  ),
+                  const SizedBox(height: 22),
                 ],
-              ),
+
+                // The read action, then listening and the tidy-up as discs.
+                Row(
+                  children: [
+                    Expanded(
+                      child: LuButton(
+                        label: _isDownloading
+                            ? l10n.bk2DownloadingPercent(
+                                (_downloadProgress * 100).round(),
+                              )
+                            : hasProgress
+                            ? l10n.bkResumeReading
+                            : l10n.bkReadNow,
+                        icon: hasProgress
+                            ? Icons.play_arrow_rounded
+                            : Icons.auto_stories_rounded,
+                        busy: _isDownloading,
+                        expand: true,
+                        autofocus: true,
+                        onPressed: _checkingStatus
+                            ? null
+                            : _startReadOrDownload,
+                      ),
+                    ),
+                    if (book.isEpub) ...[
+                      const SizedBox(width: 12),
+                      LuGlyphButton(
+                        icon: Icons.record_voice_over_rounded,
+                        label: l10n.bkGenerateAiAudiobookTts,
+                        size: glyphSize,
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SignInRequired(
+                                child: GenerateAudiobookScreen(),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                    if (_isDownloaded) ...[
+                      const SizedBox(width: 12),
+                      LuGlyphButton(
+                        icon: Icons.delete_outline_rounded,
+                        label: l10n.bkDeleteDownloadedFile,
+                        size: glyphSize,
+                        danger: true,
+                        onTap: () async {
+                          await BookDownloadService.instance.deleteBook(
+                            book.md5,
+                            book.bookFiletype,
+                          );
+                          _checkDownloadStatus();
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 28),
+
+                if (book.publisher.isNotEmpty ||
+                    book.isbn.isNotEmpty ||
+                    book.series.isNotEmpty) ...[
+                  Text(l10n.bk2Information, style: LuText.heading),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: LuColors.surfaceHigh,
+                      borderRadius: const BorderRadius.all(Radius.circular(16)),
+                      border: Border.all(color: LuColors.lineSoft),
+                    ),
+                    child: Column(
+                      children: [
+                        if (book.publisher.isNotEmpty)
+                          _buildInfoRow(l10n.bkPublisher, book.publisher),
+                        if (book.series.isNotEmpty)
+                          _buildInfoRow(l10n.bkSeries, book.series),
+                        if (book.isbn.isNotEmpty)
+                          _buildInfoRow('ISBN', book.isbn),
+                        if (book.bookLang.isNotEmpty)
+                          _buildInfoRow(l10n.bkLanguage, book.bookLang),
+                        _buildInfoRow(
+                          l10n.bkFileFormat,
+                          book.bookFiletype.toUpperCase(),
+                        ),
+                        if (book.bookSize.isNotEmpty)
+                          _buildInfoRow(l10n.bkSize, book.bookSize),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                if (book.description.isNotEmpty) ...[
+                  Text(l10n.bk2Overview, style: LuText.heading),
+                  const SizedBox(height: 10),
+                  LuExpandableText(book.description, lines: 6),
+                ],
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildInfoRow(String label, String value) {
-    final tokens = context.tokens;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: ZplayType.bodySmall.toStyle(color: tokens.textSecondary),
-          ),
-          Flexible(
+          Text(label, style: LuText.label.copyWith(color: LuColors.textMuted)),
+          const SizedBox(width: 16),
+          Expanded(
             child: Text(
               value,
-              style: ZplayType.bodySmall
-                  .copyWith(weight: FontWeight.w500)
-                  .toStyle(color: tokens.textPrimary),
+              style: LuText.label.copyWith(color: LuColors.text),
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// An icon-only action for the detail sheet: a circular scrim, the app's single
-/// focus ring, and a target as tall as a pill, so a remote can land on it.
-///
-/// `PillButton` is the sheet's primary shape and is a label control by design;
-/// these two are glyphs (a listening mode and a destructive tidy-up) beside a
-/// CTA that already owns the row, so they keep their own box - a circle whose
-/// fill *is* the button - rather than growing labels that would push the pill
-/// off a phone.
-class _SheetIconAction extends StatelessWidget {
-  const _SheetIconAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final bool danger;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final side = PillButton.heightFor(context);
-    final tint = danger ? tokens.danger : tokens.accent;
-
-    return Tooltip(
-      message: tooltip,
-      child: FocusableCard(
-        onTap: onTap,
-        builder: (context, state) => SizedBox(
-          width: side,
-          height: side,
-          child: CardFocusRing(
-            focused: state.focused,
-            radius: ZplayRadius.fullAll,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: state.highlighted ? tint : tokens.surfaceOverlay,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: state.highlighted ? tokens.onAccent : tint,
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

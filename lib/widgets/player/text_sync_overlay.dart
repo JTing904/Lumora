@@ -8,6 +8,8 @@ import '../../services/subtitles/subtitle_parser.dart';
 import '../../services/subtitles/subtitle_sync_helper.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// Full-screen right-side floating drawer for dialogue speech following & subtitle sync.
 class TextSyncOverlay extends StatefulWidget {
@@ -303,7 +305,7 @@ class _TextSyncOverlayState extends State<TextSyncOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final cues = widget.initialCues;
     final activeIdx = _activeCueIndex;
     final closestIdx = _closestCueIndex;
@@ -366,7 +368,7 @@ class _TextSyncOverlayState extends State<TextSyncOverlay> {
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: PlayerTheme.accent.withValues(alpha: 0.15),
-                          borderRadius: ZplayRadius.smAll,
+                          borderRadius: LuRadius.field,
                         ),
                         child: Icon(
                           Icons.sync_alt_rounded,
@@ -430,7 +432,7 @@ class _TextSyncOverlayState extends State<TextSyncOverlay> {
                     height: isLandscapeMobile ? 32 : 36,
                     decoration: BoxDecoration(
                       color: PlayerTheme.raised,
-                      borderRadius: ZplayRadius.smAll,
+                      borderRadius: LuRadius.field,
                       border: Border.all(
                         color: _searchQuery.isNotEmpty && _matchedIndices.isNotEmpty
                             ? tokens.warning.withValues(alpha: 0.45)
@@ -794,7 +796,7 @@ class _TextSyncOverlayState extends State<TextSyncOverlay> {
   }
 
   Widget _buildBottomControlDock(bool isLandscapeMobile, double currentDelta) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return Container(
       decoration: BoxDecoration(
@@ -876,7 +878,7 @@ class _TextSyncOverlayState extends State<TextSyncOverlay> {
                     foregroundColor: tokens.textPrimary,
                     side: BorderSide(color: PlayerTheme.edgeSoft),
                     padding: EdgeInsets.symmetric(vertical: isLandscapeMobile ? 6 : 8),
-                    shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                    shape: const RoundedRectangleBorder(borderRadius: LuRadius.field),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -909,7 +911,7 @@ class _TextSyncOverlayState extends State<TextSyncOverlay> {
                     backgroundColor: PlayerTheme.accent,
                     foregroundColor: tokens.onAccent,
                     padding: EdgeInsets.symmetric(vertical: isLandscapeMobile ? 6 : 8),
-                    shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+                    shape: const RoundedRectangleBorder(borderRadius: LuRadius.field),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -948,7 +950,7 @@ class _TextSyncOverlayState extends State<TextSyncOverlay> {
     bool isActive, {
     double fontSize = 12.5,
   }) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     if (query.isEmpty || query.length < 3) {
       return Text(
@@ -1019,7 +1021,7 @@ class _NudgeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return FocusableInkWell(
       borderRadius: ZplayRadius.xsAll,

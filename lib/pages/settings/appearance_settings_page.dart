@@ -20,6 +20,7 @@ import 'appearance/manga_settings_page.dart';
 import 'appearance/music_settings_page.dart';
 import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/settings/settings_app_bar.dart';
+import '../../widgets/settings/lu_settings_kit.dart';
 
 class AppearanceSettingsPage extends StatefulWidget {
   const AppearanceSettingsPage({super.key});
@@ -32,306 +33,284 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return AnimatedAmbientBackground(child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: SettingsAppBar(title: l10nCurrent().stgcAppearanceInterface),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: ZplaySpacing.s16,
-              vertical: ZplaySpacing.s20,
+    return LuSettingsTheme(
+      child: AnimatedAmbientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: SettingsAppBar(title: l10nCurrent().stgcAppearanceInterface),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s16,
+                  vertical: ZplaySpacing.s20,
+                ),
+                children: [
+                  // Header description
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: ZplaySpacing.s24),
+                    child: Text(
+                      l10nCurrent().stgbAppearanceIntro,
+                      style: ZplayType.body.toStyle(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
+
+                  // ── Interface & atmosphere ────────────────────────────────────
+                  _buildGroup(
+                    label: l10nCurrent().stgbInterfaceAtmosphere,
+                    rows: [
+                      // Custom Wallpaper & Atmosphere Background
+                      ValueListenableBuilder<CustomBackgroundData>(
+                        valueListenable: CustomBackgroundService.notifier,
+                        builder: (context, customBg, _) {
+                          return ValueListenableBuilder<AppThemePalette>(
+                            valueListenable: AppThemeService.currentPalette,
+                            builder: (context, currentPalette, _) {
+                              return _buildRow(
+                                icon: Icons.wallpaper_rounded,
+                                iconColor: tokens.accent,
+                                title: l10nCurrent().stgbCustomBgWallpaper,
+                                subtitle:
+                                    l10nCurrent().stgbCustomBgWallpaperDesc,
+                                value: customBg.hasCustomBackground
+                                    ? l10nCurrent().stgbCustomActive
+                                    : l10nCurrent().stgbDefaultTheme,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const CustomBackgroundSettingsPage(),
+                                    ),
+                                  );
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      // Liquid Glass Setup
+                      ValueListenableBuilder<bool>(
+                        valueListenable: GlassSettings.enabled,
+                        builder: (context, glassEnabled, _) {
+                          return ValueListenableBuilder<GlassPreset>(
+                            valueListenable: GlassSettings.preset,
+                            builder: (context, preset, _) {
+                              return _buildRow(
+                                icon: Icons.blur_on_rounded,
+                                iconColor: glassEnabled
+                                    ? tokens.accent
+                                    : tokens.textDisabled,
+                                title: l10nCurrent().stgbLiquidGlassSetup,
+                                subtitle:
+                                    l10nCurrent().stgbLiquidGlassSetupDesc,
+                                value: glassEnabled
+                                    ? preset.label
+                                    : l10nCurrent().stgbDisabled,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const LiquidGlassSettingsPage(),
+                                    ),
+                                  );
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      // Home Page UI & Themes
+                      ValueListenableBuilder<AppThemePalette>(
+                        valueListenable: AppThemeService.currentPalette,
+                        builder: (context, currentPalette, _) {
+                          return _buildRow(
+                            icon: Icons.dashboard_rounded,
+                            iconColor: tokens.accent,
+                            title: l10nCurrent().stgbHomeUiThemes,
+                            subtitle: l10nCurrent().stgbHomeUiThemesDesc,
+                            value: '',
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const HomeUiSettingsPage(),
+                                ),
+                              );
+                              setState(() {});
+                            },
+                          );
+                        },
+                      ),
+
+                      // Live TV & Sports UI
+                      ValueListenableBuilder<bool>(
+                        valueListenable: IptvSettings.enableSpotlight,
+                        builder: (context, spotlightEnabled, _) {
+                          return ValueListenableBuilder<AppThemePalette>(
+                            valueListenable: AppThemeService.currentPalette,
+                            builder: (context, currentPalette, _) {
+                              return _buildRow(
+                                icon: Icons.live_tv_rounded,
+                                iconColor: tokens.accent,
+                                title: l10nCurrent().stgbLiveTvSportsUi,
+                                subtitle: l10nCurrent().stgbLiveTvSportsUiDesc,
+                                value: spotlightEnabled
+                                    ? l10nCurrent().stgbSpotlightOn
+                                    : l10nCurrent().stgbCompact,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const LiveTvSettingsPage(),
+                                    ),
+                                  );
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: ZplaySpacing.s24),
+
+                  // ── Content ───────────────────────────────────────────────────
+                  _buildGroup(
+                    label: l10nCurrent().stgbContent,
+                    rows: [
+                      // Manga UI & Reader Atmosphere
+                      ValueListenableBuilder<MangaReadingMode>(
+                        valueListenable: MangaSettings.defaultReadingMode,
+                        builder: (context, readingMode, _) {
+                          return ValueListenableBuilder<AppThemePalette>(
+                            valueListenable: AppThemeService.currentPalette,
+                            builder: (context, currentPalette, _) {
+                              return _buildRow(
+                                icon: Icons.menu_book_rounded,
+                                iconColor: tokens.accent,
+                                title: l10nCurrent().stgbMangaUiReader,
+                                subtitle: l10nCurrent().stgbMangaUiReaderDesc,
+                                value: readingMode == MangaReadingMode.webtoon
+                                    ? l10nCurrent().stgbWebtoon
+                                    : l10nCurrent().stgbHorizontal,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const MangaSettingsPage(),
+                                    ),
+                                  );
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: ZplaySpacing.s24),
+
+                  // ── Playback ──────────────────────────────────────────────────
+                  _buildGroup(
+                    label: l10nCurrent().stgbPlayback,
+                    rows: [
+                      // Audiobook UI & Player Studio
+                      ValueListenableBuilder<AudiobookPlayerPreset>(
+                        valueListenable: AudiobookSettings.selectedPlayerPreset,
+                        builder: (context, playerPreset, _) {
+                          return ValueListenableBuilder<AppThemePalette>(
+                            valueListenable: AppThemeService.currentPalette,
+                            builder: (context, currentPalette, _) {
+                              return _buildRow(
+                                icon: Icons.headphones_rounded,
+                                iconColor: tokens.accent,
+                                title: l10nCurrent().stgbAudiobookUiStudio,
+                                subtitle:
+                                    l10nCurrent().stgbAudiobookUiStudioDesc,
+                                value: playerPreset.label.split(' ').first,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const AudiobookSettingsPage(),
+                                    ),
+                                  );
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      // Music UI & Player Studio
+                      ValueListenableBuilder<MusicFullscreenPreset>(
+                        valueListenable: MusicSettings.selectedFullscreenPreset,
+                        builder: (context, fullPreset, _) {
+                          return ValueListenableBuilder<AppThemePalette>(
+                            valueListenable: AppThemeService.currentPalette,
+                            builder: (context, currentPalette, _) {
+                              return _buildRow(
+                                icon: Icons.music_note_rounded,
+                                iconColor: tokens.accent,
+                                title: l10nCurrent().stgbMusicUiStudio,
+                                subtitle: l10nCurrent().stgbMusicUiStudioDesc,
+                                value: fullPreset.label.split(' ').first,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const MusicSettingsPage(),
+                                    ),
+                                  );
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // ── Diagnostics (Windows graphics backend) ────────────────────
+                  if (Platform.isWindows) ...[
+                    const SizedBox(height: ZplaySpacing.s24),
+                    _buildGroup(
+                      label: l10nCurrent().stgbDiagnostics,
+                      rows: [_buildRendererBackendContent()],
+                    ),
+                  ],
+                ],
+              ),
             ),
-            children: [
-              // Header description
-              Padding(
-                padding: const EdgeInsets.only(bottom: ZplaySpacing.s24),
-                child: Text(
-                  l10nCurrent().stgbAppearanceIntro,
-                  style: ZplayType.body.toStyle(color: tokens.textSecondary),
-                ),
-              ),
-
-              // ── Interface & atmosphere ────────────────────────────────────
-              _buildGroup(
-                label: l10nCurrent().stgbInterfaceAtmosphere,
-                rows: [
-                  // Custom Wallpaper & Atmosphere Background
-                  ValueListenableBuilder<CustomBackgroundData>(
-                    valueListenable: CustomBackgroundService.notifier,
-                    builder: (context, customBg, _) {
-                      return ValueListenableBuilder<AppThemePalette>(
-                        valueListenable: AppThemeService.currentPalette,
-                        builder: (context, currentPalette, _) {
-                          return _buildRow(
-                            icon: Icons.wallpaper_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nCurrent().stgbCustomBgWallpaper,
-                            subtitle:
-                                l10nCurrent().stgbCustomBgWallpaperDesc,
-                            value: customBg.hasCustomBackground
-                                ? l10nCurrent().stgbCustomActive
-                                : l10nCurrent().stgbDefaultTheme,
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const CustomBackgroundSettingsPage(),
-                                ),
-                              );
-                              setState(() {});
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-
-                  // Liquid Glass Setup
-                  ValueListenableBuilder<bool>(
-                    valueListenable: GlassSettings.enabled,
-                    builder: (context, glassEnabled, _) {
-                      return ValueListenableBuilder<GlassPreset>(
-                        valueListenable: GlassSettings.preset,
-                        builder: (context, preset, _) {
-                          return _buildRow(
-                            icon: Icons.blur_on_rounded,
-                            iconColor: glassEnabled
-                                ? tokens.accent
-                                : tokens.textDisabled,
-                            title: l10nCurrent().stgbLiquidGlassSetup,
-                            subtitle:
-                                l10nCurrent().stgbLiquidGlassSetupDesc,
-                            value: glassEnabled ? preset.label : l10nCurrent().stgbDisabled,
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const LiquidGlassSettingsPage(),
-                                ),
-                              );
-                              setState(() {});
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-
-                  // Home Page UI & Themes
-                  ValueListenableBuilder<AppThemePalette>(
-                    valueListenable: AppThemeService.currentPalette,
-                    builder: (context, currentPalette, _) {
-                      return _buildRow(
-                        icon: Icons.palette_rounded,
-                        iconColor: tokens.accent,
-                        title: l10nCurrent().stgbHomeUiThemes,
-                        subtitle:
-                            l10nCurrent().stgbHomeUiThemesDesc,
-                        value: currentPalette.name,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HomeUiSettingsPage(),
-                            ),
-                          );
-                          setState(() {});
-                        },
-                      );
-                    },
-                  ),
-
-                  // Live TV & Sports UI
-                  ValueListenableBuilder<bool>(
-                    valueListenable: IptvSettings.enableSpotlight,
-                    builder: (context, spotlightEnabled, _) {
-                      return ValueListenableBuilder<AppThemePalette>(
-                        valueListenable: AppThemeService.currentPalette,
-                        builder: (context, currentPalette, _) {
-                          return _buildRow(
-                            icon: Icons.live_tv_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nCurrent().stgbLiveTvSportsUi,
-                            subtitle:
-                                l10nCurrent().stgbLiveTvSportsUiDesc,
-                            value: spotlightEnabled ? l10nCurrent().stgbSpotlightOn : l10nCurrent().stgbCompact,
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const LiveTvSettingsPage(),
-                                ),
-                              );
-                              setState(() {});
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: ZplaySpacing.s24),
-
-              // ── Content ───────────────────────────────────────────────────
-              _buildGroup(
-                label: l10nCurrent().stgbContent,
-                rows: [
-                  // Manga UI & Reader Atmosphere
-                  ValueListenableBuilder<MangaReadingMode>(
-                    valueListenable: MangaSettings.defaultReadingMode,
-                    builder: (context, readingMode, _) {
-                      return ValueListenableBuilder<AppThemePalette>(
-                        valueListenable: AppThemeService.currentPalette,
-                        builder: (context, currentPalette, _) {
-                          return _buildRow(
-                            icon: Icons.menu_book_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nCurrent().stgbMangaUiReader,
-                            subtitle:
-                                l10nCurrent().stgbMangaUiReaderDesc,
-                            value: readingMode == MangaReadingMode.webtoon
-                                ? l10nCurrent().stgbWebtoon
-                                : l10nCurrent().stgbHorizontal,
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const MangaSettingsPage(),
-                                ),
-                              );
-                              setState(() {});
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: ZplaySpacing.s24),
-
-              // ── Playback ──────────────────────────────────────────────────
-              _buildGroup(
-                label: l10nCurrent().stgbPlayback,
-                rows: [
-                  // Audiobook UI & Player Studio
-                  ValueListenableBuilder<AudiobookPlayerPreset>(
-                    valueListenable: AudiobookSettings.selectedPlayerPreset,
-                    builder: (context, playerPreset, _) {
-                      return ValueListenableBuilder<AppThemePalette>(
-                        valueListenable: AppThemeService.currentPalette,
-                        builder: (context, currentPalette, _) {
-                          return _buildRow(
-                            icon: Icons.headphones_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nCurrent().stgbAudiobookUiStudio,
-                            subtitle:
-                                l10nCurrent().stgbAudiobookUiStudioDesc,
-                            value: playerPreset.label.split(' ').first,
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const AudiobookSettingsPage(),
-                                ),
-                              );
-                              setState(() {});
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-
-                  // Music UI & Player Studio
-                  ValueListenableBuilder<MusicFullscreenPreset>(
-                    valueListenable: MusicSettings.selectedFullscreenPreset,
-                    builder: (context, fullPreset, _) {
-                      return ValueListenableBuilder<AppThemePalette>(
-                        valueListenable: AppThemeService.currentPalette,
-                        builder: (context, currentPalette, _) {
-                          return _buildRow(
-                            icon: Icons.music_note_rounded,
-                            iconColor: tokens.accent,
-                            title: l10nCurrent().stgbMusicUiStudio,
-                            subtitle:
-                                l10nCurrent().stgbMusicUiStudioDesc,
-                            value: fullPreset.label.split(' ').first,
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MusicSettingsPage(),
-                                ),
-                              );
-                              setState(() {});
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              // ── Diagnostics (Windows graphics backend) ────────────────────
-              if (Platform.isWindows) ...[
-                const SizedBox(height: ZplaySpacing.s24),
-                _buildGroup(
-                  label: l10nCurrent().stgbDiagnostics,
-                  rows: [_buildRendererBackendContent()],
-                ),
-              ],
-            ],
           ),
         ),
       ),
-    ));
-  }
-
-  /// One labelled group: an overline header over the rows it gathers.
-  ///
-  /// The rows rest on the page canvas and are separated by hairline dividers,
-  /// so a group reads as one section without a panel drawn around it.
-  Widget _buildGroup({required String label, required List<Widget> rows}) {
-    final tokens = context.tokens;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(
-            left: ZplaySpacing.s4,
-            bottom: ZplaySpacing.s8,
-          ),
-          child: Text(
-            label,
-            style: ZplayType.overline.toStyle(color: tokens.textMuted),
-          ),
-        ),
-        Column(
-          children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) Divider(color: tokens.borderSubtle, height: 1),
-              rows[i],
-            ],
-          ],
-        ),
-      ],
     );
   }
 
-  /// A navigation row inside a group: leading icon, title + subtitle, the live
-  /// value on the right, and a chevron. No icon chip and no badge pill.
+  Widget _buildGroup({required String label, required List<Widget> rows}) =>
+      LuSettingsGroup(label: label, rows: rows);
+
   Widget _buildRow({
     required IconData icon,
     required Color iconColor,
@@ -339,65 +318,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     required String subtitle,
     required String value,
     required VoidCallback onTap,
-  }) {
-    final tokens = context.tokens;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: ZplaySpacing.s16,
-            vertical: ZplaySpacing.s12,
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: iconColor),
-              const SizedBox(width: ZplaySpacing.s16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: ZplayType.subtitle.toStyle(
-                        color: tokens.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: ZplaySpacing.s2),
-                    Text(
-                      subtitle,
-                      style: ZplayType.bodySmall.toStyle(
-                        color: tokens.textSecondary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: ZplaySpacing.s12),
-              Text(
-                value,
-                textAlign: TextAlign.right,
-                style: ZplayType.caption.toStyle(color: tokens.textMuted),
-                maxLines: 1,
-              ),
-              const SizedBox(width: ZplaySpacing.s8),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: tokens.textDisabled,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  }) => LuSettingsNavRow(
+    icon: icon,
+    title: title,
+    subtitle: subtitle,
+    valueText: value,
+    onTap: onTap,
+  );
 
   /// The Windows graphics-backend panel. It lives inside its own group, so it
   /// carries no surface of its own — only the header row and the two choices.

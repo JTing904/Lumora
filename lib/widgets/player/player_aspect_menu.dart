@@ -2,19 +2,30 @@ import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 class AspectOption {
   final String id;
-  final String label;
   final BoxFit fit;
 
-  const AspectOption({required this.id, required this.label, required this.fit});
+  const AspectOption({required this.id, required this.fit});
+
+  /// The option's name in the viewer's language.
+  String get label {
+    final l10n = l10nCurrent();
+    return switch (id) {
+      'cover' => l10n.wgPlyAspectCover,
+      'fill' => l10n.wgPlyAspectStretch,
+      _ => l10n.wgPlyAspectFit,
+    };
+  }
 }
 
 const List<AspectOption> aspectOptions = [
-  AspectOption(id: 'fit', label: 'Fit to screen (Contain)', fit: BoxFit.contain),
-  AspectOption(id: 'cover', label: 'Fill screen (Crop/Zoom)', fit: BoxFit.cover),
-  AspectOption(id: 'fill', label: 'Stretch to fill', fit: BoxFit.fill),
+  AspectOption(id: 'fit', fit: BoxFit.contain),
+  AspectOption(id: 'cover', fit: BoxFit.cover),
+  AspectOption(id: 'fill', fit: BoxFit.fill),
 ];
 
 /// Aspect ratio and picture popover menu.
@@ -37,7 +48,7 @@ class PlayerAspectMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final tokens = context.tokens;
+    const tokens = luTokens;
 
     return PlayerGlassCard(
       width: (320.0).clamp(240.0, screenWidth - 32),
@@ -79,7 +90,7 @@ class PlayerAspectMenu extends StatelessWidget {
             children: aspectOptions.map((opt) {
               final isSelected = currentFit == opt.fit;
               return FocusableInkWell(
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
                 onTap: () {
                   onFitSelected(opt.fit);
                   onClose();
@@ -88,10 +99,10 @@ class PlayerAspectMenu extends StatelessWidget {
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
                     decoration: BoxDecoration(
-                      color: isSelected ? PlayerTheme.raised : Colors.transparent,
-                      borderRadius: ZplayRadius.smAll,
+                      color: isSelected ? LuPanel.selectedFill : Colors.transparent,
+                      borderRadius: LuRadius.field,
                       border: Border.all(
-                        color: isSelected ? PlayerTheme.edge : Colors.transparent,
+                        color: isSelected ? LuPanel.selectedEdge : Colors.transparent,
                         width: 1,
                       ),
                     ),
@@ -109,7 +120,7 @@ class PlayerAspectMenu extends StatelessWidget {
                               )
                               .toStyle(
                                 color: isSelected
-                                    ? PlayerTheme.ink
+                                    ? PlayerTheme.accent
                                     : PlayerTheme.inkMuted,
                               ),
                         ),

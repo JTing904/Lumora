@@ -1,3 +1,4 @@
+import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
@@ -5,6 +6,7 @@ import '../../models/my_list/my_list_item.dart';
 import '../../services/content/content_settings.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/my_list/my_list_service.dart';
+import '../../services/my_list/new_episode_service.dart';
 import '../../utils/navigation/route_transitions.dart';
 import '../details/details_page.dart';
 import '../../models/movie/movie.dart';
@@ -26,6 +28,13 @@ class _MyListPageState extends State<MyListPage> {
   String _sortBy = 'recent'; // 'recent', 'title', 'year'
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // 有新集: checks the saved series in the background.
+    NewEpisodeService.ensureStarted();
+  }
 
   @override
   void dispose() {
@@ -134,6 +143,7 @@ class _MyListPageState extends State<MyListPage> {
           animation: Listenable.merge([
             MyListService.items,
             ContentSettings.adultEnabled,
+            NewEpisodeService.info,
           ]),
           builder: (context, _) {
             final allItems = MyListService.visibleItems;
@@ -165,6 +175,7 @@ class _MyListPageState extends State<MyListPage> {
   /// Select) asks to remove it.
   Widget _buildGrid(BuildContext context, double pad, List<MyListItem> items) {
     final l10n = l10nOf(context);
+    final newEps = NewEpisodeService.info.value;
     return LayoutBuilder(
       builder: (context, box) {
         final width = box.maxWidth - pad * 2;
@@ -192,10 +203,10 @@ class _MyListPageState extends State<MyListPage> {
                   width: cardWidth,
                   title: item.title,
                   poster: item.poster,
-                  subtitle: [
-                    if (item.year != null) '${item.year}',
-                    item.type == 'movie' ? l10n.typeMovies : l10n.typeSeries,
-                  ].join(' · '),
+                  badge: newEps[item.uniqueKey]?.isNew == true
+                      ? l10n.newEpBadge
+                      : null,
+                  subtitle: _subtitle(l10n, item, newEps[item.uniqueKey]),
                   onTap: () => _navigateToDetail(item),
                   onLongPress: () => _confirmRemove(item),
                 ),
@@ -204,6 +215,19 @@ class _MyListPageState extends State<MyListPage> {
         );
       },
     );
+  }
+
+  /// The line under a poster: `S2 E5 · 剧集` when a new episode is out,
+  /// `11/3 更新 · 剧集` when the next one is dated, else year and kind.
+  String _subtitle(AppLocalizations l10n, MyListItem item, NewEpisodeInfo? ep) {
+    final kind = item.type == 'movie' ? l10n.typeMovies : l10n.typeSeries;
+    if (ep != null && ep.isNew) {
+      final code = ep.latestCode(l10n);
+      if (code != null) return '$code · $kind';
+    }
+    final next = ep?.nextAirLabel(l10n);
+    if (next != null) return '$next · $kind';
+    return [if (item.year != null) '${item.year}', kind].join(' · ');
   }
 
   /// 全部 / 电影 / 剧集, the order, the count and sync state, and a search

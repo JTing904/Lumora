@@ -9,6 +9,7 @@ import '../services/theme/design_tokens.dart';
 import '../services/window/window_service.dart';
 import '../widgets/common/focusable_card.dart';
 import 'app_shell.dart';
+import '../ui/lu_avatar.dart';
 
 /// The app's only navigation control.
 ///
@@ -102,10 +103,14 @@ class ShellRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final inset = MediaQuery.viewPaddingOf(context);
-    return switch (FormFactorService.of(context)) {
-      FormFactor.compact => _bottomBar(context, inset),
-      final formFactor => _topBar(context, inset, formFactor),
-    };
+    // Redrawn when the account changes: 我的 carries its letter and colour.
+    return ListenableBuilder(
+      listenable: AccountService.session,
+      builder: (context, _) => switch (FormFactorService.of(context)) {
+        FormFactor.compact => _bottomBar(context, inset),
+        final formFactor => _topBar(context, inset, formFactor),
+      },
+    );
   }
 
   /// The top bar's own row, before the status bar strip it owns.
@@ -442,15 +447,16 @@ class ShellRail extends StatelessWidget {
   }) {
     final chrome = _slotChrome(context, slot);
     final marked = _marksSlot(slot, liveTvRowDrawn: liveTvRowDrawn);
-    // 我的 shows the account's initial on gold, as in the design.
-    final email = AccountService.email;
-    final initial =
-        slot == ShellSlot.settings && email != null && email.isNotEmpty
-        ? email.characters.first.toUpperCase()
+    // 我的 shows the account's letter on its chosen colour (gold unless the
+    // viewer picked another in their profile).
+    final initial = slot == ShellSlot.settings && AccountService.signedIn
+        ? AccountService.initial
         : null;
     return _RailRow(
       circle: circle,
       initial: initial,
+      initialColor: Color(AccountService.avatarColor),
+      initialImage: AccountService.avatarUrl,
       label: chrome.label,
       icon: chrome.icon,
       selected: marked,
@@ -544,6 +550,8 @@ class _RailRow extends StatelessWidget {
     this.tooltip,
     this.circle = false,
     this.initial,
+    this.initialColor = LuColors.gold,
+    this.initialImage,
   });
 
   /// Drawn as a 40 dp disc: the bar's search and 我的 tools.
@@ -551,6 +559,12 @@ class _RailRow extends StatelessWidget {
 
   /// A letter on gold in place of the glyph (the account's initial).
   final String? initial;
+
+  /// The colour behind [initial].
+  final Color initialColor;
+
+  /// The account's photo, shown in place of [initial] when set.
+  final String? initialImage;
 
   final String label;
   final IconData icon;
@@ -753,21 +767,30 @@ class _RailRow extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: me != null
-              ? (state.highlighted ? LuColors.goldLight : LuColors.gold)
+              ? (state.highlighted
+                    ? Color.lerp(initialColor, Colors.white, 0.25)
+                    : initialColor)
               : (state.highlighted
                     ? const Color(0x29FFFFFF)
                     : const Color(0x14FFFFFF)),
         ),
         child: me != null
-            ? Text(
-                me,
-                style: const TextStyle(
-                  fontFamily: LuFonts.display,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: LuColors.onGold,
-                ),
-              )
+            ? (initialImage != null
+                  ? LuAvatar(
+                      letter: me,
+                      color: initialColor,
+                      imageUrl: initialImage,
+                      size: 40,
+                    )
+                  : Text(
+                      me,
+                      style: const TextStyle(
+                        fontFamily: LuFonts.display,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: LuColors.onGold,
+                      ),
+                    ))
             : Icon(icon, size: 20, color: LuColors.text),
       ),
     );

@@ -22,6 +22,7 @@ abstract final class WatchedEpisodes {
 
   /// Loads the signed-in account's record (see [AccountScope]).
   static Future<void> initialize() async {
+    shows.value = const {};
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(AccountScope.key(_key));
     if (raw == null) {

@@ -85,7 +85,7 @@ void main() {
   });
 
   group('MangaReaderControlBar on a phone', () {
-    testWidgets('keeps the chip group, because there the group is better',
+    testWidgets('puts both pills on one row, like every other screen',
         (tester) async {
       DeviceProfile.debugSetTelevision(value: false);
       addTearDown(() => DeviceProfile.debugSetTelevision(value: false));
@@ -93,12 +93,45 @@ void main() {
       await tester.pumpWidget(_phoneHost(const MangaReaderControlBar()));
       await tester.pump();
 
-      expect(find.byType(MangaAtmosphereChips), findsOneWidget);
       expect(
-        find.byType(MangaAtmosphereChip),
+        find.byType(MangaAtmosphereChips),
         findsNothing,
-        reason: 'the phone gets the group, not the disclosure chip',
+        reason: 'four atmosphere pills took two lines of a phone shelf',
       );
+      final atmosphere = tester.getCenter(find.byType(MangaAtmosphereChip));
+      final mode = tester.getCenter(find.byType(MangaPageModeChip));
+      expect(atmosphere.dy, mode.dy, reason: 'the two pills share one row');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the page-mode chip fits a 360 dp phone at 1.3x text',
+        (tester) async {
+      DeviceProfile.debugSetTelevision(value: false);
+      addTearDown(() => DeviceProfile.debugSetTelevision(value: false));
+      final previousMode = MangaSettings.defaultReadingMode.value;
+      MangaSettings.defaultReadingMode.value = MangaReadingMode.webtoon;
+      addTearDown(
+        () => MangaSettings.defaultReadingMode.value = previousMode,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(360, 780),
+              devicePixelRatio: 2,
+              textScaler: TextScaler.linear(1.3),
+            ),
+            child: Scaffold(
+              body: SizedBox(width: 360, child: MangaReaderControlBar()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: 'no RenderFlex overflow');
+      expect(find.byType(MangaPageModeChip), findsOneWidget);
     });
   });
 }

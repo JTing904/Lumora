@@ -21,6 +21,8 @@ import '../../widgets/common/error_view.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../../widgets/common/segmented_tabs.dart';
 import '../../widgets/player/player_glass.dart';
+import '../../widgets/player/lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 class IptvPortalBrowserPage extends StatefulWidget {
   final VerifiedPortal? portal;
@@ -151,11 +153,11 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
     showDialog(
       context: context,
       builder: (ctx) {
-        final tokens = ctx.tokens;
+        const tokens = luTokens;
         return Dialog(
           // A dialog carries its own surface: fill only, no resting outline.
           backgroundColor: tokens.surfaceOverlay,
-          shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.lgAll),
+          shape: const RoundedRectangleBorder(borderRadius: LuRadius.card),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
             child: Padding(
@@ -656,7 +658,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
             : (_activeSection == IptvSection.vod ? l10nCurrent().tvBrowserVod : l10nCurrent().tvBrowserSeriesBadge),
         category: currentCat.name,
         keywords: [stream.name],
-        gradient: [context.tokens.accent, context.tokens.info],
+        gradient: [luTokens.accent, luTokens.info],
       );
 
       Navigator.push(
@@ -707,7 +709,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
         short: isLive ? l10nCurrent().tvBrowserLive : l10nCurrent().tvBrowserVod,
         category: currentCat.name,
         keywords: [stream.name],
-        gradient: [context.tokens.accent, context.tokens.info],
+        gradient: [luTokens.accent, luTokens.info],
       );
 
       Navigator.push(
@@ -792,14 +794,14 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final tokens = ctx.tokens;
+            const tokens = luTokens;
             final cats = _filteredCategories();
             return Container(
               height: MediaQuery.sizeOf(context).height * 0.75,
               decoration: BoxDecoration(
                 // Sheet surface only: no top hairline, the rounded top reads as chrome.
                 color: tokens.surfaceOverlay,
-                borderRadius: ZplayRadius.sheetTop,
+                borderRadius: LuPanel.sheetTop,
               ),
               child: Column(
                 children: [
@@ -886,7 +888,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
                           filled: true,
                           fillColor: tokens.surface,
                           border: const OutlineInputBorder(
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                             borderSide: BorderSide.none,
                           ),
                           contentPadding: const EdgeInsets.symmetric(
@@ -937,14 +939,16 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final title = widget.portal?.name.isNotEmpty == true
         ? widget.portal!.name
         : (widget.m3uPlaylist?.name ?? l10nCurrent().tvIptvPortal);
 
     final isDesktop = _isDesktop(context);
 
-    return Scaffold(
+    return Theme(
+      data: luPanelTheme(),
+      child: Scaffold(
       backgroundColor: tokens.bg,
       // The pushed route paints the same ambient canvas as Home and Discover;
       // everything below sits on it rather than on a flat fill.
@@ -1099,7 +1103,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
                               horizontal: ZplaySpacing.s12,
                             ),
                             border: const OutlineInputBorder(
-                              borderRadius: ZplayRadius.smAll,
+                              borderRadius: LuRadius.field,
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -1122,7 +1126,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
                               vertical: ZplaySpacing.s8,
                             ),
                             shape: const RoundedRectangleBorder(
-                              borderRadius: ZplayRadius.smAll,
+                              borderRadius: LuRadius.field,
                             ),
                           ),
                           icon: _isCheckingAlive
@@ -1260,7 +1264,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
                           // what marks it as the category control.
                           FocusableInkWell(
                             onTap: () => _showMobileCategorySheet(context),
-                            borderRadius: ZplayRadius.smAll,
+                            borderRadius: LuRadius.field,
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: ZplaySpacing.s8,
@@ -1372,7 +1376,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
                             filled: true,
                             fillColor: tokens.surface,
                             border: const OutlineInputBorder(
-                              borderRadius: ZplayRadius.smAll,
+                              borderRadius: LuRadius.field,
                               borderSide: BorderSide.none,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -1452,7 +1456,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
                                         filled: true,
                                         fillColor: tokens.surface,
                                         border: const OutlineInputBorder(
-                                          borderRadius: ZplayRadius.smAll,
+                                          borderRadius: LuRadius.field,
                                           borderSide: BorderSide.none,
                                         ),
                                         contentPadding:
@@ -1601,11 +1605,12 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
           ),
         ),
       ),
+    ),
     );
   }
 
   Widget _buildSectionTab(String label, IconData icon, IptvSection section) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final isSelected = _activeSection == section;
 
     return FocusableCard(
@@ -1617,7 +1622,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
       },
       builder: (context, state) => CardFocusRing(
         focused: state.focused,
-        radius: ZplayRadius.smAll,
+        radius: LuRadius.pill,
         child: AnimatedContainer(
           duration: ZplayMotion.fast,
           curve: ZplayMotion.standard,
@@ -1629,7 +1634,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
             // The selected tab is the only accent fill; unselected tabs are
             // text-only, so the group reads without a container behind it.
             color: isSelected ? tokens.accent : Colors.transparent,
-            borderRadius: ZplayRadius.smAll,
+            borderRadius: LuRadius.pill,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1660,7 +1665,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
   }
 
   Widget _buildMainContent() {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final streams = _filteredStreams();
     if (streams.isEmpty) {
       if (_selectedCategoryId == favoritesCategoryId) {
@@ -1916,7 +1921,7 @@ class _CategoryListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final isFavCategory =
         category.id == _IptvPortalBrowserPageState.favoritesCategoryId;
     final showCount = IptvSettings.showCategoryCount.value;
@@ -1926,7 +1931,7 @@ class _CategoryListRow extends StatelessWidget {
         onTap: onTap,
         builder: (context, state) => CardFocusRing(
           focused: state.focused,
-          radius: ZplayRadius.smAll,
+          radius: LuRadius.field,
           child: AnimatedContainer(
             duration: ZplayMotion.fast,
             curve: ZplayMotion.standard,
@@ -1942,7 +1947,7 @@ class _CategoryListRow extends StatelessWidget {
                   : (state.highlighted
                         ? tokens.borderSubtle
                         : Colors.transparent),
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: LuRadius.field,
             ),
             child: Row(
               children: [
@@ -2079,7 +2084,7 @@ class _LiveChannelListRowState extends State<_LiveChannelListRow> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final s = widget.stream;
     final indexFormatted = widget.index.toString().padLeft(3, '0');
     final currentEpg = _cachedEpg?.isNotEmpty == true
@@ -2106,7 +2111,7 @@ class _LiveChannelListRowState extends State<_LiveChannelListRow> {
           onEnter: (_) => _loadEpg(),
           child: CardFocusRing(
             focused: state.focused,
-            radius: ZplayRadius.smAll,
+            radius: LuRadius.field,
             child: AnimatedContainer(
               duration: ZplayMotion.fast,
               curve: ZplayMotion.standard,
@@ -2117,7 +2122,7 @@ class _LiveChannelListRowState extends State<_LiveChannelListRow> {
               ),
               decoration: BoxDecoration(
                 color: state.highlighted ? tokens.borderStrong : tokens.surface,
-                borderRadius: ZplayRadius.smAll,
+                borderRadius: LuRadius.field,
               ),
               child: Row(
                 children: [
@@ -2408,7 +2413,7 @@ class _LiveChannelGridCard extends StatefulWidget {
 class _LiveChannelGridCardState extends State<_LiveChannelGridCard> {
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final s = widget.stream;
     final isCompact = FormFactorService.of(context) == FormFactor.compact;
     final actionSize = isCompact ? 40.0 : kMinInteractiveDimension;
@@ -2419,14 +2424,14 @@ class _LiveChannelGridCardState extends State<_LiveChannelGridCard> {
         onTap: widget.onTap,
         builder: (context, state) => CardFocusRing(
           focused: state.focused,
-          radius: ZplayRadius.mdAll,
+          radius: LuPanel.rowRadiusAll,
           child: AnimatedContainer(
             duration: ZplayMotion.fast,
             curve: ZplayMotion.standard,
             padding: const EdgeInsets.all(ZplaySpacing.s8),
             decoration: BoxDecoration(
               color: state.highlighted ? tokens.borderStrong : tokens.surface,
-              borderRadius: ZplayRadius.mdAll,
+              borderRadius: LuPanel.rowRadiusAll,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2618,7 +2623,7 @@ class _LiveChannelCompactListRowState
     extends State<_LiveChannelCompactListRow> {
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final s = widget.stream;
     final showLogo = IptvSettings.showStreamLogos.value;
 
@@ -2627,7 +2632,7 @@ class _LiveChannelCompactListRowState
         onTap: widget.onTap,
         builder: (context, state) => CardFocusRing(
           focused: state.focused,
-          radius: ZplayRadius.smAll,
+          radius: LuRadius.field,
           child: AnimatedContainer(
             duration: ZplayMotion.fast,
             curve: ZplayMotion.standard,
@@ -2638,7 +2643,7 @@ class _LiveChannelCompactListRowState
             decoration: BoxDecoration(
               // Resting rows are a plain surface; highlight lifts the fill only.
               color: state.highlighted ? tokens.borderStrong : tokens.surface,
-              borderRadius: ZplayRadius.smAll,
+              borderRadius: LuRadius.field,
             ),
             child: Row(
               children: [
@@ -2759,7 +2764,7 @@ class _VodSeriesCard extends StatefulWidget {
 class _VodSeriesCardState extends State<_VodSeriesCard> {
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     final s = widget.stream;
 
     return RepaintBoundary(
@@ -2775,15 +2780,15 @@ class _VodSeriesCardState extends State<_VodSeriesCard> {
               Expanded(
                 child: CardFocusRing(
                   focused: state.focused,
-                  radius: ZplayRadius.mdAll,
+                  radius: LuPanel.rowRadiusAll,
                   child: Container(
                     decoration: BoxDecoration(
                       // Fill only — no frame and no glow around the poster.
                       color: tokens.surface,
-                      borderRadius: ZplayRadius.mdAll,
+                      borderRadius: LuPanel.rowRadiusAll,
                     ),
                     child: ClipRRect(
-                      borderRadius: ZplayRadius.mdAll,
+                      borderRadius: LuPanel.rowRadiusAll,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
@@ -2956,7 +2961,7 @@ class _SeriesEpisodesSheetState extends State<_SeriesEpisodesSheet> {
       short: 'TV',
       category: widget.series.name,
       keywords: [widget.series.name],
-      gradient: [context.tokens.accent, context.tokens.info],
+      gradient: [luTokens.accent, luTokens.info],
     );
 
     Navigator.pop(context);
@@ -2987,7 +2992,7 @@ class _SeriesEpisodesSheetState extends State<_SeriesEpisodesSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.8,
@@ -2995,7 +3000,7 @@ class _SeriesEpisodesSheetState extends State<_SeriesEpisodesSheet> {
       decoration: BoxDecoration(
         // Sheet surface only: no top hairline; the rounded top is the chrome.
         color: tokens.surfaceOverlay,
-        borderRadius: ZplayRadius.sheetTop,
+        borderRadius: LuPanel.sheetTop,
       ),
       child: Column(
         children: [
@@ -3060,7 +3065,7 @@ class _SeriesEpisodesSheetState extends State<_SeriesEpisodesSheet> {
                         onTap: () => _playEpisode(ep),
                         builder: (context, state) => CardFocusRing(
                           focused: state.focused,
-                          radius: ZplayRadius.smAll,
+                          radius: LuRadius.field,
                           child: AnimatedContainer(
                             duration: ZplayMotion.fast,
                             curve: ZplayMotion.standard,
@@ -3072,7 +3077,7 @@ class _SeriesEpisodesSheetState extends State<_SeriesEpisodesSheet> {
                               color: state.highlighted
                                   ? tokens.borderStrong
                                   : tokens.surface,
-                              borderRadius: ZplayRadius.smAll,
+                              borderRadius: LuRadius.field,
                             ),
                             child: Row(
                               children: [
@@ -3132,7 +3137,7 @@ class _VerticalScrollButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
+    const tokens = luTokens;
     return FocusableCard(
       onTap: onTap,
       builder: (context, state) => CardFocusRing(

@@ -153,6 +153,7 @@ abstract final class TasteStore {
 
   /// Loads the signed-in account's history (see [AccountScope]).
   static Future<void> initialize() async {
+    entries.value = const {};
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(AccountScope.key(_storageKey));

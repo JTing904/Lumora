@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../l10n/l10n.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
+import 'lu_player_style.dart';
+import '../../ui/lu_theme.dart';
 
 /// One row of the 画质 menu: a quality and how many sources offer it.
 class PlayerQualityOption {
@@ -57,16 +59,16 @@ class PlayerQualityMenu extends StatelessWidget {
       required VoidCallback onTap,
     }) {
       return FocusableInkWell(
-        borderRadius: ZplayRadius.smAll,
+        borderRadius: LuRadius.field,
         onTap: onTap,
         child: Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
           decoration: BoxDecoration(
-            color: selected ? PlayerTheme.raised : Colors.transparent,
-            borderRadius: ZplayRadius.smAll,
+            color: selected ? LuPanel.selectedFill : Colors.transparent,
+            borderRadius: LuRadius.field,
             border: Border.all(
-              color: selected ? PlayerTheme.edge : Colors.transparent,
+              color: selected ? LuPanel.selectedEdge : Colors.transparent,
             ),
           ),
           child: Row(
@@ -85,7 +87,7 @@ class PlayerQualityMenu extends StatelessWidget {
                           )
                           .toStyle(
                             color: selected
-                                ? PlayerTheme.ink
+                                ? PlayerTheme.accent
                                 : PlayerTheme.inkMuted,
                           ),
                     ),

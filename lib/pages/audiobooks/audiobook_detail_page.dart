@@ -1,35 +1,43 @@
 import '../../l10n/l10n.dart';
-import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/audiobook/audiobook_model.dart';
-import '../../services/theme/design_tokens.dart';
 import '../../services/audiobook/audiobook_scraper_service.dart';
+import '../../ui/lu_button.dart';
+import '../../ui/lu_cards.dart';
+import '../../ui/lu_theme.dart';
 import '../../widgets/common/error_view.dart';
-import '../../widgets/common/focusable_card.dart';
-import '../../widgets/common/pill_button.dart';
-import '../../widgets/common/section_header.dart';
-import '../../widgets/player/player_glass.dart';
+import '../music/lu_media_kit.dart';
+import 'audiobook_lu_labels.dart';
 import 'audiobook_player_screen.dart';
 import 'audiobook_route_transitions.dart';
-import '../../services/storage/app_image_cache.dart';
 
-class AudiobookDetailPage extends StatefulWidget {
+/// One audiobook: its cover over a blurred copy of itself, the title, the way
+/// into the player, and the chapters.
+class AudiobookDetailPage extends StatelessWidget {
   final Audiobook audiobook;
   final String? heroTag;
 
-  const AudiobookDetailPage({
-    super.key,
-    required this.audiobook,
-    this.heroTag,
-  });
+  const AudiobookDetailPage({super.key, required this.audiobook, this.heroTag});
 
   @override
-  State<AudiobookDetailPage> createState() => _AudiobookDetailPageState();
+  Widget build(BuildContext context) => Theme(
+    data: luMediaTheme(),
+    child: _AudiobookDetailBody(audiobook: audiobook, heroTag: heroTag),
+  );
 }
 
-class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
+class _AudiobookDetailBody extends StatefulWidget {
+  final Audiobook audiobook;
+  final String? heroTag;
+
+  const _AudiobookDetailBody({required this.audiobook, this.heroTag});
+
+  @override
+  State<_AudiobookDetailBody> createState() => _AudiobookDetailPageState();
+}
+
+class _AudiobookDetailPageState extends State<_AudiobookDetailBody> {
   List<AudiobookChapter>? _chapters;
   bool _loading = true;
   String? _error;
@@ -47,7 +55,9 @@ class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
     });
 
     try {
-      final chapters = await AudiobookScraperService.instance.getChapters(widget.audiobook);
+      final chapters = await AudiobookScraperService.instance.getChapters(
+        widget.audiobook,
+      );
       if (mounted) {
         setState(() {
           _chapters = chapters;
@@ -66,7 +76,9 @@ class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
 
   void _playChapter(AudiobookChapter chapter) {
     if (_chapters == null || _chapters!.isEmpty) return;
-    final initialIndex = _chapters!.indexOf(chapter).clamp(0, _chapters!.length - 1);
+    final initialIndex = _chapters!
+        .indexOf(chapter)
+        .clamp(0, _chapters!.length - 1);
 
     Navigator.push(
       context,
@@ -82,96 +94,48 @@ class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = l10nOf(context);
     final book = widget.audiobook;
-    final hasCover = book.coverImage.isNotEmpty;
     final topInset = MediaQuery.paddingOf(context).top;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final screenW = MediaQuery.sizeOf(context).width;
-    final isMobile = screenW < 700;
-    final tokens = context.tokens;
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
+    final pad = luMediaPad(context);
 
     return Scaffold(
-      backgroundColor: tokens.bg,
+      backgroundColor: LuColors.bg,
       body: Stack(
         children: [
-          // Background ambient cover blur
-          if (hasCover && book.coverImage.trim().isNotEmpty)
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.25,
-                child: CachedNetworkImage(
-                  imageUrl: book.coverImage.trim(),
-                  cacheManager: AppImageCache.manager,
-                  httpHeaders: const {
-                    'User-Agent':
-                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                  },
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => const SizedBox.shrink(),
-                  errorWidget: (_, __, ___) => const SizedBox.shrink()),
-              ),
-            ),
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-              child: Container(color: Colors.black.withValues(alpha: 0.6)),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.sizeOf(context).height * 0.7,
+            child: LuMediaBackdrop(
+              url: book.coverImage,
+              httpHeaders: abkCoverHeaders,
+              opacity: 0.5,
             ),
           ),
-
-          // Main Scroll View
           CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Top Header Bar. A pushed route keeps its own back affordance and
-              // its header *is* the top chrome - the shell's nav is not over this
-              // route - so it is transparent, filled with nothing, and carries no
-              // hairline. The old filled circle was a box whose fill was not its
-              // content; the one outline this design draws on a control is the
-              // focus ring, and [FocusableInkWell] supplies it.
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    isMobile ? ZplaySpacing.s12 : ZplaySpacing.s16,
-                    topInset + ZplaySpacing.s8,
-                    isMobile ? ZplaySpacing.s16 : ZplaySpacing.s24,
-                    ZplaySpacing.s8,
-                  ),
+                  padding: EdgeInsets.fromLTRB(pad, topInset + 14, pad, 8),
                   child: Row(
                     children: [
-                      FocusableInkWell(
+                      LuMediaIconButton(
+                        icon: Icons.arrow_back_rounded,
+                        tooltip: l10n.abkBackTip,
                         onTap: () => Navigator.pop(context),
-                        borderRadius: ZplayRadius.fullAll,
-                        hoverColor: tokens.textPrimary.withValues(
-                          alpha: ZplayOpacity.overlayHover,
-                        ),
-                        child: SizedBox(
-                          width: ZplaySpacing.s48,
-                          height: ZplaySpacing.s48,
-                          child: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: tokens.textPrimary,
-                            size: 20,
-                            // Over the blurred cover, which can be bright: the
-                            // glyph shadow is what keeps it legible at offset 0,
-                            // where there is no tint behind it.
-                            shadows: const [
-                              Shadow(
-                                color: Color(0x99000000),
-                                blurRadius: 6,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
-                      const SizedBox(width: ZplaySpacing.s12),
+                      const SizedBox(width: LuSpace.m),
                       Expanded(
                         child: Text(
-                          l10nCurrent().abkAudiobookDetails,
+                          l10n.abkAudiobookDetails,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: ZplayType.titleLarge
-                              .toStyle(color: tokens.textPrimary),
+                          style: LuText.label,
                         ),
                       ),
                     ],
@@ -179,72 +143,48 @@ class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
                 ),
               ),
 
-              // Hero Cover & Info Section
               SliverToBoxAdapter(
                 child: Padding(
-                  // One gutter for the whole page: the shared section header
-                  // below sits at `s16`, so the cover, the copy and the chapter
-                  // rows line up with the heading above them.
-                  padding: const EdgeInsets.fromLTRB(
-                    ZplaySpacing.s16,
-                    ZplaySpacing.s8,
-                    ZplaySpacing.s16,
-                    ZplaySpacing.s16,
-                  ),
+                  padding: EdgeInsets.fromLTRB(pad, 16, pad, 24),
                   child: isMobile
                       ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            _buildCoverImage(book, 180, 260),
-                            const SizedBox(height: ZplaySpacing.s20),
+                            _buildCoverImage(book, 200),
+                            const SizedBox(height: LuSpace.l),
                             _buildDetails(book, isMobile),
                           ],
                         )
                       : Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            _buildCoverImage(book, 200, 290),
-                            const SizedBox(width: ZplaySpacing.s32),
+                            _buildCoverImage(book, 260),
+                            const SizedBox(width: LuSpace.xl),
                             Expanded(child: _buildDetails(book, isMobile)),
                           ],
                         ),
                 ),
               ),
 
-              // Section Title. One heading type for every rail and section in the
-              // app: the leading glyph was a second mark for a title that already
-              // names itself, and spacing plus the title's own weight is the
-              // structure. The count is the shared header's muted number rather
-              // than another accent badge.
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(
-                    top: ZplaySpacing.s16,
-                    bottom: ZplaySpacing.s4,
-                  ),
-                  child: SectionHeader(
-                    title: l10nCurrent().abkChaptersAudioFiles,
+                  padding: const EdgeInsets.only(top: 8, bottom: 12),
+                  child: LuMediaSectionTitle(
+                    title: l10n.abkChaptersAudioFiles,
                     count: _chapters?.length,
                   ),
                 ),
               ),
 
-              // Chapters List
               if (_loading)
-                SliverFillRemaining(
+                const SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(
-                    child: CircularProgressIndicator(color: tokens.accent),
-                  ),
+                  child: Center(child: CircularProgressIndicator()),
                 )
               else if (_error != null)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  // The shared failure view, so a chapter fetch that fails looks
-                  // like every other fetch that fails and offers the retry the
-                  // bare red sentence never did.
                   child: ErrorView(
-                    title: l10nCurrent().abkCouldNotLoadChapters,
+                    title: l10n.abkCouldNotLoadChapters,
                     error: _error,
                     onRetry: _fetchChapters,
                   ),
@@ -254,30 +194,31 @@ class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      l10nCurrent().abkNoPlayableChaptersFound,
-                      style: ZplayType.subtitle.toStyle(color: tokens.textSecondary),
+                      l10n.abkNoPlayableChaptersFound,
+                      style: LuText.bodySoft,
                     ),
                   ),
                 )
               else
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(
-                    ZplaySpacing.s16,
-                    ZplaySpacing.s8,
-                    ZplaySpacing.s16,
-                    ZplaySpacing.s24 + bottomInset,
+                    pad,
+                    0,
+                    pad,
+                    LuSpace.xxl + bottomInset,
                   ),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final chapter = _chapters![index];
-                        return _ChapterTile(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final chapter = _chapters![index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _ChapterTile(
                           chapter: chapter,
+                          number: index + 1,
                           onTap: () => _playChapter(chapter),
-                        );
-                      },
-                      childCount: _chapters!.length,
-                    ),
+                        ),
+                      );
+                    }, childCount: _chapters!.length),
                   ),
                 ),
             ],
@@ -287,90 +228,68 @@ class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
     );
   }
 
-  Widget _buildCoverImage(Audiobook book, double width, double height) {
-    final tokens = context.tokens;
+  Widget _buildCoverImage(Audiobook book, double size) {
+    Widget art = LuMediaArt(
+      url: book.coverImage,
+      cacheWidth: (size * 2.5).round(),
+      icon: Icons.headphones_rounded,
+      httpHeaders: abkCoverHeaders,
+    );
+    if (widget.heroTag != null) art = Hero(tag: widget.heroTag!, child: art);
     return Container(
-      width: width,
-      height: height,
+      width: size,
+      height: size,
       decoration: const BoxDecoration(
-        borderRadius: ZplayRadius.lgAll,
+        borderRadius: LuRadius.card,
         boxShadow: [
           BoxShadow(
-            color: Colors.black54,
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            color: Color(0xAA000000),
+            blurRadius: 36,
+            offset: Offset(0, 14),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: ZplayRadius.lgAll,
-        child: book.coverImage.isNotEmpty
-            ? CachedNetworkImage(
-                imageUrl: book.coverImage,
-                cacheManager: AppImageCache.manager,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(color: tokens.surfaceRaised),
-                errorWidget: (_, __, ___) => Container(
-                  color: tokens.surfaceRaised,
-                  child: Icon(Icons.headphones_rounded, size: 64, color: tokens.textMuted),
-                ))
-            : Container(
-                color: tokens.surfaceRaised,
-                child: Icon(Icons.headphones_rounded, size: 64, color: tokens.textMuted),
-              ),
-      ),
+      child: ClipRRect(borderRadius: LuRadius.card, child: art),
     );
   }
 
   Widget _buildDetails(Audiobook book, bool isMobile) {
+    final l10n = l10nOf(context);
     final isTorrent = book.source.toLowerCase().contains('audiobookbay');
-    final tokens = context.tokens;
+    final author = (book.author ?? '').trim();
 
     return Column(
-      crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment: isMobile
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: ZplaySpacing.s8,
-            vertical: 3,
-          ),
-          decoration: BoxDecoration(
-            // No resting border: the fill carries the warning or the accent and
-            // the badge is a label, not a control. One rule for both branches,
-            // where the torrent case used to wear an 0.8 dp outline the plain
-            // source did not.
-            color: isTorrent
-                ? tokens.warning.withValues(alpha: 0.25)
-                : tokens.accentSubtle,
-            borderRadius: ZplayRadius.xsAll,
-          ),
-          child: Text(
-            isTorrent ? 'AUDIOBOOKBAY (TORRENT)' : book.source.toUpperCase(),
-            style: ZplayType.overline.toStyle(
-              color: isTorrent ? tokens.warning : tokens.accent,
-            ),
-          ),
-        ),
-        const SizedBox(height: ZplaySpacing.s12),
+        LuBadge(isTorrent ? l10n.abkTorrentSource : book.source),
+        const SizedBox(height: LuSpace.m),
         Text(
           book.title,
           textAlign: isMobile ? TextAlign.center : TextAlign.start,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: ZplayType.titleLarge
-              .copyWith(size: isMobile ? 18 : 24)
-              .toStyle(color: tokens.textPrimary),
+          style: LuText.title.copyWith(
+            fontSize: isMobile ? 26 : 40,
+            height: 1.15,
+          ),
         ),
-        const SizedBox(height: ZplaySpacing.s16),
+        if (author.isNotEmpty) ...[
+          const SizedBox(height: LuSpace.s),
+          Text(
+            author,
+            textAlign: isMobile ? TextAlign.center : TextAlign.start,
+            style: LuText.body.copyWith(color: LuColors.textMuted),
+          ),
+        ],
+        const SizedBox(height: LuSpace.l),
         if (_chapters != null && _chapters!.isNotEmpty)
-          // The shared pill, so this page's way into the player is the same
-          // control as Home's hero and the shelf banner's. It replaced a
-          // gradient button that painted its own accent glow - the ring is the
-          // one mark this design puts on a control, and a second, softer accent
-          // edge under it read as a duplicate focus cue.
-          PillButton(
-            label: l10nCurrent().abkPlayFirstChapter,
+          LuButton(
+            label: l10n.abkPlayFirstChapter,
             icon: Icons.play_arrow_rounded,
+            autofocus: true,
+            compact: isMobile,
             onPressed: () => _playChapter(_chapters!.first),
           ),
       ],
@@ -380,89 +299,50 @@ class _AudiobookDetailPageState extends State<AudiobookDetailPage> {
 
 class _ChapterTile extends StatelessWidget {
   final AudiobookChapter chapter;
+  final int number;
   final VoidCallback onTap;
 
   const _ChapterTile({
     required this.chapter,
+    required this.number,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: FocusableCard(
-        onTap: onTap,
-        builder: (context, state) {
-          // Pointer-only movement; focus is answered by the ring below.
-          final scale = state.pressed ? 0.98 : (state.hovered ? 1.015 : 1.0);
-
-          // The one focus marker, painted over the row rather than around it, so
-          // focus arriving cannot move the tile or its neighbours. It replaced a
-          // border that swapped colour and width between states - a 0.5 dp
-          // reflow on every focus move, and a second edge where the ring is the
-          // only one this design draws.
-          return AnimatedScale(
-            scale: scale,
-            duration: ZplayMotion.fast,
-            curve: ZplayMotion.standard,
-            child: CardFocusRing(
-              focused: state.focused,
-              radius: ZplayRadius.mdAll,
-              child: AnimatedContainer(
-                duration: ZplayMotion.fast,
-                curve: ZplayMotion.standard,
-                decoration: BoxDecoration(
-                  // A row that is being pointed at brightens; the fill is the
-                  // whole answer, and it is the same answer for a pointer and a
-                  // D-pad.
-                  color: state.highlighted
-                      ? tokens.surfaceOverlay
-                      : tokens.surface,
-                  borderRadius: ZplayRadius.mdAll,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(ZplaySpacing.s16),
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: ZplayMotion.fast,
-                        curve: ZplayMotion.standard,
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: state.highlighted
-                              ? tokens.accent
-                              : tokens.accentSubtle,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.play_arrow_rounded,
-                          color: state.highlighted
-                              ? tokens.onAccent
-                              : tokens.accent,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: ZplaySpacing.s16),
-                      Expanded(
-                        child: Text(
-                          chapter.title,
-                          style: ZplayType.body
-                              .copyWith(weight: FontWeight.w600)
-                              .toStyle(color: tokens.textPrimary),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    return LuMediaTile(
+      onTap: onTap,
+      radius: const BorderRadius.all(Radius.circular(16)),
+      lift: 1.01,
+      semanticLabel: chapter.title,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 34,
+            child: Text(
+              '$number',
+              style: LuText.label.copyWith(
+                color: LuColors.textFaint,
+                fontFamily: LuFonts.display,
               ),
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: Text(
+              chapter.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: LuText.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: LuSpace.m),
+          const Icon(
+            Icons.play_circle_fill_rounded,
+            color: LuColors.gold,
+            size: 30,
+          ),
+        ],
       ),
     );
   }

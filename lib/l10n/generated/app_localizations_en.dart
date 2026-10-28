@@ -221,7 +221,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsP2pDisabledSubtitle =>
-      'P2P disabled. Using only direct HTTP streaming (ZPlayHTTP)';
+      'P2P disabled. Using only direct HTTP streaming';
 
   @override
   String get settingsP2pActiveValue => 'P2P Active';
@@ -248,7 +248,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsBuiltinSubtitle =>
-      'ZPlayHTTP streaming sources, priority order & toggles';
+      'Built-in streaming sources, priority order & toggles';
 
   @override
   String get settingsBuiltinCustom => 'Custom';
@@ -315,7 +315,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAppearanceSubtitle =>
-      'Liquid Glass setup, color themes, and Home Page UI';
+      'Liquid Glass, wallpaper and Home Page UI';
 
   @override
   String get settingsGlassOn => 'Glass ON';
@@ -4554,7 +4554,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stgaPurposeVidgod =>
-      'Bearer for the VidGod cloud cache behind ZPlayHTTP streams.';
+      'Bearer for the VidGod cloud cache behind the built-in streams.';
 
   @override
   String get stgaPurposeFilms365 =>
@@ -4790,7 +4790,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stgbAppearanceIntro =>
-      'Fine-tune the visual atmosphere, custom wallpaper background, color palettes, and interface layouts.';
+      'Fine-tune the visual atmosphere, custom wallpaper background and interface layouts.';
 
   @override
   String get stgbInterfaceAtmosphere => 'INTERFACE & ATMOSPHERE';
@@ -4819,11 +4819,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stgbDisabled => 'Disabled';
 
   @override
-  String get stgbHomeUiThemes => 'Home Page UI & Themes';
+  String get stgbHomeUiThemes => 'Home Page UI';
 
   @override
   String get stgbHomeUiThemesDesc =>
-      'Color schemes, \"Because you have on your list\" smart slider, hero spotlight, and card density';
+      '\"Because you have on your list\" smart slider, hero spotlight, and card density';
 
   @override
   String get stgbLiveTvSportsUi => 'Live TV & Sports UI';
@@ -7315,7 +7315,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stgcServiceKeysUnobtainable =>
-      'These cannot be obtained: each is a credential for a third-party service that did not issue it to ZPlay, so leave its field blank unless you have your own. A private build can supply its own with --dart-define, and blanking the registry entry in the source disables only that one source.';
+      'These cannot be obtained: each is a credential for a third-party service that did not issue it to Lumora, so leave its field blank unless you have your own. A private build can supply its own with --dart-define, and blanking the registry entry in the source disables only that one source.';
 
   @override
   String get stgcServiceKeysStoredLocally =>
@@ -7493,7 +7493,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get stgcHomeUiThemes => 'Home Page UI & Themes';
+  String get stgcHomeUiThemes => 'Home Page UI';
 
   @override
   String get stgcDropImagelessRails =>
@@ -8185,6 +8185,59 @@ class AppLocalizationsEn extends AppLocalizations {
       'This release does not publish a SHA-256 checksum, so Lumora will not install it automatically. Open the release page and verify the download yourself before installing it.';
 
   @override
+  String get wgUpdInstallPermission =>
+      'Allow \"Install unknown apps\" for Lumora in Android settings, then try again.';
+
+  @override
+  String wgUpdFailed(String error) {
+    return 'Update failed: $error';
+  }
+
+  @override
+  String wgUpdDownloadFailed(String error) {
+    return 'Download failed: $error';
+  }
+
+  @override
+  String get wgUpdChecksumMismatch =>
+      'The update\'s checksum did not match, so the download was deleted.';
+
+  @override
+  String get wgUpdSignatureConflictHint =>
+      'The install can fail with \"App not installed as package conflicts with an existing package\" when the previously installed copy was signed with a different key. Uninstall that copy once and install again; export your settings first from Settings → Backup & Restore (JSON) to keep them.';
+
+  @override
+  String get wgUpdDownloadComplete => 'Download complete';
+
+  @override
+  String get wgUpdWillCloseAndInstall =>
+      'Lumora will close and install the update.';
+
+  @override
+  String get wgUpdDownloadedTo => 'Update downloaded to:';
+
+  @override
+  String get wgUpdMakeExecutable => 'Make the file executable and run it:';
+
+  @override
+  String get wgUpdOpenFolder => 'Open folder';
+
+  @override
+  String get wgUpdCloseAndInstall => 'Close and install now';
+
+  @override
+  String get wgUpdOk => 'OK';
+
+  @override
+  String get updatesCheckFailed =>
+      'Couldn\'t check for updates. Check your connection and try again.';
+
+  @override
+  String detailsRuntimeMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
   String get authTagline => 'Light, shadow and every story worth watching';
 
   @override
@@ -8638,4 +8691,596 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get filterMoreFailed => 'Couldn\'t load more.';
+
+  @override
+  String get profileEdit => 'Edit profile';
+
+  @override
+  String get profileNameLabel => 'Nickname';
+
+  @override
+  String get profileNameHint => 'What friends see';
+
+  @override
+  String get profileColorLabel => 'Avatar colour';
+
+  @override
+  String get profileSave => 'Save';
+
+  @override
+  String get profileCancel => 'Cancel';
+
+  @override
+  String get profileSaved => 'Profile saved.';
+
+  @override
+  String get profileSaveFailed =>
+      'Couldn\'t save. Check your connection and try again.';
+
+  @override
+  String whatsNewTitle(String version) {
+    return 'What\'s new in Lumora $version';
+  }
+
+  @override
+  String get whatsNewDone => 'Got it';
+
+  @override
+  String get newEpBadge => 'New';
+
+  @override
+  String newEpCode(String season, String episode) {
+    return 'S$season E$episode';
+  }
+
+  @override
+  String get newEpRail => 'New episodes';
+
+  @override
+  String newEpAirsNext(String date) {
+    return 'Next $date';
+  }
+
+  @override
+  String newEpMonthDay(String month, String day) {
+    return '$month/$day';
+  }
+
+  @override
+  String get newEpCalTitle => 'My shows calendar';
+
+  @override
+  String get newEpCalSubtitle => 'When the series in My List air next';
+
+  @override
+  String get newEpCalEmptyTitle => 'No series in My List yet';
+
+  @override
+  String get newEpCalEmptyBody =>
+      'Add series to My List to see their new episodes here';
+
+  @override
+  String get newEpCalNoneThisDay => 'None of your series air this day';
+
+  @override
+  String get newEpCalChecking => 'Checking air dates…';
+
+  @override
+  String get mangaGenreAll => 'All';
+
+  @override
+  String get mangaGenreAction => 'Action';
+
+  @override
+  String get mangaGenreAdventure => 'Adventure';
+
+  @override
+  String get mangaGenreComedy => 'Comedy';
+
+  @override
+  String get mangaGenreDrama => 'Drama';
+
+  @override
+  String get mangaGenreFantasy => 'Fantasy';
+
+  @override
+  String get mangaGenreHistorical => 'Historical';
+
+  @override
+  String get mangaGenreHorror => 'Horror';
+
+  @override
+  String get mangaGenreIsekai => 'Isekai';
+
+  @override
+  String get mangaGenreMartialArts => 'Martial Arts';
+
+  @override
+  String get mangaGenreMystery => 'Mystery';
+
+  @override
+  String get mangaGenrePsychological => 'Psychological';
+
+  @override
+  String get mangaGenreRomance => 'Romance';
+
+  @override
+  String get mangaGenreSchoolLife => 'School Life';
+
+  @override
+  String get mangaGenreSciFi => 'Sci-fi';
+
+  @override
+  String get mangaGenreSeinen => 'Seinen';
+
+  @override
+  String get mangaGenreShounen => 'Shounen';
+
+  @override
+  String get mangaGenreSliceOfLife => 'Slice of Life';
+
+  @override
+  String get mangaGenreSports => 'Sports';
+
+  @override
+  String get mangaGenreSupernatural => 'Supernatural';
+
+  @override
+  String get mangaGenreTragedy => 'Tragedy';
+
+  @override
+  String get mangaTypeManga => 'Manga';
+
+  @override
+  String get mangaTypeManhwa => 'Manhwa';
+
+  @override
+  String get mangaTypeManhua => 'Manhua';
+
+  @override
+  String get mangaModeWebtoon => 'Vertical scroll (webtoon)';
+
+  @override
+  String get mangaModeLtr => 'Pages, left to right';
+
+  @override
+  String get mangaModeRtl => 'Pages, right to left (manga)';
+
+  @override
+  String get mangaWidthFull => 'Full screen';
+
+  @override
+  String get mangaWidthCompact => 'Compact';
+
+  @override
+  String get mangaWidthStandard => 'Standard';
+
+  @override
+  String get mangaWidthWide => 'Wide';
+
+  @override
+  String get mangaBgPitchBlack => 'Pitch Black';
+
+  @override
+  String get mangaBgDeepCharcoal => 'Deep Charcoal';
+
+  @override
+  String get mangaBgDarkSlate => 'Dark Slate';
+
+  @override
+  String get mangaBgSepiaDark => 'Sepia Dark';
+
+  @override
+  String get mangaDensityCompact => 'Compact';
+
+  @override
+  String get mangaDensityStandard => 'Standard';
+
+  @override
+  String get mangaDensitySpacious => 'Spacious';
+
+  @override
+  String mangaChapterShort(String number) {
+    return 'Ch. $number';
+  }
+
+  @override
+  String get mangaPageTitle => 'Manga';
+
+  @override
+  String get mangaPageSubtitle =>
+      'Manga, manhwa and manhua to read on any screen';
+
+  @override
+  String get mangaReaderSettings => 'Reader';
+
+  @override
+  String booksChapterShort(String number) {
+    return 'Ch. $number';
+  }
+
+  @override
+  String booksChapterOfTotal(String current, String total) {
+    return 'Ch. $current of $total';
+  }
+
+  @override
+  String booksFontSizePt(String size) {
+    return '$size pt';
+  }
+
+  @override
+  String booksFontSizePx(String size) {
+    return '$size px';
+  }
+
+  @override
+  String get booksPreviewSample =>
+      '“It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.”';
+
+  @override
+  String get booksPageTitle => 'Books';
+
+  @override
+  String get booksPageSubtitle =>
+      'Find a book, download it once, read it anywhere';
+
+  @override
+  String get booksReaderStyle => 'Reading style';
+
+  @override
+  String get booksShowControls => 'Show controls';
+
+  @override
+  String get musArtistsHeading => 'Artists';
+
+  @override
+  String get musAlbumsHeading => 'Albums';
+
+  @override
+  String get musPlaylistsHeading => 'Playlists';
+
+  @override
+  String get musGenrePopHits => 'Pop Hits';
+
+  @override
+  String get musGenreRockClassics => 'Rock Classics';
+
+  @override
+  String get musGenreHeavyMetal => 'Heavy Metal';
+
+  @override
+  String get musGenreClassicalPiano => 'Classical Piano';
+
+  @override
+  String musHiResLossless(String quality) {
+    return 'Hi-Res Lossless · $quality';
+  }
+
+  @override
+  String musHiResLosslessAudio(String quality) {
+    return '$quality · Hi-Res lossless audio';
+  }
+
+  @override
+  String get musPlayTip => 'Play';
+
+  @override
+  String get musPauseTip => 'Pause';
+
+  @override
+  String get musPreviousTip => 'Previous';
+
+  @override
+  String get musNextTip => 'Next';
+
+  @override
+  String get musRepeatTip => 'Repeat';
+
+  @override
+  String get musLikeTip => 'Like';
+
+  @override
+  String get musAddToPlaylistTip => 'Add to playlist';
+
+  @override
+  String get musLyricsTip => 'Lyrics';
+
+  @override
+  String get musQueueTip => 'Queue';
+
+  @override
+  String get musClosePlayerTip => 'Close player';
+
+  @override
+  String get musMoreTip => 'More';
+
+  @override
+  String get musRemoveFromQueueTip => 'Remove from queue';
+
+  @override
+  String get musRemoveFromPlaylistTip => 'Remove from playlist';
+
+  @override
+  String get musClearSearchTip => 'Clear search';
+
+  @override
+  String get musCancelDownloadTip => 'Cancel download';
+
+  @override
+  String get musNowPlayingKicker => 'Now playing';
+
+  @override
+  String get abkCatFantasy => 'Fantasy';
+
+  @override
+  String get abkCatSciFi => 'Sci-Fi';
+
+  @override
+  String get abkCatMystery => 'Mystery';
+
+  @override
+  String get abkCatThriller => 'Thriller';
+
+  @override
+  String get abkCatNonFiction => 'Non-Fiction';
+
+  @override
+  String get abkCatSelfHelp => 'Self-Help';
+
+  @override
+  String get abkCatHorror => 'Horror';
+
+  @override
+  String get abkCatRomance => 'Romance';
+
+  @override
+  String get abkCatAdventure => 'Adventure';
+
+  @override
+  String get abkCatClassics => 'Classics';
+
+  @override
+  String abkTimeLeft(String time) {
+    return '$time left';
+  }
+
+  @override
+  String get abkTorrentSource => 'AudiobookBay · torrent';
+
+  @override
+  String get abkAiGenerated => 'AI generated';
+
+  @override
+  String get abkAiGeneratedKokoro => 'AI generated · Kokoro TTS';
+
+  @override
+  String get abkUnknownAuthor => 'Unknown author';
+
+  @override
+  String abkSplitMessage(String words, String parts, String list) {
+    return 'This book has about $words words. It will be split into $parts parts along chapter boundaries and queued:\n\n$list';
+  }
+
+  @override
+  String abkSplitPartLine(String name, String words) {
+    return '• $name (about $words words)';
+  }
+
+  @override
+  String get abkBackTip => 'Back';
+
+  @override
+  String get abkPlaybackSpeedTip => 'Playback speed';
+
+  @override
+  String get abkRemoveFromContinue => 'Remove from Continue Listening?';
+
+  @override
+  String get abkClearSearchTip => 'Clear search';
+
+  @override
+  String get abkDeleteJobTip => 'Remove';
+
+  @override
+  String get playerSubPreviewSample => 'Lumora • Sample subtitle preview';
+
+  @override
+  String get abkDensityCompact => 'Compact';
+
+  @override
+  String get abkDensityStandard => 'Standard';
+
+  @override
+  String get abkDensitySpacious => 'Spacious';
+
+  @override
+  String get abkPresetModern => 'Classic';
+
+  @override
+  String get abkPresetVinyl => 'Turntable';
+
+  @override
+  String get abkPresetCapsule => 'Minimal';
+
+  @override
+  String get abkPresetCanvas => 'Big cover';
+
+  @override
+  String get abkPresetCustom => 'Custom';
+
+  @override
+  String get abkSeekWaveform => 'Waveform';
+
+  @override
+  String get abkSeekGradient => 'Bar';
+
+  @override
+  String get abkSeekSlider => 'Slider';
+
+  @override
+  String get abkSeekRing => 'Ring';
+
+  @override
+  String get abkButtonCircle => 'Circle';
+
+  @override
+  String get abkButtonGlass => 'Outline';
+
+  @override
+  String get abkButtonSquare => 'Square';
+
+  @override
+  String get abkButtonPill => 'Pill';
+
+  @override
+  String get profilePhotoUpload => 'Upload photo';
+
+  @override
+  String get profilePhotoRemove => 'Remove photo';
+
+  @override
+  String get profilePhotoFailed =>
+      'Couldn\'t upload that photo. Try another image.';
+
+  @override
+  String get booksAlignLeft => 'Align left';
+
+  @override
+  String get booksAlignJustify => 'Justify';
+
+  @override
+  String get wgPlyAspectFit => 'Fit to screen (Contain)';
+
+  @override
+  String get wgPlyAspectCover => 'Fill screen (Crop/Zoom)';
+
+  @override
+  String get wgPlyAspectStretch => 'Stretch to fill';
+
+  @override
+  String get wgPlySubColorWhite => 'White';
+
+  @override
+  String get wgPlySubColorCinemaYellow => 'Cinema Yellow';
+
+  @override
+  String get wgPlySubColorAmberGold => 'Amber Gold';
+
+  @override
+  String get wgPlySubColorElectricCyan => 'Electric Cyan';
+
+  @override
+  String get wgPlySubColorNeonGreen => 'Neon Green';
+
+  @override
+  String get wgPlySubColorVibrantOrange => 'Vibrant Orange';
+
+  @override
+  String get wgPlySubColorSoftRose => 'Soft Rose';
+
+  @override
+  String get wgPlySubColorLightGray => 'Light Gray';
+
+  @override
+  String get wgPlySubColorBlack => 'Black';
+
+  @override
+  String get wgPlySubColorDarkSlate => 'Dark Slate';
+
+  @override
+  String get wgPlySubColorGold => 'Gold';
+
+  @override
+  String get wgPlySubColorCrimson => 'Crimson';
+
+  @override
+  String get wgPlySubColorNeonCyan => 'Neon Cyan';
+
+  @override
+  String get wgPlySubBoxNone => 'None';
+
+  @override
+  String wgPlySubBoxDark(String percent) {
+    return '$percent% Dark';
+  }
+
+  @override
+  String get wgPlySubBoxSolid => '100% Solid';
+
+  @override
+  String get wgPlySubBoxIndigo => '50% Indigo';
+
+  @override
+  String get wgPlySubBoxDescTransparent => 'Transparent';
+
+  @override
+  String get wgPlySubBoxDescSubtle => 'Subtle';
+
+  @override
+  String get wgPlySubBoxDescStandard => 'Standard Box';
+
+  @override
+  String get wgPlySubBoxDescHighContrast => 'High Contrast';
+
+  @override
+  String get wgPlySubBoxDescOpaque => 'Opaque Black';
+
+  @override
+  String get wgPlySubBoxDescSlate => 'Slate Tint';
+
+  @override
+  String get tvDescEspn =>
+      'ESPN+, ESPN, ESPN2, ESPNU, NCAA Men\'s & Women\'s CBB, SEC & ACC';
+
+  @override
+  String get tvDescCombat => 'UFC Fight Pass, WWE, AEW, World Boxing & PPV';
+
+  @override
+  String get musRailTrending => '🔥 Top Global & Trending Hits';
+
+  @override
+  String get musRailPop => '🌟 Pop Essentials';
+
+  @override
+  String get musRailHipHop => '🎙️ Hip-Hop & Rap Heavyweights';
+
+  @override
+  String get musRailElectronic => '🎧 Electronic, Dance & EDM';
+
+  @override
+  String get musRailRock => '🎸 Rock Classics & Alternative';
+
+  @override
+  String get musRailSoundtracks => '🎬 Film & Anime Soundtracks';
+
+  @override
+  String get musRailChill => '🌙 Chill, Lofi & Ambient Beats';
+
+  @override
+  String abkDebridCouldNotResolveAudio(String service) {
+    return '$service could not resolve the audio stream.';
+  }
+
+  @override
+  String get abkAudioStreamUrlUnresolved =>
+      'The audio stream URL could not be resolved.';
+
+  @override
+  String get abkCatalogueUnavailableTitle =>
+      'The online audiobook catalogue isn\'t available in this build';
+
+  @override
+  String get abkCatalogueUnavailableBody =>
+      'You can still import your own MP3 or M4B audiobooks, or turn an EPUB into an audiobook, in the Studio.';
+
+  @override
+  String get abkCatalogueUnavailableBodyImportOnly =>
+      'You can still import your own MP3 or M4B audiobooks in the Studio.';
+
+  @override
+  String get abkHubSubtitleOwnLibrary => 'Your own audiobooks, ready to listen';
+
+  @override
+  String get detailsSpecials => 'Specials';
 }

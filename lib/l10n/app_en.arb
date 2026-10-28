@@ -78,7 +78,7 @@
   "settingsVideoSubtitle": "Anime4K neural GLSL shader presets and GPU pipeline",
   "settingsP2pTitle": "Built-in P2P Torrent Source",
   "settingsP2pActiveSubtitle": "Lumora torrent swarms (Knaben, TorrentGalaxy) active",
-  "settingsP2pDisabledSubtitle": "P2P disabled. Using only direct HTTP streaming (ZPlayHTTP)",
+  "settingsP2pDisabledSubtitle": "P2P disabled. Using only direct HTTP streaming",
   "settingsP2pActiveValue": "P2P Active",
   "settingsP2pHttpValue": "HTTP Only",
   "settingsP2pInfoTooltip": "P2P Advisory Details",
@@ -93,7 +93,7 @@
     }
   },
   "settingsBuiltinTitle": "Built-in Providers",
-  "settingsBuiltinSubtitle": "ZPlayHTTP streaming sources, priority order & toggles",
+  "settingsBuiltinSubtitle": "Built-in streaming sources, priority order & toggles",
   "settingsBuiltinCustom": "Custom",
   "settingsBuiltinDefault": "Default",
   "settingsDebridTitle": "Debrid & Cloud Streaming",
@@ -122,7 +122,7 @@
   "settingsDiscordEnabledSubtitle": "Broadcasting movies, shows, music & live activity to Discord",
   "settingsDiscordDisabledSubtitle": "Disabled. Activity is hidden from Discord",
   "settingsAppearanceTitle": "Appearance & Interface",
-  "settingsAppearanceSubtitle": "Liquid Glass setup, color themes, and Home Page UI",
+  "settingsAppearanceSubtitle": "Liquid Glass, wallpaper and Home Page UI",
   "settingsGlassOn": "Glass ON",
   "settingsCalendarTitle": "TV Airing Calendar",
   "settingsCalendarOnSubtitle": "Calendar buttons active on Home top bar and section headers",
@@ -1920,7 +1920,7 @@
   "stgaPurposeAudiobookSearch": "Mints the anonymous token the Audionest audiobook search API requires.",
   "stgaPurposeAudiobookService": "Bearer for the Audionest audiobook search endpoint.",
   "stgaPurposePaper2audio": "Firebase key for the paper2audio PDF to audiobook backend.",
-  "stgaPurposeVidgod": "Bearer for the VidGod cloud cache behind ZPlayHTTP streams.",
+  "stgaPurposeVidgod": "Bearer for the VidGod cloud cache behind the built-in streams.",
   "stgaPurposeFilms365": "Bearer for the Films365 direct stream API.",
   "stgaPurposeTraktSecret": "Exchanges the device code for a Trakt access token.",
   "stgaSourceUser": "Your key is in use.",
@@ -1999,7 +1999,7 @@
   "stgbZeroCopy": "Zero-Copy",
   "stgbOffTextureView": "Off (TextureView)",
   "stgbDirectSurfaceDesc": "Uses Flutter SurfaceProducer to render frames directly to hardware surface without texture blitting. Significantly boosts 4K/60fps playback and reduces battery usage on Android. (Keep disabled if your device experiences display glitches).",
-  "stgbAppearanceIntro": "Fine-tune the visual atmosphere, custom wallpaper background, color palettes, and interface layouts.",
+  "stgbAppearanceIntro": "Fine-tune the visual atmosphere, custom wallpaper background and interface layouts.",
   "stgbInterfaceAtmosphere": "INTERFACE & ATMOSPHERE",
   "stgbCustomBgWallpaper": "Custom Background & Wallpaper",
   "stgbCustomBgWallpaperDesc": "Upload custom photos, choose curated dark wallpapers, and blend theme ambient lighting",
@@ -2008,8 +2008,8 @@
   "stgbLiquidGlassSetup": "Liquid Glass Setup",
   "stgbLiquidGlassSetupDesc": "Adjust hover impact, wobble spring physics, lens refraction, and chromatic aberration",
   "stgbDisabled": "Disabled",
-  "stgbHomeUiThemes": "Home Page UI & Themes",
-  "stgbHomeUiThemesDesc": "Color schemes, \"Because you have on your list\" smart slider, hero spotlight, and card density",
+  "stgbHomeUiThemes": "Home Page UI",
+  "stgbHomeUiThemesDesc": "\"Because you have on your list\" smart slider, hero spotlight, and card density",
   "stgbLiveTvSportsUi": "Live TV & Sports UI",
   "stgbLiveTvSportsUiDesc": "Broadcast hero spotlight, channel card density, category ordering, and live badge styling",
   "stgbSpotlightOn": "Spotlight ON",
@@ -4576,7 +4576,7 @@
   "stgcDebridLinkAccount": "Account: {account}",
   "stgcPurposeTrakt": "Identifies the Trakt application the pairing flow asks for a device code on, and stamps every Trakt API call.",
   "stgcServiceKeysIntro": "Lumora talks to several third-party services. Any key you save here replaces the one this build uses and takes effect immediately, with no restart.",
-  "stgcServiceKeysUnobtainable": "These cannot be obtained: each is a credential for a third-party service that did not issue it to ZPlay, so leave its field blank unless you have your own. A private build can supply its own with --dart-define, and blanking the registry entry in the source disables only that one source.",
+  "stgcServiceKeysUnobtainable": "These cannot be obtained: each is a credential for a third-party service that did not issue it to Lumora, so leave its field blank unless you have your own. A private build can supply its own with --dart-define, and blanking the registry entry in the source disables only that one source.",
   "stgcServiceKeysStoredLocally": "Every value is stored only on this device and is never shown back in these fields.",
   "@stgcPasteKeyFirst": {
     "placeholders": {
@@ -4749,7 +4749,7 @@
     }
   },
   "stgcAppliedWallpaper": "Applied \"{title}\" wallpaper",
-  "stgcHomeUiThemes": "Home Page UI & Themes",
+  "stgcHomeUiThemes": "Home Page UI",
   "stgcDropImagelessRails": "Drops a Home rail when none of its titles can show a picture. A landscape tile has no name under it, so such a rail is a row of blank rectangles.",
   "@stgcIntervalSeconds": {
     "placeholders": {
@@ -5306,6 +5306,41 @@
   },
   "wgIptvChipMyPortals": "My Portals ({count})",
   "wgUpdNoChecksum": "This release does not publish a SHA-256 checksum, so Lumora will not install it automatically. Open the release page and verify the download yourself before installing it.",
+  "wgUpdInstallPermission": "Allow \"Install unknown apps\" for Lumora in Android settings, then try again.",
+  "@wgUpdFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "wgUpdFailed": "Update failed: {error}",
+  "@wgUpdDownloadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "wgUpdDownloadFailed": "Download failed: {error}",
+  "wgUpdChecksumMismatch": "The update's checksum did not match, so the download was deleted.",
+  "wgUpdSignatureConflictHint": "The install can fail with \"App not installed as package conflicts with an existing package\" when the previously installed copy was signed with a different key. Uninstall that copy once and install again; export your settings first from Settings → Backup & Restore (JSON) to keep them.",
+  "wgUpdDownloadComplete": "Download complete",
+  "wgUpdWillCloseAndInstall": "Lumora will close and install the update.",
+  "wgUpdDownloadedTo": "Update downloaded to:",
+  "wgUpdMakeExecutable": "Make the file executable and run it:",
+  "wgUpdOpenFolder": "Open folder",
+  "wgUpdCloseAndInstall": "Close and install now",
+  "wgUpdOk": "OK",
+  "updatesCheckFailed": "Couldn't check for updates. Check your connection and try again.",
+  "@detailsRuntimeMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "detailsRuntimeMinutes": "{minutes} min",
   "authTagline": "Light, shadow and every story worth watching",
   "authSignIn": "Sign in",
   "authSignUp": "Create account",
@@ -5581,5 +5616,318 @@
   "authNewPasswordKeep": "Keep my current password",
   "filterLoading": "Loading…",
   "filterEmptyOrFailed": "Nothing to show. These filters may have no matches, or the list couldn't load.",
-  "filterMoreFailed": "Couldn't load more."
+  "filterMoreFailed": "Couldn't load more.",
+  "profileEdit": "Edit profile",
+  "profileNameLabel": "Nickname",
+  "profileNameHint": "What friends see",
+  "profileColorLabel": "Avatar colour",
+  "profileSave": "Save",
+  "profileCancel": "Cancel",
+  "profileSaved": "Profile saved.",
+  "profileSaveFailed": "Couldn't save. Check your connection and try again.",
+  "whatsNewTitle": "What's new in Lumora {version}",
+  "@whatsNewTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNewDone": "Got it",
+  "newEpBadge": "New",
+  "newEpCode": "S{season} E{episode}",
+  "@newEpCode": {
+    "placeholders": {
+      "season": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
+    }
+  },
+  "newEpRail": "New episodes",
+  "newEpAirsNext": "Next {date}",
+  "@newEpAirsNext": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "newEpMonthDay": "{month}/{day}",
+  "@newEpMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "newEpCalTitle": "My shows calendar",
+  "newEpCalSubtitle": "When the series in My List air next",
+  "newEpCalEmptyTitle": "No series in My List yet",
+  "newEpCalEmptyBody": "Add series to My List to see their new episodes here",
+  "newEpCalNoneThisDay": "None of your series air this day",
+  "newEpCalChecking": "Checking air dates…",
+  "mangaGenreAll": "All",
+  "mangaGenreAction": "Action",
+  "mangaGenreAdventure": "Adventure",
+  "mangaGenreComedy": "Comedy",
+  "mangaGenreDrama": "Drama",
+  "mangaGenreFantasy": "Fantasy",
+  "mangaGenreHistorical": "Historical",
+  "mangaGenreHorror": "Horror",
+  "mangaGenreIsekai": "Isekai",
+  "mangaGenreMartialArts": "Martial Arts",
+  "mangaGenreMystery": "Mystery",
+  "mangaGenrePsychological": "Psychological",
+  "mangaGenreRomance": "Romance",
+  "mangaGenreSchoolLife": "School Life",
+  "mangaGenreSciFi": "Sci-fi",
+  "mangaGenreSeinen": "Seinen",
+  "mangaGenreShounen": "Shounen",
+  "mangaGenreSliceOfLife": "Slice of Life",
+  "mangaGenreSports": "Sports",
+  "mangaGenreSupernatural": "Supernatural",
+  "mangaGenreTragedy": "Tragedy",
+  "mangaTypeManga": "Manga",
+  "mangaTypeManhwa": "Manhwa",
+  "mangaTypeManhua": "Manhua",
+  "mangaModeWebtoon": "Vertical scroll (webtoon)",
+  "mangaModeLtr": "Pages, left to right",
+  "mangaModeRtl": "Pages, right to left (manga)",
+  "mangaWidthFull": "Full screen",
+  "mangaWidthCompact": "Compact",
+  "mangaWidthStandard": "Standard",
+  "mangaWidthWide": "Wide",
+  "mangaBgPitchBlack": "Pitch Black",
+  "mangaBgDeepCharcoal": "Deep Charcoal",
+  "mangaBgDarkSlate": "Dark Slate",
+  "mangaBgSepiaDark": "Sepia Dark",
+  "mangaDensityCompact": "Compact",
+  "mangaDensityStandard": "Standard",
+  "mangaDensitySpacious": "Spacious",
+  "mangaChapterShort": "Ch. {number}",
+  "@mangaChapterShort": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "mangaPageTitle": "Manga",
+  "mangaPageSubtitle": "Manga, manhwa and manhua to read on any screen",
+  "mangaReaderSettings": "Reader",
+  "booksChapterShort": "Ch. {number}",
+  "@booksChapterShort": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "booksChapterOfTotal": "Ch. {current} of {total}",
+  "@booksChapterOfTotal": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "booksFontSizePt": "{size} pt",
+  "@booksFontSizePt": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "booksFontSizePx": "{size} px",
+  "@booksFontSizePx": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "booksPreviewSample": "“It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.”",
+  "booksPageTitle": "Books",
+  "booksPageSubtitle": "Find a book, download it once, read it anywhere",
+  "booksReaderStyle": "Reading style",
+  "booksShowControls": "Show controls",
+  "musArtistsHeading": "Artists",
+  "musAlbumsHeading": "Albums",
+  "musPlaylistsHeading": "Playlists",
+  "musGenrePopHits": "Pop Hits",
+  "musGenreRockClassics": "Rock Classics",
+  "musGenreHeavyMetal": "Heavy Metal",
+  "musGenreClassicalPiano": "Classical Piano",
+  "musHiResLossless": "Hi-Res Lossless · {quality}",
+  "@musHiResLossless": {
+    "placeholders": {
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "musHiResLosslessAudio": "{quality} · Hi-Res lossless audio",
+  "@musHiResLosslessAudio": {
+    "placeholders": {
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "musPlayTip": "Play",
+  "musPauseTip": "Pause",
+  "musPreviousTip": "Previous",
+  "musNextTip": "Next",
+  "musRepeatTip": "Repeat",
+  "musLikeTip": "Like",
+  "musAddToPlaylistTip": "Add to playlist",
+  "musLyricsTip": "Lyrics",
+  "musQueueTip": "Queue",
+  "musClosePlayerTip": "Close player",
+  "musMoreTip": "More",
+  "musRemoveFromQueueTip": "Remove from queue",
+  "musRemoveFromPlaylistTip": "Remove from playlist",
+  "musClearSearchTip": "Clear search",
+  "musCancelDownloadTip": "Cancel download",
+  "musNowPlayingKicker": "Now playing",
+  "abkCatFantasy": "Fantasy",
+  "abkCatSciFi": "Sci-Fi",
+  "abkCatMystery": "Mystery",
+  "abkCatThriller": "Thriller",
+  "abkCatNonFiction": "Non-Fiction",
+  "abkCatSelfHelp": "Self-Help",
+  "abkCatHorror": "Horror",
+  "abkCatRomance": "Romance",
+  "abkCatAdventure": "Adventure",
+  "abkCatClassics": "Classics",
+  "abkTimeLeft": "{time} left",
+  "@abkTimeLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "abkTorrentSource": "AudiobookBay · torrent",
+  "abkAiGenerated": "AI generated",
+  "abkAiGeneratedKokoro": "AI generated · Kokoro TTS",
+  "abkUnknownAuthor": "Unknown author",
+  "abkSplitMessage": "This book has about {words} words. It will be split into {parts} parts along chapter boundaries and queued:\n\n{list}",
+  "@abkSplitMessage": {
+    "placeholders": {
+      "words": {
+        "type": "String"
+      },
+      "parts": {
+        "type": "String"
+      },
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "abkSplitPartLine": "• {name} (about {words} words)",
+  "@abkSplitPartLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "abkBackTip": "Back",
+  "abkPlaybackSpeedTip": "Playback speed",
+  "abkRemoveFromContinue": "Remove from Continue Listening?",
+  "abkClearSearchTip": "Clear search",
+  "abkDeleteJobTip": "Remove",
+  "playerSubPreviewSample": "Lumora • Sample subtitle preview",
+  "abkDensityCompact": "Compact",
+  "abkDensityStandard": "Standard",
+  "abkDensitySpacious": "Spacious",
+  "abkPresetModern": "Classic",
+  "abkPresetVinyl": "Turntable",
+  "abkPresetCapsule": "Minimal",
+  "abkPresetCanvas": "Big cover",
+  "abkPresetCustom": "Custom",
+  "abkSeekWaveform": "Waveform",
+  "abkSeekGradient": "Bar",
+  "abkSeekSlider": "Slider",
+  "abkSeekRing": "Ring",
+  "abkButtonCircle": "Circle",
+  "abkButtonGlass": "Outline",
+  "abkButtonSquare": "Square",
+  "abkButtonPill": "Pill",
+  "profilePhotoUpload": "Upload photo",
+  "profilePhotoRemove": "Remove photo",
+  "profilePhotoFailed": "Couldn't upload that photo. Try another image.",
+  "booksAlignLeft": "Align left",
+  "booksAlignJustify": "Justify",
+  "wgPlyAspectFit": "Fit to screen (Contain)",
+  "wgPlyAspectCover": "Fill screen (Crop/Zoom)",
+  "wgPlyAspectStretch": "Stretch to fill",
+  "wgPlySubColorWhite": "White",
+  "wgPlySubColorCinemaYellow": "Cinema Yellow",
+  "wgPlySubColorAmberGold": "Amber Gold",
+  "wgPlySubColorElectricCyan": "Electric Cyan",
+  "wgPlySubColorNeonGreen": "Neon Green",
+  "wgPlySubColorVibrantOrange": "Vibrant Orange",
+  "wgPlySubColorSoftRose": "Soft Rose",
+  "wgPlySubColorLightGray": "Light Gray",
+  "wgPlySubColorBlack": "Black",
+  "wgPlySubColorDarkSlate": "Dark Slate",
+  "wgPlySubColorGold": "Gold",
+  "wgPlySubColorCrimson": "Crimson",
+  "wgPlySubColorNeonCyan": "Neon Cyan",
+  "wgPlySubBoxNone": "None",
+  "wgPlySubBoxDark": "{percent}% Dark",
+  "@wgPlySubBoxDark": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "wgPlySubBoxSolid": "100% Solid",
+  "wgPlySubBoxIndigo": "50% Indigo",
+  "wgPlySubBoxDescTransparent": "Transparent",
+  "wgPlySubBoxDescSubtle": "Subtle",
+  "wgPlySubBoxDescStandard": "Standard Box",
+  "wgPlySubBoxDescHighContrast": "High Contrast",
+  "wgPlySubBoxDescOpaque": "Opaque Black",
+  "wgPlySubBoxDescSlate": "Slate Tint",
+  "tvDescEspn": "ESPN+, ESPN, ESPN2, ESPNU, NCAA Men's & Women's CBB, SEC & ACC",
+  "tvDescCombat": "UFC Fight Pass, WWE, AEW, World Boxing & PPV",
+  "musRailTrending": "🔥 Top Global & Trending Hits",
+  "musRailPop": "🌟 Pop Essentials",
+  "musRailHipHop": "🎙️ Hip-Hop & Rap Heavyweights",
+  "musRailElectronic": "🎧 Electronic, Dance & EDM",
+  "musRailRock": "🎸 Rock Classics & Alternative",
+  "musRailSoundtracks": "🎬 Film & Anime Soundtracks",
+  "musRailChill": "🌙 Chill, Lofi & Ambient Beats",
+  "@abkDebridCouldNotResolveAudio": {
+    "placeholders": {
+      "service": {
+        "type": "String"
+      }
+    }
+  },
+  "abkDebridCouldNotResolveAudio": "{service} could not resolve the audio stream.",
+  "abkAudioStreamUrlUnresolved": "The audio stream URL could not be resolved.",
+  "abkCatalogueUnavailableTitle": "The online audiobook catalogue isn't available in this build",
+  "abkCatalogueUnavailableBody": "You can still import your own MP3 or M4B audiobooks, or turn an EPUB into an audiobook, in the Studio.",
+  "abkCatalogueUnavailableBodyImportOnly": "You can still import your own MP3 or M4B audiobooks in the Studio.",
+  "abkHubSubtitleOwnLibrary": "Your own audiobooks, ready to listen",
+  "detailsSpecials": "Specials"
 }

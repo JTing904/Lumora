@@ -183,22 +183,14 @@ abstract final class AppThemeService {
   static final ValueNotifier<AppThemePalette> currentPalette =
       ValueNotifier<AppThemePalette>(defaultPalette);
 
+  /// Lumora wears one accent. The pages rebuilt for Lumora draw their gold
+  /// from [LuColors] whatever is stored here, so a picked palette could only
+  /// ever recolour the rest; an earlier choice is dropped and every install
+  /// is gold.
   static Future<void> initialize() async {
+    currentPalette.value = defaultPalette;
     final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getString(_storageKey);
-    if (id != null) {
-      final found = palettes.firstWhere(
-        (p) => p.id == id,
-        orElse: () => defaultPalette,
-      );
-      currentPalette.value = found;
-    }
-  }
-
-  static Future<void> setPalette(AppThemePalette palette) async {
-    currentPalette.value = palette;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, palette.id);
+    await prefs.remove(_storageKey);
   }
 
   /// The design-token set for [palette] — the semantic colours every screen can
