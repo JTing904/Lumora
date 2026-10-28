@@ -368,7 +368,11 @@ class ContinueWatchingService {
     final progress = positionSeconds / totalDurationSeconds;
     final isFinished = progress >= 0.90;
     if (isFinished && episode?.season != null && episode?.episode != null) {
-      WatchedEpisodes.markFinished(detail.id, episode!.season!, episode.episode!);
+      WatchedEpisodes.markFinished(
+        detail.id,
+        episode!.season!,
+        episode.episode!,
+      );
     }
 
     // How far the viewer got is the strongest taste signal 为你推荐 has.

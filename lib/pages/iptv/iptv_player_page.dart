@@ -76,7 +76,9 @@ class _IptvPlayerPageBody extends StatefulWidget {
 
 class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
     with SingleTickerProviderStateMixin {
-  late final Player _player = Player(configuration: PlayerSettings.getMediaKitPlayerConfiguration());
+  late final Player _player = Player(
+    configuration: PlayerSettings.getMediaKitPlayerConfiguration(),
+  );
   late final VideoController _videoController = VideoController(
     _player,
     configuration: PlayerSettings.getVideoControllerConfiguration(),
@@ -99,8 +101,12 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  final ValueNotifier<Duration> _positionNotifier = ValueNotifier<Duration>(Duration.zero);
-  final ValueNotifier<Duration?> _bufferedNotifier = ValueNotifier<Duration?>(null);
+  final ValueNotifier<Duration> _positionNotifier = ValueNotifier<Duration>(
+    Duration.zero,
+  );
+  final ValueNotifier<Duration?> _bufferedNotifier = ValueNotifier<Duration?>(
+    null,
+  );
 
   String _statusMessage = l10nCurrent().tvConnectingToStream;
   bool _showControls = true;
@@ -164,7 +170,10 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
     final kind = currentHit?.stream.kind.toLowerCase();
     if (kind == 'movie' || kind == 'series' || kind == 'vod') return false;
     final cat = widget.channel.category.toLowerCase();
-    if (cat.contains('movie') || cat.contains('series') || cat.contains('vod') || cat.contains('show')) {
+    if (cat.contains('movie') ||
+        cat.contains('series') ||
+        cat.contains('vod') ||
+        cat.contains('show')) {
       return false;
     }
     return true;
@@ -172,7 +181,9 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
 
   bool get _isCategoryList {
     if (_hits.length <= 1) return false;
-    if (widget.categoryTitle != null && widget.categoryTitle!.isNotEmpty) return true;
+    if (widget.categoryTitle != null && widget.categoryTitle!.isNotEmpty) {
+      return true;
+    }
     return _hits.first.stream.streamId != _hits.last.stream.streamId;
   }
 
@@ -198,7 +209,9 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
 
     _subscriptions.addAll([
       _player.stream.playing.listen((playing) {
-        if (mounted && _isPlaying != playing) setState(() => _isPlaying = playing);
+        if (mounted && _isPlaying != playing) {
+          setState(() => _isPlaying = playing);
+        }
       }),
       _player.stream.position.listen((pos) {
         _position = pos;
@@ -216,7 +229,9 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
             !_hasFallenBackToSoftware &&
             PlayerSettings.autoRecoverBlackScreen.value) {
           _hasFallenBackToSoftware = true;
-          debugPrint('[IPTV Player Error] Hardware decoder failed. Falling back to software decoding...');
+          debugPrint(
+            '[IPTV Player Error] Hardware decoder failed. Falling back to software decoding...',
+          );
           PlayerSettings.fallbackToSoftware(_player);
           return;
         }
@@ -287,7 +302,11 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
     setState(() {
       _isLoading = true;
       _feedError = null;
-      _statusMessage = l10nCurrent().tv2BufferingName(currentHit.stream.name.isNotEmpty ? currentHit.stream.name : currentHit.portal.name);
+      _statusMessage = l10nCurrent().tv2BufferingName(
+        currentHit.stream.name.isNotEmpty
+            ? currentHit.stream.name
+            : currentHit.portal.name,
+      );
     });
 
     try {
@@ -297,18 +316,14 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
       // hand media_kit a fixed VLC user agent and nothing else, so it was the
       // one playback path in the app that could never obtain a Referer or
       // Origin, and many IPTV origins answer 403 for a request that has none.
-      final headers = PlayerSettings.resolveStreamHeaders(
-        streamUrl,
-        const {'User-Agent': 'VLC/3.0.20 LibVLC/3.0.20'},
-      );
+      final headers = PlayerSettings.resolveStreamHeaders(streamUrl, const {
+        'User-Agent': 'VLC/3.0.20 LibVLC/3.0.20',
+      });
 
       if (!isPlayableUrl(streamUrl)) {
         throw StateError('Not a stream address');
       }
-      await _player.open(
-        Media(streamUrl, httpHeaders: headers),
-        play: true,
-      );
+      await _player.open(Media(streamUrl, httpHeaders: headers), play: true);
 
       await PlayerSettings.applyToPlayer(_player, isLive: true);
       _player.setVolume(_isMuted ? 0.0 : _volume * 100.0);
@@ -349,10 +364,9 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
     return sorted < 0 ? 0 : sorted;
   }
 
-  String get _currentUrl =>
-      _hits.isEmpty || _activeHitIndex >= _hits.length
-          ? ''
-          : _hits[_activeHitIndex].streamUrl;
+  String get _currentUrl => _hits.isEmpty || _activeHitIndex >= _hits.length
+      ? ''
+      : _hits[_activeHitIndex].streamUrl;
 
   /// Called whenever the current source fails: the URL goes on the dead list so
   /// the Live pages stop offering it first, and the player moves to the next
@@ -383,8 +397,10 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
       });
       return;
     }
-    debugPrint('[IPTV Player] $reason — switching to '
-        'source ${next + 1}/${_hits.length}');
+    debugPrint(
+      '[IPTV Player] $reason — switching to '
+      'source ${next + 1}/${_hits.length}',
+    );
     _switchSource(next, manual: false);
   }
 
@@ -468,7 +484,9 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
           !_hasFallenBackToSoftware &&
           PlayerSettings.autoRecoverBlackScreen.value) {
         _hasFallenBackToSoftware = true;
-        debugPrint('[IPTV Watchdog] Black screen detected on channel stream! Falling back to software decoding...');
+        debugPrint(
+          '[IPTV Watchdog] Black screen detected on channel stream! Falling back to software decoding...',
+        );
         PlayerSettings.fallbackToSoftware(_player);
       }
 
@@ -483,12 +501,16 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
           !_isLoading) {
         if (_retryCount < _maxReconnects) {
           _retryCount++;
-          debugPrint('[IPTV Watchdog] Stream frozen > 10s — reconnecting '
-              '(attempt $_retryCount/$_maxReconnects)…');
+          debugPrint(
+            '[IPTV Watchdog] Stream frozen > 10s — reconnecting '
+            '(attempt $_retryCount/$_maxReconnects)…',
+          );
           _initPlayer();
         } else {
-          debugPrint('[IPTV Watchdog] Stream frozen > 10s — this source has had '
-              '$_maxReconnects reconnects, trying the next one.');
+          debugPrint(
+            '[IPTV Watchdog] Stream frozen > 10s — this source has had '
+            '$_maxReconnects reconnects, trying the next one.',
+          );
           if (mounted) {
             _handleFeedFailure(l10nCurrent().tvFeedStalled);
           }
@@ -629,799 +651,1111 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
         if (!didPop && _panelOpen) _closePanel();
       },
       child: Focus(
-      autofocus: true,
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.space) {
-            _togglePlayPause();
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft && !isLive) {
-            _seekRelative(-10);
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.arrowRight && !isLive) {
-            _seekRelative(10);
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            _adjustVolume(0.05);
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-            _adjustVolume(-0.05);
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.pageDown || event.logicalKey == LogicalKeyboardKey.keyN) {
-            if (_activeHitIndex + 1 < _hits.length) {
-              _switchSource(_activeHitIndex + 1);
-            }
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.pageUp || event.logicalKey == LogicalKeyboardKey.keyP) {
-            if (_activeHitIndex - 1 >= 0) {
-              _switchSource(_activeHitIndex - 1);
-            }
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
-            _toggleMute();
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.keyF ||
-              event.logicalKey == LogicalKeyboardKey.f11) {
-            if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-              WindowService.instance.toggleFullscreen();
-            }
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.keyC) {
-            _cycleVideoFit();
-            _startHideControlsTimer();
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-            if (_panelOpen) {
-              _closePanel();
-            } else if ((Platform.isWindows || Platform.isLinux || Platform.isMacOS) &&
-                WindowService.instance.isFullscreen) {
-              WindowService.instance.exitFullscreen();
-            } else {
-              Navigator.pop(context);
-            }
-            return KeyEventResult.handled;
-          }
-        }
-        return KeyEventResult.ignored;
-      },
-      child: Scaffold(
-        backgroundColor: tokens.bg,
-        body: Theme(
-      data: luPanelTheme(),
-      child: Listener(
-          onPointerSignal: (pointerSignal) {
-            if (pointerSignal is PointerScrollEvent) {
-              // Register on the resolver instead of acting here: a Scrollable under the pointer
-              // claims the event first and scrolling it must not also change the volume.
-              GestureBinding.instance.pointerSignalResolver.register(pointerSignal, (_) {
-                if (pointerSignal.scrollDelta.dy < 0) {
-                  _adjustVolume(0.05); // Scroll up -> Volume up
-                } else if (pointerSignal.scrollDelta.dy > 0) {
-                  _adjustVolume(-0.05); // Scroll down -> Volume down
-                }
-              });
-            }
-          },
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _toggleControls,
-            onDoubleTap: () {
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.space) {
+              _togglePlayPause();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+                !isLive) {
+              _seekRelative(-10);
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+                !isLive) {
+              _seekRelative(10);
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+              _adjustVolume(0.05);
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+              _adjustVolume(-0.05);
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.pageDown ||
+                event.logicalKey == LogicalKeyboardKey.keyN) {
+              if (_activeHitIndex + 1 < _hits.length) {
+                _switchSource(_activeHitIndex + 1);
+              }
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.pageUp ||
+                event.logicalKey == LogicalKeyboardKey.keyP) {
+              if (_activeHitIndex - 1 >= 0) {
+                _switchSource(_activeHitIndex - 1);
+              }
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
+              _toggleMute();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.keyF ||
+                event.logicalKey == LogicalKeyboardKey.f11) {
               if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
                 WindowService.instance.toggleFullscreen();
               }
-            },
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Video Surface is ALWAYS mounted to prevent texture/surface detachment and black screens
-                Center(
-                  child: SizedBox.expand(
-                    key: VideoPanelMetrics.panelKey,
-                    child: ValueListenableBuilder<int>(
-                      valueListenable: PlayerSettings.changeNotifier,
-                      builder: (context, _, __) {
-                        return Video(
-                          controller: _videoController,
-                          fit: _videoFit,
-                          controls: NoVideoControls,
-                          subtitleViewConfiguration: PlayerSettings.getSubtitleViewConfiguration(),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-
-                // Loading / Buffering Banner
-                if (_isLoading)
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: tokens.bg.withValues(alpha: 0.75),
-                        borderRadius: LuPanel.rowRadiusAll,
-                        border: Border.all(color: luTokens.accent.withValues(alpha: 0.5)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: luTokens.accent,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Text(
-                            _statusMessage,
-                            style: ZplayType.body
-                                .copyWith(weight: FontWeight.w600)
-                                .toStyle(color: tokens.textPrimary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // A failed feed has to say so. Previously the only status text
-                // lived inside the loading branch, so the message written on
-                // failure was never painted and the player just went dark.
-                if (!_isLoading && _feedError != null)
-                  Center(
-                    child: Container(
-                      margin: const EdgeInsets.all(ZplaySpacing.s24),
-                      padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24, vertical: ZplaySpacing.s20),
-                      decoration: BoxDecoration(
-                        color: tokens.bg.withValues(alpha: 0.9),
-                        borderRadius: LuPanel.rowRadiusAll,
-                        border: Border.all(color: tokens.danger.withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.tv_off_rounded,
-                            size: 40,
-                            color: tokens.danger,
-                          ),
-                          const SizedBox(height: ZplaySpacing.s12),
-                          Text(
-                            _feedError!,
-                            textAlign: TextAlign.center,
-                            style: ZplayType.body
-                                .copyWith(weight: FontWeight.w600)
-                                .toStyle(color: tokens.textPrimary),
-                          ),
-                          const SizedBox(height: ZplaySpacing.s16),
-                          FilledButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _retryCount = 0;
-                                _feedError = null;
-                                _isLoading = true;
-                                _statusMessage = l10nCurrent().tvReconnecting;
-                              });
-                              _lastPositionChange = DateTime.now();
-                              _initPlayer();
-                            },
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: Text(l10nCurrent().tv2TryAgain),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: tokens.accent,
-                              foregroundColor: tokens.onAccent,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Volume HUD Overlay (when changing volume)
-                if (_showVolumeHud)
-                  IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: tokens.surfaceOverlay.withValues(alpha: 0.90),
-                          borderRadius: LuPanel.rowRadiusAll,
-                          border: Border.all(color: luTokens.accent.withValues(alpha: 0.6), width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: luTokens.accent.withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.keyC) {
+              _cycleVideoFit();
+              _startHideControlsTimer();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+              if (_panelOpen) {
+                _closePanel();
+              } else if ((Platform.isWindows ||
+                      Platform.isLinux ||
+                      Platform.isMacOS) &&
+                  WindowService.instance.isFullscreen) {
+                WindowService.instance.exitFullscreen();
+              } else {
+                Navigator.pop(context);
+              }
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Scaffold(
+          backgroundColor: tokens.bg,
+          body: Theme(
+            data: luPanelTheme(),
+            child: Listener(
+              onPointerSignal: (pointerSignal) {
+                if (pointerSignal is PointerScrollEvent) {
+                  // Register on the resolver instead of acting here: a Scrollable under the pointer
+                  // claims the event first and scrolling it must not also change the volume.
+                  GestureBinding.instance.pointerSignalResolver.register(
+                    pointerSignal,
+                    (_) {
+                      if (pointerSignal.scrollDelta.dy < 0) {
+                        _adjustVolume(0.05); // Scroll up -> Volume up
+                      } else if (pointerSignal.scrollDelta.dy > 0) {
+                        _adjustVolume(-0.05); // Scroll down -> Volume down
+                      }
+                    },
+                  );
+                }
+              },
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _toggleControls,
+                onDoubleTap: () {
+                  if (Platform.isWindows ||
+                      Platform.isLinux ||
+                      Platform.isMacOS) {
+                    WindowService.instance.toggleFullscreen();
+                  }
+                },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Video Surface is ALWAYS mounted to prevent texture/surface detachment and black screens
+                    Center(
+                      child: SizedBox.expand(
+                        key: VideoPanelMetrics.panelKey,
+                        child: ValueListenableBuilder<int>(
+                          valueListenable: PlayerSettings.changeNotifier,
+                          builder: (context, _, __) {
+                            return Video(
+                              controller: _videoController,
+                              fit: _videoFit,
+                              controls: NoVideoControls,
+                              subtitleViewConfiguration:
+                                  PlayerSettings.getSubtitleViewConfiguration(),
+                            );
+                          },
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _isMuted || _volume == 0
-                                  ? Icons.volume_off_rounded
-                                  : (_volume < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
-                              color: _isMuted ? tokens.danger : tokens.info,
-                              size: 28,
+                      ),
+                    ),
+
+                    // Loading / Buffering Banner
+                    if (_isLoading)
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: ZplaySpacing.s24,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: tokens.bg.withValues(alpha: 0.75),
+                            borderRadius: LuPanel.rowRadiusAll,
+                            border: Border.all(
+                              color: luTokens.accent.withValues(alpha: 0.5),
                             ),
-                            const SizedBox(width: 14),
-                            SizedBox(
-                              width: 130,
-                              child: ClipRRect(
-                                borderRadius: ZplayRadius.xsAll,
-                                child: LinearProgressIndicator(
-                                  value: _isMuted ? 0.0 : _volume,
-                                  backgroundColor: tokens.textDisabled,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    _isMuted ? tokens.danger : luTokens.accent,
-                                  ),
-                                  minHeight: 7,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: luTokens.accent,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: ZplaySpacing.s12),
-                            Text(
-                              _isMuted ? l10nCurrent().tvMuted : '${(_volume * 100).toInt()}%',
-                              style: ZplayType.labelNumeric.toStyle(
-                                color: _isMuted ? tokens.danger : tokens.textPrimary,
+                              const SizedBox(width: 14),
+                              Text(
+                                _statusMessage,
+                                style: ZplayType.body
+                                    .copyWith(weight: FontWeight.w600)
+                                    .toStyle(color: tokens.textPrimary),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
 
-                // Aspect Ratio HUD Overlay (when changing aspect ratio)
-                if (_showAspectHud)
-                  IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: tokens.surfaceOverlay.withValues(alpha: 0.90),
-                          borderRadius: LuPanel.rowRadiusAll,
-                          border: Border.all(color: luTokens.accent.withValues(alpha: 0.6), width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: luTokens.accent.withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 4),
+                    // A failed feed has to say so. Previously the only status text
+                    // lived inside the loading branch, so the message written on
+                    // failure was never painted and the player just went dark.
+                    if (!_isLoading && _feedError != null)
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.all(ZplaySpacing.s24),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: ZplaySpacing.s24,
+                            vertical: ZplaySpacing.s20,
+                          ),
+                          decoration: BoxDecoration(
+                            color: tokens.bg.withValues(alpha: 0.9),
+                            borderRadius: LuPanel.rowRadiusAll,
+                            border: Border.all(
+                              color: tokens.danger.withValues(alpha: 0.5),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.aspect_ratio_rounded, color: tokens.info, size: 26),
-                            const SizedBox(width: ZplaySpacing.s12),
-                            Text(
-                              _aspectHudText,
-                              style: ZplayType.body
-                                  .copyWith(weight: FontWeight.w700, letterSpacing: 0.5)
-                                  .toStyle(color: tokens.textPrimary),
-                            ),
-                          ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.tv_off_rounded,
+                                size: 40,
+                                color: tokens.danger,
+                              ),
+                              const SizedBox(height: ZplaySpacing.s12),
+                              Text(
+                                _feedError!,
+                                textAlign: TextAlign.center,
+                                style: ZplayType.body
+                                    .copyWith(weight: FontWeight.w600)
+                                    .toStyle(color: tokens.textPrimary),
+                              ),
+                              const SizedBox(height: ZplaySpacing.s16),
+                              FilledButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _retryCount = 0;
+                                    _feedError = null;
+                                    _isLoading = true;
+                                    _statusMessage =
+                                        l10nCurrent().tvReconnecting;
+                                  });
+                                  _lastPositionChange = DateTime.now();
+                                  _initPlayer();
+                                },
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: Text(l10nCurrent().tv2TryAgain),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: tokens.accent,
+                                  foregroundColor: tokens.onAccent,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
 
-                // Controls Overlay
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: _showControls ? 1.0 : 0.0,
-                  child: IgnorePointer(
-                    ignoring: !_showControls,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Top Bar
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
+                    // Volume HUD Overlay (when changing volume)
+                    if (_showVolumeHud)
+                      IgnorePointer(
+                        child: Center(
                           child: Container(
-                            padding: const EdgeInsets.fromLTRB(ZplaySpacing.s16, ZplaySpacing.s16, ZplaySpacing.s16, ZplaySpacing.s24),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
+                            ),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [tokens.bg.withValues(alpha: 0.80), Colors.transparent],
+                              color: tokens.surfaceOverlay.withValues(
+                                alpha: 0.90,
                               ),
+                              borderRadius: LuPanel.rowRadiusAll,
+                              border: Border.all(
+                                color: luTokens.accent.withValues(alpha: 0.6),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: luTokens.accent.withValues(alpha: 0.3),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  icon: Icon(Icons.arrow_back_rounded, color: tokens.textPrimary, size: 24),
-                                  onPressed: () => Navigator.pop(context),
+                                Icon(
+                                  _isMuted || _volume == 0
+                                      ? Icons.volume_off_rounded
+                                      : (_volume < 0.5
+                                            ? Icons.volume_down_rounded
+                                            : Icons.volume_up_rounded),
+                                  color: _isMuted ? tokens.danger : tokens.info,
+                                  size: 28,
                                 ),
-                                const SizedBox(width: ZplaySpacing.s8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: ZplaySpacing.s2),
-                                            decoration: BoxDecoration(
-                                              color: isLive ? tokens.danger : luTokens.accent,
-                                              borderRadius: ZplayRadius.xsAll,
-                                            ),
-                                            child: Text(
-                                              isLive
-                                                  ? l10nCurrent().tvPlayerLive
-                                                  : (ch.category.isNotEmpty ? ch.category.toUpperCase() : l10nCurrent().tvPlayerVod),
-                                              style: ZplayType.overline
-                                                  .copyWith(weight: FontWeight.w700)
-                                                  .toStyle(color: tokens.textPrimary),
-                                            ),
-                                          ),
-                                          const SizedBox(width: ZplaySpacing.s8),
-                                          Expanded(
-                                            child: Text(
-                                              currentTitle,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: ZplayType.title
-                                                  .copyWith(weight: FontWeight.w700)
-                                                  .toStyle(color: tokens.textPrimary),
-                                            ),
-                                          ),
-                                        ],
+                                const SizedBox(width: 14),
+                                SizedBox(
+                                  width: 130,
+                                  child: ClipRRect(
+                                    borderRadius: ZplayRadius.xsAll,
+                                    child: LinearProgressIndicator(
+                                      value: _isMuted ? 0.0 : _volume,
+                                      backgroundColor: tokens.textDisabled,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        _isMuted
+                                            ? tokens.danger
+                                            : luTokens.accent,
                                       ),
-                                      if (currentHit != null) ...[
-                                        const SizedBox(height: ZplaySpacing.s2),
-                                        Text(
-                                          isCategoryList
-                                              ? l10nCurrent().tv2ChannelPosition(_activeHitIndex + 1, _hits.length, currentHit.portal.name)
-                                              : l10nCurrent().tv2SourcePosition(_activeHitIndex + 1, _hits.length, currentHit.portal.name),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: ZplayType.bodySmall.toStyle(color: tokens.textEmphasis),
-                                        ),
-                                      ],
-                                    ],
+                                      minHeight: 7,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: ZplaySpacing.s12),
-                                // Category Channels / Sources Drawer Toggle
-                                if (_hits.length > 1)
-                                  IconButton(
-                                    icon: Icon(
-                                      isCategoryList ? Icons.format_list_bulleted_rounded : Icons.video_library_rounded,
-                                      color: tokens.textPrimary,
-                                    ),
-                                    tooltip: isCategoryList
-                                        ? (widget.categoryTitle ?? l10nCurrent().tvCategoryChannels)
-                                        : l10nCurrent().tvAlternativeFeeds,
-                                    onPressed: _openSourcesDrawer,
+                                Text(
+                                  _isMuted
+                                      ? l10nCurrent().tvMuted
+                                      : '${(_volume * 100).toInt()}%',
+                                  style: ZplayType.labelNumeric.toStyle(
+                                    color: _isMuted
+                                        ? tokens.danger
+                                        : tokens.textPrimary,
                                   ),
-                                if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
-                                  const SizedBox(width: ZplaySpacing.s4),
-                                  ValueListenableBuilder<bool>(
-                                    valueListenable: WindowService.instance.isFullscreenNotifier,
-                                    builder: (context, isFullscreen, _) {
-                                      return IconButton(
-                                        icon: Icon(
-                                          isFullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
-                                          color: tokens.textPrimary,
-                                          size: 24,
-                                        ),
-                                        tooltip: isFullscreen ? l10nCurrent().tvExitFullscreenF11 : l10nCurrent().tvFullscreenF11,
-                                        onPressed: () => WindowService.instance.toggleFullscreen(),
-                                      );
-                                    },
-                                  ),
-                                ],
+                                ),
                               ],
                             ),
                           ),
                         ),
+                      ),
 
-                        // Bottom Bar
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
+                    // Aspect Ratio HUD Overlay (when changing aspect ratio)
+                    if (_showAspectHud)
+                      IgnorePointer(
+                        child: Center(
                           child: Container(
-                            padding: const EdgeInsets.fromLTRB(ZplaySpacing.s20, ZplaySpacing.s20, ZplaySpacing.s20, ZplaySpacing.s16),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [tokens.bg.withValues(alpha: 0.80), Colors.transparent],
-                              ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
                             ),
-                            child: Column(
+                            decoration: BoxDecoration(
+                              color: tokens.surfaceOverlay.withValues(
+                                alpha: 0.90,
+                              ),
+                              borderRadius: LuPanel.rowRadiusAll,
+                              border: Border.all(
+                                color: luTokens.accent.withValues(alpha: 0.6),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: luTokens.accent.withValues(alpha: 0.3),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // ── SEEKBAR (ONLY FOR MOVIES & SHOWS / VOD) ──
-                                if (!isLive) ...[
-                                  _IptvCustomProgressBar(
-                                    player: _player,
-                                    positionNotifier: _positionNotifier,
-                                    duration: _duration,
-                                    bufferedNotifier: _bufferedNotifier,
-                                    onSeekStart: () => _hideControlsTimer?.cancel(),
-                                    onSeekEnd: () => _startHideControlsTimer(),
-                                  ),
-                                  const SizedBox(height: 6),
-                                ],
+                                Icon(
+                                  Icons.aspect_ratio_rounded,
+                                  color: tokens.info,
+                                  size: 26,
+                                ),
+                                const SizedBox(width: ZplaySpacing.s12),
+                                Text(
+                                  _aspectHudText,
+                                  style: ZplayType.body
+                                      .copyWith(
+                                        weight: FontWeight.w700,
+                                        letterSpacing: 0.5,
+                                      )
+                                      .toStyle(color: tokens.textPrimary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
 
-                                // Controls Buttons Row
-                                Row(
+                    // Controls Overlay
+                    AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _showControls ? 1.0 : 0.0,
+                      child: IgnorePointer(
+                        ignoring: !_showControls,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Top Bar
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(
+                                  ZplaySpacing.s16,
+                                  ZplaySpacing.s16,
+                                  ZplaySpacing.s16,
+                                  ZplaySpacing.s24,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      tokens.bg.withValues(alpha: 0.80),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                                child: Row(
                                   children: [
-                                    // Play / Pause
                                     IconButton(
                                       icon: Icon(
-                                        _isPlaying
-                                            ? Icons.pause_rounded
-                                            : Icons.play_arrow_rounded,
+                                        Icons.arrow_back_rounded,
                                         color: tokens.textPrimary,
-                                        size: 30,
+                                        size: 24,
                                       ),
-                                      onPressed: _togglePlayPause,
+                                      onPressed: () => Navigator.pop(context),
                                     ),
-
-                                    if (!isLive) ...[
-                                      const SizedBox(width: ZplaySpacing.s4),
-                                      // Replay -10s
-                                      IconButton(
-                                        icon: Icon(Icons.replay_10_rounded, color: tokens.textPrimary, size: 24),
-                                        tooltip: l10nCurrent().tvSeekBack10,
-                                        onPressed: () => _seekRelative(-10),
-                                      ),
-                                      // Forward +10s
-                                      IconButton(
-                                        icon: Icon(Icons.forward_10_rounded, color: tokens.textPrimary, size: 24),
-                                        tooltip: l10nCurrent().tvSeekForward10,
-                                        onPressed: () => _seekRelative(10),
-                                      ),
-                                      const SizedBox(width: ZplaySpacing.s8),
-                                      // Position / Duration Readout
-                                      ValueListenableBuilder<Duration>(
-                                        valueListenable: _positionNotifier,
-                                        builder: (context, pos, _) {
-                                          return Text(
-                                            '${_formatDuration(pos)} / ${_formatDuration(_duration)}',
-                                            style: ZplayType.labelNumeric.toStyle(color: tokens.textEmphasis),
-                                          );
-                                        },
-                                      ),
-                                    ],
-
                                     const SizedBox(width: ZplaySpacing.s8),
-
-                                    // ── INTERACTIVE VOLUME SLIDER & MUTE TOGGLE ──
-                                    // The shared control rather than a local
-                                    // Slider: this one capped at 100% while the
-                                    // mainline player amplifies to 250%, so the
-                                    // same saved volume behaved differently
-                                    // between the two players.
-                                    PlayerVolumeControl(
-                                      volume: _isMuted ? 0.0 : _volume,
-                                      isMuted: _isMuted,
-                                      onVolumeChanged: (val) {
-                                        setState(() {
-                                          _volume = val;
-                                          _isMuted = val == 0.0;
-                                          _player.setVolume(_isMuted ? 0.0 : val * 100.0);
-                                          _showVolumeHud = true;
-                                        });
-                                        _volumeHudTimer?.cancel();
-                                        _volumeHudTimer =
-                                            Timer(const Duration(milliseconds: 1600), () {
-                                          if (mounted) {
-                                            setState(() => _showVolumeHud = false);
-                                          }
-                                        });
-                                        _hideControlsTimer?.cancel();
-                                      },
-                                      onToggleMute: _toggleMute,
-                                    ),
-
-                                    const Spacer(),
-
-                                    // Aspect Ratio Selector / Popover Button
-                                    Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            _showAspectMenu = !_showAspectMenu;
-                                            _showSourcesDrawer = false;
-                                          });
-                                          if (_showAspectMenu) {
-                                            _hideControlsTimer?.cancel();
-                                          } else {
-                                            _startHideControlsTimer();
-                                          }
-                                        },
-                                        borderRadius: LuRadius.field,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s8, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: _showAspectMenu
-                                                ? luTokens.accent.withValues(alpha: 0.3)
-                                                : tokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong),
-                                            borderRadius: LuRadius.field,
-                                            border: Border.all(
-                                              color: _showAspectMenu
-                                                  ? luTokens.accent.withValues(alpha: 0.6)
-                                                  : tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
-                                              width: 1,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
                                             children: [
-                                              Icon(Icons.aspect_ratio_rounded, color: tokens.textPrimary, size: 16),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                _videoFit == BoxFit.contain
-                                                    ? l10nCurrent().tvFitShort
-                                                    : (_videoFit == BoxFit.cover ? l10nCurrent().tvZoomShort : l10nCurrent().tvStretchShort),
-                                                style: ZplayType.caption
-                                                    .copyWith(weight: FontWeight.w700, letterSpacing: 0.4)
-                                                    .toStyle(color: tokens.textPrimary),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: ZplaySpacing.s2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isLive
+                                                      ? tokens.danger
+                                                      : luTokens.accent,
+                                                  borderRadius:
+                                                      ZplayRadius.xsAll,
+                                                ),
+                                                child: Text(
+                                                  isLive
+                                                      ? l10nCurrent()
+                                                            .tvPlayerLive
+                                                      : (ch.category.isNotEmpty
+                                                            ? ch.category
+                                                                  .toUpperCase()
+                                                            : l10nCurrent()
+                                                                  .tvPlayerVod),
+                                                  style: ZplayType.overline
+                                                      .copyWith(
+                                                        weight: FontWeight.w700,
+                                                      )
+                                                      .toStyle(
+                                                        color:
+                                                            tokens.textPrimary,
+                                                      ),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                width: ZplaySpacing.s8,
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  currentTitle,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: ZplayType.title
+                                                      .copyWith(
+                                                        weight: FontWeight.w700,
+                                                      )
+                                                      .toStyle(
+                                                        color:
+                                                            tokens.textPrimary,
+                                                      ),
+                                                ),
                                               ),
                                             ],
                                           ),
-                                        ),
+                                          if (currentHit != null) ...[
+                                            const SizedBox(
+                                              height: ZplaySpacing.s2,
+                                            ),
+                                            Text(
+                                              isCategoryList
+                                                  ? l10nCurrent()
+                                                        .tv2ChannelPosition(
+                                                          _activeHitIndex + 1,
+                                                          _hits.length,
+                                                          currentHit
+                                                              .portal
+                                                              .name,
+                                                        )
+                                                  : l10nCurrent()
+                                                        .tv2SourcePosition(
+                                                          _activeHitIndex + 1,
+                                                          _hits.length,
+                                                          currentHit
+                                                              .portal
+                                                              .name,
+                                                        ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: ZplayType.bodySmall
+                                                  .toStyle(
+                                                    color: tokens.textEmphasis,
+                                                  ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
-
-                                    // Fullscreen toggle on desktop
-                                    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
-                                      const SizedBox(width: ZplaySpacing.s8),
+                                    const SizedBox(width: ZplaySpacing.s12),
+                                    // Category Channels / Sources Drawer Toggle
+                                    if (_hits.length > 1)
+                                      IconButton(
+                                        icon: Icon(
+                                          isCategoryList
+                                              ? Icons
+                                                    .format_list_bulleted_rounded
+                                              : Icons.video_library_rounded,
+                                          color: tokens.textPrimary,
+                                        ),
+                                        tooltip: isCategoryList
+                                            ? (widget.categoryTitle ??
+                                                  l10nCurrent()
+                                                      .tvCategoryChannels)
+                                            : l10nCurrent().tvAlternativeFeeds,
+                                        onPressed: _openSourcesDrawer,
+                                      ),
+                                    if (Platform.isWindows ||
+                                        Platform.isLinux ||
+                                        Platform.isMacOS) ...[
+                                      const SizedBox(width: ZplaySpacing.s4),
                                       ValueListenableBuilder<bool>(
-                                        valueListenable: WindowService.instance.isFullscreenNotifier,
+                                        valueListenable: WindowService
+                                            .instance
+                                            .isFullscreenNotifier,
                                         builder: (context, isFullscreen, _) {
                                           return IconButton(
                                             icon: Icon(
-                                              isFullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                                              isFullscreen
+                                                  ? Icons
+                                                        .fullscreen_exit_rounded
+                                                  : Icons.fullscreen_rounded,
                                               color: tokens.textPrimary,
                                               size: 24,
                                             ),
-                                            tooltip: isFullscreen ? l10nCurrent().tvExitFullscreenF11 : l10nCurrent().tvFullscreenF11,
-                                            onPressed: () => WindowService.instance.toggleFullscreen(),
+                                            tooltip: isFullscreen
+                                                ? l10nCurrent()
+                                                      .tvExitFullscreenF11
+                                                : l10nCurrent().tvFullscreenF11,
+                                            onPressed: () => WindowService
+                                                .instance
+                                                .toggleFullscreen(),
                                           );
                                         },
                                       ),
                                     ],
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
-                // Floating Aspect Ratio Popover
-                if (_showAspectMenu)
-                  Positioned(
-                    bottom: 74,
-                    right: 20,
-                    child: PlayerAspectMenu(
-                      currentFit: _videoFit,
-                      subtitleScale: PlayerSettings.subScale.value,
-                      onFitSelected: (fit) => _setVideoFit(fit),
-                      onSubtitleScaleChanged: (scale) {
-                        PlayerSettings.setSubScale(scale, player: _player);
-                      },
-                      onClose: () => setState(() => _showAspectMenu = false),
-                    ),
-                  ),
-
-                // Channels / Feeds Side Drawer
-                if (_showSourcesDrawer)
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    right: 0,
-                    width: 360,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: tokens.bg.withValues(alpha: 0.95),
-                        border: Border(left: BorderSide(color: tokens.surfaceOverlay, width: 1.2)),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black87, blurRadius: 24, offset: Offset(-6, 0)),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s16, vertical: 18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                isCategoryList ? Icons.format_list_bulleted_rounded : Icons.tune_rounded,
-                                color: luTokens.accent,
-                                size: 20,
-                              ),
-                              const SizedBox(width: ZplaySpacing.s8),
-                              Expanded(
-                                child: Text(
-                                  widget.categoryTitle ?? (isCategoryList ? l10nCurrent().tvCategoryChannels : l10nCurrent().tvStreamFeeds),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: ZplayType.title
-                                      .copyWith(weight: FontWeight.w700)
-                                      .toStyle(color: tokens.textPrimary),
+                            // Bottom Bar
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(
+                                  ZplaySpacing.s20,
+                                  ZplaySpacing.s20,
+                                  ZplaySpacing.s20,
+                                  ZplaySpacing.s16,
                                 ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: ZplaySpacing.s2),
                                 decoration: BoxDecoration(
-                                  color: luTokens.accent.withValues(alpha: 0.2),
-                                  borderRadius: LuRadius.field,
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      tokens.bg.withValues(alpha: 0.80),
+                                      Colors.transparent,
+                                    ],
+                                  ),
                                 ),
-                                child: Text(
-                                  '${_hits.length}',
-                                  style: ZplayType.caption
-                                      .copyWith(weight: FontWeight.w700)
-                                      .toStyle(color: tokens.accent),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // ── SEEKBAR (ONLY FOR MOVIES & SHOWS / VOD) ──
+                                    if (!isLive) ...[
+                                      _IptvCustomProgressBar(
+                                        player: _player,
+                                        positionNotifier: _positionNotifier,
+                                        duration: _duration,
+                                        bufferedNotifier: _bufferedNotifier,
+                                        onSeekStart: () =>
+                                            _hideControlsTimer?.cancel(),
+                                        onSeekEnd: () =>
+                                            _startHideControlsTimer(),
+                                      ),
+                                      const SizedBox(height: 6),
+                                    ],
+
+                                    // Controls Buttons Row
+                                    Row(
+                                      children: [
+                                        // Play / Pause
+                                        IconButton(
+                                          icon: Icon(
+                                            _isPlaying
+                                                ? Icons.pause_rounded
+                                                : Icons.play_arrow_rounded,
+                                            color: tokens.textPrimary,
+                                            size: 30,
+                                          ),
+                                          onPressed: _togglePlayPause,
+                                        ),
+
+                                        if (!isLive) ...[
+                                          const SizedBox(
+                                            width: ZplaySpacing.s4,
+                                          ),
+                                          // Replay -10s
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.replay_10_rounded,
+                                              color: tokens.textPrimary,
+                                              size: 24,
+                                            ),
+                                            tooltip: l10nCurrent().tvSeekBack10,
+                                            onPressed: () => _seekRelative(-10),
+                                          ),
+                                          // Forward +10s
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.forward_10_rounded,
+                                              color: tokens.textPrimary,
+                                              size: 24,
+                                            ),
+                                            tooltip:
+                                                l10nCurrent().tvSeekForward10,
+                                            onPressed: () => _seekRelative(10),
+                                          ),
+                                          const SizedBox(
+                                            width: ZplaySpacing.s8,
+                                          ),
+                                          // Position / Duration Readout
+                                          ValueListenableBuilder<Duration>(
+                                            valueListenable: _positionNotifier,
+                                            builder: (context, pos, _) {
+                                              return Text(
+                                                '${_formatDuration(pos)} / ${_formatDuration(_duration)}',
+                                                style: ZplayType.labelNumeric
+                                                    .toStyle(
+                                                      color:
+                                                          tokens.textEmphasis,
+                                                    ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+
+                                        const SizedBox(width: ZplaySpacing.s8),
+
+                                        // ── INTERACTIVE VOLUME SLIDER & MUTE TOGGLE ──
+                                        // The shared control rather than a local
+                                        // Slider: this one capped at 100% while the
+                                        // mainline player amplifies to 250%, so the
+                                        // same saved volume behaved differently
+                                        // between the two players.
+                                        PlayerVolumeControl(
+                                          volume: _isMuted ? 0.0 : _volume,
+                                          isMuted: _isMuted,
+                                          onVolumeChanged: (val) {
+                                            setState(() {
+                                              _volume = val;
+                                              _isMuted = val == 0.0;
+                                              _player.setVolume(
+                                                _isMuted ? 0.0 : val * 100.0,
+                                              );
+                                              _showVolumeHud = true;
+                                            });
+                                            _volumeHudTimer?.cancel();
+                                            _volumeHudTimer = Timer(
+                                              const Duration(
+                                                milliseconds: 1600,
+                                              ),
+                                              () {
+                                                if (mounted) {
+                                                  setState(
+                                                    () =>
+                                                        _showVolumeHud = false,
+                                                  );
+                                                }
+                                              },
+                                            );
+                                            _hideControlsTimer?.cancel();
+                                          },
+                                          onToggleMute: _toggleMute,
+                                        ),
+
+                                        const Spacer(),
+
+                                        // Aspect Ratio Selector / Popover Button
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                _showAspectMenu =
+                                                    !_showAspectMenu;
+                                                _showSourcesDrawer = false;
+                                              });
+                                              if (_showAspectMenu) {
+                                                _hideControlsTimer?.cancel();
+                                              } else {
+                                                _startHideControlsTimer();
+                                              }
+                                            },
+                                            borderRadius: LuRadius.field,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: ZplaySpacing.s8,
+                                                    vertical: 5,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: _showAspectMenu
+                                                    ? luTokens.accent
+                                                          .withValues(
+                                                            alpha: 0.3,
+                                                          )
+                                                    : tokens.textPrimary
+                                                          .withValues(
+                                                            alpha: ZplayOpacity
+                                                                .borderStrong,
+                                                          ),
+                                                borderRadius: LuRadius.field,
+                                                border: Border.all(
+                                                  color: _showAspectMenu
+                                                      ? luTokens.accent
+                                                            .withValues(
+                                                              alpha: 0.6,
+                                                            )
+                                                      : tokens.textPrimary
+                                                            .withValues(
+                                                              alpha: ZplayOpacity
+                                                                  .overlayHover,
+                                                            ),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.aspect_ratio_rounded,
+                                                    color: tokens.textPrimary,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    _videoFit == BoxFit.contain
+                                                        ? l10nCurrent()
+                                                              .tvFitShort
+                                                        : (_videoFit ==
+                                                                  BoxFit.cover
+                                                              ? l10nCurrent()
+                                                                    .tvZoomShort
+                                                              : l10nCurrent()
+                                                                    .tvStretchShort),
+                                                    style: ZplayType.caption
+                                                        .copyWith(
+                                                          weight:
+                                                              FontWeight.w700,
+                                                          letterSpacing: 0.4,
+                                                        )
+                                                        .toStyle(
+                                                          color: tokens
+                                                              .textPrimary,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+
+                                        // Fullscreen toggle on desktop
+                                        if (Platform.isWindows ||
+                                            Platform.isLinux ||
+                                            Platform.isMacOS) ...[
+                                          const SizedBox(
+                                            width: ZplaySpacing.s8,
+                                          ),
+                                          ValueListenableBuilder<bool>(
+                                            valueListenable: WindowService
+                                                .instance
+                                                .isFullscreenNotifier,
+                                            builder: (context, isFullscreen, _) {
+                                              return IconButton(
+                                                icon: Icon(
+                                                  isFullscreen
+                                                      ? Icons
+                                                            .fullscreen_exit_rounded
+                                                      : Icons
+                                                            .fullscreen_rounded,
+                                                  color: tokens.textPrimary,
+                                                  size: 24,
+                                                ),
+                                                tooltip: isFullscreen
+                                                    ? l10nCurrent()
+                                                          .tvExitFullscreenF11
+                                                    : l10nCurrent()
+                                                          .tvFullscreenF11,
+                                                onPressed: () => WindowService
+                                                    .instance
+                                                    .toggleFullscreen(),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              IconButton(
-                                icon: Icon(Icons.close_rounded, color: tokens.textMuted, size: 20),
-                                onPressed: () => setState(() => _showSourcesDrawer = false),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Floating Aspect Ratio Popover
+                    if (_showAspectMenu)
+                      Positioned(
+                        bottom: 74,
+                        right: 20,
+                        child: PlayerAspectMenu(
+                          currentFit: _videoFit,
+                          subtitleScale: PlayerSettings.subScale.value,
+                          onFitSelected: (fit) => _setVideoFit(fit),
+                          onSubtitleScaleChanged: (scale) {
+                            PlayerSettings.setSubScale(scale, player: _player);
+                          },
+                          onClose: () =>
+                              setState(() => _showAspectMenu = false),
+                        ),
+                      ),
+
+                    // Channels / Feeds Side Drawer
+                    if (_showSourcesDrawer)
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                        width: 360,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: tokens.bg.withValues(alpha: 0.95),
+                            border: Border(
+                              left: BorderSide(
+                                color: tokens.surfaceOverlay,
+                                width: 1.2,
+                              ),
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black87,
+                                blurRadius: 24,
+                                offset: Offset(-6, 0),
                               ),
                             ],
                           ),
-                          const SizedBox(height: ZplaySpacing.s12),
-                          Expanded(
-                            child: ListView.separated(
-                              controller: _sourcesScrollController,
-                              itemCount: _hits.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: 6),
-                              itemBuilder: (context, index) {
-                                final hit = _hits[index];
-                                final isSelected = index == _activeHitIndex;
-                                final numFormatted = (index + 1).toString().padLeft(3, '0');
-
-                                return FocusableCard(
-                                  onTap: () => _switchSource(index),
-                                  builder: (context, state) => CardFocusRing(
-                                    focused: state.focused,
-                                    radius: LuRadius.field,
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 120),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: ZplaySpacing.s8),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? luTokens.accent.withValues(alpha: 0.25)
-                                            : tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
-                                        borderRadius: LuRadius.field,
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? luTokens.accent
-                                              : tokens.borderDefault,
-                                          width: isSelected ? 1.4 : 1.0,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          // Number
-                                          SizedBox(
-                                            width: 28,
-                                            child: Text(
-                                              numFormatted,
-                                              style: ZplayType.caption
-                                                  .copyWith(weight: FontWeight.w700)
-                                                  .toStyle(
-                                                    color: isSelected ? tokens.info : tokens.textDisabled,
-                                                  ),
-                                            ),
-                                          ),
-
-                                          const SizedBox(width: 6),
-
-                                          // Icon / Logo
-                                          Container(
-                                            width: 38,
-                                            height: 28,
-                                            decoration: BoxDecoration(
-                                              color: tokens.bg,
-                                              borderRadius: ZplayRadius.xsAll,
-                                              border: Border.all(color: tokens.surfaceOverlay),
-                                            ),
-                                            child: hit.stream.icon.isNotEmpty
-                                                ? ClipRRect(
-                                                    borderRadius: ZplayRadius.xsAll,
-                                                    child: CachedNetworkImage(
-                                                      imageUrl: hit.stream.icon,
-                                                      cacheManager: AppImageCache.manager,
-                                                      fit: BoxFit.contain,
-                                                      memCacheWidth: 64,
-                                                      errorWidget: (_, _, _) => Icon(
-                                                        isLive ? Icons.live_tv_rounded : Icons.movie_rounded,
-                                                        color: tokens.textMuted,
-                                                        size: 16,
-                                                      )),
-                                                  )
-                                                : Icon(
-                                                    isLive ? Icons.live_tv_rounded : Icons.movie_rounded,
-                                                    color: tokens.textMuted,
-                                                    size: 16,
-                                                  ),
-                                          ),
-
-                                          const SizedBox(width: 10),
-
-                                          // Channel Title
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  hit.stream.name,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: ZplayType.label
-                                                      .copyWith(
-                                                        weight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                                      )
-                                                      .toStyle(
-                                                        color: isSelected ? tokens.textPrimary : tokens.textEmphasis,
-                                                      ),
-                                                ),
-                                                const SizedBox(height: ZplaySpacing.s2),
-                                                Text(
-                                                  hit.portal.portal.username.isNotEmpty
-                                                      ? hit.portal.portal.username
-                                                      : hit.portal.name,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: ZplayType.caption
-                                                      .copyWith(weight: FontWeight.w600)
-                                                      .toStyle(color: tokens.textMuted),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-
-                                          if (isSelected) ...[
-                                            const SizedBox(width: 6),
-                                            Container(
-                                              padding: const EdgeInsets.all(ZplaySpacing.s4),
-                                              decoration: BoxDecoration(
-                                                color: luTokens.accent.withValues(alpha: 0.3),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Icon(
-                                                Icons.play_arrow_rounded,
-                                                color: tokens.info,
-                                                size: 16,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: ZplaySpacing.s16,
+                            vertical: 18,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    isCategoryList
+                                        ? Icons.format_list_bulleted_rounded
+                                        : Icons.tune_rounded,
+                                    color: luTokens.accent,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: ZplaySpacing.s8),
+                                  Expanded(
+                                    child: Text(
+                                      widget.categoryTitle ??
+                                          (isCategoryList
+                                              ? l10nCurrent().tvCategoryChannels
+                                              : l10nCurrent().tvStreamFeeds),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: ZplayType.title
+                                          .copyWith(weight: FontWeight.w700)
+                                          .toStyle(color: tokens.textPrimary),
                                     ),
                                   ),
-                                );
-                              },
-                            ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: ZplaySpacing.s2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: luTokens.accent.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      borderRadius: LuRadius.field,
+                                    ),
+                                    child: Text(
+                                      '${_hits.length}',
+                                      style: ZplayType.caption
+                                          .copyWith(weight: FontWeight.w700)
+                                          .toStyle(color: tokens.accent),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.close_rounded,
+                                      color: tokens.textMuted,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(
+                                      () => _showSourcesDrawer = false,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: ZplaySpacing.s12),
+                              Expanded(
+                                child: ListView.separated(
+                                  controller: _sourcesScrollController,
+                                  itemCount: _hits.length,
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: 6),
+                                  itemBuilder: (context, index) {
+                                    final hit = _hits[index];
+                                    final isSelected = index == _activeHitIndex;
+                                    final numFormatted = (index + 1)
+                                        .toString()
+                                        .padLeft(3, '0');
+
+                                    return FocusableCard(
+                                      onTap: () => _switchSource(index),
+                                      builder: (context, state) => CardFocusRing(
+                                        focused: state.focused,
+                                        radius: LuRadius.field,
+                                        child: AnimatedContainer(
+                                          duration: const Duration(
+                                            milliseconds: 120,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: ZplaySpacing.s8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? luTokens.accent.withValues(
+                                                    alpha: 0.25,
+                                                  )
+                                                : tokens.textPrimary.withValues(
+                                                    alpha: ZplayOpacity
+                                                        .borderFaint,
+                                                  ),
+                                            borderRadius: LuRadius.field,
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? luTokens.accent
+                                                  : tokens.borderDefault,
+                                              width: isSelected ? 1.4 : 1.0,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              // Number
+                                              SizedBox(
+                                                width: 28,
+                                                child: Text(
+                                                  numFormatted,
+                                                  style: ZplayType.caption
+                                                      .copyWith(
+                                                        weight: FontWeight.w700,
+                                                      )
+                                                      .toStyle(
+                                                        color: isSelected
+                                                            ? tokens.info
+                                                            : tokens
+                                                                  .textDisabled,
+                                                      ),
+                                                ),
+                                              ),
+
+                                              const SizedBox(width: 6),
+
+                                              // Icon / Logo
+                                              Container(
+                                                width: 38,
+                                                height: 28,
+                                                decoration: BoxDecoration(
+                                                  color: tokens.bg,
+                                                  borderRadius:
+                                                      ZplayRadius.xsAll,
+                                                  border: Border.all(
+                                                    color:
+                                                        tokens.surfaceOverlay,
+                                                  ),
+                                                ),
+                                                child:
+                                                    hit.stream.icon.isNotEmpty
+                                                    ? ClipRRect(
+                                                        borderRadius:
+                                                            ZplayRadius.xsAll,
+                                                        child: CachedNetworkImage(
+                                                          imageUrl:
+                                                              hit.stream.icon,
+                                                          cacheManager:
+                                                              AppImageCache
+                                                                  .manager,
+                                                          fit: BoxFit.contain,
+                                                          memCacheWidth: 64,
+                                                          errorWidget:
+                                                              (_, _, _) => Icon(
+                                                                isLive
+                                                                    ? Icons
+                                                                          .live_tv_rounded
+                                                                    : Icons
+                                                                          .movie_rounded,
+                                                                color: tokens
+                                                                    .textMuted,
+                                                                size: 16,
+                                                              ),
+                                                        ),
+                                                      )
+                                                    : Icon(
+                                                        isLive
+                                                            ? Icons
+                                                                  .live_tv_rounded
+                                                            : Icons
+                                                                  .movie_rounded,
+                                                        color: tokens.textMuted,
+                                                        size: 16,
+                                                      ),
+                                              ),
+
+                                              const SizedBox(width: 10),
+
+                                              // Channel Title
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      hit.stream.name,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: ZplayType.label
+                                                          .copyWith(
+                                                            weight: isSelected
+                                                                ? FontWeight
+                                                                      .w700
+                                                                : FontWeight
+                                                                      .w600,
+                                                          )
+                                                          .toStyle(
+                                                            color: isSelected
+                                                                ? tokens
+                                                                      .textPrimary
+                                                                : tokens
+                                                                      .textEmphasis,
+                                                          ),
+                                                    ),
+                                                    const SizedBox(
+                                                      height: ZplaySpacing.s2,
+                                                    ),
+                                                    Text(
+                                                      hit
+                                                              .portal
+                                                              .portal
+                                                              .username
+                                                              .isNotEmpty
+                                                          ? hit
+                                                                .portal
+                                                                .portal
+                                                                .username
+                                                          : hit.portal.name,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: ZplayType.caption
+                                                          .copyWith(
+                                                            weight:
+                                                                FontWeight.w600,
+                                                          )
+                                                          .toStyle(
+                                                            color: tokens
+                                                                .textMuted,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              if (isSelected) ...[
+                                                const SizedBox(width: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    ZplaySpacing.s4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: luTokens.accent
+                                                        .withValues(alpha: 0.3),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.play_arrow_rounded,
+                                                    color: tokens.info,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-    ),
-      ),
       ),
     );
   }
@@ -1478,7 +1812,9 @@ class _IptvCustomProgressBarState extends State<_IptvCustomProgressBar> {
     return ValueListenableBuilder<Duration>(
       valueListenable: widget.positionNotifier,
       builder: (context, livePosition, _) {
-        final position = _isDragging ? (_dragPosition ?? livePosition) : livePosition;
+        final position = _isDragging
+            ? (_dragPosition ?? livePosition)
+            : livePosition;
 
         return ValueListenableBuilder<Duration?>(
           valueListenable: widget.bufferedNotifier,
@@ -1533,7 +1869,9 @@ class _IptvCustomProgressBarState extends State<_IptvCustomProgressBar> {
                       _seekTo(details.localPosition.dx, width, duration);
                     },
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s8),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: ZplaySpacing.s8,
+                      ),
                       child: Stack(
                         clipBehavior: Clip.none,
                         alignment: Alignment.centerLeft,
@@ -1556,12 +1894,17 @@ class _IptvCustomProgressBarState extends State<_IptvCustomProgressBar> {
                           ),
 
                           // Buffered Bar
-                          if (bufferedDuration != null && duration.inMilliseconds > 0)
+                          if (bufferedDuration != null &&
+                              duration.inMilliseconds > 0)
                             Positioned(
                               left: 0,
                               child: Container(
                                 height: 5,
-                                width: (width * (bufferedDuration.inMilliseconds / duration.inMilliseconds)).clamp(0.0, width),
+                                width:
+                                    (width *
+                                            (bufferedDuration.inMilliseconds /
+                                                duration.inMilliseconds))
+                                        .clamp(0.0, width),
                                 decoration: BoxDecoration(
                                   color: tokens.textMuted,
                                   borderRadius: ZplayRadius.xsAll,
@@ -1573,7 +1916,10 @@ class _IptvCustomProgressBarState extends State<_IptvCustomProgressBar> {
                           Container(
                             height: 5,
                             width: duration.inMilliseconds > 0
-                                ? (width * (position.inMilliseconds / duration.inMilliseconds)).clamp(0.0, width)
+                                ? (width *
+                                          (position.inMilliseconds /
+                                              duration.inMilliseconds))
+                                      .clamp(0.0, width)
                                 : 0,
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -1586,7 +1932,11 @@ class _IptvCustomProgressBarState extends State<_IptvCustomProgressBar> {
                           // Scrubber Handle
                           Positioned(
                             left: duration.inMilliseconds > 0
-                                ? (width * (position.inMilliseconds / duration.inMilliseconds)).clamp(0.0, width) - 7
+                                ? (width *
+                                              (position.inMilliseconds /
+                                                  duration.inMilliseconds))
+                                          .clamp(0.0, width) -
+                                      7
                                 : -7,
                             child: Container(
                               width: 14,
@@ -1596,7 +1946,9 @@ class _IptvCustomProgressBarState extends State<_IptvCustomProgressBar> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: luTokens.accent.withValues(alpha: 0.5),
+                                    color: luTokens.accent.withValues(
+                                      alpha: 0.5,
+                                    ),
                                     blurRadius: 6,
                                   ),
                                 ],
@@ -1610,21 +1962,34 @@ class _IptvCustomProgressBarState extends State<_IptvCustomProgressBar> {
                               left: (_hoverX! - 30).clamp(0.0, width - 60),
                               bottom: 20,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: ZplaySpacing.s8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
                                   color: tokens.surface,
                                   borderRadius: ZplayRadius.xsAll,
                                   border: Border.all(
-                                    color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                    color: tokens.textPrimary.withValues(
+                                      alpha: ZplayOpacity.borderMedium,
+                                    ),
                                     width: 1,
                                   ),
                                   boxShadow: const [
-                                    BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2)),
+                                    BoxShadow(
+                                      color: Colors.black54,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
                                   ],
                                 ),
                                 child: Text(
-                                  _formatDuration(duration * (_hoverX! / width)),
-                                  style: ZplayType.labelNumeric.toStyle(color: tokens.textPrimary),
+                                  _formatDuration(
+                                    duration * (_hoverX! / width),
+                                  ),
+                                  style: ZplayType.labelNumeric.toStyle(
+                                    color: tokens.textPrimary,
+                                  ),
                                 ),
                               ),
                             ),

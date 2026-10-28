@@ -329,11 +329,11 @@ class _MultiNutzChannelSheetState extends State<MultiNutzChannelSheet>
     return Theme(
       data: luPanelTheme(),
       child: Container(
-      color: tokens.bg,
-      child: widget.tabType == ChannelSheetTab.xtreme
-          ? _buildXtremeTab()
-          : _buildM3uTab(),
-    ),
+        color: tokens.bg,
+        child: widget.tabType == ChannelSheetTab.xtreme
+            ? _buildXtremeTab()
+            : _buildM3uTab(),
+      ),
     );
   }
 

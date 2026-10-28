@@ -136,9 +136,7 @@ class LuIconAction extends StatelessWidget {
           child: Icon(
             icon,
             size: iconSize,
-            color: highlighted
-                ? LuColors.text
-                : (color ?? LuColors.textMuted),
+            color: highlighted ? LuColors.text : (color ?? LuColors.textMuted),
           ),
         ),
       ),

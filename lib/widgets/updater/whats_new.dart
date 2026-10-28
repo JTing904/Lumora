@@ -51,7 +51,8 @@ abstract final class WhatsNew {
       await prefs.setString(_key, version);
       if (seen == version || (seen == null && !hadPrefs)) return;
       final notes = [
-        for (final n in releaseHighlights[version] ?? const <(String, String)>[])
+        for (final n
+            in releaseHighlights[version] ?? const <(String, String)>[])
           // The Windows note only where there is a Windows program.
           if (Platform.isWindows || !n.$1.contains('Lumora.exe')) n,
       ];

@@ -176,7 +176,10 @@ Future<WindowsStateMigrationAction> migrateLegacyWindowsState() async {
     return WindowsStateMigrationAction.notApplicable;
   }
 
-  final destinationPath = p.joinAll(<String>[appData, ..._destinationProfileSegments]);
+  final destinationPath = p.joinAll(<String>[
+    appData,
+    ..._destinationProfileSegments,
+  ]);
   // The overwhelmingly common case after the first successful migration is
   // "already done", so this single stat short-circuits before any candidate
   // is stat'ed.

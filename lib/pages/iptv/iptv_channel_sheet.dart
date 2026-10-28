@@ -27,8 +27,10 @@ class IptvChannelSheet extends StatefulWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) =>
-          Theme(data: luPanelTheme(), child: IptvChannelSheet(channel: channel)),
+      builder: (_) => Theme(
+        data: luPanelTheme(),
+        child: IptvChannelSheet(channel: channel),
+      ),
     );
   }
 
@@ -100,10 +102,10 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
   }
 
   IptvHitHealth _healthOf(ChannelHit hit) => IptvHitHealth.resolve(
-        streamUrl: hit.streamUrl,
-        streamId: hit.stream.streamId,
-        snapshot: _snapshots[IptvAliveStore.portalKey(hit.portal.portal)],
-      );
+    streamUrl: hit.streamUrl,
+    streamId: hit.stream.streamId,
+    snapshot: _snapshots[IptvAliveStore.portalKey(hit.portal.portal)],
+  );
 
   /// Whether a source label names a free/public collection.
   ///
@@ -167,9 +169,13 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
   Widget build(BuildContext context) {
     const tokens = luTokens;
     final ch = widget.channel;
-    final primaryColor = ch.gradient.isNotEmpty ? ch.gradient.first : tokens.accent;
+    final primaryColor = ch.gradient.isNotEmpty
+        ? ch.gradient.first
+        : tokens.accent;
     // Second stop of a channel's data-driven gradient; falls back to the info hue.
-    final secondaryColor = ch.gradient.length > 1 ? ch.gradient.last : tokens.info;
+    final secondaryColor = ch.gradient.length > 1
+        ? ch.gradient.last
+        : tokens.info;
 
     return AnimatedBuilder(
       animation: _ctrl,
@@ -182,9 +188,12 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
             : results.where((hit) {
                 final q = _searchQuery.trim().toLowerCase();
                 final nameMatches = hit.stream.name.toLowerCase().contains(q);
-                final portalMatches = hit.portal.name.toLowerCase().contains(q) ||
+                final portalMatches =
+                    hit.portal.name.toLowerCase().contains(q) ||
                     hit.portal.portal.username.toLowerCase().contains(q);
-                final formatMatches = hit.stream.containerExt.toLowerCase().contains(q);
+                final formatMatches = hit.stream.containerExt
+                    .toLowerCase()
+                    .contains(q);
                 return nameMatches || portalMatches || formatMatches;
               }).toList();
         // Display order only: the same hits, regrouped so the feeds the app
@@ -193,7 +202,8 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
         // and the sort permutes the very objects in that list, so its
         // `indexOf` keeps resolving every row.
         final display = IptvHealthOrdering.sort(filteredResults);
-        final allSelected = results.isNotEmpty && _selectedUrls.length == results.length;
+        final allSelected =
+            results.isNotEmpty && _selectedUrls.length == results.length;
 
         return Container(
           constraints: BoxConstraints(
@@ -220,7 +230,9 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                   width: 44,
                   height: 4.5,
                   decoration: BoxDecoration(
-                    color: tokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
+                    color: tokens.textPrimary.withValues(
+                      alpha: ZplayOpacity.overlayHover,
+                    ),
                     borderRadius: ZplayRadius.xsAll,
                   ),
                 ),
@@ -246,7 +258,9 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                       child: Center(
                         child: Text(
                           ch.short,
-                          style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.title.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                       ),
                     ),
@@ -261,27 +275,36 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: tokens.danger,
                                   borderRadius: ZplayRadius.xsAll,
                                 ),
                                 child: Text(
                                   l10nCurrent().tvLiveBadge,
-                                  style: ZplayType.overline.toStyle(color: tokens.textPrimary),
+                                  style: ZplayType.overline.toStyle(
+                                    color: tokens.textPrimary,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 localizedChannelCategory(ch.category),
-                                style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                                style: ZplayType.caption.toStyle(
+                                  color: tokens.textSecondary,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 3),
                           Text(
                             ch.name,
-                            style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
+                            style: ZplayType.titleLarge.toStyle(
+                              color: tokens.textPrimary,
+                            ),
                           ),
                         ],
                       ),
@@ -290,7 +313,9 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                     // Pen / Edit Button
                     if (results.isNotEmpty)
                       Tooltip(
-                        message: _isSelecting ? l10nCurrent().tvCancelSelection : l10nCurrent().tvManageDeleteChannels,
+                        message: _isSelecting
+                            ? l10nCurrent().tvCancelSelection
+                            : l10nCurrent().tvManageDeleteChannels,
                         child: FocusableInkWell(
                           borderRadius: LuRadius.field,
                           onTap: () {
@@ -303,8 +328,12 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                             width: 44,
                             height: 44,
                             child: Icon(
-                              _isSelecting ? Icons.edit_off_rounded : Icons.edit_rounded,
-                              color: _isSelecting ? tokens.info : tokens.textEmphasis,
+                              _isSelecting
+                                  ? Icons.edit_off_rounded
+                                  : Icons.edit_rounded,
+                              color: _isSelecting
+                                  ? tokens.info
+                                  : tokens.textEmphasis,
                               size: 22,
                             ),
                           ),
@@ -318,7 +347,10 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                       child: SizedBox(
                         width: 44,
                         height: 44,
-                        child: Icon(Icons.close_rounded, color: tokens.textMuted),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: tokens.textMuted,
+                        ),
                       ),
                     ),
                   ],
@@ -342,11 +374,17 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                       style: ZplayType.label.toStyle(color: tokens.textPrimary),
                       cursorColor: tokens.accent,
                       decoration: InputDecoration(
-                        hintText: l10nCurrent().tv2SearchChannelsHint(results.length),
-                        hintStyle: ZplayType.label.toStyle(color: tokens.textMuted),
+                        hintText: l10nCurrent().tv2SearchChannelsHint(
+                          results.length,
+                        ),
+                        hintStyle: ZplayType.label.toStyle(
+                          color: tokens.textMuted,
+                        ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
-                          color: _searchQuery.isNotEmpty ? tokens.accent : tokens.textMuted,
+                          color: _searchQuery.isNotEmpty
+                              ? tokens.accent
+                              : tokens.textMuted,
                           size: 20,
                         ),
                         suffixIcon: _searchQuery.isNotEmpty
@@ -359,12 +397,18 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                                 child: SizedBox(
                                   width: 40,
                                   height: 40,
-                                  child: Icon(Icons.close_rounded, color: tokens.textEmphasis, size: 18),
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    color: tokens.textEmphasis,
+                                    size: 18,
+                                  ),
                                 ),
                               )
                             : null,
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 11,
+                        ),
                       ),
                       onChanged: (val) {
                         setState(() => _searchQuery = val);
@@ -377,7 +421,10 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
               if (_isSelecting)
                 Container(
                   margin: const EdgeInsets.fromLTRB(22, 0, 22, 10),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   // One accent wash says "edit mode" for the whole bar; the
                   // hairline that used to sit on top of it was a second edge.
                   decoration: BoxDecoration(
@@ -395,23 +442,32 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                               _selectedUrls.clear();
                             } else {
                               _selectedUrls.clear();
-                              _selectedUrls.addAll(results.map((h) => h.streamUrl));
+                              _selectedUrls.addAll(
+                                results.map((h) => h.streamUrl),
+                              );
                             }
                           });
                         },
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                allSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+                                allSelected
+                                    ? Icons.deselect_rounded
+                                    : Icons.select_all_rounded,
                                 size: 18,
                                 color: tokens.info,
                               ),
                               const SizedBox(width: ZplaySpacing.s8),
                               Text(
-                                allSelected ? l10nCurrent().tvDeselectAll : l10nCurrent().tvSelectAll,
+                                allSelected
+                                    ? l10nCurrent().tvDeselectAll
+                                    : l10nCurrent().tvSelectAll,
                                 style: ZplayType.label.toStyle(),
                               ),
                             ],
@@ -421,18 +477,27 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                       const SizedBox(width: 8),
                       Text(
                         '(${_selectedUrls.length}/${results.length})',
-                        style: ZplayType.caption.toStyle(color: tokens.textEmphasis),
+                        style: ZplayType.caption.toStyle(
+                          color: tokens.textEmphasis,
+                        ),
                       ),
                       const Spacer(),
                       // Delete Selected
                       FocusableInkWell(
                         borderRadius: LuRadius.field,
                         enabled: _selectedUrls.isNotEmpty,
-                        onTap: _selectedUrls.isEmpty ? null : _deleteSelectedStreams,
+                        onTap: _selectedUrls.isEmpty
+                            ? null
+                            : _deleteSelectedStreams,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: ZplaySpacing.s12,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
-                            color: _selectedUrls.isEmpty ? tokens.borderStrong : tokens.danger,
+                            color: _selectedUrls.isEmpty
+                                ? tokens.borderStrong
+                                : tokens.danger,
                             borderRadius: LuRadius.field,
                           ),
                           child: Row(
@@ -441,13 +506,19 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                               Icon(
                                 Icons.delete_rounded,
                                 size: 15,
-                                color: _selectedUrls.isEmpty ? tokens.textMuted : tokens.onAccent,
+                                color: _selectedUrls.isEmpty
+                                    ? tokens.textMuted
+                                    : tokens.onAccent,
                               ),
                               const SizedBox(width: ZplaySpacing.s8),
                               Text(
-                                l10nCurrent().tv2DeleteSelectedFeeds(_selectedUrls.length),
+                                l10nCurrent().tv2DeleteSelectedFeeds(
+                                  _selectedUrls.length,
+                                ),
                                 style: ZplayType.caption.toStyle(
-                                  color: _selectedUrls.isEmpty ? tokens.textMuted : tokens.onAccent,
+                                  color: _selectedUrls.isEmpty
+                                      ? tokens.textMuted
+                                      : tokens.onAccent,
                                 ),
                               ),
                             ],
@@ -462,9 +533,14 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 9,
+                  ),
                   decoration: BoxDecoration(
-                    color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+                    color: tokens.textPrimary.withValues(
+                      alpha: ZplayOpacity.borderFaint,
+                    ),
                     borderRadius: LuRadius.field,
                   ),
                   child: Row(
@@ -479,16 +555,27 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                           ),
                         )
                       else
-                        Icon(Icons.check_circle_outline_rounded, color: tokens.success, size: 16),
+                        Icon(
+                          Icons.check_circle_outline_rounded,
+                          color: tokens.success,
+                          size: 16,
+                        ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           status.isNotEmpty
                               ? status
                               : (_searchQuery.trim().isNotEmpty
-                                  ? l10nCurrent().tv2FoundFeedsOfTotal(filteredResults.length, results.length)
-                                  : l10nCurrent().tv2LiveFeedsAvailable(results.length)),
-                          style: ZplayType.label.toStyle(color: tokens.textEmphasis),
+                                    ? l10nCurrent().tv2FoundFeedsOfTotal(
+                                        filteredResults.length,
+                                        results.length,
+                                      )
+                                    : l10nCurrent().tv2LiveFeedsAvailable(
+                                        results.length,
+                                      )),
+                          style: ZplayType.label.toStyle(
+                            color: tokens.textEmphasis,
+                          ),
                         ),
                       ),
                       if (isScanning)
@@ -506,7 +593,9 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                               ),
                               child: Text(
                                 l10nCurrent().tvStop,
-                                style: ZplayType.caption.toStyle(color: tokens.danger),
+                                style: ZplayType.caption.toStyle(
+                                  color: tokens.danger,
+                                ),
                               ),
                             ),
                           ),
@@ -532,19 +621,29 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                                 const SizedBox(height: ZplaySpacing.s16),
                                 Text(
                                   l10nCurrent().tvScanningPortals,
-                                  style: ZplayType.body.toStyle(color: tokens.textEmphasis),
+                                  style: ZplayType.body.toStyle(
+                                    color: tokens.textEmphasis,
+                                  ),
                                 ),
                               ] else ...[
-                                Icon(Icons.tv_off_rounded, color: tokens.textMuted, size: 48),
+                                Icon(
+                                  Icons.tv_off_rounded,
+                                  color: tokens.textMuted,
+                                  size: 48,
+                                ),
                                 const SizedBox(height: ZplaySpacing.s12),
                                 Text(
                                   l10nCurrent().tvNoAliveStreams,
-                                  style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
+                                  style: ZplayType.subtitle.toStyle(
+                                    color: tokens.textEmphasis,
+                                  ),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
                                   l10nCurrent().tvTapScanMoreHint,
-                                  style: ZplayType.label.toStyle(color: tokens.textMuted),
+                                  style: ZplayType.label.toStyle(
+                                    color: tokens.textMuted,
+                                  ),
                                 ),
                               ],
                             ],
@@ -552,221 +651,304 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                         ),
                       )
                     : (filteredResults.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.search_off_rounded, color: tokens.textMuted, size: 48),
-                                  const SizedBox(height: ZplaySpacing.s12),
-                                  Text(
-                                    l10nCurrent().tv2NoFeedsMatch(_searchQuery),
-                                    style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
-                                  ),
-                                  const SizedBox(height: ZplaySpacing.s8),
-                                  FocusableInkWell(
-                                    borderRadius: LuRadius.field,
-                                    onTap: () {
-                                      _searchController.clear();
-                                      setState(() => _searchQuery = '');
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: ZplaySpacing.s12,
-                                        vertical: ZplaySpacing.s8,
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.search_off_rounded,
+                                      color: tokens.textMuted,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: ZplaySpacing.s12),
+                                    Text(
+                                      l10nCurrent().tv2NoFeedsMatch(
+                                        _searchQuery,
                                       ),
-                                      child: Text(
-                                        l10nCurrent().tvClearSearch,
-                                        style: ZplayType.label.toStyle(color: tokens.accent),
+                                      style: ZplayType.subtitle.toStyle(
+                                        color: tokens.textEmphasis,
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: display.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final hit = display[index];
-                              final isFav = _ctrl.isFavoriteHit(ch.id, hit);
-                              final isSelected = _selectedUrls.contains(hit.streamUrl);
-                              // The source this hit came from, as the row
-                              // states it. A hit off a public or user playlist
-                              // carries its honest label in `portal.name` (its
-                              // synthetic portal has no username), so this is
-                              // already the truth for those - the chip below
-                              // just marks which family they belong to.
-                              final sourceLabel = hit.portal.portal.username.isNotEmpty
-                                  ? hit.portal.portal.username
-                                  : (hit.portal.name.isNotEmpty
-                                      ? hit.portal.name
-                                      : l10nCurrent().tv2ServerNumber(index + 1));
-
-                              return FocusableCard(
-                                onTap: () => _isSelecting
-                                    ? _toggleSelection(hit.streamUrl)
-                                    : _playHit(hit),
-                                builder: (context, state) => CardFocusRing(
-                                  focused: state.focused,
-                                  radius: LuPanel.rowRadiusAll,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: ZplaySpacing.s16,
-                                      vertical: ZplaySpacing.s12,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      // Selected is one accent wash; favourite
-                                      // is the filled star alone. The row is a
-                                      // card on a sheet, so it carries no edge
-                                      // and no resting fill of its own.
-                                      color: isSelected
-                                          ? tokens.accentSubtle
-                                          : (state.highlighted ? tokens.borderDefault : Colors.transparent),
-                                      borderRadius: LuPanel.rowRadiusAll,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        // Selection checkbox or Play icon
-                                        if (_isSelecting)
-                                          Container(
-                                            width: 32,
-                                            height: 32,
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? tokens.accent
-                                                  : tokens.borderStrong,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: isSelected
-                                                ? Icon(Icons.check_rounded, color: tokens.onAccent, size: 18)
-                                                : null,
-                                          )
-                                        else
-                                          Container(
-                                            width: 36,
-                                            height: 36,
-                                            decoration: BoxDecoration(
-                                              color: tokens.accent.withValues(alpha: 0.2),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Icon(
-                                              Icons.play_arrow_rounded,
-                                              color: tokens.accent,
-                                              size: 22,
-                                            ),
+                                    const SizedBox(height: ZplaySpacing.s8),
+                                    FocusableInkWell(
+                                      borderRadius: LuRadius.field,
+                                      onTap: () {
+                                        _searchController.clear();
+                                        setState(() => _searchQuery = '');
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: ZplaySpacing.s12,
+                                          vertical: ZplaySpacing.s8,
+                                        ),
+                                        child: Text(
+                                          l10nCurrent().tvClearSearch,
+                                          style: ZplayType.label.toStyle(
+                                            color: tokens.accent,
                                           ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                                vertical: 6,
+                              ),
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: display.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final hit = display[index];
+                                final isFav = _ctrl.isFavoriteHit(ch.id, hit);
+                                final isSelected = _selectedUrls.contains(
+                                  hit.streamUrl,
+                                );
+                                // The source this hit came from, as the row
+                                // states it. A hit off a public or user playlist
+                                // carries its honest label in `portal.name` (its
+                                // synthetic portal has no username), so this is
+                                // already the truth for those - the chip below
+                                // just marks which family they belong to.
+                                final sourceLabel =
+                                    hit.portal.portal.username.isNotEmpty
+                                    ? hit.portal.portal.username
+                                    : (hit.portal.name.isNotEmpty
+                                          ? hit.portal.name
+                                          : l10nCurrent().tv2ServerNumber(
+                                              index + 1,
+                                            ));
 
-                                        const SizedBox(width: 14),
-
-                                        // Stream Info
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  // The dot this row used to
-                                                  // carry was unconditionally
-                                                  // green - liveness claimed for
-                                                  // every feed the channel had
-                                                  // ever stored, including the
-                                                  // ones that have since failed.
-                                                  IptvHealthBadge(health: _healthOf(hit)),
-                                                  const SizedBox(width: 6),
-                                                  Expanded(
-                                                    child: Text(
-                                                      hit.stream.name,
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
-                                                    ),
-                                                  ),
-                                                ],
+                                return FocusableCard(
+                                  onTap: () => _isSelecting
+                                      ? _toggleSelection(hit.streamUrl)
+                                      : _playHit(hit),
+                                  builder: (context, state) => CardFocusRing(
+                                    focused: state.focused,
+                                    radius: LuPanel.rowRadiusAll,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: ZplaySpacing.s16,
+                                        vertical: ZplaySpacing.s12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        // Selected is one accent wash; favourite
+                                        // is the filled star alone. The row is a
+                                        // card on a sheet, so it carries no edge
+                                        // and no resting fill of its own.
+                                        color: isSelected
+                                            ? tokens.accentSubtle
+                                            : (state.highlighted
+                                                  ? tokens.borderDefault
+                                                  : Colors.transparent),
+                                        borderRadius: LuPanel.rowRadiusAll,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Selection checkbox or Play icon
+                                          if (_isSelecting)
+                                            Container(
+                                              width: 32,
+                                              height: 32,
+                                              decoration: BoxDecoration(
+                                                color: isSelected
+                                                    ? tokens.accent
+                                                    : tokens.borderStrong,
+                                                shape: BoxShape.circle,
                                               ),
-                                              const SizedBox(height: 2),
-                                              Padding(
-                                                padding: const EdgeInsets.only(left: 13),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                              child: isSelected
+                                                  ? Icon(
+                                                      Icons.check_rounded,
+                                                      color: tokens.onAccent,
+                                                      size: 18,
+                                                    )
+                                                  : null,
+                                            )
+                                          else
+                                            Container(
+                                              width: 36,
+                                              height: 36,
+                                              decoration: BoxDecoration(
+                                                color: tokens.accent.withValues(
+                                                  alpha: 0.2,
+                                                ),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                Icons.play_arrow_rounded,
+                                                color: tokens.accent,
+                                                size: 22,
+                                              ),
+                                            ),
+
+                                          const SizedBox(width: 14),
+
+                                          // Stream Info
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
                                                   children: [
-                                                    Flexible(
+                                                    // The dot this row used to
+                                                    // carry was unconditionally
+                                                    // green - liveness claimed for
+                                                    // every feed the channel had
+                                                    // ever stored, including the
+                                                    // ones that have since failed.
+                                                    IptvHealthBadge(
+                                                      health: _healthOf(hit),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Expanded(
                                                       child: Text(
-                                                        sourceLabel,
+                                                        hit.stream.name,
                                                         maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
-                                                        style: ZplayType.caption.toStyle(color: tokens.textSecondary),
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: ZplayType
+                                                            .subtitle
+                                                            .toStyle(
+                                                              color: tokens
+                                                                  .textPrimary,
+                                                            ),
                                                       ),
                                                     ),
-                                                    // Free-to-air is a property
-                                                    // of the source's own label,
-                                                    // not a guess: the built-in
-                                                    // public playlist names
-                                                    // itself 'Free ...' and a
-                                                    // user's playlist 'Your
-                                                    // playlist: ...'. A paid
-                                                    // portal is never marked.
-                                                    if (_isFreeSource(sourceLabel)) ...[
-                                                      const SizedBox(width: 6),
-                                                      Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                        decoration: BoxDecoration(
-                                                          color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
-                                                          borderRadius: ZplayRadius.xsAll,
-                                                        ),
-                                                        child: Text(
-                                                          l10nCurrent().tvFreeBadge,
-                                                          style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
-                                                        ),
-                                                      ),
-                                                    ],
                                                   ],
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        // Format Tag
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: tokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
-                                            borderRadius: ZplayRadius.xsAll,
-                                          ),
-                                          child: Text(
-                                            hit.stream.containerExt.toUpperCase(),
-                                            style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
-                                          ),
-                                        ),
-
-                                        const SizedBox(width: 8),
-
-                                        // Favorite Pin
-                                        FocusableInkWell(
-                                          borderRadius: ZplayRadius.fullAll,
-                                          onTap: () => _ctrl.toggleFavoriteHit(hit),
-                                          child: SizedBox(
-                                            width: 44,
-                                            height: 44,
-                                            child: Icon(
-                                              isFav ? Icons.star_rounded : Icons.star_outline_rounded,
-                                              color: isFav ? tokens.warning : tokens.textMuted,
-                                              size: 22,
+                                                const SizedBox(height: 2),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        left: 13,
+                                                      ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          sourceLabel,
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: ZplayType
+                                                              .caption
+                                                              .toStyle(
+                                                                color: tokens
+                                                                    .textSecondary,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      // Free-to-air is a property
+                                                      // of the source's own label,
+                                                      // not a guess: the built-in
+                                                      // public playlist names
+                                                      // itself 'Free ...' and a
+                                                      // user's playlist 'Your
+                                                      // playlist: ...'. A paid
+                                                      // portal is never marked.
+                                                      if (_isFreeSource(
+                                                        sourceLabel,
+                                                      )) ...[
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: tokens
+                                                                .textPrimary
+                                                                .withValues(
+                                                                  alpha: ZplayOpacity
+                                                                      .borderMedium,
+                                                                ),
+                                                            borderRadius:
+                                                                ZplayRadius
+                                                                    .xsAll,
+                                                          ),
+                                                          child: Text(
+                                                            l10nCurrent()
+                                                                .tvFreeBadge,
+                                                            style: ZplayType
+                                                                .overline
+                                                                .toStyle(
+                                                                  color: tokens
+                                                                      .textEmphasis,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ),
-                                      ],
+
+                                          // Format Tag
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: tokens.textPrimary
+                                                  .withValues(
+                                                    alpha: ZplayOpacity
+                                                        .borderMedium,
+                                                  ),
+                                              borderRadius: ZplayRadius.xsAll,
+                                            ),
+                                            child: Text(
+                                              hit.stream.containerExt
+                                                  .toUpperCase(),
+                                              style: ZplayType.overline.toStyle(
+                                                color: tokens.textEmphasis,
+                                              ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(width: 8),
+
+                                          // Favorite Pin
+                                          FocusableInkWell(
+                                            borderRadius: ZplayRadius.fullAll,
+                                            onTap: () =>
+                                                _ctrl.toggleFavoriteHit(hit),
+                                            child: SizedBox(
+                                              width: 44,
+                                              height: 44,
+                                              child: Icon(
+                                                isFav
+                                                    ? Icons.star_rounded
+                                                    : Icons
+                                                          .star_outline_rounded,
+                                                color: isFav
+                                                    ? tokens.warning
+                                                    : tokens.textMuted,
+                                                size: 22,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
-                          )),
+                                );
+                              },
+                            )),
               ),
 
               // Bottom Action Bar
@@ -808,13 +990,17 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                             Icon(
                               Icons.refresh_rounded,
                               size: 18,
-                              color: isScanning ? tokens.textMuted : tokens.textPrimary,
+                              color: isScanning
+                                  ? tokens.textMuted
+                                  : tokens.textPrimary,
                             ),
                             const SizedBox(width: ZplaySpacing.s8),
                             Text(
                               l10nCurrent().tvScanMore,
                               style: ZplayType.label.toStyle(
-                                color: isScanning ? tokens.textMuted : tokens.textPrimary,
+                                color: isScanning
+                                    ? tokens.textMuted
+                                    : tokens.textPrimary,
                               ),
                             ),
                           ],

@@ -734,10 +734,7 @@ class _HomeUiSettingsPageState extends State<HomeUiSettingsPage> {
                 ),
               ),
               const SizedBox(width: 12),
-              Switch.adaptive(
-                value: enabled,
-                onChanged: onChanged,
-              ),
+              Switch.adaptive(value: enabled, onChanged: onChanged),
             ],
           ),
         );

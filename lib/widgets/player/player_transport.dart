@@ -280,179 +280,180 @@ class PlayerTransport extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
                   child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Episodes Menu Trigger (for TV Shows)
-                        if (onToggleEpisodes != null) ...[
-                          if (useLabels)
-                            _PlayerTextButton(
-                              label: l10n.playerEpisodes,
-                              active: isEpisodesActive,
-                              onPressed: onToggleEpisodes!,
-                            )
-                          else
-                            PlayerIconButton(
-                              size: btnSize,
-                              iconSize: btnIconSize,
-                              icon: const Icon(Icons.video_library_rounded),
-                              tooltip: l10n.playerEpisodes,
-                              active: isEpisodesActive,
-                              activeColor: PlayerTheme.accent,
-                              onPressed: onToggleEpisodes,
-                            ),
-                          SizedBox(width: gap),
-                        ],
-
-                        // Aspect Ratio Menu Trigger
-                        PlayerIconButton(
-                          size: btnSize,
-                          iconSize: btnIconSize,
-                          icon: const Icon(Icons.aspect_ratio_rounded),
-                          tooltip: l10n.playerAspectRatio,
-                          onPressed: onToggleAspectMenu,
-                        ),
-
-                        SizedBox(width: gap),
-
-                        // Quality Menu Trigger
-                        if (onToggleQualityMenu != null) ...[
-                          if (useLabels)
-                            _PlayerTextButton(
-                              label: l10n.playerQualityWith(
-                                qualityCap ?? l10n.playerQualityAuto,
-                              ),
-                              onPressed: onToggleQualityMenu!,
-                            )
-                          else
-                            PlayerIconButton(
-                              size: btnSize,
-                              iconSize: btnIconSize,
-                              icon: const Icon(Icons.hd_rounded),
-                              tooltip: l10n.playerQuality,
-                              showActiveBadge: qualityCap != null,
-                              onPressed: onToggleQualityMenu,
-                            ),
-                          SizedBox(width: gap),
-                        ],
-
-                        // 片头片尾 Menu Trigger (series only)
-                        if (onToggleIntroOutroMenu != null) ...[
-                          if (useLabels)
-                            _PlayerTextButton(
-                              label: l10n.introOutroButton,
-                              onPressed: onToggleIntroOutroMenu!,
-                            )
-                          else
-                            PlayerIconButton(
-                              size: btnSize,
-                              iconSize: btnIconSize,
-                              icon: const Icon(Icons.fast_forward_rounded),
-                              tooltip: l10n.introOutroTitle,
-                              onPressed: onToggleIntroOutroMenu,
-                            ),
-                          SizedBox(width: gap),
-                        ],
-
-                        // Playback Speed Menu Trigger
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Episodes Menu Trigger (for TV Shows)
+                      if (onToggleEpisodes != null) ...[
                         if (useLabels)
                           _PlayerTextButton(
-                            label: l10n.playerSpeedLabel(_rate(playbackRate)),
-                            active: playbackRate != 1.0,
-                            onPressed: onToggleSpeedMenu,
+                            label: l10n.playerEpisodes,
+                            active: isEpisodesActive,
+                            onPressed: onToggleEpisodes!,
                           )
                         else
                           PlayerIconButton(
                             size: btnSize,
                             iconSize: btnIconSize,
-                            icon: const Icon(Icons.speed_rounded),
-                            tooltip: l10n.playerPlaybackSpeed,
-                            showActiveBadge: playbackRate != 1.0,
-                            onPressed: onToggleSpeedMenu,
+                            icon: const Icon(Icons.video_library_rounded),
+                            tooltip: l10n.playerEpisodes,
+                            active: isEpisodesActive,
+                            activeColor: PlayerTheme.accent,
+                            onPressed: onToggleEpisodes,
                           ),
-
                         SizedBox(width: gap),
-
-                        // Audio Menu Trigger
-                        PlayerIconButton(
-                          size: btnSize,
-                          iconSize: btnIconSize,
-                          icon: const Icon(Icons.audiotrack_rounded),
-                          tooltip: l10n.playerAudioTracks,
-                          onPressed: onToggleAudioMenu,
-                        ),
-
-                        SizedBox(width: gap),
-
-                        // Subtitles Menu Trigger
-                        if (useLabels)
-                          _PlayerTextButton(
-                            label: isSubtitlesActive
-                                ? l10n.playerSubtitlesWith(
-                                    _subtitleShort(context, subtitleLanguage),
-                                  )
-                                : l10n.playerSubtitlesOff,
-                            onPressed: onToggleSubtitleMenu,
-                          )
-                        else
-                          PlayerIconButton(
-                            size: btnSize,
-                            iconSize: btnIconSize,
-                            icon: const Icon(Icons.subtitles_rounded),
-                            tooltip: l10n.playerSubtitles,
-                            showActiveBadge: isSubtitlesActive,
-                            badgeColor: tokens.success,
-                            onPressed: onToggleSubtitleMenu,
-                          ),
-
-                        SizedBox(width: gap),
-
-                        // Subtitle Sync Trigger
-                        PlayerIconButton(
-                          size: btnSize,
-                          iconSize: btnIconSize,
-                          icon: const Icon(Icons.tune_rounded),
-                          tooltip: l10n.playerSubtitleSync,
-                          active: isSubSyncActive,
-                          activeColor: PlayerTheme.accent,
-                          onPressed: onToggleSubSync,
-                        ),
-
-                        if (useLabels && onShowSources != null) ...[
-                          SizedBox(width: gap + 4),
-                          _PlayerTextButton(
-                            label: (sourceQuality == null || sourceQuality!.isEmpty)
-                                ? l10n.playerSource
-                                : l10n.playerSourceWith(sourceQuality!),
-                            filled: true,
-                            active: isSourcesActive,
-                            onPressed: onShowSources!,
-                          ),
-                        ],
-
-                        // Fullscreen Button (Desktop and television)
-                        //
-                        // A television has no window manager, but the button is not
-                        // window chrome here: it drives the immersive system UI mode,
-                        // and without it a remote had no fullscreen control at all -
-                        // the row ended at the subtitle-sync button.
-                        if (isDesktop || isTelevision) ...[
-                          SizedBox(width: gap),
-                          PlayerIconButton(
-                            size: btnSize,
-                            iconSize: btnIconSize,
-                            icon: Icon(
-                              isFullscreen
-                                  ? Icons.fullscreen_exit_rounded
-                                  : Icons.fullscreen_rounded,
-                            ),
-                            tooltip: isFullscreen
-                                ? l10n.playerExitFullscreen
-                                : l10n.playerFullscreen,
-                            onPressed: onToggleFullscreen,
-                          ),
-                        ],
                       ],
-                    ),
+
+                      // Aspect Ratio Menu Trigger
+                      PlayerIconButton(
+                        size: btnSize,
+                        iconSize: btnIconSize,
+                        icon: const Icon(Icons.aspect_ratio_rounded),
+                        tooltip: l10n.playerAspectRatio,
+                        onPressed: onToggleAspectMenu,
+                      ),
+
+                      SizedBox(width: gap),
+
+                      // Quality Menu Trigger
+                      if (onToggleQualityMenu != null) ...[
+                        if (useLabels)
+                          _PlayerTextButton(
+                            label: l10n.playerQualityWith(
+                              qualityCap ?? l10n.playerQualityAuto,
+                            ),
+                            onPressed: onToggleQualityMenu!,
+                          )
+                        else
+                          PlayerIconButton(
+                            size: btnSize,
+                            iconSize: btnIconSize,
+                            icon: const Icon(Icons.hd_rounded),
+                            tooltip: l10n.playerQuality,
+                            showActiveBadge: qualityCap != null,
+                            onPressed: onToggleQualityMenu,
+                          ),
+                        SizedBox(width: gap),
+                      ],
+
+                      // 片头片尾 Menu Trigger (series only)
+                      if (onToggleIntroOutroMenu != null) ...[
+                        if (useLabels)
+                          _PlayerTextButton(
+                            label: l10n.introOutroButton,
+                            onPressed: onToggleIntroOutroMenu!,
+                          )
+                        else
+                          PlayerIconButton(
+                            size: btnSize,
+                            iconSize: btnIconSize,
+                            icon: const Icon(Icons.fast_forward_rounded),
+                            tooltip: l10n.introOutroTitle,
+                            onPressed: onToggleIntroOutroMenu,
+                          ),
+                        SizedBox(width: gap),
+                      ],
+
+                      // Playback Speed Menu Trigger
+                      if (useLabels)
+                        _PlayerTextButton(
+                          label: l10n.playerSpeedLabel(_rate(playbackRate)),
+                          active: playbackRate != 1.0,
+                          onPressed: onToggleSpeedMenu,
+                        )
+                      else
+                        PlayerIconButton(
+                          size: btnSize,
+                          iconSize: btnIconSize,
+                          icon: const Icon(Icons.speed_rounded),
+                          tooltip: l10n.playerPlaybackSpeed,
+                          showActiveBadge: playbackRate != 1.0,
+                          onPressed: onToggleSpeedMenu,
+                        ),
+
+                      SizedBox(width: gap),
+
+                      // Audio Menu Trigger
+                      PlayerIconButton(
+                        size: btnSize,
+                        iconSize: btnIconSize,
+                        icon: const Icon(Icons.audiotrack_rounded),
+                        tooltip: l10n.playerAudioTracks,
+                        onPressed: onToggleAudioMenu,
+                      ),
+
+                      SizedBox(width: gap),
+
+                      // Subtitles Menu Trigger
+                      if (useLabels)
+                        _PlayerTextButton(
+                          label: isSubtitlesActive
+                              ? l10n.playerSubtitlesWith(
+                                  _subtitleShort(context, subtitleLanguage),
+                                )
+                              : l10n.playerSubtitlesOff,
+                          onPressed: onToggleSubtitleMenu,
+                        )
+                      else
+                        PlayerIconButton(
+                          size: btnSize,
+                          iconSize: btnIconSize,
+                          icon: const Icon(Icons.subtitles_rounded),
+                          tooltip: l10n.playerSubtitles,
+                          showActiveBadge: isSubtitlesActive,
+                          badgeColor: tokens.success,
+                          onPressed: onToggleSubtitleMenu,
+                        ),
+
+                      SizedBox(width: gap),
+
+                      // Subtitle Sync Trigger
+                      PlayerIconButton(
+                        size: btnSize,
+                        iconSize: btnIconSize,
+                        icon: const Icon(Icons.tune_rounded),
+                        tooltip: l10n.playerSubtitleSync,
+                        active: isSubSyncActive,
+                        activeColor: PlayerTheme.accent,
+                        onPressed: onToggleSubSync,
+                      ),
+
+                      if (useLabels && onShowSources != null) ...[
+                        SizedBox(width: gap + 4),
+                        _PlayerTextButton(
+                          label:
+                              (sourceQuality == null || sourceQuality!.isEmpty)
+                              ? l10n.playerSource
+                              : l10n.playerSourceWith(sourceQuality!),
+                          filled: true,
+                          active: isSourcesActive,
+                          onPressed: onShowSources!,
+                        ),
+                      ],
+
+                      // Fullscreen Button (Desktop and television)
+                      //
+                      // A television has no window manager, but the button is not
+                      // window chrome here: it drives the immersive system UI mode,
+                      // and without it a remote had no fullscreen control at all -
+                      // the row ended at the subtitle-sync button.
+                      if (isDesktop || isTelevision) ...[
+                        SizedBox(width: gap),
+                        PlayerIconButton(
+                          size: btnSize,
+                          iconSize: btnIconSize,
+                          icon: Icon(
+                            isFullscreen
+                                ? Icons.fullscreen_exit_rounded
+                                : Icons.fullscreen_rounded,
+                          ),
+                          tooltip: isFullscreen
+                              ? l10n.playerExitFullscreen
+                              : l10n.playerFullscreen,
+                          onPressed: onToggleFullscreen,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ],

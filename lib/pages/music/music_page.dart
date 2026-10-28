@@ -949,8 +949,7 @@ class _MusicPageState extends State<_MusicPageBody> {
                         return;
                       }
                       setState(() {
-                        _activeUserPlaylistModal = _libraryService
-                            .userPlaylists
+                        _activeUserPlaylistModal = _libraryService.userPlaylists
                             .firstWhere(
                               (p) => p.id == playlistId,
                               orElse: () => current,

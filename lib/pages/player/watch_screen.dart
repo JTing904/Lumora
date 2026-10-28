@@ -13,7 +13,6 @@ import '../../widgets/common/zplay_logo.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
-
 import '../../models/movie/movie.dart';
 import '../../models/movie/video.dart';
 import '../../models/movie/movie_detail.dart';
@@ -62,6 +61,7 @@ class WatchScreen extends StatelessWidget {
   final Duration? initialPosition;
   final bool isCollection;
   final bool autoPick;
+
   /// Stands in for the player route in tests.
   ///
   /// `PlayerScreen` owns a `media_kit` `Player`, which no widget test can build,
@@ -100,7 +100,6 @@ class _WatchScreenBody extends StatefulWidget {
   /// Play the fastest working source as soon as the scrapers answer, instead
   /// of waiting for the viewer to pick one. See [AutoSourcePicker].
   final bool autoPick;
-
 
   const _WatchScreenBody({
     required this.detail,
@@ -215,11 +214,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
       _autoFoundNothing = pick == null;
     });
     if (pick == null) return;
-    _openSource(
-      pick.source,
-      alternatives: pick.alternatives,
-      autoPicked: true,
-    );
+    _openSource(pick.source, alternatives: pick.alternatives, autoPicked: true);
   }
 
   final List<SubtitleVariant> _discoveredSubtitles = [];
@@ -256,8 +251,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
   /// requests it once a row exists, the same shape [PlayerScreen] uses for its
   /// transport: the state holds the node, the child attaches it, and the request
   /// is made after the frame that built it.
-  final FocusNode _firstSourceFocusNode =
-      FocusNode(debugLabel: 'WatchFirstSourceRow');
+  final FocusNode _firstSourceFocusNode = FocusNode(
+    debugLabel: 'WatchFirstSourceRow',
+  );
 
   // Addon priority caching
   Map<String, int>? _cachedAddonOrder;
@@ -269,7 +265,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
       final a = allAddons[i];
       map[a.manifest.name.toLowerCase()] = i;
       map[a.manifest.id.toLowerCase()] = i;
-      if (a.manifest.id == 'builtin.zplayhttp' || a.baseUrl == 'builtin:zplayhttp') {
+      if (a.manifest.id == 'builtin.zplayhttp' ||
+          a.baseUrl == 'builtin:zplayhttp') {
         map['zplayhttp'] = i;
       }
       if (a.manifest.id == 'builtin.zplay' || a.baseUrl == 'builtin:zplay') {
@@ -336,7 +333,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
     final streamId = widget.selectedEpisode?.id ?? widget.detail.id;
 
     // 1. Immediately inject any embedded streams from the video (e.g. Torbox/Debrid direct streams)
-    if (widget.selectedEpisode != null && widget.selectedEpisode!.streams.isNotEmpty) {
+    if (widget.selectedEpisode != null &&
+        widget.selectedEpisode!.streams.isNotEmpty) {
       for (final s in widget.selectedEpisode!.streams) {
         _recordSubtitles(s.subtitles);
       }
@@ -350,7 +348,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
         ? widget.selectedEpisode!.title
         : widget.detail.name;
     final epReleased = widget.selectedEpisode?.released;
-    final effectiveYear = (isColl && epReleased != null && epReleased.length >= 4)
+    final effectiveYear =
+        (isColl && epReleased != null && epReleased.length >= 4)
         ? int.tryParse(epReleased.substring(0, 4))
         // `year` is Stremio's releaseInfo, which for a series reads "2020–";
         // the leading year is what the scrapers need to tell same-named
@@ -359,36 +358,37 @@ class _WatchScreenState extends State<_WatchScreenBody>
     final effectiveSeason = isColl ? null : widget.selectedEpisode?.season;
     final effectiveEpisode = isColl ? null : widget.selectedEpisode?.episode;
 
-    _streamSub = StreamService.fetchStreams(
-      type: effectiveType,
-      id: streamId,
-      title: effectiveTitle,
-      year: effectiveYear,
-      season: effectiveSeason,
-      episode: effectiveEpisode,
-      genres: widget.detail.genres,
-    ).listen(
-      (source) {
-        if (!mounted) return;
-        _recordSubtitles(source.subtitles);
-        _pendingSources.add(source);
-        if (_sources.isEmpty) {
-          _flushPendingSources();
-        } else {
-          _sourceBatchTimer ??= Timer(
-            const Duration(milliseconds: 50),
-            _flushPendingSources,
-          );
-        }
-      },
-      onError: (_) {},
-      onDone: () {
-        _flushPendingSources();
-        if (mounted && _isLoadingSources) {
-          setState(() => _isLoadingSources = false);
-        }
-      },
-    );
+    _streamSub =
+        StreamService.fetchStreams(
+          type: effectiveType,
+          id: streamId,
+          title: effectiveTitle,
+          year: effectiveYear,
+          season: effectiveSeason,
+          episode: effectiveEpisode,
+          genres: widget.detail.genres,
+        ).listen(
+          (source) {
+            if (!mounted) return;
+            _recordSubtitles(source.subtitles);
+            _pendingSources.add(source);
+            if (_sources.isEmpty) {
+              _flushPendingSources();
+            } else {
+              _sourceBatchTimer ??= Timer(
+                const Duration(milliseconds: 50),
+                _flushPendingSources,
+              );
+            }
+          },
+          onError: (_) {},
+          onDone: () {
+            _flushPendingSources();
+            if (mounted && _isLoadingSources) {
+              setState(() => _isLoadingSources = false);
+            }
+          },
+        );
   }
 
   void _flushPendingSources() {
@@ -442,7 +442,10 @@ class _WatchScreenState extends State<_WatchScreenBody>
   void _playSourceAt(List<StreamSource> sources, int index) {
     _autoCancelled = true;
     if (_autoPicking) setState(() => _autoPicking = false);
-    _openSource(sources[index], alternatives: _alternativesAfter(sources, index));
+    _openSource(
+      sources[index],
+      alternatives: _alternativesAfter(sources, index),
+    );
   }
 
   /// Starts [s], or leaves the app when the source is a link to somewhere else.
@@ -462,7 +465,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
     if (externalUrl != null && externalUrl.isNotEmpty) {
       if (externalUrl.startsWith('stremio://')) {
         // Example: stremio:///detail/movie/tt28479262
-        final uri = Uri.parse(externalUrl.replaceFirst('stremio:///', 'stremio://'));
+        final uri = Uri.parse(
+          externalUrl.replaceFirst('stremio:///', 'stremio://'),
+        );
         final segments = uri.pathSegments;
         if (uri.host == 'detail' && segments.length >= 2) {
           Navigator.push(
@@ -491,8 +496,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
     final Video? episode = widget.selectedEpisode;
     final String effectiveTitle =
         (isCollection && episode != null && episode.title.isNotEmpty)
-            ? episode.title
-            : source.displayTitle;
+        ? episode.title
+        : source.displayTitle;
 
     CrashBreadcrumbs.stream(
       'open',
@@ -533,8 +538,10 @@ class _WatchScreenState extends State<_WatchScreenBody>
   String? _selectedAddonFilter;
   String? _selectedSizeFilter;
   String _selectedTypeFilter = 'all'; // 'all', 'debrid', 'torrent', 'direct'
-  String _selectedSeederFilter = 'all'; // 'all', 'most', '50+', '20+', '5+', '1+'
-  String _selectedAudioFilter = 'all'; // 'all', 'multi', 'english', 'hindi', 'german', 'french', 'spanish', 'spanish_castilian', 'spanish_latino', 'russian', 'japanese', 'italian'
+  String _selectedSeederFilter =
+      'all'; // 'all', 'most', '50+', '20+', '5+', '1+'
+  String _selectedAudioFilter =
+      'all'; // 'all', 'multi', 'english', 'hindi', 'german', 'french', 'spanish', 'spanish_castilian', 'spanish_latino', 'russian', 'japanese', 'italian'
 
   /// Whether torrent sources will be resolved by a Debrid service rather than by
   /// the local P2P engine, so the list can count and label them accordingly.
@@ -579,19 +586,25 @@ class _WatchScreenState extends State<_WatchScreenBody>
         case '1-5gb':
           list = list.where((s) {
             final sz = s.sizeBytes;
-            return sz != null && sz >= 1024 * 1024 * 1024 && sz <= 5.0 * 1024 * 1024 * 1024;
+            return sz != null &&
+                sz >= 1024 * 1024 * 1024 &&
+                sz <= 5.0 * 1024 * 1024 * 1024;
           }).toList();
           break;
         case '5-15gb':
           list = list.where((s) {
             final sz = s.sizeBytes;
-            return sz != null && sz > 5.0 * 1024 * 1024 * 1024 && sz <= 15.0 * 1024 * 1024 * 1024;
+            return sz != null &&
+                sz > 5.0 * 1024 * 1024 * 1024 &&
+                sz <= 15.0 * 1024 * 1024 * 1024;
           }).toList();
           break;
         case '15-30gb':
           list = list.where((s) {
             final sz = s.sizeBytes;
-            return sz != null && sz > 15.0 * 1024 * 1024 * 1024 && sz <= 30.0 * 1024 * 1024 * 1024;
+            return sz != null &&
+                sz > 15.0 * 1024 * 1024 * 1024 &&
+                sz <= 30.0 * 1024 * 1024 * 1024;
           }).toList();
           break;
         case '>30gb':
@@ -616,8 +629,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
     // Filter by audio language / dub
     if (_selectedAudioFilter != 'all') {
       list = list
-          .where((s) => s.hasAudioLanguage(_selectedAudioFilter,
-              mediaTitle: widget.detail.name))
+          .where(
+            (s) => s.hasAudioLanguage(
+              _selectedAudioFilter,
+              mediaTitle: widget.detail.name,
+            ),
+          )
           .toList();
     }
 
@@ -627,7 +644,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
       list = list.where((s) => !s.isTorrent || s.isDebrid).toList();
     }
     if (!AddonManager.instance.isZplayHttpActive) {
-      list = list.where((s) => s.addonName.toLowerCase() != 'zplayhttp').toList();
+      list = list
+          .where((s) => s.addonName.toLowerCase() != 'zplayhttp')
+          .toList();
     }
 
     // Cached dynamic addon priority lookup from user's installed addons order
@@ -640,10 +659,16 @@ class _WatchScreenState extends State<_WatchScreenBody>
 
       // When custom Built-in providers mode is active, provider rank strictly dictates order
       if (isCustomBuiltin && isHttpA && isHttpB) {
-        final pidA = a.providerId ?? BuiltinProvidersSettingsService.detectProviderId(a);
-        final pidB = b.providerId ?? BuiltinProvidersSettingsService.detectProviderId(b);
-        final rankA = BuiltinProvidersSettingsService.instance.getProviderRank(pidA);
-        final rankB = BuiltinProvidersSettingsService.instance.getProviderRank(pidB);
+        final pidA =
+            a.providerId ?? BuiltinProvidersSettingsService.detectProviderId(a);
+        final pidB =
+            b.providerId ?? BuiltinProvidersSettingsService.detectProviderId(b);
+        final rankA = BuiltinProvidersSettingsService.instance.getProviderRank(
+          pidA,
+        );
+        final rankB = BuiltinProvidersSettingsService.instance.getProviderRank(
+          pidB,
+        );
         if (rankA != rankB) {
           return rankA.compareTo(rankB);
         }
@@ -653,7 +678,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
         } else if (_selectedSizeFilter == 'largest') {
           return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
         } else if (_selectedSizeFilter == 'smallest') {
-          return (a.sizeBytes ?? double.infinity).compareTo(b.sizeBytes ?? double.infinity);
+          return (a.sizeBytes ?? double.infinity).compareTo(
+            b.sizeBytes ?? double.infinity,
+          );
         } else {
           final qComp = b.qualityRank.compareTo(a.qualityRank);
           if (qComp != 0) return qComp;
@@ -674,7 +701,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
       } else if (_selectedSizeFilter == 'largest') {
         return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
       } else if (_selectedSizeFilter == 'smallest') {
-        return (a.sizeBytes ?? double.infinity).compareTo(b.sizeBytes ?? double.infinity);
+        return (a.sizeBytes ?? double.infinity).compareTo(
+          b.sizeBytes ?? double.infinity,
+        );
       } else {
         final qComp = b.qualityRank.compareTo(a.qualityRank);
         if (qComp != 0) return qComp;
@@ -809,7 +838,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
             imageUrl: url,
             cacheManager: AppImageCache.manager,
             fit: BoxFit.cover,
-            errorWidget: (_, __, ___) => ColoredBox(color: luTokens.bg)),
+            errorWidget: (_, __, ___) => ColoredBox(color: luTokens.bg),
+          ),
           // Left-to-right dimming: dark on left (text side), lighter on right
           DecoratedBox(
             decoration: BoxDecoration(
@@ -912,17 +942,23 @@ class _WatchScreenState extends State<_WatchScreenBody>
             // ── Info region (single box) ──
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s24,
+                ),
                 child: _buildInfoRegion(isDesktop: false),
               ),
             ),
 
-            const SliverPadding(padding: EdgeInsets.only(top: ZplaySpacing.s24)),
+            const SliverPadding(
+              padding: EdgeInsets.only(top: ZplaySpacing.s24),
+            ),
 
             // ── Sources header ──
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -948,8 +984,10 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         Text(
                           _isLoadingSources
                               ? (filtered.isEmpty
-                                  ? l10nOf(context).watchSearching
-                                  : l10nOf(context).watchFoundSearching(filtered.length))
+                                    ? l10nOf(context).watchSearching
+                                    : l10nOf(
+                                        context,
+                                      ).watchFoundSearching(filtered.length))
                               : l10nOf(context).watchFound(filtered.length),
                           style: ZplayType.bodySmall.toStyle(
                             color: luTokens.textMuted,
@@ -963,7 +1001,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          _buildTypeChip('all', l10nOf(context).watchFilterAll(_sources.length), Icons.apps_rounded, null),
+                          _buildTypeChip(
+                            'all',
+                            l10nOf(context).watchFilterAll(_sources.length),
+                            Icons.apps_rounded,
+                            null,
+                          ),
                           _buildTypeChip(
                             'debrid',
                             '⚡ ${l10nOf(context).watchFilterDebrid(_debridServiceName ?? 'Debrid', _sources.where(_isDebridSource).length)}',
@@ -1006,7 +1049,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
             // ── Sources list (virtualized!) ──
             if (_isLoadingSources && filtered.isEmpty)
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s24,
+                ),
                 sliver: SliverList.builder(
                   itemCount: 4,
                   itemBuilder: (context, index) => Padding(
@@ -1018,13 +1063,17 @@ class _WatchScreenState extends State<_WatchScreenBody>
             else if (!_isLoadingSources && filtered.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ZplaySpacing.s24,
+                  ),
                   child: _buildEmptyState(),
                 ),
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ZplaySpacing.s24,
+                ),
                 sliver: SliverList.builder(
                   itemCount: filtered.length + 1 + (_isLoadingSources ? 2 : 0),
                   itemBuilder: (context, row) {
@@ -1051,7 +1100,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
               ),
 
             // ── Bottom padding ──
-            const SliverPadding(padding: EdgeInsets.only(bottom: ZplaySpacing.s24)),
+            const SliverPadding(
+              padding: EdgeInsets.only(bottom: ZplaySpacing.s24),
+            ),
           ],
         ),
       ),
@@ -1071,16 +1122,21 @@ class _WatchScreenState extends State<_WatchScreenBody>
         // Episode info header (if applicable)
         if (ep != null) ...[
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: ZplaySpacing.s12,
+              vertical: 6,
+            ),
             decoration: BoxDecoration(
-              color: luTokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
+              color: luTokens.accent.withValues(
+                alpha: ZplayOpacity.overlayHover,
+              ),
               borderRadius: ZplayRadius.smAll,
               border: Border.all(color: luTokens.accent.withValues(alpha: 0.3)),
             ),
             child: Text(
               _isCollection
                   ? l10nCurrent().ply2PartCaps(ep.episode ?? 1)
-                  : 'S${ep.season ?? '?' }E${ep.episode ?? '?' }',
+                  : 'S${ep.season ?? '?'}E${ep.episode ?? '?'}',
               style: ZplayType.label
                   .copyWith(weight: FontWeight.w700, letterSpacing: 0.5)
                   .toStyle(color: luTokens.accent),
@@ -1129,7 +1185,10 @@ class _WatchScreenState extends State<_WatchScreenBody>
 
         // Cast
         if (meta.cast.isNotEmpty) ...[
-          _buildLabelChips(l10nOf(context).detailsCast, meta.cast.take(8).toList()),
+          _buildLabelChips(
+            l10nOf(context).detailsCast,
+            meta.cast.take(8).toList(),
+          ),
           const SizedBox(height: ZplaySpacing.s24),
         ],
 
@@ -1161,7 +1220,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
           alignment: Alignment.bottomLeft,
           fit: BoxFit.contain,
           errorWidget: (_, __, ___) =>
-              _buildTextTitle(meta.displayName, isDesktop)),
+              _buildTextTitle(meta.displayName, isDesktop),
+        ),
       );
     }
     return _buildTextTitle(meta.displayName, isDesktop);
@@ -1208,8 +1268,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
             final d? => l10nOf(context).detailsRuntimeMinutes(d.inMinutes),
             null => meta.runtime!,
           },
-          style: ZplayType.body
-              .toStyle(color: luTokens.textSecondary),
+          style: ZplayType.body.toStyle(color: luTokens.textSecondary),
         ),
       );
     }
@@ -1217,9 +1276,14 @@ class _WatchScreenState extends State<_WatchScreenBody>
     if (meta.imdbRating != null && meta.imdbRating!.isNotEmpty) {
       items.add(
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s8, vertical: 3),
+          padding: const EdgeInsets.symmetric(
+            horizontal: ZplaySpacing.s8,
+            vertical: 3,
+          ),
           decoration: BoxDecoration(
-            color: luTokens.warning.withValues(alpha: ZplayOpacity.overlayHover),
+            color: luTokens.warning.withValues(
+              alpha: ZplayOpacity.overlayHover,
+            ),
             borderRadius: ZplayRadius.xsAll,
             border: Border.all(color: luTokens.warning.withValues(alpha: 0.4)),
           ),
@@ -1270,11 +1334,20 @@ class _WatchScreenState extends State<_WatchScreenBody>
       children: genres
           .map(
             (g) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: ZplaySpacing.s12,
+                vertical: 6,
+              ),
               decoration: BoxDecoration(
-                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault),
+                color: luTokens.textPrimary.withValues(
+                  alpha: ZplayOpacity.borderDefault,
+                ),
                 borderRadius: ZplayRadius.fullAll,
-                border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)),
+                border: Border.all(
+                  color: luTokens.textPrimary.withValues(
+                    alpha: ZplayOpacity.borderMedium,
+                  ),
+                ),
               ),
               child: Text(
                 g,
@@ -1332,7 +1405,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
               onTap: () =>
                   setState(() => _synopsisExpanded = !_synopsisExpanded),
               builder: (context, _) => Text(
-                _synopsisExpanded ? l10nOf(context).detailsShowLess : l10nOf(context).detailsReadMore,
+                _synopsisExpanded
+                    ? l10nOf(context).detailsShowLess
+                    : l10nOf(context).detailsReadMore,
                 style: ZplayType.label
                     .copyWith(weight: FontWeight.w600)
                     .toStyle(color: luTokens.accent),
@@ -1371,7 +1446,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   ),
                   child: Text(
                     name,
-                    style: ZplayType.bodySmall.toStyle(color: luTokens.textSecondary),
+                    style: ZplayType.bodySmall.toStyle(
+                      color: luTokens.textSecondary,
+                    ),
                   ),
                 ),
               )
@@ -1387,7 +1464,8 @@ class _WatchScreenState extends State<_WatchScreenBody>
     // the viewer out to a browser, and Lumora does not do that.
     final links = widget.detail.links
         .where((link) {
-          final isTrailer = link.name.toLowerCase().contains('trailer') ||
+          final isTrailer =
+              link.name.toLowerCase().contains('trailer') ||
               link.category.toLowerCase().contains('trailer');
           return isTrailer && TrailerModal.youtubeKeyFromUrl(link.url) != null;
         })
@@ -1403,17 +1481,21 @@ class _WatchScreenState extends State<_WatchScreenBody>
 
         if (nameLower.contains('imdb') || catLower.contains('imdb')) {
           icon = Icons.movie_creation_outlined;
-        } else if (nameLower.contains('trailer') || catLower.contains('trailer')) {
+        } else if (nameLower.contains('trailer') ||
+            catLower.contains('trailer')) {
           icon = Icons.play_circle_outline;
         } else if (nameLower.contains('wiki') || catLower.contains('wiki')) {
           icon = Icons.article_outlined;
-        } else if (nameLower.contains('search') || catLower.contains('search')) {
+        } else if (nameLower.contains('search') ||
+            catLower.contains('search')) {
           icon = Icons.search_rounded;
         }
 
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(right: link == links.last ? 0 : ZplaySpacing.s12),
+            padding: EdgeInsets.only(
+              right: link == links.last ? 0 : ZplaySpacing.s12,
+            ),
             child: _buildActionButton(
               icon,
               link.name,
@@ -1448,7 +1530,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           color: luTokens.surface.withValues(alpha: 0.6),
           borderRadius: ZplayRadius.smAll,
-          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle)),
+          border: Border.all(
+            color: luTokens.textPrimary.withValues(
+              alpha: ZplayOpacity.borderSubtle,
+            ),
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1488,21 +1574,17 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 const SizedBox(width: ZplaySpacing.s8),
                 Text(
                   l10nOf(context).watchSources,
-                  style: ZplayType.title.toStyle(
-                    color: luTokens.textPrimary,
-                  ),
+                  style: ZplayType.title.toStyle(color: luTokens.textPrimary),
                 ),
               ],
             ),
             Text(
               _isLoadingSources
                   ? (filtered.isEmpty
-                      ? l10nOf(context).watchSearching
-                      : l10nOf(context).watchFoundSearching(filtered.length))
+                        ? l10nOf(context).watchSearching
+                        : l10nOf(context).watchFoundSearching(filtered.length))
                   : l10nOf(context).watchFound(filtered.length),
-              style: ZplayType.bodySmall.toStyle(
-                color: luTokens.textMuted,
-              ),
+              style: ZplayType.bodySmall.toStyle(color: luTokens.textMuted),
             ),
           ],
         ),
@@ -1514,7 +1596,12 @@ class _WatchScreenState extends State<_WatchScreenBody>
             spacing: 6,
             runSpacing: 6,
             children: [
-              _buildTypeChip('all', l10nOf(context).watchFilterAll(_sources.length), Icons.apps_rounded, null),
+              _buildTypeChip(
+                'all',
+                l10nOf(context).watchFilterAll(_sources.length),
+                Icons.apps_rounded,
+                null,
+              ),
               _buildTypeChip(
                 'debrid',
                 '⚡ ${l10nOf(context).watchFilterDebrid(_debridServiceName ?? 'Debrid', _sources.where(_isDebridSource).length)}',
@@ -1552,9 +1639,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
 
         // Source list
         if (isDesktop)
-          Expanded(
-            child: _buildSourcesList(filtered, isDesktop),
-          )
+          Expanded(child: _buildSourcesList(filtered, isDesktop))
         else
           _buildSourcesList(filtered, isDesktop),
       ],
@@ -1589,8 +1674,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
             border: Border.all(
               color: isSelected
                   ? activeColor
-                  : luTokens.textPrimary
-                      .withValues(alpha: ZplayOpacity.borderMedium),
+                  : luTokens.textPrimary.withValues(
+                      alpha: ZplayOpacity.borderMedium,
+                    ),
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
@@ -1769,7 +1855,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   border: Border.all(
                     color: _selectedSeederFilter != 'all'
                         ? luTokens.success.withValues(alpha: 0.6)
-                        : luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
+                        : luTokens.textPrimary.withValues(
+                            alpha: ZplayOpacity.overlayHover,
+                          ),
                   ),
                 ),
                 child: Row(
@@ -1818,17 +1906,28 @@ class _WatchScreenState extends State<_WatchScreenBody>
       ancestor: overlay,
     );
     const double dialogWidth = 230.0;
-    final double spaceBelow = overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
+    final double spaceBelow =
+        overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
     final double spaceAbove = buttonOffset.dy - 16;
     final bool openAbove = spaceBelow < 280 && spaceAbove > spaceBelow;
 
-    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(160.0, 420.0);
-    final double? topOffset = openAbove ? null : (buttonOffset.dy + button.size.height + 8);
-    final double? bottomOffset = openAbove ? (overlay.size.height - buttonOffset.dy + 8) : null;
+    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(
+      160.0,
+      420.0,
+    );
+    final double? topOffset = openAbove
+        ? null
+        : (buttonOffset.dy + button.size.height + 8);
+    final double? bottomOffset = openAbove
+        ? (overlay.size.height - buttonOffset.dy + 8)
+        : null;
 
     final double rawLeft = buttonOffset.dx;
     final double maxLeft = overlay.size.width - dialogWidth - 12.0;
-    final double leftOffset = rawLeft.clamp(12.0, maxLeft > 12.0 ? maxLeft : 12.0);
+    final double leftOffset = rawLeft.clamp(
+      12.0,
+      maxLeft > 12.0 ? maxLeft : 12.0,
+    );
 
     showGeneralDialog(
       context: context,
@@ -1877,7 +1976,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         padding: const EdgeInsets.all(ZplaySpacing.s8),
                         decoration: BoxDecoration(
                           borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                          border: Border.all(
+                            color: luTokens.textPrimary.withValues(
+                              alpha: ZplayOpacity.overlayHover,
+                            ),
+                          ),
                         ),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -1885,18 +1988,38 @@ class _WatchScreenState extends State<_WatchScreenBody>
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildSeederDropdownItem(l10nOf(context).watchSeedsAll, 'all'),
+                              _buildSeederDropdownItem(
+                                l10nOf(context).watchSeedsAll,
+                                'all',
+                              ),
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(
+                                  alpha: ZplayOpacity.borderMedium,
+                                ),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
-                              _buildSeederDropdownItem(l10nOf(context).watchSeedsMostLong, 'most'),
-                              _buildSeederDropdownItem(l10nOf(context).watchSeedsAtLeast(50), '50+'),
-                              _buildSeederDropdownItem(l10nOf(context).watchSeedsAtLeast(20), '20+'),
-                              _buildSeederDropdownItem(l10nOf(context).watchSeedsAtLeast(5), '5+'),
-                              _buildSeederDropdownItem(l10nOf(context).watchSeedsActiveLong, '1+'),
+                              _buildSeederDropdownItem(
+                                l10nOf(context).watchSeedsMostLong,
+                                'most',
+                              ),
+                              _buildSeederDropdownItem(
+                                l10nOf(context).watchSeedsAtLeast(50),
+                                '50+',
+                              ),
+                              _buildSeederDropdownItem(
+                                l10nOf(context).watchSeedsAtLeast(20),
+                                '20+',
+                              ),
+                              _buildSeederDropdownItem(
+                                l10nOf(context).watchSeedsAtLeast(5),
+                                '5+',
+                              ),
+                              _buildSeederDropdownItem(
+                                l10nOf(context).watchSeedsActiveLong,
+                                '1+',
+                              ),
                             ],
                           ),
                         ),
@@ -1928,7 +2051,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(
+                  alpha: ZplayOpacity.borderMedium,
+                )
               : Colors.transparent,
         ),
         child: Row(
@@ -1982,7 +2107,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.mdAll,
-                  border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                  border: Border.all(
+                    color: luTokens.textPrimary.withValues(
+                      alpha: ZplayOpacity.overlayHover,
+                    ),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2024,17 +2153,28 @@ class _WatchScreenState extends State<_WatchScreenBody>
       ancestor: overlay,
     );
     const double dialogWidth = 230.0;
-    final double spaceBelow = overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
+    final double spaceBelow =
+        overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
     final double spaceAbove = buttonOffset.dy - 16;
     final bool openAbove = spaceBelow < 280 && spaceAbove > spaceBelow;
 
-    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(160.0, 420.0);
-    final double? topOffset = openAbove ? null : (buttonOffset.dy + button.size.height + 8);
-    final double? bottomOffset = openAbove ? (overlay.size.height - buttonOffset.dy + 8) : null;
+    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(
+      160.0,
+      420.0,
+    );
+    final double? topOffset = openAbove
+        ? null
+        : (buttonOffset.dy + button.size.height + 8);
+    final double? bottomOffset = openAbove
+        ? (overlay.size.height - buttonOffset.dy + 8)
+        : null;
 
     final double rawLeft = buttonOffset.dx;
     final double maxLeft = overlay.size.width - dialogWidth - 12.0;
-    final double leftOffset = rawLeft.clamp(12.0, maxLeft > 12.0 ? maxLeft : 12.0);
+    final double leftOffset = rawLeft.clamp(
+      12.0,
+      maxLeft > 12.0 ? maxLeft : 12.0,
+    );
 
     showGeneralDialog(
       context: context,
@@ -2083,7 +2223,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         padding: const EdgeInsets.all(ZplaySpacing.s8),
                         decoration: BoxDecoration(
                           borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                          border: Border.all(
+                            color: luTokens.textPrimary.withValues(
+                              alpha: ZplayOpacity.overlayHover,
+                            ),
+                          ),
                         ),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -2091,26 +2235,42 @@ class _WatchScreenState extends State<_WatchScreenBody>
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildSizeDropdownItem(l10nOf(context).watchSizeAll, null),
+                              _buildSizeDropdownItem(
+                                l10nOf(context).watchSizeAll,
+                                null,
+                              ),
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(
+                                  alpha: ZplayOpacity.borderMedium,
+                                ),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
                               _buildSizeDropdownItem('< 1 GB', '<1gb'),
                               _buildSizeDropdownItem('1 GB – 5 GB', '1-5gb'),
                               _buildSizeDropdownItem('5 GB – 15 GB', '5-15gb'),
-                              _buildSizeDropdownItem('15 GB – 30 GB', '15-30gb'),
+                              _buildSizeDropdownItem(
+                                '15 GB – 30 GB',
+                                '15-30gb',
+                              ),
                               _buildSizeDropdownItem('> 30 GB', '>30gb'),
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(
+                                  alpha: ZplayOpacity.borderMedium,
+                                ),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
-                              _buildSizeDropdownItem(l10nOf(context).watchSizeLargestFirst, 'largest'),
-                              _buildSizeDropdownItem(l10nOf(context).watchSizeSmallestFirst, 'smallest'),
+                              _buildSizeDropdownItem(
+                                l10nOf(context).watchSizeLargestFirst,
+                                'largest',
+                              ),
+                              _buildSizeDropdownItem(
+                                l10nOf(context).watchSizeSmallestFirst,
+                                'smallest',
+                              ),
                             ],
                           ),
                         ),
@@ -2142,7 +2302,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(
+                  alpha: ZplayOpacity.borderMedium,
+                )
               : Colors.transparent,
         ),
         child: Row(
@@ -2200,7 +2362,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   borderRadius: ZplayRadius.mdAll,
-                  border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                  border: Border.all(
+                    color: luTokens.textPrimary.withValues(
+                      alpha: ZplayOpacity.overlayHover,
+                    ),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2237,17 +2403,28 @@ class _WatchScreenState extends State<_WatchScreenBody>
     );
 
     const double dialogWidth = 230.0;
-    final double spaceBelow = overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
+    final double spaceBelow =
+        overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
     final double spaceAbove = buttonOffset.dy - 16;
     final bool openAbove = spaceBelow < 280 && spaceAbove > spaceBelow;
 
-    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(160.0, 420.0);
-    final double? topOffset = openAbove ? null : (buttonOffset.dy + button.size.height + 8);
-    final double? bottomOffset = openAbove ? (overlay.size.height - buttonOffset.dy + 8) : null;
+    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(
+      160.0,
+      420.0,
+    );
+    final double? topOffset = openAbove
+        ? null
+        : (buttonOffset.dy + button.size.height + 8);
+    final double? bottomOffset = openAbove
+        ? (overlay.size.height - buttonOffset.dy + 8)
+        : null;
 
     final double rawLeft = buttonOffset.dx;
     final double maxLeft = overlay.size.width - dialogWidth - 12.0;
-    final double leftOffset = rawLeft.clamp(12.0, maxLeft > 12.0 ? maxLeft : 12.0);
+    final double leftOffset = rawLeft.clamp(
+      12.0,
+      maxLeft > 12.0 ? maxLeft : 12.0,
+    );
 
     showGeneralDialog(
       context: context,
@@ -2270,10 +2447,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   curve: Curves.easeOut,
                   builder: (context, value, child) {
                     return Transform.translate(
-                      offset: Offset(
-                        0,
-                        (openAbove ? 10 : -10) * (1 - value),
-                      ),
+                      offset: Offset(0, (openAbove ? 10 : -10) * (1 - value)),
                       child: Opacity(
                         opacity: value.clamp(0.0, 1.0),
                         child: child,
@@ -2299,7 +2473,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         padding: const EdgeInsets.all(ZplaySpacing.s8),
                         decoration: BoxDecoration(
                           borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                          border: Border.all(
+                            color: luTokens.textPrimary.withValues(
+                              alpha: ZplayOpacity.overlayHover,
+                            ),
+                          ),
                         ),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -2307,14 +2485,22 @@ class _WatchScreenState extends State<_WatchScreenBody>
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildDropdownItem(l10nOf(context).watchAllSources, null),
+                              _buildDropdownItem(
+                                l10nOf(context).watchAllSources,
+                                null,
+                              ),
                               const SizedBox(height: ZplaySpacing.s4),
                               Container(
                                 height: 1,
-                                color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                                color: luTokens.textPrimary.withValues(
+                                  alpha: ZplayOpacity.borderMedium,
+                                ),
                               ),
                               const SizedBox(height: ZplaySpacing.s4),
-                              ...addons.map((a) => _buildDropdownItem(displayAddonName(a), a)),
+                              ...addons.map(
+                                (a) =>
+                                    _buildDropdownItem(displayAddonName(a), a),
+                              ),
                             ],
                           ),
                         ),
@@ -2342,11 +2528,16 @@ class _WatchScreenState extends State<_WatchScreenBody>
       borderRadius: ZplayRadius.mdAll,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s12, horizontal: ZplaySpacing.s16),
+        padding: const EdgeInsets.symmetric(
+          vertical: ZplaySpacing.s12,
+          horizontal: ZplaySpacing.s16,
+        ),
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(
+                  alpha: ZplayOpacity.borderMedium,
+                )
               : Colors.transparent,
         ),
         child: Row(
@@ -2433,7 +2624,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
                   border: Border.all(
                     color: isActive
                         ? luTokens.accent.withValues(alpha: 0.6)
-                        : luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover),
+                        : luTokens.textPrimary.withValues(
+                            alpha: ZplayOpacity.overlayHover,
+                          ),
                   ),
                 ),
                 child: Row(
@@ -2450,7 +2643,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
                       style: ZplayType.label
                           .copyWith(weight: FontWeight.w600)
                           .toStyle(
-                            color: isActive ? luTokens.accent : luTokens.textPrimary,
+                            color: isActive
+                                ? luTokens.accent
+                                : luTokens.textPrimary,
                           ),
                     ),
                     const SizedBox(width: ZplaySpacing.s4),
@@ -2479,17 +2674,28 @@ class _WatchScreenState extends State<_WatchScreenBody>
     );
 
     const double dialogWidth = 240.0;
-    final double spaceBelow = overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
+    final double spaceBelow =
+        overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
     final double spaceAbove = buttonOffset.dy - 16;
     final bool openAbove = spaceBelow < 280 && spaceAbove > spaceBelow;
 
-    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(160.0, 420.0);
-    final double? topOffset = openAbove ? null : (buttonOffset.dy + button.size.height + 8);
-    final double? bottomOffset = openAbove ? (overlay.size.height - buttonOffset.dy + 8) : null;
+    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(
+      160.0,
+      420.0,
+    );
+    final double? topOffset = openAbove
+        ? null
+        : (buttonOffset.dy + button.size.height + 8);
+    final double? bottomOffset = openAbove
+        ? (overlay.size.height - buttonOffset.dy + 8)
+        : null;
 
     final double rawLeft = buttonOffset.dx;
     final double maxLeft = overlay.size.width - dialogWidth - 12.0;
-    final double leftOffset = rawLeft.clamp(12.0, maxLeft > 12.0 ? maxLeft : 12.0);
+    final double leftOffset = rawLeft.clamp(
+      12.0,
+      maxLeft > 12.0 ? maxLeft : 12.0,
+    );
 
     showGeneralDialog(
       context: context,
@@ -2522,10 +2728,17 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     child: Container(
                       width: dialogWidth,
                       constraints: BoxConstraints(maxHeight: maxMenuHeight),
-                      padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s8, horizontal: 6),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: ZplaySpacing.s8,
+                        horizontal: 6,
+                      ),
                       decoration: BoxDecoration(
                         borderRadius: ZplayRadius.mdAll,
-                        border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.overlayHover)),
+                        border: Border.all(
+                          color: luTokens.textPrimary.withValues(
+                            alpha: ZplayOpacity.overlayHover,
+                          ),
+                        ),
                       ),
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
@@ -2533,24 +2746,62 @@ class _WatchScreenState extends State<_WatchScreenBody>
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildAudioDropdownItem(l10nOf(context).watchAllAudio, 'all'),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAllAudio,
+                              'all',
+                            ),
                             const SizedBox(height: ZplaySpacing.s4),
                             Container(
                               height: 1,
-                              color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                              color: luTokens.textPrimary.withValues(
+                                alpha: ZplayOpacity.borderMedium,
+                              ),
                             ),
                             const SizedBox(height: ZplaySpacing.s4),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioMulti, 'multi'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioEnglish, 'english'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioHindi, 'hindi'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioGerman, 'german'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioFrench, 'french'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioCastilian, 'spanish_castilian'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioLatino, 'spanish_latino'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioSpanish, 'spanish'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioRussian, 'russian'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioJapanese, 'japanese'),
-                            _buildAudioDropdownItem(l10nOf(context).watchAudioItalian, 'italian'),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioMulti,
+                              'multi',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioEnglish,
+                              'english',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioHindi,
+                              'hindi',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioGerman,
+                              'german',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioFrench,
+                              'french',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioCastilian,
+                              'spanish_castilian',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioLatino,
+                              'spanish_latino',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioSpanish,
+                              'spanish',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioRussian,
+                              'russian',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioJapanese,
+                              'japanese',
+                            ),
+                            _buildAudioDropdownItem(
+                              l10nOf(context).watchAudioItalian,
+                              'italian',
+                            ),
                           ],
                         ),
                       ),
@@ -2581,7 +2832,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
           color: isSelected
-              ? luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium)
+              ? luTokens.textPrimary.withValues(
+                  alpha: ZplayOpacity.borderMedium,
+                )
               : Colors.transparent,
         ),
         child: Row(
@@ -2615,11 +2868,18 @@ class _WatchScreenState extends State<_WatchScreenBody>
   }) {
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12, vertical: ZplaySpacing.s12),
+        margin: const EdgeInsets.symmetric(
+          horizontal: ZplaySpacing.s12,
+          vertical: ZplaySpacing.s12,
+        ),
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.lgAll,
           color: luTokens.surfaceOverlay.withValues(alpha: 0.96),
-          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+          border: Border.all(
+            color: luTokens.textPrimary.withValues(
+              alpha: ZplayOpacity.borderStrong,
+            ),
+          ),
           boxShadow: [
             BoxShadow(
               color: luTokens.bg.withValues(alpha: 0.5),
@@ -2681,7 +2941,10 @@ class _WatchScreenState extends State<_WatchScreenBody>
       borderRadius: ZplayRadius.mdAll,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s12, horizontal: ZplaySpacing.s16),
+        padding: const EdgeInsets.symmetric(
+          vertical: ZplaySpacing.s12,
+          horizontal: ZplaySpacing.s16,
+        ),
         margin: const EdgeInsets.only(bottom: ZplaySpacing.s4),
         decoration: BoxDecoration(
           borderRadius: ZplayRadius.mdAll,
@@ -2729,7 +2992,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: luTokens.accent.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: luTokens.accent.withValues(
+                    alpha: ZplayOpacity.overlayHover,
+                  ),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
@@ -2748,7 +3013,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
+                icon: Icon(
+                  Icons.close,
+                  color: luTokens.textSecondary,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -2821,7 +3090,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
                     isSelected: _selectedAudioFilter == 'spanish_castilian',
                     activeColor: luTokens.warning,
                     onTap: () {
-                      setState(() => _selectedAudioFilter = 'spanish_castilian');
+                      setState(
+                        () => _selectedAudioFilter = 'spanish_castilian',
+                      );
                       Navigator.pop(ctx);
                     },
                   ),
@@ -2892,7 +3163,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: luTokens.success.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: luTokens.success.withValues(
+                    alpha: ZplayOpacity.overlayHover,
+                  ),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
@@ -2911,7 +3184,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
+                icon: Icon(
+                  Icons.close,
+                  color: luTokens.textSecondary,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -3001,7 +3278,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: luTokens.info.withValues(alpha: ZplayOpacity.overlayHover),
+                  color: luTokens.info.withValues(
+                    alpha: ZplayOpacity.overlayHover,
+                  ),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
@@ -3020,7 +3299,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
+                icon: Icon(
+                  Icons.close,
+                  color: luTokens.textSecondary,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -3128,7 +3411,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s8),
                 decoration: BoxDecoration(
-                  color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderMedium),
+                  color: luTokens.textPrimary.withValues(
+                    alpha: ZplayOpacity.borderMedium,
+                  ),
                   borderRadius: ZplayRadius.smAll,
                 ),
                 child: Icon(
@@ -3147,7 +3432,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: luTokens.textSecondary, size: 20),
+                icon: Icon(
+                  Icons.close,
+                  color: luTokens.textSecondary,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ],
@@ -3219,7 +3508,11 @@ class _WatchScreenState extends State<_WatchScreenBody>
       decoration: BoxDecoration(
         color: luTokens.bg.withValues(alpha: 0.7),
         shape: BoxShape.circle,
-        border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+        border: Border.all(
+          color: luTokens.textPrimary.withValues(
+            alpha: ZplayOpacity.borderStrong,
+          ),
+        ),
       ),
       child: IconButton(
         icon: Icon(
@@ -3370,7 +3663,8 @@ class _SourceCardState extends State<_SourceCard> {
       return KeyEventResult.handled;
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft && _actionNode.hasFocus) {
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+        _actionNode.hasFocus) {
       _rowNode.requestFocus();
       return KeyEventResult.handled;
     }
@@ -3416,22 +3710,25 @@ class _SourceCardState extends State<_SourceCard> {
     if (s.isHDR) badges.add(_badge('HDR', luTokens.warning));
     if (widget.playsViaDebrid) {
       badges.add(
-        _badge(
-          '⚡ ${widget.debridServiceName ?? 'Debrid'}',
-          luTokens.info,
-        ),
+        _badge('⚡ ${widget.debridServiceName ?? 'Debrid'}', luTokens.info),
       );
     }
     // A source the provider has already refused, kept in the list because a
     // refusal can be superseded. Quiet on purpose: this is information, not an
     // error, and it only points the user at the sources above it.
     if (DebridRejectionStore.instance.isRejected(s.infoHash)) {
-      final String? reason = DebridRejectionStore.instance.reasonFor(s.infoHash);
-      final bool shortReason = reason != null &&
+      final String? reason = DebridRejectionStore.instance.reasonFor(
+        s.infoHash,
+      );
+      final bool shortReason =
+          reason != null &&
           reason.isNotEmpty &&
           reason.length <= _rejectionBadgeMaxChars;
       badges.add(
-        _badge(shortReason ? reason : l10nOf(context).watchUnavailable, luTokens.textMuted),
+        _badge(
+          shortReason ? reason : l10nOf(context).watchUnavailable,
+          luTokens.textMuted,
+        ),
       );
     }
     if (s.codec != null) badges.add(_badge(s.codec!, luTokens.textMuted));
@@ -3445,10 +3742,10 @@ class _SourceCardState extends State<_SourceCard> {
     if (s.seeders != null) {
       final seederColor = s.seeders! >= 20
           ? luTokens.success
-          : (s.seeders! >= 5
-                ? luTokens.warning
-                : luTokens.danger);
-      badges.add(_badge('👤 ${l10nOf(context).watchSeeds(s.seeders!)}', seederColor));
+          : (s.seeders! >= 5 ? luTokens.warning : luTokens.danger);
+      badges.add(
+        _badge('👤 ${l10nOf(context).watchSeeds(s.seeders!)}', seederColor),
+      );
     }
 
     // Audio Language / Dub badge
@@ -3495,124 +3792,132 @@ class _SourceCardState extends State<_SourceCard> {
       child: ListenableBuilder(
         listenable: _actionNode,
         builder: (context, _) => FocusableCard(
-        focusNode: _rowNode,
-        onTap: widget.onActivate,
-        builder: (context, state) {
-          // `highlighted` for the wash and the lit chevron, so a pointer and a
-          // D-pad light a row the same way; `focused` for the ring, which is the
-          // only thing on the row that says which one the remote is on. The ring
-          // is painted over the surface rather than around it, so arriving
-          // focus moves nothing.
-          final bool lit = state.highlighted;
-          // The ring reads a narrower question than `focused` does. That flag is
-          // `FocusNode.hasFocus`, which is true for every ancestor of the primary
-          // focus, so a row carrying a stop of its own - the copy-magnet button -
-          // would stay ringed beside it and the screen would show two indicators
-          // for one remote. The row's ring is for the row itself; while the
-          // remote is on the button inside, the button's ring is the indicator
-          // and this one stands down. The wash stays on `highlighted`, so the row
-          // the action belongs to still reads as the active row.
-          return CardFocusRing(
-            focused: state.focused && !_actionNode.hasFocus,
-            radius: ZplayRadius.smAll,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: lit
-                    ? luTokens.surfaceRaised.withValues(alpha: 0.9)
-                    : luTokens.surface.withValues(alpha: 0.7),
-                borderRadius: ZplayRadius.smAll,
-                border: Border.all(
+          focusNode: _rowNode,
+          onTap: widget.onActivate,
+          builder: (context, state) {
+            // `highlighted` for the wash and the lit chevron, so a pointer and a
+            // D-pad light a row the same way; `focused` for the ring, which is the
+            // only thing on the row that says which one the remote is on. The ring
+            // is painted over the surface rather than around it, so arriving
+            // focus moves nothing.
+            final bool lit = state.highlighted;
+            // The ring reads a narrower question than `focused` does. That flag is
+            // `FocusNode.hasFocus`, which is true for every ancestor of the primary
+            // focus, so a row carrying a stop of its own - the copy-magnet button -
+            // would stay ringed beside it and the screen would show two indicators
+            // for one remote. The row's ring is for the row itself; while the
+            // remote is on the button inside, the button's ring is the indicator
+            // and this one stands down. The wash stays on `highlighted`, so the row
+            // the action belongs to still reads as the active row.
+            return CardFocusRing(
+              focused: state.focused && !_actionNode.hasFocus,
+              radius: ZplayRadius.smAll,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
                   color: lit
-                      ? luTokens.accent.withValues(alpha: 0.3)
-                      : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle),
-                ),
-                boxShadow: lit
-                    ? [
-                        BoxShadow(
-                          color: luTokens.accent.withValues(alpha: ZplayOpacity.borderDefault),
-                          blurRadius: 16,
-                        ),
-                      ]
-                    : [],
-              ),
-              child: Row(
-                children: [
-                  // Addon icon
-                  _AddonSourceIcon(addonName: s.addonName),
-                  const SizedBox(width: ZplaySpacing.s12),
-                  // Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          // One rule for this label, shared with the player's
-                          // top bar, so the row and the badge over the video
-                          // cannot name the same stream differently.
-                          s.providerLabel,
-                          style: ZplayType.label
-                              .copyWith(weight: FontWeight.w600)
-                              .toStyle(color: luTokens.textPrimary),
-                        ),
-                        if (s.title != null && s.title!.isNotEmpty) ...[
-                          const SizedBox(height: ZplaySpacing.s4),
-                          Text(
-                            s.title!,
-                            style: ZplayType.bodySmall.toStyle(color: luTokens.textMuted),
+                      ? luTokens.surfaceRaised.withValues(alpha: 0.9)
+                      : luTokens.surface.withValues(alpha: 0.7),
+                  borderRadius: ZplayRadius.smAll,
+                  border: Border.all(
+                    color: lit
+                        ? luTokens.accent.withValues(alpha: 0.3)
+                        : luTokens.textPrimary.withValues(
+                            alpha: ZplayOpacity.borderSubtle,
                           ),
-                        ],
-                        if (s.description != null &&
-                            s.description!.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            s.description!,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: ZplayType.bodySmall
-                                .copyWith(height: 1.3)
-                                .toStyle(color: luTokens.textSecondary),
-                          ),
-                        ],
-                        if (badges.isNotEmpty) ...[
-                          const SizedBox(height: ZplaySpacing.s8),
-                          Wrap(spacing: 4, runSpacing: 4, children: badges),
-                        ],
-                      ],
-                    ),
                   ),
-                  const SizedBox(width: ZplaySpacing.s8),
-                  if (s.isMagnet && s.magnetUrl != null) ...[
-                    _CopyMagnetButton(
-                      focusNode: _actionNode,
-                      focused: _actionNode.hasFocus,
-                      magnetUrl: s.magnetUrl!,
+                  boxShadow: lit
+                      ? [
+                          BoxShadow(
+                            color: luTokens.accent.withValues(
+                              alpha: ZplayOpacity.borderDefault,
+                            ),
+                            blurRadius: 16,
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Row(
+                  children: [
+                    // Addon icon
+                    _AddonSourceIcon(addonName: s.addonName),
+                    const SizedBox(width: ZplaySpacing.s12),
+                    // Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            // One rule for this label, shared with the player's
+                            // top bar, so the row and the badge over the video
+                            // cannot name the same stream differently.
+                            s.providerLabel,
+                            style: ZplayType.label
+                                .copyWith(weight: FontWeight.w600)
+                                .toStyle(color: luTokens.textPrimary),
+                          ),
+                          if (s.title != null && s.title!.isNotEmpty) ...[
+                            const SizedBox(height: ZplaySpacing.s4),
+                            Text(
+                              s.title!,
+                              style: ZplayType.bodySmall.toStyle(
+                                color: luTokens.textMuted,
+                              ),
+                            ),
+                          ],
+                          if (s.description != null &&
+                              s.description!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              s.description!,
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: ZplayType.bodySmall
+                                  .copyWith(height: 1.3)
+                                  .toStyle(color: luTokens.textSecondary),
+                            ),
+                          ],
+                          if (badges.isNotEmpty) ...[
+                            const SizedBox(height: ZplaySpacing.s8),
+                            Wrap(spacing: 4, runSpacing: 4, children: badges),
+                          ],
+                        ],
+                      ),
                     ),
                     const SizedBox(width: ZplaySpacing.s8),
+                    if (s.isMagnet && s.magnetUrl != null) ...[
+                      _CopyMagnetButton(
+                        focusNode: _actionNode,
+                        focused: _actionNode.hasFocus,
+                        magnetUrl: s.magnetUrl!,
+                      ),
+                      const SizedBox(width: ZplaySpacing.s8),
+                    ],
+                    // Play chevron
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: lit
+                            ? luTokens.accent.withValues(alpha: 0.2)
+                            : luTokens.textPrimary.withValues(
+                                alpha: ZplayOpacity.borderSubtle,
+                              ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        color: lit ? luTokens.accent : luTokens.textMuted,
+                        size: 20,
+                      ),
+                    ),
                   ],
-                  // Play chevron
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: lit
-                          ? luTokens.accent.withValues(alpha: 0.2)
-                          : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.play_arrow_rounded,
-                      color: lit ? luTokens.accent : luTokens.textMuted,
-                      size: 20,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
+            );
+          },
+        ),
       ),
     );
 
@@ -3661,7 +3966,8 @@ class _AddonSourceIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nameLower = addonName.trim().toLowerCase();
-    final isBuiltIn = nameLower == 'zplay' ||
+    final isBuiltIn =
+        nameLower == 'zplay' ||
         nameLower == 'zplayhttp' ||
         nameLower.startsWith('builtin');
 
@@ -3671,11 +3977,11 @@ class _AddonSourceIcon extends StatelessWidget {
         height: 40,
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
-          borderRadius: ZplayRadius.smAll,
-          border: Border.all(
-            color: luTokens.accent.withValues(alpha: 0.25),
+          color: luTokens.textPrimary.withValues(
+            alpha: ZplayOpacity.borderFaint,
           ),
+          borderRadius: ZplayRadius.smAll,
+          border: Border.all(color: luTokens.accent.withValues(alpha: 0.25)),
         ),
         child: const ZplayLogo(size: 30),
       );
@@ -3691,9 +3997,15 @@ class _AddonSourceIcon extends StatelessWidget {
           height: 40,
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+            color: luTokens.textPrimary.withValues(
+              alpha: ZplayOpacity.borderFaint,
+            ),
             borderRadius: ZplayRadius.smAll,
-            border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+            border: Border.all(
+              color: luTokens.textPrimary.withValues(
+                alpha: ZplayOpacity.borderStrong,
+              ),
+            ),
           ),
           child: ClipRRect(
             borderRadius: ZplayRadius.xsAll,
@@ -3712,9 +4024,15 @@ class _AddonSourceIcon extends StatelessWidget {
         height: 40,
         padding: const EdgeInsets.all(ZplaySpacing.s4),
         decoration: BoxDecoration(
-          color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+          color: luTokens.textPrimary.withValues(
+            alpha: ZplayOpacity.borderFaint,
+          ),
           borderRadius: ZplayRadius.smAll,
-          border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderStrong)),
+          border: Border.all(
+            color: luTokens.textPrimary.withValues(
+              alpha: ZplayOpacity.borderStrong,
+            ),
+          ),
         ),
         child: ClipRRect(
           borderRadius: ZplayRadius.xsAll,
@@ -3726,7 +4044,9 @@ class _AddonSourceIcon extends StatelessWidget {
             height: 32,
             fit: BoxFit.contain,
             placeholder: (context, url) => Container(
-              color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint),
+              color: luTokens.textPrimary.withValues(
+                alpha: ZplayOpacity.borderFaint,
+              ),
               child: Center(
                 child: SizedBox(
                   width: 14,
@@ -3738,7 +4058,8 @@ class _AddonSourceIcon extends StatelessWidget {
                 ),
               ),
             ),
-            errorWidget: (context, url, error) => _buildFallbackIcon()),
+            errorWidget: (context, url, error) => _buildFallbackIcon(),
+          ),
         ),
       );
     }
@@ -3867,7 +4188,9 @@ class _CopyMagnetButtonState extends State<_CopyMagnetButton> {
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
             child: Tooltip(
-              message: _copied ? l10nOf(context).watchCopied : l10nOf(context).watchCopyMagnet,
+              message: _copied
+                  ? l10nOf(context).watchCopied
+                  : l10nOf(context).watchCopyMagnet,
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -3881,15 +4204,19 @@ class _CopyMagnetButtonState extends State<_CopyMagnetButton> {
                       color: _copied
                           ? luTokens.success.withValues(alpha: 0.2)
                           : (_hovered
-                              ? luTokens.info.withValues(alpha: 0.18)
-                              : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderSubtle)),
+                                ? luTokens.info.withValues(alpha: 0.18)
+                                : luTokens.textPrimary.withValues(
+                                    alpha: ZplayOpacity.borderSubtle,
+                                  )),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: _copied
                             ? luTokens.success.withValues(alpha: 0.5)
                             : (_hovered
-                                ? luTokens.info.withValues(alpha: 0.4)
-                                : luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault)),
+                                  ? luTokens.info.withValues(alpha: 0.4)
+                                  : luTokens.textPrimary.withValues(
+                                      alpha: ZplayOpacity.borderDefault,
+                                    )),
                         width: 1,
                       ),
                     ),
@@ -3900,7 +4227,9 @@ class _CopyMagnetButtonState extends State<_CopyMagnetButton> {
                         key: ValueKey(_copied),
                         color: _copied
                             ? luTokens.success
-                            : (_hovered ? luTokens.info : luTokens.textSecondary),
+                            : (_hovered
+                                  ? luTokens.info
+                                  : luTokens.textSecondary),
                         size: 18,
                       ),
                     ),
@@ -3954,7 +4283,11 @@ class _ShimmerCardState extends State<_ShimmerCard>
           decoration: BoxDecoration(
             color: luTokens.surface.withValues(alpha: 0.5),
             borderRadius: ZplayRadius.smAll,
-            border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderFaint)),
+            border: Border.all(
+              color: luTokens.textPrimary.withValues(
+                alpha: ZplayOpacity.borderFaint,
+              ),
+            ),
           ),
           child: Row(
             children: [
@@ -4063,10 +4396,17 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
   Widget build(BuildContext context) {
     // Static card content — identical on every platform.
     final cardContent = Container(
-      padding: const EdgeInsets.symmetric(vertical: ZplaySpacing.s48, horizontal: ZplaySpacing.s24),
+      padding: const EdgeInsets.symmetric(
+        vertical: ZplaySpacing.s48,
+        horizontal: ZplaySpacing.s24,
+      ),
       decoration: BoxDecoration(
         color: luTokens.surfaceRaised.withValues(alpha: 0.94),
-        border: Border.all(color: luTokens.textPrimary.withValues(alpha: ZplayOpacity.borderDefault)),
+        border: Border.all(
+          color: luTokens.textPrimary.withValues(
+            alpha: ZplayOpacity.borderDefault,
+          ),
+        ),
         borderRadius: ZplayRadius.lgAll,
       ),
       child: Column(
@@ -4076,16 +4416,12 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
             padding: const EdgeInsets.all(ZplaySpacing.s16),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: luTokens.accent.withValues(alpha: ZplayOpacity.borderMedium),
-              border: Border.all(
-                color: luTokens.accent.withValues(alpha: 0.3),
+              color: luTokens.accent.withValues(
+                alpha: ZplayOpacity.borderMedium,
               ),
+              border: Border.all(color: luTokens.accent.withValues(alpha: 0.3)),
             ),
-            child: Icon(
-              Icons.radar_rounded,
-              color: luTokens.accent,
-              size: 40,
-            ),
+            child: Icon(Icons.radar_rounded, color: luTokens.accent, size: 40),
           ),
           const SizedBox(height: ZplaySpacing.s24),
           Text(

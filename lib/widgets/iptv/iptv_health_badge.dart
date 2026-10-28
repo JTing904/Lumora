@@ -80,8 +80,14 @@ class IptvHealthBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     const tokens = luTokens;
     final (color, label) = switch (health) {
-      IptvHitHealth.working => (tokens.success, l10nCurrent().wgIptvHealthAlive),
-      IptvHitHealth.unknown => (tokens.textDisabled, l10nCurrent().wgIptvHealthUnchecked),
+      IptvHitHealth.working => (
+        tokens.success,
+        l10nCurrent().wgIptvHealthAlive,
+      ),
+      IptvHitHealth.unknown => (
+        tokens.textDisabled,
+        l10nCurrent().wgIptvHealthUnchecked,
+      ),
       IptvHitHealth.dead => (tokens.danger, l10nCurrent().wgIptvHealthDead),
     };
 
@@ -96,7 +102,9 @@ class IptvHealthBadge extends StatelessWidget {
           border: Border.all(
             // The neutral state keeps a neutral edge: an unchecked feed is not
             // a warning, so it must not wear one's colour.
-            color: color.withValues(alpha: health == IptvHitHealth.unknown ? 0.45 : 0.6),
+            color: color.withValues(
+              alpha: health == IptvHitHealth.unknown ? 0.45 : 0.6,
+            ),
             width: 0.8,
           ),
         ),

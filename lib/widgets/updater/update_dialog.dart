@@ -116,7 +116,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
                           ),
                           const SizedBox(height: ZplaySpacing.s4),
                           Text(
-                            l10nCurrent().wgUpdVersion(widget.updateInfo.latestVersion),
+                            l10nCurrent().wgUpdVersion(
+                              widget.updateInfo.latestVersion,
+                            ),
                             style: ZplayType.titleLarge.toStyle(
                               color: tokens.textPrimary,
                             ),
@@ -437,7 +439,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
               backgroundColor: context.tokens.accent,
               foregroundColor: context.tokens.onAccent,
             ),
-            child: Text(l10nCurrent().wgUpdOpenReleasePage, style: ZplayType.label.toStyle()),
+            child: Text(
+              l10nCurrent().wgUpdOpenReleasePage,
+              style: ZplayType.label.toStyle(),
+            ),
           ),
         ],
       ),
@@ -467,7 +472,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
       _otaSub = OtaUpdate()
           .execute(
             widget.updateInfo.downloadUrl,
-            destinationFilename: 'Lumora_${widget.updateInfo.latestVersion}.apk',
+            destinationFilename:
+                'Lumora_${widget.updateInfo.latestVersion}.apk',
             sha256checksum: checksum,
           )
           .listen(
@@ -491,9 +497,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       WakelockPlus.disable();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            l10nCurrent().wgUpdInstallPermission,
-                          ),
+                          content: Text(l10nCurrent().wgUpdInstallPermission),
                           duration: const Duration(seconds: 5),
                           backgroundColor: context.tokens.warning,
                         ),

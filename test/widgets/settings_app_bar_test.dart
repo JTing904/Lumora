@@ -49,8 +49,9 @@ Future<void> _pumpPage(WidgetTester tester, {required String title}) async {
 }
 
 void main() {
-  testWidgets('draws the one band every settings page used to copy',
-      (tester) async {
+  testWidgets('draws the one band every settings page used to copy', (
+    tester,
+  ) async {
     await _pumpPage(tester, title: 'Probe Settings');
 
     final appBar = tester.widget<AppBar>(find.byType(AppBar));
@@ -58,19 +59,22 @@ void main() {
     expect(
       appBar.elevation,
       0,
-      reason: 'flat, and stated rather than inherited: a shadow on some pages '
+      reason:
+          'flat, and stated rather than inherited: a shadow on some pages '
           'and not others is exactly the drift this removes',
     );
     expect(
       appBar.scrolledUnderElevation,
       0,
-      reason: 'no scroll-under band: a strip that tints itself once content '
+      reason:
+          'no scroll-under band: a strip that tints itself once content '
           'slides under it is the band coming back',
     );
     expect(
       appBar.backgroundColor,
       Colors.transparent,
-      reason: 'the page canvas is the band; an opaque fill here is the seam '
+      reason:
+          'the page canvas is the band; an opaque fill here is the seam '
           'this widget exists to remove',
     );
     expect(
@@ -81,7 +85,8 @@ void main() {
     expect(
       appBar.shape,
       isNull,
-      reason: 'no bottom hairline: a page header separated by a line is a page '
+      reason:
+          'no bottom hairline: a page header separated by a line is a page '
           'header that looks like a different app from its own canvas',
     );
 

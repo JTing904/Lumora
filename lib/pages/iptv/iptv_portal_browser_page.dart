@@ -96,7 +96,9 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
   void initState() {
     super.initState();
     final name =
-        widget.portal?.name ?? widget.m3uPlaylist?.name ?? l10nCurrent().tvIptvPortal;
+        widget.portal?.name ??
+        widget.m3uPlaylist?.name ??
+        l10nCurrent().tvIptvPortal;
     DiscordRpcService.instance.setWatchingLiveTv(channelName: 'Portal: $name');
     _categoryScrollController.addListener(_updateCategoryScrollState);
     _contentScrollController.addListener(_updateContentScrollState);
@@ -391,7 +393,9 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
   }
 
   String _selectedCategoryName() {
-    if (_selectedCategoryId == favoritesCategoryId) return l10nCurrent().tvFavoritesStar;
+    if (_selectedCategoryId == favoritesCategoryId) {
+      return l10nCurrent().tvFavoritesStar;
+    }
     if (_selectedCategoryId.isEmpty) return l10nCurrent().tv2AllCategories;
     final found = _categories.firstWhere(
       (c) => c.id == _selectedCategoryId,
@@ -594,9 +598,7 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
     debugPrint('[IPTV] "${stream.name}" has no playable stream URL');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          l10nCurrent().tv2NoPlayableStreamNamed(stream.name),
-        ),
+        content: Text(l10nCurrent().tv2NoPlayableStreamNamed(stream.name)),
       ),
     );
   }
@@ -627,7 +629,9 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
         id: '',
         name: isLive
             ? l10nCurrent().tvLiveChannels
-            : (_activeSection == IptvSection.vod ? l10nCurrent().tvMovies : l10nCurrent().tvSeries),
+            : (_activeSection == IptvSection.vod
+                  ? l10nCurrent().tvMovies
+                  : l10nCurrent().tvSeries),
       ),
     );
 
@@ -655,7 +659,9 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
         name: stream.name,
         short: isLive
             ? l10nCurrent().tvBrowserLive
-            : (_activeSection == IptvSection.vod ? l10nCurrent().tvBrowserVod : l10nCurrent().tvBrowserSeriesBadge),
+            : (_activeSection == IptvSection.vod
+                  ? l10nCurrent().tvBrowserVod
+                  : l10nCurrent().tvBrowserSeriesBadge),
         category: currentCat.name,
         keywords: [stream.name],
         gradient: [luTokens.accent, luTokens.info],
@@ -706,7 +712,9 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
       final ch = HardcodedChannel(
         id: stream.streamId,
         name: stream.name,
-        short: isLive ? l10nCurrent().tvBrowserLive : l10nCurrent().tvBrowserVod,
+        short: isLive
+            ? l10nCurrent().tvBrowserLive
+            : l10nCurrent().tvBrowserVod,
         category: currentCat.name,
         keywords: [stream.name],
         gradient: [luTokens.accent, luTokens.info],
@@ -949,663 +957,680 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
     return Theme(
       data: luPanelTheme(),
       child: Scaffold(
-      backgroundColor: tokens.bg,
-      // The pushed route paints the same ambient canvas as Home and Discover;
-      // everything below sits on it rather than on a flat fill.
-      body: AnimatedAmbientBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // ── TOP APPLICATION HEADER ──
-              // This is the pushed route's own top chrome, so it is transparent:
-              // no fill band, no bottom hairline, the canvas stays visible.
-              if (isDesktop)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: ZplaySpacing.s20,
-                    vertical: ZplaySpacing.s12,
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.arrow_back_rounded,
-                          color: tokens.textPrimary,
-                          size: 22,
-                        ),
-                        tooltip: l10nCurrent().tvBrowserBack,
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: ZplaySpacing.s8),
-
-                      // Portal emblem — bare accent glyph, no boxed chrome.
-                      Icon(
-                        Icons.settings_input_antenna_rounded,
-                        color: tokens.accent,
-                        size: 20,
-                      ),
-                      const SizedBox(width: ZplaySpacing.s12),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ZplayType.title.toStyle(
-                                color: tokens.textPrimary,
-                              ),
-                            ),
-                            if (widget.portal != null) ...[
-                              const SizedBox(height: ZplaySpacing.s2),
-                              Row(
-                                children: [
-                                  Text(
-                                    l10nCurrent().tv2ExpiryLabel(widget.portal!.expiry),
-                                    style: ZplayType.caption.toStyle(
-                                      color: tokens.textMuted,
-                                    ),
-                                  ),
-                                  const SizedBox(width: ZplaySpacing.s12),
-                                  Container(
-                                    width: 3,
-                                    height: 3,
-                                    decoration: BoxDecoration(
-                                      color: tokens.textMuted,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: ZplaySpacing.s12),
-                                  Text(
-                                    l10nCurrent().tv2ConnectionsLabel(widget.portal!.activeConnections, widget.portal!.maxConnections),
-                                    style: ZplayType.caption.toStyle(
-                                      color: tokens.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(width: ZplaySpacing.s16),
-
-                      // ── SECTION SWITCHER TABS ──
-                      // No pill container: the selected tab's own accent fill is
-                      // the only box in the group.
-                      if (widget.portal != null) ...[
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildSectionTab(
-                              l10nCurrent().tvLiveTv,
-                              Icons.live_tv_rounded,
-                              IptvSection.live,
-                            ),
-                            const SizedBox(width: ZplaySpacing.s4),
-                            _buildSectionTab(
-                              l10nCurrent().tvMovies,
-                              Icons.movie_rounded,
-                              IptvSection.vod,
-                            ),
-                            const SizedBox(width: ZplaySpacing.s4),
-                            _buildSectionTab(
-                              l10nCurrent().tvTvSeries,
-                              Icons.tv_rounded,
-                              IptvSection.series,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: ZplaySpacing.s16),
-                      ],
-
-                      // Search Bar
-                      SizedBox(
-                        width: 240,
-                        height: 40,
-                        child: TextField(
-                          controller: _searchCtrl,
-                          style: ZplayType.body.toStyle(
+        backgroundColor: tokens.bg,
+        // The pushed route paints the same ambient canvas as Home and Discover;
+        // everything below sits on it rather than on a flat fill.
+        body: AnimatedAmbientBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                // ── TOP APPLICATION HEADER ──
+                // This is the pushed route's own top chrome, so it is transparent:
+                // no fill band, no bottom hairline, the canvas stays visible.
+                if (isDesktop)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ZplaySpacing.s20,
+                      vertical: ZplaySpacing.s12,
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.arrow_back_rounded,
                             color: tokens.textPrimary,
+                            size: 22,
                           ),
-                          decoration: InputDecoration(
-                            hintText: l10nCurrent().tvSearchChannelsHint,
-                            hintStyle: ZplayType.bodySmall.toStyle(
-                              color: tokens.textMuted,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              color: tokens.accent,
-                              size: 18,
-                            ),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: Icon(
-                                      Icons.close_rounded,
-                                      color: tokens.textMuted,
-                                      size: 16,
-                                    ),
-                                    onPressed: () {
-                                      _searchDebounce?.cancel();
-                                      _searchCtrl.clear();
-                                      setState(() => _searchQuery = '');
-                                    },
-                                  )
-                                : null,
-                            filled: true,
-                            fillColor: tokens.surface,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 0,
-                              horizontal: ZplaySpacing.s12,
-                            ),
-                            border: const OutlineInputBorder(
-                              borderRadius: LuRadius.field,
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          onChanged: _onSearchChanged,
+                          tooltip: l10nCurrent().tvBrowserBack,
+                          onPressed: () => Navigator.pop(context),
                         ),
-                      ),
+                        const SizedBox(width: ZplaySpacing.s8),
 
-                      // Alive Sniffer Action
-                      if (_activeSection == IptvSection.live &&
-                          widget.portal != null) ...[
-                        const SizedBox(width: ZplaySpacing.s12),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isCheckingAlive
-                                ? tokens.danger
-                                : tokens.accent,
-                            foregroundColor: tokens.onAccent,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: ZplaySpacing.s12,
-                              vertical: ZplaySpacing.s8,
-                            ),
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: LuRadius.field,
-                            ),
-                          ),
-                          icon: _isCheckingAlive
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.speed_rounded, size: 16),
-                          label: Text(
-                            _isCheckingAlive
-                                ? l10nCurrent().tv2StopHealthCheck(_aliveChecked, _aliveTotal)
-                                : l10nCurrent().tvCheckHealth,
-                            style: ZplayType.label.toStyle(
-                              color: tokens.onAccent,
-                            ),
-                          ),
-                          onPressed: _isCheckingAlive
-                              ? () => setState(() => _cancelAlive = true)
-                              : _startAliveCheck,
-                        ),
-                      ],
-
-                      const SizedBox(width: ZplaySpacing.s8),
-
-                      IconButton(
-                        icon: Icon(
-                          Icons.tune_rounded,
-                          color: tokens.textSecondary,
+                        // Portal emblem — bare accent glyph, no boxed chrome.
+                        Icon(
+                          Icons.settings_input_antenna_rounded,
+                          color: tokens.accent,
                           size: 20,
                         ),
-                        tooltip: l10nCurrent().tvCustomizeBrowserLayout,
-                        onPressed: () => _showBrowserCustomizer(context),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                // ── MOBILE RESPONSIVE HEADER ──
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    ZplaySpacing.s12,
-                    ZplaySpacing.s8,
-                    ZplaySpacing.s12,
-                    ZplaySpacing.s8,
-                  ),
-                  child: Column(
-                    children: [
-                      // Top Bar: Back, Portal Title, Health button
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.arrow_back_rounded,
-                              color: tokens.textPrimary,
-                              size: 22,
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          const SizedBox(width: ZplaySpacing.s4),
-                          Icon(
-                            Icons.settings_input_antenna_rounded,
-                            color: tokens.accent,
-                            size: 16,
-                          ),
-                          const SizedBox(width: ZplaySpacing.s8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: ZplayType.title.toStyle(
-                                    color: tokens.textPrimary,
-                                  ),
+                        const SizedBox(width: ZplaySpacing.s12),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: ZplayType.title.toStyle(
+                                  color: tokens.textPrimary,
                                 ),
-                                if (widget.portal != null)
-                                  Text(
-                                    l10nCurrent().tv2ConnAndExpiry(widget.portal!.activeConnections, widget.portal!.maxConnections, widget.portal!.expiry),
-                                    style: ZplayType.caption.toStyle(
-                                      color: tokens.textMuted,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (_activeSection == IptvSection.live &&
-                              widget.portal != null)
-                            IconButton(
-                              tooltip: l10nCurrent().tvCheckHealth,
-                              icon: _isCheckingAlive
-                                  ? SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: tokens.danger,
+                              ),
+                              if (widget.portal != null) ...[
+                                const SizedBox(height: ZplaySpacing.s2),
+                                Row(
+                                  children: [
+                                    Text(
+                                      l10nCurrent().tv2ExpiryLabel(
+                                        widget.portal!.expiry,
                                       ),
-                                    )
-                                  : Icon(
-                                      Icons.speed_rounded,
-                                      color: tokens.accent,
-                                      size: 20,
+                                      style: ZplayType.caption.toStyle(
+                                        color: tokens.textMuted,
+                                      ),
                                     ),
-                              onPressed: _isCheckingAlive
-                                  ? () => setState(() => _cancelAlive = true)
-                                  : _startAliveCheck,
+                                    const SizedBox(width: ZplaySpacing.s12),
+                                    Container(
+                                      width: 3,
+                                      height: 3,
+                                      decoration: BoxDecoration(
+                                        color: tokens.textMuted,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: ZplaySpacing.s12),
+                                    Text(
+                                      l10nCurrent().tv2ConnectionsLabel(
+                                        widget.portal!.activeConnections,
+                                        widget.portal!.maxConnections,
+                                      ),
+                                      style: ZplayType.caption.toStyle(
+                                        color: tokens.textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: ZplaySpacing.s16),
+
+                        // ── SECTION SWITCHER TABS ──
+                        // No pill container: the selected tab's own accent fill is
+                        // the only box in the group.
+                        if (widget.portal != null) ...[
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildSectionTab(
+                                l10nCurrent().tvLiveTv,
+                                Icons.live_tv_rounded,
+                                IptvSection.live,
+                              ),
+                              const SizedBox(width: ZplaySpacing.s4),
+                              _buildSectionTab(
+                                l10nCurrent().tvMovies,
+                                Icons.movie_rounded,
+                                IptvSection.vod,
+                              ),
+                              const SizedBox(width: ZplaySpacing.s4),
+                              _buildSectionTab(
+                                l10nCurrent().tvTvSeries,
+                                Icons.tv_rounded,
+                                IptvSection.series,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: ZplaySpacing.s16),
+                        ],
+
+                        // Search Bar
+                        SizedBox(
+                          width: 240,
+                          height: 40,
+                          child: TextField(
+                            controller: _searchCtrl,
+                            style: ZplayType.body.toStyle(
+                              color: tokens.textPrimary,
                             ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.tune_rounded,
-                              color: tokens.textSecondary,
-                              size: 20,
+                            decoration: InputDecoration(
+                              hintText: l10nCurrent().tvSearchChannelsHint,
+                              hintStyle: ZplayType.bodySmall.toStyle(
+                                color: tokens.textMuted,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.search_rounded,
+                                color: tokens.accent,
+                                size: 18,
+                              ),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        color: tokens.textMuted,
+                                        size: 16,
+                                      ),
+                                      onPressed: () {
+                                        _searchDebounce?.cancel();
+                                        _searchCtrl.clear();
+                                        setState(() => _searchQuery = '');
+                                      },
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: tokens.surface,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 0,
+                                horizontal: ZplaySpacing.s12,
+                              ),
+                              border: const OutlineInputBorder(
+                                borderRadius: LuRadius.field,
+                                borderSide: BorderSide.none,
+                              ),
                             ),
-                            tooltip: l10nCurrent().tvCustomize,
-                            onPressed: () => _showBrowserCustomizer(context),
+                            onChanged: _onSearchChanged,
+                          ),
+                        ),
+
+                        // Alive Sniffer Action
+                        if (_activeSection == IptvSection.live &&
+                            widget.portal != null) ...[
+                          const SizedBox(width: ZplaySpacing.s12),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isCheckingAlive
+                                  ? tokens.danger
+                                  : tokens.accent,
+                              foregroundColor: tokens.onAccent,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: ZplaySpacing.s12,
+                                vertical: ZplaySpacing.s8,
+                              ),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: LuRadius.field,
+                              ),
+                            ),
+                            icon: _isCheckingAlive
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.speed_rounded, size: 16),
+                            label: Text(
+                              _isCheckingAlive
+                                  ? l10nCurrent().tv2StopHealthCheck(
+                                      _aliveChecked,
+                                      _aliveTotal,
+                                    )
+                                  : l10nCurrent().tvCheckHealth,
+                              style: ZplayType.label.toStyle(
+                                color: tokens.onAccent,
+                              ),
+                            ),
+                            onPressed: _isCheckingAlive
+                                ? () => setState(() => _cancelAlive = true)
+                                : _startAliveCheck,
                           ),
                         ],
-                      ),
 
-                      const SizedBox(height: ZplaySpacing.s8),
+                        const SizedBox(width: ZplaySpacing.s8),
 
-                      // Controls Bar: Category Selector Chip + Section Tabs
-                      Row(
-                        children: [
-                          // Mobile Category Chip — a remote can land here, so it is a
-                          // FocusableInkWell; with no box, the accent folder icon is
-                          // what marks it as the category control.
-                          FocusableInkWell(
-                            onTap: () => _showMobileCategorySheet(context),
-                            borderRadius: LuRadius.field,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: ZplaySpacing.s8,
-                                vertical: ZplaySpacing.s4,
+                        IconButton(
+                          icon: Icon(
+                            Icons.tune_rounded,
+                            color: tokens.textSecondary,
+                            size: 20,
+                          ),
+                          tooltip: l10nCurrent().tvCustomizeBrowserLayout,
+                          onPressed: () => _showBrowserCustomizer(context),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  // ── MOBILE RESPONSIVE HEADER ──
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      ZplaySpacing.s12,
+                      ZplaySpacing.s8,
+                      ZplaySpacing.s12,
+                      ZplaySpacing.s8,
+                    ),
+                    child: Column(
+                      children: [
+                        // Top Bar: Back, Portal Title, Health button
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.arrow_back_rounded,
+                                color: tokens.textPrimary,
+                                size: 22,
                               ),
-                              child: Row(
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            const SizedBox(width: ZplaySpacing.s4),
+                            Icon(
+                              Icons.settings_input_antenna_rounded,
+                              color: tokens.accent,
+                              size: 16,
+                            ),
+                            const SizedBox(width: ZplaySpacing.s8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.folder_rounded,
-                                    color: tokens.accent,
-                                    size: 15,
-                                  ),
-                                  const SizedBox(width: ZplaySpacing.s8),
-                                  ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth:
-                                          MediaQuery.sizeOf(context).width *
-                                          0.32,
+                                  Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: ZplayType.title.toStyle(
+                                      color: tokens.textPrimary,
                                     ),
-                                    child: Text(
-                                      _selectedCategoryName(),
+                                  ),
+                                  if (widget.portal != null)
+                                    Text(
+                                      l10nCurrent().tv2ConnAndExpiry(
+                                        widget.portal!.activeConnections,
+                                        widget.portal!.maxConnections,
+                                        widget.portal!.expiry,
+                                      ),
+                                      style: ZplayType.caption.toStyle(
+                                        color: tokens.textMuted,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: ZplayType.label.toStyle(
-                                        color: tokens.textPrimary,
-                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: ZplaySpacing.s4),
-                                  Icon(
-                                    Icons.arrow_drop_down_rounded,
-                                    color: tokens.accent,
-                                    size: 18,
-                                  ),
                                 ],
                               ),
                             ),
-                          ),
+                            if (_activeSection == IptvSection.live &&
+                                widget.portal != null)
+                              IconButton(
+                                tooltip: l10nCurrent().tvCheckHealth,
+                                icon: _isCheckingAlive
+                                    ? SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: tokens.danger,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.speed_rounded,
+                                        color: tokens.accent,
+                                        size: 20,
+                                      ),
+                                onPressed: _isCheckingAlive
+                                    ? () => setState(() => _cancelAlive = true)
+                                    : _startAliveCheck,
+                              ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.tune_rounded,
+                                color: tokens.textSecondary,
+                                size: 20,
+                              ),
+                              tooltip: l10nCurrent().tvCustomize,
+                              onPressed: () => _showBrowserCustomizer(context),
+                            ),
+                          ],
+                        ),
 
-                          const SizedBox(width: ZplaySpacing.s8),
+                        const SizedBox(height: ZplaySpacing.s8),
 
-                          // Section Switchers
-                          if (widget.portal != null)
-                            Expanded(
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
+                        // Controls Bar: Category Selector Chip + Section Tabs
+                        Row(
+                          children: [
+                            // Mobile Category Chip — a remote can land here, so it is a
+                            // FocusableInkWell; with no box, the accent folder icon is
+                            // what marks it as the category control.
+                            FocusableInkWell(
+                              onTap: () => _showMobileCategorySheet(context),
+                              borderRadius: LuRadius.field,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: ZplaySpacing.s8,
+                                  vertical: ZplaySpacing.s4,
+                                ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    _buildSectionTab(
-                                      l10nCurrent().tvLive,
-                                      Icons.live_tv_rounded,
-                                      IptvSection.live,
+                                    Icon(
+                                      Icons.folder_rounded,
+                                      color: tokens.accent,
+                                      size: 15,
                                     ),
-                                    const SizedBox(width: ZplaySpacing.s2),
-                                    _buildSectionTab(
-                                      l10nCurrent().tvMovies,
-                                      Icons.movie_rounded,
-                                      IptvSection.vod,
+                                    const SizedBox(width: ZplaySpacing.s8),
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth:
+                                            MediaQuery.sizeOf(context).width *
+                                            0.32,
+                                      ),
+                                      child: Text(
+                                        _selectedCategoryName(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: ZplayType.label.toStyle(
+                                          color: tokens.textPrimary,
+                                        ),
+                                      ),
                                     ),
-                                    const SizedBox(width: ZplaySpacing.s2),
-                                    _buildSectionTab(
-                                      l10nCurrent().tvSeries,
-                                      Icons.tv_rounded,
-                                      IptvSection.series,
+                                    const SizedBox(width: ZplaySpacing.s4),
+                                    Icon(
+                                      Icons.arrow_drop_down_rounded,
+                                      color: tokens.accent,
+                                      size: 18,
                                     ),
                                   ],
                                 ),
                               ),
                             ),
-                        ],
-                      ),
 
-                      const SizedBox(height: ZplaySpacing.s8),
+                            const SizedBox(width: ZplaySpacing.s8),
 
-                      // Search Input
-                      SizedBox(
-                        height: 38,
-                        child: TextField(
-                          controller: _searchCtrl,
-                          style: ZplayType.bodySmall.toStyle(
-                            color: tokens.textPrimary,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: l10nCurrent().tvSearchInCategory,
-                            hintStyle: ZplayType.bodySmall.toStyle(
-                              color: tokens.textMuted,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              color: tokens.accent,
-                              size: 18,
-                            ),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: Icon(
-                                      Icons.close_rounded,
-                                      color: tokens.textMuted,
-                                      size: 16,
-                                    ),
-                                    onPressed: () {
-                                      _searchDebounce?.cancel();
-                                      _searchCtrl.clear();
-                                      setState(() => _searchQuery = '');
-                                    },
-                                  )
-                                : null,
-                            filled: true,
-                            fillColor: tokens.surface,
-                            border: const OutlineInputBorder(
-                              borderRadius: LuRadius.field,
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: ZplaySpacing.s8,
-                              horizontal: ZplaySpacing.s8,
-                            ),
-                          ),
-                          onChanged: _onSearchChanged,
+                            // Section Switchers
+                            if (widget.portal != null)
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildSectionTab(
+                                        l10nCurrent().tvLive,
+                                        Icons.live_tv_rounded,
+                                        IptvSection.live,
+                                      ),
+                                      const SizedBox(width: ZplaySpacing.s2),
+                                      _buildSectionTab(
+                                        l10nCurrent().tvMovies,
+                                        Icons.movie_rounded,
+                                        IptvSection.vod,
+                                      ),
+                                      const SizedBox(width: ZplaySpacing.s2),
+                                      _buildSectionTab(
+                                        l10nCurrent().tvSeries,
+                                        Icons.tv_rounded,
+                                        IptvSection.series,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
 
-              // ── MAIN CONTENT (SPLIT VIEW ON DESKTOP, FULL-WIDTH ON MOBILE) ──
-              Expanded(
-                child: _isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(color: tokens.accent),
-                      )
-                    : _errorMessage != null
-                    ? ErrorView(
-                        error: _errorMessage,
-                        onRetry: _loadSectionData,
-                        title: l10nCurrent().tvCouldNotLoadPortal,
-                      )
-                    : isDesktop
-                    ? Row(
-                        children: [
-                          // ── LEFT CATEGORIES PANEL ──
-                          // Same canvas as the content beside it; the split is
-                          // carried by spacing, not by a fill or a divider.
-                          SizedBox(
-                            width: IptvSettings.sidebarWidth.value,
-                            child: Column(
-                              children: [
-                                // Categories Search Filter
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    ZplaySpacing.s12,
-                                    ZplaySpacing.s12,
-                                    ZplaySpacing.s12,
-                                    ZplaySpacing.s8,
-                                  ),
-                                  child: SizedBox(
-                                    height: 38,
-                                    child: TextField(
-                                      controller: _catSearchCtrl,
-                                      style: ZplayType.bodySmall.toStyle(
-                                        color: tokens.textPrimary,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: l10nCurrent().tvFilterCategories,
-                                        hintStyle: ZplayType.bodySmall.toStyle(
-                                          color: tokens.textMuted,
-                                        ),
-                                        prefixIcon: Icon(
-                                          Icons.filter_list_rounded,
-                                          color: tokens.textMuted,
-                                          size: 18,
-                                        ),
-                                        suffixIcon: _catSearchQuery.isNotEmpty
-                                            ? IconButton(
-                                                icon: Icon(
-                                                  Icons.close_rounded,
-                                                  color: tokens.textMuted,
-                                                  size: 16,
-                                                ),
-                                                onPressed: () {
-                                                  _catSearchCtrl.clear();
-                                                  setState(
-                                                    () => _catSearchQuery = '',
-                                                  );
-                                                },
-                                              )
-                                            : null,
-                                        filled: true,
-                                        fillColor: tokens.surface,
-                                        border: const OutlineInputBorder(
-                                          borderRadius: LuRadius.field,
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              vertical: ZplaySpacing.s8,
-                                            ),
-                                      ),
-                                      onChanged: (v) =>
-                                          setState(() => _catSearchQuery = v),
-                                    ),
-                                  ),
-                                ),
+                        const SizedBox(height: ZplaySpacing.s8),
 
-                                // Category List with Desktop Vertical Scroll Arrows
-                                Expanded(
-                                  child: MouseRegion(
-                                    onEnter: (_) => setState(
-                                      () => _isHoveringCategories = true,
-                                    ),
-                                    onExit: (_) => setState(
-                                      () => _isHoveringCategories = false,
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        ListView.builder(
-                                          controller: _categoryScrollController,
-                                          itemExtent: 46.0,
-                                          cacheExtent: 300.0,
-                                          addAutomaticKeepAlives: false,
-                                          addRepaintBoundaries: true,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: ZplaySpacing.s8,
-                                            vertical: ZplaySpacing.s4,
-                                          ),
-                                          itemCount:
-                                              _filteredCategories().length,
-                                          itemBuilder: (context, index) {
-                                            final cat =
-                                                _filteredCategories()[index];
-                                            final isSelected =
-                                                _selectedCategoryId == cat.id;
-                                            final count = _countForCategory(
-                                              cat.id,
-                                            );
-
-                                            return _CategoryListRow(
-                                              category: cat,
-                                              count: count,
-                                              isSelected: isSelected,
-                                              onTap: () {
-                                                setState(
-                                                  () => _selectedCategoryId =
-                                                      cat.id,
-                                                );
-                                                _contentScrollController.jumpTo(
-                                                  0,
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-
-                                        // Desktop Category Scroll Up Arrow
-                                        if (_isHoveringCategories &&
-                                            _canScrollCatUp)
-                                          Positioned(
-                                            top: ZplaySpacing.s4,
-                                            left: 0,
-                                            right: 0,
-                                            child: Center(
-                                              child: _VerticalScrollButton(
-                                                icon: Icons
-                                                    .keyboard_arrow_up_rounded,
-                                                onTap: () =>
-                                                    _scrollCategories(-240),
-                                              ),
-                                            ),
-                                          ),
-
-                                        // Desktop Category Scroll Down Arrow
-                                        if (_isHoveringCategories &&
-                                            _canScrollCatDown)
-                                          Positioned(
-                                            bottom: ZplaySpacing.s4,
-                                            left: 0,
-                                            right: 0,
-                                            child: Center(
-                                              child: _VerticalScrollButton(
-                                                icon: Icons
-                                                    .keyboard_arrow_down_rounded,
-                                                onTap: () =>
-                                                    _scrollCategories(240),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                        // Search Input
+                        SizedBox(
+                          height: 38,
+                          child: TextField(
+                            controller: _searchCtrl,
+                            style: ZplayType.bodySmall.toStyle(
+                              color: tokens.textPrimary,
                             ),
+                            decoration: InputDecoration(
+                              hintText: l10nCurrent().tvSearchInCategory,
+                              hintStyle: ZplayType.bodySmall.toStyle(
+                                color: tokens.textMuted,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.search_rounded,
+                                color: tokens.accent,
+                                size: 18,
+                              ),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        color: tokens.textMuted,
+                                        size: 16,
+                                      ),
+                                      onPressed: () {
+                                        _searchDebounce?.cancel();
+                                        _searchCtrl.clear();
+                                        setState(() => _searchQuery = '');
+                                      },
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: tokens.surface,
+                              border: const OutlineInputBorder(
+                                borderRadius: LuRadius.field,
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: ZplaySpacing.s8,
+                                horizontal: ZplaySpacing.s8,
+                              ),
+                            ),
+                            onChanged: _onSearchChanged,
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                          // ── RIGHT CONTENT PANEL ──
-                          Expanded(
-                            child: MouseRegion(
-                              onEnter: (_) =>
-                                  setState(() => _isHoveringContent = true),
-                              onExit: (_) =>
-                                  setState(() => _isHoveringContent = false),
-                              child: Stack(
+                // ── MAIN CONTENT (SPLIT VIEW ON DESKTOP, FULL-WIDTH ON MOBILE) ──
+                Expanded(
+                  child: _isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: tokens.accent,
+                          ),
+                        )
+                      : _errorMessage != null
+                      ? ErrorView(
+                          error: _errorMessage,
+                          onRetry: _loadSectionData,
+                          title: l10nCurrent().tvCouldNotLoadPortal,
+                        )
+                      : isDesktop
+                      ? Row(
+                          children: [
+                            // ── LEFT CATEGORIES PANEL ──
+                            // Same canvas as the content beside it; the split is
+                            // carried by spacing, not by a fill or a divider.
+                            SizedBox(
+                              width: IptvSettings.sidebarWidth.value,
+                              child: Column(
                                 children: [
-                                  _buildMainContent(),
-
-                                  // Desktop Content Scroll Up Arrow
-                                  if (_isHoveringContent && _canScrollContentUp)
-                                    Positioned(
-                                      top: 14,
-                                      right: 28,
-                                      child: _VerticalScrollButton(
-                                        icon: Icons.keyboard_arrow_up_rounded,
-                                        onTap: () => _scrollContent(-450),
+                                  // Categories Search Filter
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      ZplaySpacing.s12,
+                                      ZplaySpacing.s12,
+                                      ZplaySpacing.s12,
+                                      ZplaySpacing.s8,
+                                    ),
+                                    child: SizedBox(
+                                      height: 38,
+                                      child: TextField(
+                                        controller: _catSearchCtrl,
+                                        style: ZplayType.bodySmall.toStyle(
+                                          color: tokens.textPrimary,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText:
+                                              l10nCurrent().tvFilterCategories,
+                                          hintStyle: ZplayType.bodySmall
+                                              .toStyle(color: tokens.textMuted),
+                                          prefixIcon: Icon(
+                                            Icons.filter_list_rounded,
+                                            color: tokens.textMuted,
+                                            size: 18,
+                                          ),
+                                          suffixIcon: _catSearchQuery.isNotEmpty
+                                              ? IconButton(
+                                                  icon: Icon(
+                                                    Icons.close_rounded,
+                                                    color: tokens.textMuted,
+                                                    size: 16,
+                                                  ),
+                                                  onPressed: () {
+                                                    _catSearchCtrl.clear();
+                                                    setState(
+                                                      () =>
+                                                          _catSearchQuery = '',
+                                                    );
+                                                  },
+                                                )
+                                              : null,
+                                          filled: true,
+                                          fillColor: tokens.surface,
+                                          border: const OutlineInputBorder(
+                                            borderRadius: LuRadius.field,
+                                            borderSide: BorderSide.none,
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                vertical: ZplaySpacing.s8,
+                                              ),
+                                        ),
+                                        onChanged: (v) =>
+                                            setState(() => _catSearchQuery = v),
                                       ),
                                     ),
+                                  ),
 
-                                  // Desktop Content Scroll Down Arrow
-                                  if (_isHoveringContent &&
-                                      _canScrollContentDown)
-                                    Positioned(
-                                      bottom: 14,
-                                      right: 28,
-                                      child: _VerticalScrollButton(
-                                        icon: Icons.keyboard_arrow_down_rounded,
-                                        onTap: () => _scrollContent(450),
+                                  // Category List with Desktop Vertical Scroll Arrows
+                                  Expanded(
+                                    child: MouseRegion(
+                                      onEnter: (_) => setState(
+                                        () => _isHoveringCategories = true,
+                                      ),
+                                      onExit: (_) => setState(
+                                        () => _isHoveringCategories = false,
+                                      ),
+                                      child: Stack(
+                                        children: [
+                                          ListView.builder(
+                                            controller:
+                                                _categoryScrollController,
+                                            itemExtent: 46.0,
+                                            cacheExtent: 300.0,
+                                            addAutomaticKeepAlives: false,
+                                            addRepaintBoundaries: true,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: ZplaySpacing.s8,
+                                              vertical: ZplaySpacing.s4,
+                                            ),
+                                            itemCount:
+                                                _filteredCategories().length,
+                                            itemBuilder: (context, index) {
+                                              final cat =
+                                                  _filteredCategories()[index];
+                                              final isSelected =
+                                                  _selectedCategoryId == cat.id;
+                                              final count = _countForCategory(
+                                                cat.id,
+                                              );
+
+                                              return _CategoryListRow(
+                                                category: cat,
+                                                count: count,
+                                                isSelected: isSelected,
+                                                onTap: () {
+                                                  setState(
+                                                    () => _selectedCategoryId =
+                                                        cat.id,
+                                                  );
+                                                  _contentScrollController
+                                                      .jumpTo(0);
+                                                },
+                                              );
+                                            },
+                                          ),
+
+                                          // Desktop Category Scroll Up Arrow
+                                          if (_isHoveringCategories &&
+                                              _canScrollCatUp)
+                                            Positioned(
+                                              top: ZplaySpacing.s4,
+                                              left: 0,
+                                              right: 0,
+                                              child: Center(
+                                                child: _VerticalScrollButton(
+                                                  icon: Icons
+                                                      .keyboard_arrow_up_rounded,
+                                                  onTap: () =>
+                                                      _scrollCategories(-240),
+                                                ),
+                                              ),
+                                            ),
+
+                                          // Desktop Category Scroll Down Arrow
+                                          if (_isHoveringCategories &&
+                                              _canScrollCatDown)
+                                            Positioned(
+                                              bottom: ZplaySpacing.s4,
+                                              left: 0,
+                                              right: 0,
+                                              child: Center(
+                                                child: _VerticalScrollButton(
+                                                  icon: Icons
+                                                      .keyboard_arrow_down_rounded,
+                                                  onTap: () =>
+                                                      _scrollCategories(240),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
+                                  ),
                                 ],
                               ),
                             ),
-                          ),
-                        ],
-                      )
-                    : _buildMainContent(),
-              ),
-            ],
+
+                            // ── RIGHT CONTENT PANEL ──
+                            Expanded(
+                              child: MouseRegion(
+                                onEnter: (_) =>
+                                    setState(() => _isHoveringContent = true),
+                                onExit: (_) =>
+                                    setState(() => _isHoveringContent = false),
+                                child: Stack(
+                                  children: [
+                                    _buildMainContent(),
+
+                                    // Desktop Content Scroll Up Arrow
+                                    if (_isHoveringContent &&
+                                        _canScrollContentUp)
+                                      Positioned(
+                                        top: 14,
+                                        right: 28,
+                                        child: _VerticalScrollButton(
+                                          icon: Icons.keyboard_arrow_up_rounded,
+                                          onTap: () => _scrollContent(-450),
+                                        ),
+                                      ),
+
+                                    // Desktop Content Scroll Down Arrow
+                                    if (_isHoveringContent &&
+                                        _canScrollContentDown)
+                                      Positioned(
+                                        bottom: 14,
+                                        right: 28,
+                                        child: _VerticalScrollButton(
+                                          icon:
+                                              Icons.keyboard_arrow_down_rounded,
+                                          onTap: () => _scrollContent(450),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : _buildMainContent(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -3102,7 +3127,9 @@ class _SeriesEpisodesSheetState extends State<_SeriesEpisodesSheet> {
                                   child: Text(
                                     ep.title.isNotEmpty
                                         ? ep.title
-                                        : l10nCurrent().tv2EpisodeNumber(ep.episode),
+                                        : l10nCurrent().tv2EpisodeNumber(
+                                            ep.episode,
+                                          ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: ZplayType.subtitle.toStyle(

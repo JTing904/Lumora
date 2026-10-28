@@ -123,9 +123,7 @@ void main() {
     });
 
     test('messages and stacks respect the table limits', () {
-      final message = CrashReporter.prepareMessage(
-        StateError('x' * 5000),
-      );
+      final message = CrashReporter.prepareMessage(StateError('x' * 5000));
       expect(message.length, lessThanOrEqualTo(CrashReporter.maxMessageChars));
       final stack = CrashReporter.prepareStack(
         StackTrace.fromString('#0 f (package:zplay/a.dart:1:1)\n' * 1000),
@@ -136,12 +134,14 @@ void main() {
   });
 
   group('CrashReporter.fingerprint', () {
-    const stackA = '#0 a (package:zplay/a.dart:1:1)\n'
+    const stackA =
+        '#0 a (package:zplay/a.dart:1:1)\n'
         '<asynchronous suspension>\n'
         '#1 b (package:zplay/b.dart:2:2)\n'
         '#2 c (package:zplay/c.dart:3:3)\n'
         '#3 d (package:zplay/d.dart:4:4)\n';
-    const stackDeeperDiff = '#0 a (package:zplay/a.dart:1:1)\n'
+    const stackDeeperDiff =
+        '#0 a (package:zplay/a.dart:1:1)\n'
         '#1 b (package:zplay/b.dart:2:2)\n'
         '#2 c (package:zplay/c.dart:3:3)\n'
         '#3 other (package:zplay/x.dart:9:9)\n';
@@ -172,7 +172,8 @@ void main() {
     test('skips the header of an obfuscated stack', () {
       const header1 = 'pid: 1, tid: 2\nbuild_id: abc\n';
       const header2 = 'pid: 7, tid: 8\nbuild_id: abc\n';
-      const frames = '#00 abs 0000007a virt 00001 _kDartIsolateSnapshotInstructions+0x10\n';
+      const frames =
+          '#00 abs 0000007a virt 00001 _kDartIsolateSnapshotInstructions+0x10\n';
       expect(
         CrashReporter.fingerprint('boom', header1 + frames),
         CrashReporter.fingerprint('boom', header2 + frames),
@@ -227,8 +228,11 @@ void main() {
 
   test('record is a no-op outside release builds and never throws', () {
     expect(
-      () => CrashReporter.record(StateError('x'), StackTrace.current,
-          kind: 'flutter'),
+      () => CrashReporter.record(
+        StateError('x'),
+        StackTrace.current,
+        kind: 'flutter',
+      ),
       returnsNormally,
     );
   });

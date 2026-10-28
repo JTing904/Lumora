@@ -140,24 +140,39 @@ class ContinueWatchingItem {
       posterUrl: json['posterUrl']?.toString(),
       backdropUrl: json['backdropUrl']?.toString(),
       year: json['year']?.toString(),
-      season: json['season'] is int ? json['season'] : int.tryParse(json['season']?.toString() ?? ''),
-      episode: json['episode'] is int ? json['episode'] : int.tryParse(json['episode']?.toString() ?? ''),
+      season: json['season'] is int
+          ? json['season']
+          : int.tryParse(json['season']?.toString() ?? ''),
+      episode: json['episode'] is int
+          ? json['episode']
+          : int.tryParse(json['episode']?.toString() ?? ''),
       episodeTitle: json['episodeTitle']?.toString(),
       episodeId: json['episodeId']?.toString(),
-      positionSeconds: json['positionSeconds'] is int ? json['positionSeconds'] : int.tryParse(json['positionSeconds']?.toString() ?? '') ?? 0,
-      totalDurationSeconds: json['totalDurationSeconds'] is int ? json['totalDurationSeconds'] : int.tryParse(json['totalDurationSeconds']?.toString() ?? '') ?? 0,
-      lastWatchedAt: json['lastWatchedAt'] != null ? (DateTime.tryParse(json['lastWatchedAt'].toString()) ?? DateTime.now()) : DateTime.now(),
+      positionSeconds: json['positionSeconds'] is int
+          ? json['positionSeconds']
+          : int.tryParse(json['positionSeconds']?.toString() ?? '') ?? 0,
+      totalDurationSeconds: json['totalDurationSeconds'] is int
+          ? json['totalDurationSeconds']
+          : int.tryParse(json['totalDurationSeconds']?.toString() ?? '') ?? 0,
+      lastWatchedAt: json['lastWatchedAt'] != null
+          ? (DateTime.tryParse(json['lastWatchedAt'].toString()) ??
+                DateTime.now())
+          : DateTime.now(),
       addonName: json['addonName']?.toString() ?? 'ZPlay',
       isTorrent: json['isTorrent'] == true,
       magnetUrl: json['magnetUrl']?.toString(),
       infoHash: json['infoHash']?.toString(),
-      fileIdx: json['fileIdx'] is int ? json['fileIdx'] : int.tryParse(json['fileIdx']?.toString() ?? ''),
+      fileIdx: json['fileIdx'] is int
+          ? json['fileIdx']
+          : int.tryParse(json['fileIdx']?.toString() ?? ''),
       rawUrl: json['rawUrl']?.toString(),
       streamName: json['streamName']?.toString(),
       streamTitle: json['streamTitle']?.toString(),
       streamDescription: json['streamDescription']?.toString(),
       quality: json['quality']?.toString(),
-      headers: json['headers'] is Map ? Map<String, String>.from(json['headers']) : null,
+      headers: json['headers'] is Map
+          ? Map<String, String>.from(json['headers'])
+          : null,
       isAdult: json['isAdult'] == true,
     );
   }

@@ -72,14 +72,16 @@ void main() {
       SecureStore.storeOverride = _MissingKeystore();
     });
 
-    test('a write and read fall back to preferences under the same key',
-        () async {
-      await SecureStore.write(SecretKeys.torboxApiKey, 'fallback-key');
+    test(
+      'a write and read fall back to preferences under the same key',
+      () async {
+        await SecureStore.write(SecretKeys.torboxApiKey, 'fallback-key');
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(SecretKeys.torboxApiKey), 'fallback-key');
-      expect(await SecureStore.read(SecretKeys.torboxApiKey), 'fallback-key');
-    });
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString(SecretKeys.torboxApiKey), 'fallback-key');
+        expect(await SecureStore.read(SecretKeys.torboxApiKey), 'fallback-key');
+      },
+    );
 
     test('a legacy value stays readable and in place', () async {
       SharedPreferences.setMockInitialValues({
@@ -91,7 +93,8 @@ void main() {
       expect(
         prefs.getString(SecretKeys.allDebridApiKey),
         'legacy-key',
-        reason: 'nothing could be written to the keystore, so the only '
+        reason:
+            'nothing could be written to the keystore, so the only '
             'readable copy must be left where it is',
       );
     });

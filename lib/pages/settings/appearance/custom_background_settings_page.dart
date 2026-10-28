@@ -165,9 +165,17 @@ class _CustomBackgroundSettingsPageState
                                               Text(
                                                 hasWallpaper
                                                     ? l10nCurrent()
-                                                          .stgcWallpaperActiveWith(localizedOptionLabel(palette.name))
+                                                          .stgcWallpaperActiveWith(
+                                                            localizedOptionLabel(
+                                                              palette.name,
+                                                            ),
+                                                          )
                                                     : l10nCurrent()
-                                                          .stgcDefaultThemeBg(localizedOptionLabel(palette.name)),
+                                                          .stgcDefaultThemeBg(
+                                                            localizedOptionLabel(
+                                                              palette.name,
+                                                            ),
+                                                          ),
                                                 style: ZplayType.bodySmall
                                                     .toStyle(
                                                       color:
@@ -430,7 +438,9 @@ class _CustomBackgroundSettingsPageState
                                             left: 8,
                                             right: 8,
                                             child: Text(
-                                              localizedOptionLabel(preset.title),
+                                              localizedOptionLabel(
+                                                preset.title,
+                                              ),
                                               style: ZplayType.caption.toStyle(
                                                 color: tokens.textPrimary,
                                               ),

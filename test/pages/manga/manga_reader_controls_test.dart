@@ -42,8 +42,9 @@ void main() {
   });
 
   group('MangaReaderControlBar on a television', () {
-    testWidgets('is one row: the chip group is replaced by a disclosure chip',
-        (tester) async {
+    testWidgets('is one row: the chip group is replaced by a disclosure chip', (
+      tester,
+    ) async {
       await pumpTelevision(tester, const MangaReaderControlBar());
 
       expect(
@@ -72,8 +73,9 @@ void main() {
       );
     });
 
-    testWidgets('the atmosphere chip names the atmosphere it will change',
-        (tester) async {
+    testWidgets('the atmosphere chip names the atmosphere it will change', (
+      tester,
+    ) async {
       await pumpTelevision(tester, const MangaReaderControlBar());
 
       expect(
@@ -85,8 +87,9 @@ void main() {
   });
 
   group('MangaReaderControlBar on a phone', () {
-    testWidgets('puts both pills on one row, like every other screen',
-        (tester) async {
+    testWidgets('puts both pills on one row, like every other screen', (
+      tester,
+    ) async {
       DeviceProfile.debugSetTelevision(value: false);
       addTearDown(() => DeviceProfile.debugSetTelevision(value: false));
 
@@ -104,15 +107,14 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the page-mode chip fits a 360 dp phone at 1.3x text',
-        (tester) async {
+    testWidgets('the page-mode chip fits a 360 dp phone at 1.3x text', (
+      tester,
+    ) async {
       DeviceProfile.debugSetTelevision(value: false);
       addTearDown(() => DeviceProfile.debugSetTelevision(value: false));
       final previousMode = MangaSettings.defaultReadingMode.value;
       MangaSettings.defaultReadingMode.value = MangaReadingMode.webtoon;
-      addTearDown(
-        () => MangaSettings.defaultReadingMode.value = previousMode,
-      );
+      addTearDown(() => MangaSettings.defaultReadingMode.value = previousMode);
 
       await tester.pumpWidget(
         const MaterialApp(

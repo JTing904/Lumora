@@ -78,12 +78,18 @@ class _PlayerSpeedMenuState extends State<PlayerSpeedMenu> {
                 },
                 child: Container(
                   height: 38,
-                  padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ZplaySpacing.s12,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? LuPanel.selectedFill : Colors.transparent,
+                    color: isSelected
+                        ? LuPanel.selectedFill
+                        : Colors.transparent,
                     borderRadius: LuRadius.field,
                     border: Border.all(
-                      color: isSelected ? LuPanel.selectedEdge : Colors.transparent,
+                      color: isSelected
+                          ? LuPanel.selectedEdge
+                          : Colors.transparent,
                       width: 1,
                     ),
                   ),

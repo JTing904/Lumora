@@ -285,7 +285,9 @@ abstract final class TasteStore {
       for (final e in entries.value.values) e.toJson(),
     ]);
     SharedPreferences.getInstance()
-        .then((prefs) => prefs.setString(AccountScope.key(_storageKey), encoded))
+        .then(
+          (prefs) => prefs.setString(AccountScope.key(_storageKey), encoded),
+        )
         .then((_) => LibrarySync.changed('taste'))
         .catchError((_) {});
   }

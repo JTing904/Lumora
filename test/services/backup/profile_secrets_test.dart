@@ -63,44 +63,48 @@ void main() {
     expect(fresh.values[SecretKeys.traktAccessToken], isNull);
   });
 
-  test('an older profile\'s plain pairing names reach the signed-in account',
-      () async {
-    AccountService.session.value = _session('a');
-    await ProfileSecrets.import(<String, dynamic>{
-      SecretKeys.traktAccessToken: 'old-trakt',
-      SecretKeys.simklAccessToken: 'old-simkl',
-    });
+  test(
+    'an older profile\'s plain pairing names reach the signed-in account',
+    () async {
+      AccountService.session.value = _session('a');
+      await ProfileSecrets.import(<String, dynamic>{
+        SecretKeys.traktAccessToken: 'old-trakt',
+        SecretKeys.simklAccessToken: 'old-simkl',
+      });
 
-    expect(await StorageService.getTraktAccessToken(), 'old-trakt');
-    expect(await StorageService.getSimklAccessToken(), 'old-simkl');
-    expect(store.values[SecretKeys.traktAccessToken], isNull);
-  });
+      expect(await StorageService.getTraktAccessToken(), 'old-trakt');
+      expect(await StorageService.getSimklAccessToken(), 'old-simkl');
+      expect(store.values[SecretKeys.traktAccessToken], isNull);
+    },
+  );
 
-  test('exports and imports the full credential set through the keystore',
-      () async {
-    await SecureStore.write(SecretKeys.traktAccessToken, 'trakt-token');
-    await SecureStore.write(SecretKeys.torboxApiKey, 'torbox-key');
-    await ServiceCredentials.save(ServiceCredential.wyzie, 'wyzie-key');
+  test(
+    'exports and imports the full credential set through the keystore',
+    () async {
+      await SecureStore.write(SecretKeys.traktAccessToken, 'trakt-token');
+      await SecureStore.write(SecretKeys.torboxApiKey, 'torbox-key');
+      await ServiceCredentials.save(ServiceCredential.wyzie, 'wyzie-key');
 
-    final exported = await ProfileSecrets.export();
-    expect(exported[SecretKeys.traktAccessToken], 'trakt-token');
-    expect(exported[SecretKeys.torboxApiKey], 'torbox-key');
-    expect(
-      exported[ServiceCredentials.storageKeyFor(ServiceCredential.wyzie)],
-      'wyzie-key',
-    );
+      final exported = await ProfileSecrets.export();
+      expect(exported[SecretKeys.traktAccessToken], 'trakt-token');
+      expect(exported[SecretKeys.torboxApiKey], 'torbox-key');
+      expect(
+        exported[ServiceCredentials.storageKeyFor(ServiceCredential.wyzie)],
+        'wyzie-key',
+      );
 
-    final fresh = InMemorySecureKeyValueStore();
-    SecureStore.storeOverride = fresh;
-    await ProfileSecrets.import(exported);
+      final fresh = InMemorySecureKeyValueStore();
+      SecureStore.storeOverride = fresh;
+      await ProfileSecrets.import(exported);
 
-    expect(fresh.values[SecretKeys.traktAccessToken], 'trakt-token');
-    expect(fresh.values[SecretKeys.torboxApiKey], 'torbox-key');
-    expect(
-      fresh.values[ServiceCredentials.storageKeyFor(ServiceCredential.wyzie)],
-      'wyzie-key',
-    );
-  });
+      expect(fresh.values[SecretKeys.traktAccessToken], 'trakt-token');
+      expect(fresh.values[SecretKeys.torboxApiKey], 'torbox-key');
+      expect(
+        fresh.values[ServiceCredentials.storageKeyFor(ServiceCredential.wyzie)],
+        'wyzie-key',
+      );
+    },
+  );
 
   test('ignores unknown keys and non-secret names', () async {
     await ProfileSecrets.import(<String, dynamic>{

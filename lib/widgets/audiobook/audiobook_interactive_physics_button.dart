@@ -186,10 +186,10 @@ class _AudiobookInteractivePhysicsButtonState
   /// offers (the seekbar, the chapter rows, the shelf cards) already carries
   /// [CardFocusRing]; this button was the one that did not.
   Widget _ringed(Widget child, bool focused) => CardFocusRing(
-        focused: focused,
-        radius: widget.borderRadius ?? BorderRadius.circular(30),
-        child: child,
-      );
+    focused: focused,
+    radius: widget.borderRadius ?? BorderRadius.circular(30),
+    child: child,
+  );
 
   Widget _buildPhysicsTransform(
     AudiobookHoverEffect effect,

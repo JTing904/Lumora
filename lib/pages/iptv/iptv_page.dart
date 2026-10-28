@@ -346,10 +346,7 @@ class _IptvPageState extends State<IptvPage> {
 
     final Map<String, (String, List<HardcodedChannel>)> categoryMap = {
       'Premier Live Broadcasts': (l10n.tvDescPremier, _featured),
-      'ESPN & College Basketball (NCAA)': (
-        l10n.tvDescEspn,
-        _espnAndCollege,
-      ),
+      'ESPN & College Basketball (NCAA)': (l10n.tvDescEspn, _espnAndCollege),
       'US Major Leagues & Sports': (
         'NBA TV, NFL Network, RedZone, MLB, NHL, Fox Sports & CBS Sports',
         _usSports,
@@ -359,10 +356,7 @@ class _IptvPageState extends State<IptvPage> {
         _soccer,
       ),
       'Boxing': (l10n.tvDescBoxing, _boxing),
-      'Combat & Martial Arts': (
-        l10n.tvDescCombat,
-        _combat,
-      ),
+      'Combat & Martial Arts': (l10n.tvDescCombat, _combat),
       'Motorsport & Racing': (
         'Formula 1, MotoGP, NASCAR Cup, IndyCar & Rally WRC',
         _racing,

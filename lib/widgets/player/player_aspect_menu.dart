@@ -96,41 +96,47 @@ class PlayerAspectMenu extends StatelessWidget {
                   onClose();
                 },
                 child: Container(
-                    height: 38,
-                    padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s12),
-                    decoration: BoxDecoration(
-                      color: isSelected ? LuPanel.selectedFill : Colors.transparent,
-                      borderRadius: LuRadius.field,
-                      border: Border.all(
-                        color: isSelected ? LuPanel.selectedEdge : Colors.transparent,
-                        width: 1,
-                      ),
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ZplaySpacing.s12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? LuPanel.selectedFill
+                        : Colors.transparent,
+                    borderRadius: LuRadius.field,
+                    border: Border.all(
+                      color: isSelected
+                          ? LuPanel.selectedEdge
+                          : Colors.transparent,
+                      width: 1,
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          opt.label,
-                          style: ZplayType.label
-                              .copyWith(
-                                size: 13.5,
-                                weight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                              )
-                              .toStyle(
-                                color: isSelected
-                                    ? PlayerTheme.accent
-                                    : PlayerTheme.inkMuted,
-                              ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        opt.label,
+                        style: ZplayType.label
+                            .copyWith(
+                              size: 13.5,
+                              weight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                            )
+                            .toStyle(
+                              color: isSelected
+                                  ? PlayerTheme.accent
+                                  : PlayerTheme.inkMuted,
+                            ),
+                      ),
+                      if (isSelected)
+                        Icon(
+                          Icons.check_rounded,
+                          size: 16,
+                          color: PlayerTheme.accent,
                         ),
-                        if (isSelected)
-                          Icon(
-                            Icons.check_rounded,
-                            size: 16,
-                            color: PlayerTheme.accent,
-                          ),
-                      ],
+                    ],
                   ),
                 ),
               );

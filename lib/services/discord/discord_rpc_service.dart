@@ -178,11 +178,16 @@ class DiscordRpcService {
         final remaining = duration - position;
         timestamps = DiscordTimestamps.ending(DateTime.now().add(remaining));
       } else if (position != null) {
-        timestamps = DiscordTimestamps.started(DateTime.now().subtract(position));
+        timestamps = DiscordTimestamps.started(
+          DateTime.now().subtract(position),
+        );
       }
     }
 
-    final hasValidPoster = posterUrl != null && posterUrl.trim().isNotEmpty && posterUrl.startsWith('http');
+    final hasValidPoster =
+        posterUrl != null &&
+        posterUrl.trim().isNotEmpty &&
+        posterUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.watching,
@@ -230,11 +235,16 @@ class DiscordRpcService {
         final remaining = duration - position;
         timestamps = DiscordTimestamps.ending(DateTime.now().add(remaining));
       } else if (position != null) {
-        timestamps = DiscordTimestamps.started(DateTime.now().subtract(position));
+        timestamps = DiscordTimestamps.started(
+          DateTime.now().subtract(position),
+        );
       }
     }
 
-    final hasValidPoster = posterUrl != null && posterUrl.trim().isNotEmpty && posterUrl.startsWith('http');
+    final hasValidPoster =
+        posterUrl != null &&
+        posterUrl.trim().isNotEmpty &&
+        posterUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.watching,
@@ -285,11 +295,16 @@ class DiscordRpcService {
         final remaining = duration - position;
         timestamps = DiscordTimestamps.ending(DateTime.now().add(remaining));
       } else if (position != null) {
-        timestamps = DiscordTimestamps.started(DateTime.now().subtract(position));
+        timestamps = DiscordTimestamps.started(
+          DateTime.now().subtract(position),
+        );
       }
     }
 
-    final hasValidPoster = posterUrl != null && posterUrl.trim().isNotEmpty && posterUrl.startsWith('http');
+    final hasValidPoster =
+        posterUrl != null &&
+        posterUrl.trim().isNotEmpty &&
+        posterUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.watching,
@@ -306,16 +321,16 @@ class DiscordRpcService {
   }
 
   /// Set Watching Live TV status: "watching live tv"
-  Future<void> setWatchingLiveTv({
-    String? channelName,
-    String? logoUrl,
-  }) async {
+  Future<void> setWatchingLiveTv({String? channelName, String? logoUrl}) async {
     _currentKind = DiscordActivityKind.liveTv;
     final stateText = (channelName != null && channelName.trim().isNotEmpty)
         ? channelName.trim()
         : 'Live Streams';
 
-    final hasValidLogo = logoUrl != null && logoUrl.trim().isNotEmpty && logoUrl.startsWith('http');
+    final hasValidLogo =
+        logoUrl != null &&
+        logoUrl.trim().isNotEmpty &&
+        logoUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.watching,
@@ -360,11 +375,16 @@ class DiscordRpcService {
         final remaining = duration - position;
         timestamps = DiscordTimestamps.ending(DateTime.now().add(remaining));
       } else if (position != null) {
-        timestamps = DiscordTimestamps.started(DateTime.now().subtract(position));
+        timestamps = DiscordTimestamps.started(
+          DateTime.now().subtract(position),
+        );
       }
     }
 
-    final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty && coverUrl.startsWith('http');
+    final hasValidCover =
+        coverUrl != null &&
+        coverUrl.trim().isNotEmpty &&
+        coverUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.listening,
@@ -403,7 +423,10 @@ class DiscordRpcService {
       stateText = 'eBook in Lumora';
     }
 
-    final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty && coverUrl.startsWith('http');
+    final hasValidCover =
+        coverUrl != null &&
+        coverUrl.trim().isNotEmpty &&
+        coverUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.playing,
@@ -428,10 +451,15 @@ class DiscordRpcService {
     final cleanTitle = title.trim();
 
     final stateText = (chapter != null && chapter.trim().isNotEmpty)
-        ? (chapter.trim().toLowerCase().startsWith('chapter') ? chapter.trim() : 'Chapter ${chapter.trim()}')
+        ? (chapter.trim().toLowerCase().startsWith('chapter')
+              ? chapter.trim()
+              : 'Chapter ${chapter.trim()}')
         : 'Manga in Lumora';
 
-    final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty && coverUrl.startsWith('http');
+    final hasValidCover =
+        coverUrl != null &&
+        coverUrl.trim().isNotEmpty &&
+        coverUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.playing,
@@ -460,7 +488,9 @@ class DiscordRpcService {
     final cleanTitle = title.trim();
     final cleanArtist = artist.trim();
 
-    String stateText = cleanArtist.isNotEmpty ? 'by $cleanArtist' : 'Music in Lumora';
+    String stateText = cleanArtist.isNotEmpty
+        ? 'by $cleanArtist'
+        : 'Music in Lumora';
     if (!isPlaying) stateText = '$stateText (Paused)';
 
     DiscordTimestamps? timestamps;
@@ -469,11 +499,16 @@ class DiscordRpcService {
         final remaining = duration - position;
         timestamps = DiscordTimestamps.ending(DateTime.now().add(remaining));
       } else if (position != null) {
-        timestamps = DiscordTimestamps.started(DateTime.now().subtract(position));
+        timestamps = DiscordTimestamps.started(
+          DateTime.now().subtract(position),
+        );
       }
     }
 
-    final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty && coverUrl.startsWith('http');
+    final hasValidCover =
+        coverUrl != null &&
+        coverUrl.trim().isNotEmpty &&
+        coverUrl.startsWith('http');
 
     final presence = DiscordPresence(
       type: DiscordActivityType.listening,

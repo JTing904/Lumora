@@ -24,6 +24,7 @@ class PlayerTopBar extends StatelessWidget {
 
   final VoidCallback? onToggleEpisodes;
   final bool isEpisodesActive;
+
   /// Opens the in-player sources panel; null hides the Sources badge.
   final VoidCallback? onShowSources;
   final bool isSourcesActive;
@@ -127,8 +128,9 @@ class PlayerTopBar extends StatelessWidget {
                           vertical: ZplaySpacing.s2,
                         ),
                         decoration: BoxDecoration(
-                          color: tokens.textPrimary
-                              .withValues(alpha: ZplayOpacity.overlayHover),
+                          color: tokens.textPrimary.withValues(
+                            alpha: ZplayOpacity.overlayHover,
+                          ),
                           borderRadius: ZplayRadius.xsAll,
                         ),
                         child: Text(
@@ -177,52 +179,56 @@ class PlayerTopBar extends StatelessWidget {
                   onTap: onToggleEpisodes,
                   borderRadius: ZplayRadius.smAll,
                   child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ZplaySpacing.s12,
-                        vertical: ZplaySpacing.s8,
-                      ),
-                      decoration: BoxDecoration(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ZplaySpacing.s12,
+                      vertical: ZplaySpacing.s8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isEpisodesActive
+                          ? PlayerTheme.accent.withValues(alpha: 0.30)
+                          : tokens.bg.withValues(alpha: 0.20),
+                      borderRadius: ZplayRadius.smAll,
+                      border: Border.all(
                         color: isEpisodesActive
-                            ? PlayerTheme.accent.withValues(alpha: 0.30)
-                            : tokens.bg.withValues(alpha: 0.20),
-                        borderRadius: ZplayRadius.smAll,
-                        border: Border.all(
+                            ? PlayerTheme.accent.withValues(alpha: 0.85)
+                            : tokens.borderStrong,
+                        width: 1.2,
+                      ),
+                      boxShadow: isEpisodesActive
+                          ? [
+                              BoxShadow(
+                                color: PlayerTheme.accent.withValues(
+                                  alpha: 0.35,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.video_library_rounded,
+                          size: 18,
                           color: isEpisodesActive
-                              ? PlayerTheme.accent.withValues(alpha: 0.85)
-                              : tokens.borderStrong,
-                          width: 1.2,
+                              ? tokens.accent
+                              : tokens.textPrimary,
                         ),
-                        boxShadow: isEpisodesActive
-                            ? [
-                                BoxShadow(
-                                  color: PlayerTheme.accent.withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.video_library_rounded,
-                            size: 18,
-                            color: isEpisodesActive ? tokens.accent : tokens.textPrimary,
-                          ),
-                          const SizedBox(width: 7),
-                          Text(
-                            l10nOf(context).playerEpisodes,
-                            style: ZplayType.label
-                                .toStyle(color: tokens.textPrimary)
-                                .copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.1,
-                                ),
-                          ),
-                        ],
-                      ),
+                        const SizedBox(width: 7),
+                        Text(
+                          l10nOf(context).playerEpisodes,
+                          style: ZplayType.label
+                              .toStyle(color: tokens.textPrimary)
+                              .copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.1,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -232,52 +238,56 @@ class PlayerTopBar extends StatelessWidget {
                   onTap: onShowSources,
                   borderRadius: ZplayRadius.smAll,
                   child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ZplaySpacing.s12,
-                        vertical: ZplaySpacing.s8,
-                      ),
-                      decoration: BoxDecoration(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ZplaySpacing.s12,
+                      vertical: ZplaySpacing.s8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSourcesActive
+                          ? PlayerTheme.accent.withValues(alpha: 0.30)
+                          : tokens.bg.withValues(alpha: 0.20),
+                      borderRadius: ZplayRadius.smAll,
+                      border: Border.all(
                         color: isSourcesActive
-                            ? PlayerTheme.accent.withValues(alpha: 0.30)
-                            : tokens.bg.withValues(alpha: 0.20),
-                        borderRadius: ZplayRadius.smAll,
-                        border: Border.all(
+                            ? PlayerTheme.accent.withValues(alpha: 0.85)
+                            : tokens.borderStrong,
+                        width: 1.2,
+                      ),
+                      boxShadow: isSourcesActive
+                          ? [
+                              BoxShadow(
+                                color: PlayerTheme.accent.withValues(
+                                  alpha: 0.35,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.playlist_play_rounded,
+                          size: 18,
                           color: isSourcesActive
-                              ? PlayerTheme.accent.withValues(alpha: 0.85)
-                              : tokens.borderStrong,
-                          width: 1.2,
+                              ? tokens.accent
+                              : tokens.textPrimary,
                         ),
-                        boxShadow: isSourcesActive
-                            ? [
-                                BoxShadow(
-                                  color: PlayerTheme.accent.withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.playlist_play_rounded,
-                            size: 18,
-                            color: isSourcesActive ? tokens.accent : tokens.textPrimary,
-                          ),
-                          const SizedBox(width: 7),
-                          Text(
-                            l10nOf(context).playerSources,
-                            style: ZplayType.label
-                                .toStyle(color: tokens.textPrimary)
-                                .copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.1,
-                                ),
-                          ),
-                        ],
-                      ),
+                        const SizedBox(width: 7),
+                        Text(
+                          l10nOf(context).playerSources,
+                          style: ZplayType.label
+                              .toStyle(color: tokens.textPrimary)
+                              .copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.1,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

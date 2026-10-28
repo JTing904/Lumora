@@ -83,7 +83,9 @@ class PlayerQualityMenu extends StatelessWidget {
                       style: ZplayType.label
                           .copyWith(
                             size: 14,
-                            weight: selected ? FontWeight.w600 : FontWeight.w500,
+                            weight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
                           )
                           .toStyle(
                             color: selected

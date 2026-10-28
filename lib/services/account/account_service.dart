@@ -157,11 +157,16 @@ abstract final class AccountService {
     jpeg ??= await _avatarViaPlatform(bytes);
     if (jpeg == null) throw const AccountException(AccountError.unknown);
     final path = '$uid/avatar.jpg';
-    await _client.storage.from('avatars').uploadBinary(
-      path,
-      jpeg,
-      fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
-    );
+    await _client.storage
+        .from('avatars')
+        .uploadBinary(
+          path,
+          jpeg,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
     // A new address each time, so every cache shows the new photo.
     final url =
         '${_client.storage.from('avatars').getPublicUrl(path)}'
@@ -192,10 +197,11 @@ abstract final class AccountService {
       desc.dispose();
       buffer.dispose();
       if (rgba == null) return null;
-      return await compute(
-        squareAvatarFromRgba,
-        (rgba.buffer.asUint8List(), w, h),
-      );
+      return await compute(squareAvatarFromRgba, (
+        rgba.buffer.asUint8List(),
+        w,
+        h,
+      ));
     } catch (e) {
       debugPrint('[AccountService] avatar decode: $e');
       return null;
@@ -258,7 +264,10 @@ abstract final class AccountService {
         : EnvService.get('SUPABASE_URL', defaultValue: _defaultSupabaseUrl);
     final key = kReleaseMode
         ? _defaultSupabaseKey
-        : EnvService.get('SUPABASE_ANON_KEY', defaultValue: _defaultSupabaseKey);
+        : EnvService.get(
+            'SUPABASE_ANON_KEY',
+            defaultValue: _defaultSupabaseKey,
+          );
     try {
       await Supabase.initialize(
         url: url,
@@ -453,7 +462,8 @@ abstract final class AccountService {
 
   /// Where a sign-up's confirmation link lands. Listed in Supabase's Auth
   /// redirect URLs; the page lives in `site/`, published to GitHub Pages.
-  static const confirmedPage = 'https://jting904.github.io/Lumora/confirmed.html';
+  static const confirmedPage =
+      'https://jting904.github.io/Lumora/confirmed.html';
 
   /// Where the browser hands a social sign-in (and a reset link) back.
   /// Listed in Supabase's Auth redirect URLs; Android and Windows register
@@ -761,7 +771,13 @@ Uint8List? squareAvatarFromRgba((Uint8List, int, int) raw) {
   );
   final side = w < h ? w : h;
   return _encodeAvatar(
-    img.copyCrop(image, x: (w - side) ~/ 2, y: (h - side) ~/ 2, width: side, height: side),
+    img.copyCrop(
+      image,
+      x: (w - side) ~/ 2,
+      y: (h - side) ~/ 2,
+      width: side,
+      height: side,
+    ),
   );
 }
 

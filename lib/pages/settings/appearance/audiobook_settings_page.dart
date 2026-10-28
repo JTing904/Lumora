@@ -120,7 +120,9 @@ class _AudiobookSettingsPageState extends State<AudiobookSettingsPage> {
                   style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
                 ),
                 subtitle: Text(
-                  l10nCurrent().stgcAuroraThemedTo(localizedOptionLabel(palette.name)),
+                  l10nCurrent().stgcAuroraThemedTo(
+                    localizedOptionLabel(palette.name),
+                  ),
                   style: ZplayType.bodySmall.toStyle(
                     color: tokens.textSecondary,
                   ),

@@ -219,9 +219,7 @@ abstract final class CrashReporter {
     r'''(?:[^\\/"'<>\r\n]+(?=[\\/])|[^\\/\s"'<>]+)''',
     caseSensitive: false,
   );
-  static final RegExp _unixHome = RegExp(
-    r'''(/(?:home|Users)/)[^/\s"'<>]+''',
-  );
+  static final RegExp _unixHome = RegExp(r'''(/(?:home|Users)/)[^/\s"'<>]+''');
   static final RegExp _uuid = RegExp(
     r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
     r'[0-9a-fA-F]{12}\b',
@@ -246,10 +244,7 @@ abstract final class CrashReporter {
     out = out.replaceAllMapped(_authHeader, (m) => '${m[1]} [redacted]');
     out = out.replaceAll(_jwt, '[jwt]');
     out = out.replaceAll(_knownKey, '[key]');
-    out = out.replaceAllMapped(
-      _secretPair,
-      (m) => '${m[1]}${m[2]}[redacted]',
-    );
+    out = out.replaceAllMapped(_secretPair, (m) => '${m[1]}${m[2]}[redacted]');
     out = out.replaceAll(_query, '?[redacted]');
     out = out.replaceAllMapped(_windowsHome, (m) => '${m[1]}[user]');
     out = out.replaceAllMapped(_unixHome, (m) => '${m[1]}[user]');

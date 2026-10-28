@@ -232,15 +232,13 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.tune_rounded,
-                        color: tokens.accent,
-                        size: 20,
-                      ),
+                      Icon(Icons.tune_rounded, color: tokens.accent, size: 20),
                       const SizedBox(width: 10),
                       Text(
                         l10nCurrent().tvCustomizePortalsModal,
-                        style: ZplayType.title.toStyle(color: tokens.textPrimary),
+                        style: ZplayType.title.toStyle(
+                          color: tokens.textPrimary,
+                        ),
                       ),
                       const Spacer(),
                       IconButton(
@@ -285,7 +283,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         contentPadding: EdgeInsets.zero,
                         title: Text(
                           l10nCurrent().tvShowPortalExpiry,
-                          style: ZplayType.label.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.label.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         value: showExpiry,
                         activeColor: tokens.accent,
@@ -302,7 +302,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         contentPadding: EdgeInsets.zero,
                         title: Text(
                           l10nCurrent().tvShowMaxConnections,
-                          style: ZplayType.label.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.label.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                         ),
                         value: showConn,
                         activeColor: tokens.accent,
@@ -326,8 +328,14 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         selected: tabIdx,
                         onSelected: IptvSettings.setDefaultPortalTab,
                         options: [
-                          SegmentedTabOption(value: 0, label: l10nCurrent().tv2XtreamPanels),
-                          SegmentedTabOption(value: 1, label: l10nCurrent().tv2M3uPlaylists),
+                          SegmentedTabOption(
+                            value: 0,
+                            label: l10nCurrent().tv2XtreamPanels,
+                          ),
+                          SegmentedTabOption(
+                            value: 1,
+                            label: l10nCurrent().tv2M3uPlaylists,
+                          ),
                         ],
                       );
                     },
@@ -397,7 +405,11 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                               isNarrow
                                   ? l10nCurrent().tvPortalsAndPlaylists
                                   : l10nCurrent().tvIptvPortalsAndPlaylists,
-                              style: (isNarrow ? ZplayType.subtitle : ZplayType.title).toStyle(color: tokens.textPrimary),
+                              style:
+                                  (isNarrow
+                                          ? ZplayType.subtitle
+                                          : ZplayType.title)
+                                      .toStyle(color: tokens.textPrimary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -430,18 +442,26 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                       dividerColor: Colors.transparent,
                       labelColor: tokens.accent,
                       unselectedLabelColor: tokens.textMuted,
-                      labelStyle: (isNarrow ? ZplayType.caption : ZplayType.body).toStyle(),
-                      unselectedLabelStyle: (isNarrow ? ZplayType.caption : ZplayType.body).toStyle(),
+                      labelStyle:
+                          (isNarrow ? ZplayType.caption : ZplayType.body)
+                              .toStyle(),
+                      unselectedLabelStyle:
+                          (isNarrow ? ZplayType.caption : ZplayType.body)
+                              .toStyle(),
                       tabs: [
                         Tab(
                           text: isNarrow
                               ? 'Xtream (${_ctrl.verified.length})'
-                              : l10nCurrent().tv2XtreamPanelsCount(_ctrl.verified.length),
+                              : l10nCurrent().tv2XtreamPanelsCount(
+                                  _ctrl.verified.length,
+                                ),
                         ),
                         Tab(
                           text: isNarrow
                               ? 'M3U (${_ctrl.m3uPlaylists.length})'
-                              : l10nCurrent().tv2M3uPlaylistsCount(_ctrl.m3uPlaylists.length),
+                              : l10nCurrent().tv2M3uPlaylistsCount(
+                                  _ctrl.m3uPlaylists.length,
+                                ),
                         ),
                       ],
                     ),
@@ -515,8 +535,11 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 label: Text(
                   _ctrl.isScraping
                       ? l10nCurrent().tvFinding
-                      : (isMobile ? l10nCurrent().tvGenerate : l10nCurrent().tvGeneratePortals),
-                  style: (isMobile ? ZplayType.caption : ZplayType.label).toStyle(color: tokens.textPrimary),
+                      : (isMobile
+                            ? l10nCurrent().tvGenerate
+                            : l10nCurrent().tvGeneratePortals),
+                  style: (isMobile ? ZplayType.caption : ZplayType.label)
+                      .toStyle(color: tokens.textPrimary),
                 ),
                 onPressed: _ctrl.isScraping ? null : _ctrl.scrape,
               ),
@@ -529,7 +552,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                   _ctrl.setScrapeSource(s);
                   setState(() {});
                 },
-                shape: const RoundedRectangleBorder(borderRadius: LuRadius.card),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: LuRadius.card,
+                ),
                 color: tokens.surfaceOverlay,
                 child: Container(
                   padding: EdgeInsets.symmetric(
@@ -559,7 +584,8 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         _ctrl.scrapeSource == CatalogSource.cloudVault
                             ? l10nCurrent().tvCloudVault
                             : 'Reddit',
-                        style: (isMobile ? ZplayType.caption : ZplayType.label).toStyle(color: tokens.textPrimary),
+                        style: (isMobile ? ZplayType.caption : ZplayType.label)
+                            .toStyle(color: tokens.textPrimary),
                       ),
                       const SizedBox(width: ZplaySpacing.s2),
                       Icon(
@@ -591,7 +617,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                                 children: [
                                   Text(
                                     l10nCurrent().tvCloudVault,
-                                    style: ZplayType.label.toStyle(color: tokens.textPrimary),
+                                    style: ZplayType.label.toStyle(
+                                      color: tokens.textPrimary,
+                                    ),
                                   ),
                                   const SizedBox(width: 6),
                                   Container(
@@ -605,14 +633,18 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                                     ),
                                     child: Text(
                                       '9.6k+',
-                                      style: ZplayType.overline.toStyle(color: tokens.info),
+                                      style: ZplayType.overline.toStyle(
+                                        color: tokens.info,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                               Text(
                                 l10nCurrent().tvCloudVaultDesc,
-                                style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
+                                style: ZplayType.overline.toStyle(
+                                  color: tokens.textEmphasis,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -640,11 +672,15 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                             children: [
                               Text(
                                 l10nCurrent().tvRedditCommunities,
-                                style: ZplayType.label.toStyle(color: tokens.textPrimary),
+                                style: ZplayType.label.toStyle(
+                                  color: tokens.textPrimary,
+                                ),
                               ),
                               Text(
                                 l10nCurrent().tvRedditDesc,
-                                style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
+                                style: ZplayType.overline.toStyle(
+                                  color: tokens.textEmphasis,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -673,8 +709,11 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 ),
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: Text(
-                  isMobile ? l10nCurrent().tvPortalsAdd : l10nCurrent().tvAddPortal,
-                  style: (isMobile ? ZplayType.caption : ZplayType.label).toStyle(),
+                  isMobile
+                      ? l10nCurrent().tvPortalsAdd
+                      : l10nCurrent().tvAddPortal,
+                  style: (isMobile ? ZplayType.caption : ZplayType.label)
+                      .toStyle(),
                 ),
                 onPressed: () => setState(() {
                   _showAddForm = !_showAddForm;
@@ -704,8 +743,11 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                     size: 15,
                   ),
                   label: Text(
-                    _isPortalsEditMode ? l10nCurrent().tvDone : l10nCurrent().tvManage,
-                    style: (isMobile ? ZplayType.caption : ZplayType.label).toStyle(),
+                    _isPortalsEditMode
+                        ? l10nCurrent().tvDone
+                        : l10nCurrent().tvManage,
+                    style: (isMobile ? ZplayType.caption : ZplayType.label)
+                        .toStyle(),
                   ),
                   onPressed: () {
                     setState(() {
@@ -755,7 +797,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                           color: tokens.info,
                         ),
                         label: Text(
-                          allSelected ? l10nCurrent().tvPortalsDeselectAll : l10nCurrent().tvPortalsSelectAll,
+                          allSelected
+                              ? l10nCurrent().tvPortalsDeselectAll
+                              : l10nCurrent().tvPortalsSelectAll,
                           style: ZplayType.label.toStyle(),
                         ),
                         onPressed: () {
@@ -774,7 +818,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                       const SizedBox(width: ZplaySpacing.s4),
                       Text(
                         '(${_selectedPortalKeys.length}/${currentList.length})',
-                        style: ZplayType.caption.toStyle(color: tokens.textEmphasis),
+                        style: ZplayType.caption.toStyle(
+                          color: tokens.textEmphasis,
+                        ),
                       ),
                     ],
                   ),
@@ -801,7 +847,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         ),
                         icon: const Icon(Icons.delete_rounded, size: 14),
                         label: Text(
-                          l10nCurrent().tv2DeleteSelectedPortals(_selectedPortalKeys.length),
+                          l10nCurrent().tv2DeleteSelectedPortals(
+                            _selectedPortalKeys.length,
+                          ),
                           style: ZplayType.caption.toStyle(),
                         ),
                         onPressed: _selectedPortalKeys.isEmpty
@@ -855,7 +903,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 children: [
                   Text(
                     l10nCurrent().tvAddXtreamPortal,
-                    style: ZplayType.body.copyWith(weight: FontWeight.w800).toStyle(color: tokens.textPrimary),
+                    style: ZplayType.body
+                        .copyWith(weight: FontWeight.w800)
+                        .toStyle(color: tokens.textPrimary),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -880,7 +930,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                       Expanded(
                         child: TextField(
                           controller: _userCtrl,
-                          style: ZplayType.label.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.label.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                           decoration: InputDecoration(
                             labelText: l10nCurrent().tvUsername,
                             isDense: true,
@@ -898,7 +950,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         child: TextField(
                           controller: _passCtrl,
                           obscureText: _obscurePassword,
-                          style: ZplayType.label.toStyle(color: tokens.textPrimary),
+                          style: ZplayType.label.toStyle(
+                            color: tokens.textPrimary,
+                          ),
                           decoration: InputDecoration(
                             labelText: l10nCurrent().tvPassword,
                             isDense: true,
@@ -918,7 +972,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                               ),
                               padding: const EdgeInsets.all(4),
                               constraints: const BoxConstraints(),
-                              tooltip: _obscurePassword ? l10nCurrent().tvShowPassword : l10nCurrent().tvHidePassword,
+                              tooltip: _obscurePassword
+                                  ? l10nCurrent().tvShowPassword
+                                  : l10nCurrent().tvHidePassword,
                               onPressed: () {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
@@ -979,10 +1035,14 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                   const SizedBox(width: 6),
                   _buildSourceChip(
                     'custom',
-                    l10nCurrent().tv2MyPortalsCount(_ctrl.verified.where((p) {
-                      final s = p.portal.source.toLowerCase();
-                      return s.isEmpty || s.contains('custom') || s.contains('manual');
-                    }).length),
+                    l10nCurrent().tv2MyPortalsCount(
+                      _ctrl.verified.where((p) {
+                        final s = p.portal.source.toLowerCase();
+                        return s.isEmpty ||
+                            s.contains('custom') ||
+                            s.contains('manual');
+                      }).length,
+                    ),
                     Icons.lock_rounded,
                     activeColor: tokens.success,
                   ),
@@ -1003,7 +1063,11 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                   const SizedBox(width: 6),
                   _buildSourceChip(
                     'fav',
-                    l10nCurrent().tv2FavoritesStarCount(_ctrl.verified.where((p) => _ctrl.isFavoritePortal(p.key)).length),
+                    l10nCurrent().tv2FavoritesStarCount(
+                      _ctrl.verified
+                          .where((p) => _ctrl.isFavoritePortal(p.key))
+                          .length,
+                    ),
                     Icons.star_rounded,
                     activeColor: tokens.warning,
                   ),
@@ -1021,8 +1085,14 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 return Center(
                   child: Text(
                     _ctrl.verified.isEmpty
-                        ? l10nCurrent().tv2NoVerifiedPortalsHint(_ctrl.scrapeSource == CatalogSource.cloudVault ? 'Cloud Vault' : 'Reddit')
-                        : l10nCurrent().tv2NoPortalsInFilter(_portalSourceFilter),
+                        ? l10nCurrent().tv2NoVerifiedPortalsHint(
+                            _ctrl.scrapeSource == CatalogSource.cloudVault
+                                ? 'Cloud Vault'
+                                : 'Reddit',
+                          )
+                        : l10nCurrent().tv2NoPortalsInFilter(
+                            _portalSourceFilter,
+                          ),
                     style: ZplayType.body.toStyle(color: tokens.textMuted),
                   ),
                 );
@@ -1030,7 +1100,8 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
 
               return ListView.separated(
                 itemCount: portals.length,
-                separatorBuilder: (_, _) => const SizedBox(height: ZplaySpacing.s8),
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: ZplaySpacing.s8),
                 itemBuilder: (context, index) {
                   final p = portals[index];
                   final isFav = _ctrl.isFavoritePortal(p.key);
@@ -1093,10 +1164,10 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                                     alpha: ZplayOpacity.overlayHover,
                                   )
                                 : (state.highlighted
-                                    ? tokens.surfaceRaised.withValues(
-                                        alpha: ZplayOpacity.overlayHover,
-                                      )
-                                    : Colors.transparent),
+                                      ? tokens.surfaceRaised.withValues(
+                                          alpha: ZplayOpacity.overlayHover,
+                                        )
+                                      : Colors.transparent),
                             borderRadius: LuRadius.field,
                           ),
                           child: _buildPortalCardContent(
@@ -1165,7 +1236,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
           color: isFav ? tokens.warning : tokens.textMuted,
           size: 19,
         ),
-        tooltip: isFav ? l10nCurrent().tvRemoveFavorite : l10nCurrent().tvAddToFavorites,
+        tooltip: isFav
+            ? l10nCurrent().tvRemoveFavorite
+            : l10nCurrent().tvAddToFavorites,
         visualDensity: VisualDensity.compact,
         padding: const EdgeInsets.all(5),
         constraints: const BoxConstraints(),
@@ -1238,7 +1311,10 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 borderRadius: ZplayRadius.xsAll,
               ),
               child: Text(
-                l10nCurrent().tv2ConnShort(p.activeConnections, p.maxConnections),
+                l10nCurrent().tv2ConnShort(
+                  p.activeConnections,
+                  p.maxConnections,
+                ),
                 style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
               ),
             ),
@@ -1386,11 +1462,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
             buildDeleteBtn(),
           ],
           const SizedBox(width: ZplaySpacing.s2),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: tokens.textMuted,
-            size: 18,
-          ),
+          Icon(Icons.chevron_right_rounded, color: tokens.textMuted, size: 18),
         ],
       );
     }
@@ -1490,7 +1562,8 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 ),
                 label: Text(
                   isMobile ? l10nCurrent().tvAddM3u : l10nCurrent().tvAddM3uUrl,
-                  style: (isMobile ? ZplayType.caption : ZplayType.label).toStyle(color: tokens.textPrimary),
+                  style: (isMobile ? ZplayType.caption : ZplayType.label)
+                      .toStyle(color: tokens.textPrimary),
                 ),
                 onPressed: () => setState(() => _showM3uForm = !_showM3uForm),
               ),
@@ -1519,8 +1592,11 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                     size: 15,
                   ),
                   label: Text(
-                    _isM3uEditMode ? l10nCurrent().tvDone : l10nCurrent().tvManage,
-                    style: (isMobile ? ZplayType.caption : ZplayType.label).toStyle(),
+                    _isM3uEditMode
+                        ? l10nCurrent().tvDone
+                        : l10nCurrent().tvManage,
+                    style: (isMobile ? ZplayType.caption : ZplayType.label)
+                        .toStyle(),
                   ),
                   onPressed: () {
                     setState(() {
@@ -1569,7 +1645,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                           color: tokens.info,
                         ),
                         label: Text(
-                          allSelected ? l10nCurrent().tvPortalsDeselectAll : l10nCurrent().tvPortalsSelectAll,
+                          allSelected
+                              ? l10nCurrent().tvPortalsDeselectAll
+                              : l10nCurrent().tvPortalsSelectAll,
                           style: ZplayType.label.toStyle(),
                         ),
                         onPressed: () {
@@ -1588,7 +1666,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                       const SizedBox(width: ZplaySpacing.s4),
                       Text(
                         '(${_selectedM3uIds.length}/${_ctrl.m3uPlaylists.length})',
-                        style: ZplayType.caption.toStyle(color: tokens.textEmphasis),
+                        style: ZplayType.caption.toStyle(
+                          color: tokens.textEmphasis,
+                        ),
                       ),
                     ],
                   ),
@@ -1615,7 +1695,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                         ),
                         icon: const Icon(Icons.delete_rounded, size: 14),
                         label: Text(
-                          l10nCurrent().tv2DeleteSelectedPlaylists(_selectedM3uIds.length),
+                          l10nCurrent().tv2DeleteSelectedPlaylists(
+                            _selectedM3uIds.length,
+                          ),
                           style: ZplayType.caption.toStyle(),
                         ),
                         onPressed: _selectedM3uIds.isEmpty
@@ -1659,7 +1741,9 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 children: [
                   Text(
                     l10nCurrent().tvAddM3uSubscription,
-                    style: ZplayType.body.copyWith(weight: FontWeight.w800).toStyle(color: tokens.textPrimary),
+                    style: ZplayType.body
+                        .copyWith(weight: FontWeight.w800)
+                        .toStyle(color: tokens.textPrimary),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -1728,7 +1812,8 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                   )
                 : ListView.separated(
                     itemCount: _ctrl.m3uPlaylists.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: ZplaySpacing.s8),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: ZplaySpacing.s8),
                     itemBuilder: (context, index) {
                       final pl = _ctrl.m3uPlaylists[index];
                       final isSelected = _selectedM3uIds.contains(pl.id);
@@ -1778,10 +1863,10 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                                         alpha: ZplayOpacity.overlayHover,
                                       )
                                     : (state.highlighted
-                                        ? tokens.surfaceRaised.withValues(
-                                            alpha: ZplayOpacity.overlayHover,
-                                          )
-                                        : Colors.transparent),
+                                          ? tokens.surfaceRaised.withValues(
+                                              alpha: ZplayOpacity.overlayHover,
+                                            )
+                                          : Colors.transparent),
                                 borderRadius: LuRadius.field,
                               ),
                               child: _buildM3uCardContent(
@@ -1861,11 +1946,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
       }
       return Padding(
         padding: const EdgeInsets.only(right: 10),
-        child: Icon(
-          Icons.queue_music_rounded,
-          color: tokens.accent,
-          size: 19,
-        ),
+        child: Icon(Icons.queue_music_rounded, color: tokens.accent, size: 19),
       );
     }
 
@@ -1950,7 +2031,10 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
                 ),
                 const SizedBox(height: ZplaySpacing.s2),
                 Text(
-                  l10nCurrent().tv2PlaylistChannelsSource(pl.channels.length, pl.sourceUrl != null ? '· ${pl.sourceUrl!}' : ''),
+                  l10nCurrent().tv2PlaylistChannelsSource(
+                    pl.channels.length,
+                    pl.sourceUrl != null ? '· ${pl.sourceUrl!}' : '',
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: ZplayType.caption.toStyle(color: tokens.textMuted),
@@ -1965,11 +2049,7 @@ class _IptvPortalsModalState extends State<IptvPortalsModal>
             buildM3uDeleteBtn(),
           ],
           const SizedBox(width: ZplaySpacing.s2),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: tokens.textMuted,
-            size: 18,
-          ),
+          Icon(Icons.chevron_right_rounded, color: tokens.textMuted, size: 18),
         ],
       );
     }

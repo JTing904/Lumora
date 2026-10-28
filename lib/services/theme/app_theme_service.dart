@@ -177,8 +177,10 @@ abstract final class AppThemeService {
   /// states at the bottom of the list). Teal measured 6.87:1, so this is a
   /// preference rather than a legibility fix - teal remains available and
   /// keeps its stored users.
-  static AppThemePalette get defaultPalette =>
-      palettes.firstWhere((p) => p.id == 'lumora', orElse: () => palettes.first);
+  static AppThemePalette get defaultPalette => palettes.firstWhere(
+    (p) => p.id == 'lumora',
+    orElse: () => palettes.first,
+  );
 
   static final ValueNotifier<AppThemePalette> currentPalette =
       ValueNotifier<AppThemePalette>(defaultPalette);
@@ -283,9 +285,7 @@ abstract final class AppThemeService {
         backgroundColor: palette.appBarBackgroundColor,
         surfaceTintColor: Colors.transparent,
       ),
-      cardTheme: CardThemeData(
-        color: palette.cardBackgroundColor,
-      ),
+      cardTheme: CardThemeData(color: palette.cardBackgroundColor),
       // From here down, every text style names [fontFamily] explicitly. The
       // component sub-themes install their styles in a [DefaultTextStyle],
       // which replaces the ambient style outright rather than merging with it

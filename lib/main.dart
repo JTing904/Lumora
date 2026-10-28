@@ -105,8 +105,9 @@ void main() async {
   }
   // Before anything saves: an install with saved state is an update.
   try {
-    WhatsNew.hadPrefs =
-        (await SharedPreferences.getInstance()).getKeys().isNotEmpty;
+    WhatsNew.hadPrefs = (await SharedPreferences.getInstance())
+        .getKeys()
+        .isNotEmpty;
   } catch (_) {}
   await EnvService.initialize();
   // Before the first frame: the frame shows the sign-in page or the app.

@@ -35,9 +35,12 @@ abstract final class MusicNowPlayingBridge {
 
   static bool _initialized = false;
 
-  static final MusicPlayerController _controller = MusicPlayerController.instance;
+  static final MusicPlayerController _controller =
+      MusicPlayerController.instance;
 
-  static final _MusicNowPlayingCommands _commands = _MusicNowPlayingCommands(_controller);
+  static final _MusicNowPlayingCommands _commands = _MusicNowPlayingCommands(
+    _controller,
+  );
 
   /// Publishes the controller's current frame.
   ///
@@ -63,7 +66,9 @@ abstract final class MusicNowPlayingBridge {
         title: track.title,
         // Either half of the credit can be missing on a user added track, and a
         // stray separator reads worse than a subtitle that is just the other half.
-        subtitle: artist.isEmpty ? album : (album.isEmpty ? artist : '$artist · $album'),
+        subtitle: artist.isEmpty
+            ? album
+            : (album.isEmpty ? artist : '$artist · $album'),
         artworkUrl: track.coverUrl.trim().isEmpty ? null : track.coverUrl,
         isPlaying: _controller.isPlaying,
         position: _controller.position,
@@ -74,7 +79,8 @@ abstract final class MusicNowPlayingBridge {
         // which also answers true on the last track of a repeat one queue where
         // playNext does nothing.
         canPrevious: _controller.hasPrevious,
-        canNext: _controller.currentIndex < _controller.playlist.length - 1 ||
+        canNext:
+            _controller.currentIndex < _controller.playlist.length - 1 ||
             _controller.repeatMode == MusicRepeatMode.all,
       ),
     );

@@ -257,19 +257,18 @@ class _HeroSlideState extends State<_HeroSlide> {
   @override
   void initState() {
     super.initState();
-    TmdbCatalog.resolve(widget.movie)
-        .then<Movie?>((m) => m)
-        .catchError((_) => null)
-        .then((m) {
-          if (!mounted) return;
-          final run = _pendingToggle && m != null;
-          setState(() {
-            _resolved = m;
-            _settled = true;
-            _pendingToggle = false;
-          });
-          if (run) _toggleList();
-        });
+    TmdbCatalog.resolve(
+      widget.movie,
+    ).then<Movie?>((m) => m).catchError((_) => null).then((m) {
+      if (!mounted) return;
+      final run = _pendingToggle && m != null;
+      setState(() {
+        _resolved = m;
+        _settled = true;
+        _pendingToggle = false;
+      });
+      if (run) _toggleList();
+    });
   }
 
   /// What 片单's button does: toggle once the title is known, wait for it

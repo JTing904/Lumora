@@ -155,7 +155,9 @@ class _PlayerVolumeControlState extends State<PlayerVolumeControl> {
                           ? PlayerTheme.inkSubtle
                           : tokens.textPrimary),
               ),
-              tooltip: widget.isMuted ? l10nCurrent().playerUnmute : l10nCurrent().playerMute,
+              tooltip: widget.isMuted
+                  ? l10nCurrent().playerUnmute
+                  : l10nCurrent().playerMute,
               onPressed: widget.onToggleMute,
             ),
 

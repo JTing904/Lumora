@@ -125,7 +125,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   void _onSlotChanged() {
     final slot = _shellController?.current.value;
-    final returnedBrowse = slot == ShellSlot.browse && _lastSlot != ShellSlot.browse;
+    final returnedBrowse =
+        slot == ShellSlot.browse && _lastSlot != ShellSlot.browse;
     _lastSlot = slot;
     if (!returnedBrowse || !mounted || _isLegacyMode) return;
     _initDiscoverCatalogs();
@@ -247,14 +248,17 @@ class _DiscoverPageState extends State<DiscoverPage> {
     if (initialEntry == null && widget.initialCatalog != null) {
       for (final entry in catalogs) {
         if (entry.catalog.id == widget.initialCatalog!.id &&
-            (widget.initialAddon == null || entry.addon.manifest.id == widget.initialAddon!.manifest.id)) {
+            (widget.initialAddon == null ||
+                entry.addon.manifest.id == widget.initialAddon!.manifest.id)) {
           initialEntry = entry;
           break;
         }
       }
     }
 
-    initialEntry ??= catalogs.where((c) => c.catalog.type == initialType).firstOrNull ?? catalogs.firstOrNull;
+    initialEntry ??=
+        catalogs.where((c) => c.catalog.type == initialType).firstOrNull ??
+        catalogs.firstOrNull;
 
     setState(() {
       _allCatalogs = catalogs;
@@ -266,7 +270,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
     _checkAndLoadCatalog();
   }
 
-  List<({InstalledAddon addon, AddonCatalog catalog})> get _currentTypeCatalogs {
+  List<({InstalledAddon addon, AddonCatalog catalog})>
+  get _currentTypeCatalogs {
     if (_selectedType == _adultType) {
       return _allCatalogs.where((c) => c.addon.isAdultCapable).toList();
     }
@@ -275,8 +280,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   bool get _hasVisibleExtras {
     if (_selectedCatalogEntry == null) return false;
-    return _selectedCatalogEntry!.catalog.extra.any((e) =>
-        e.name != 'skip' && (e.name != 'search' || e.isRequired));
+    return _selectedCatalogEntry!.catalog.extra.any(
+      (e) => e.name != 'skip' && (e.name != 'search' || e.isRequired),
+    );
   }
 
   List<CatalogExtra> get _missingRequiredExtras {
@@ -300,9 +306,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
   /// Falls back to "Custom" when a catalog declares a required extra with no
   /// name, because an empty badge is worse than an uninformative one.
   String _requiredExtraLabel(AddonCatalog catalog) {
-    final required = catalog.requiredExtras.map((e) => e.name).where(
-          (name) => name.trim().isNotEmpty && name != 'skip',
-        );
+    final required = catalog.requiredExtras
+        .map((e) => e.name)
+        .where((name) => name.trim().isNotEmpty && name != 'skip');
     if (required.isEmpty) return l10nCurrent().dscCustom;
     return required.map(_extraLabel).join(' + ');
   }
@@ -424,7 +430,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
         params['search'] = _searchQuery;
       }
 
-      if (_isSearching && _searchQuery.isNotEmpty && !entry.catalog.supportsSkip) {
+      if (_isSearching &&
+          _searchQuery.isNotEmpty &&
+          !entry.catalog.supportsSkip) {
         newItems = await MetadataService.search(
           baseUrl: entry.addon.baseUrl,
           type: entry.catalog.type,
@@ -556,12 +564,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
     // (`_DiscoverPill.height`), so the row's height *is* the target: 48 dp, the
     // same number the shell's own top bar uses for exactly this reason. The
     // grid pays the 4 dp back out of the budget below.
-    final selectorH = television
-        ? 48.0
-        : (isCompactScreen ? 44.0 : 50.0);
+    final selectorH = television ? 48.0 : (isCompactScreen ? 44.0 : 50.0);
     final extrasH = isCompactScreen ? 42.0 : 48.0;
 
-    final headerHeight = topPadding +
+    final headerHeight =
+        topPadding +
         (television ? 0 : toolbarH) +
         selectorH +
         (hasExtras && !television ? extrasH : 0);
@@ -569,8 +576,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
     // `sizing.spacing` is 16 and not derived from the budget, so the first pass
     // of this sizing does not need to know its own height budget.
     final cardBudget =
-        (screenHeight - headerHeight - ZplaySpacing.s24 * 2 - ZplaySpacing.s16) /
-            rowsToShow;
+        (screenHeight -
+            headerHeight -
+            ZplaySpacing.s24 * 2 -
+            ZplaySpacing.s16) /
+        rowsToShow;
 
     final sizing = MovieCardSizing.fromWidth(
       screenWidth,
@@ -614,7 +624,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
     );
   }
 
-  Widget _buildDiscoverContent(double topOffset, MovieCardSizing sizing, double bottomInset) {
+  Widget _buildDiscoverContent(
+    double topOffset,
+    MovieCardSizing sizing,
+    double bottomInset,
+  ) {
     final tokens = context.tokens;
     if (_selectedCatalogEntry == null) {
       return Center(
@@ -629,7 +643,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.category_outlined, size: 48, color: tokens.textDisabled),
+              Icon(
+                Icons.category_outlined,
+                size: 48,
+                color: tokens.textDisabled,
+              ),
               const SizedBox(height: ZplaySpacing.s12),
               Text(
                 _selectedType == _adultType
@@ -651,7 +669,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     if (_items.isEmpty && _isLoading) {
       return Center(
-        child: CircularProgressIndicator(color: AppThemeService.currentPalette.value.primaryColor),
+        child: CircularProgressIndicator(
+          color: AppThemeService.currentPalette.value.primaryColor,
+        ),
       );
     }
 
@@ -767,7 +787,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
         itemBuilder: (context, index) {
           if (index == _items.length) {
             return Center(
-              child: CircularProgressIndicator(color: AppThemeService.currentPalette.value.primaryColor),
+              child: CircularProgressIndicator(
+                color: AppThemeService.currentPalette.value.primaryColor,
+              ),
             );
           }
           return MovieCard(movie: _items[index]);
@@ -800,10 +822,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
           decoration: BoxDecoration(
             color: tokens.surfaceOverlay,
             borderRadius: ZplayRadius.lgAll,
-            border: Border.all(color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: 0.3)),
+            border: Border.all(
+              color: AppThemeService.currentPalette.value.primaryColor
+                  .withValues(alpha: 0.3),
+            ),
             boxShadow: [
               BoxShadow(
-                color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: 0.1),
+                color: AppThemeService.currentPalette.value.primaryColor
+                    .withValues(alpha: 0.1),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -815,7 +841,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
               Container(
                 padding: const EdgeInsets.all(ZplaySpacing.s16),
                 decoration: BoxDecoration(
-                  color: AppThemeService.currentPalette.value.primaryColor.withValues(alpha: 0.15),
+                  color: AppThemeService.currentPalette.value.primaryColor
+                      .withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.tune_rounded, color: tokens.accent, size: 30),
@@ -827,7 +854,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
               ),
               const SizedBox(height: ZplaySpacing.s8),
               Text(
-                l10nCurrent().dsc2CatalogRequiresSelecting(missing.map((e) => e.name).join(' & ')),
+                l10nCurrent().dsc2CatalogRequiresSelecting(
+                  missing.map((e) => e.name).join(' & '),
+                ),
                 textAlign: TextAlign.center,
                 style: ZplayType.body.toStyle(color: tokens.textEmphasis),
               ),
@@ -847,7 +876,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
                         borderRadius: ZplayRadius.smAll,
                         side: tokens.hairline,
                       ),
-                      onSelected: (val) => _onExtraOptionSelected(extra.name, val),
+                      onSelected: (val) =>
+                          _onExtraOptionSelected(extra.name, val),
                       itemBuilder: (context) => extra.options
                           .map(
                             (opt) => PopupMenuItem<String>(
@@ -867,20 +897,28 @@ class _DiscoverPageState extends State<DiscoverPage> {
                           vertical: ZplaySpacing.s8,
                         ),
                         decoration: BoxDecoration(
-                          color: AppThemeService.currentPalette.value.primaryColor,
+                          color:
+                              AppThemeService.currentPalette.value.primaryColor,
                           borderRadius: ZplayRadius.lgAll,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              l10nCurrent().dsc2SelectExtra(extra.name[0].toUpperCase(), extra.name.substring(1)),
+                              l10nCurrent().dsc2SelectExtra(
+                                extra.name[0].toUpperCase(),
+                                extra.name.substring(1),
+                              ),
                               style: ZplayType.label
                                   .copyWith(weight: FontWeight.w600)
                                   .toStyle(color: tokens.onAccent),
                             ),
                             const SizedBox(width: ZplaySpacing.s8),
-                            Icon(Icons.arrow_drop_down, color: tokens.onAccent, size: 20),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              color: tokens.onAccent,
+                              size: 20,
+                            ),
                           ],
                         ),
                       ),
@@ -889,13 +927,20 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     return ElevatedButton.icon(
                       onPressed: () => _showCustomExtraDialog(extra.name),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppThemeService.currentPalette.value.primaryColor,
+                        backgroundColor:
+                            AppThemeService.currentPalette.value.primaryColor,
                         foregroundColor: tokens.onAccent,
                         padding: EdgeInsets.symmetric(
-                          horizontal: isNarrow ? ZplaySpacing.s16 : ZplaySpacing.s20,
-                          vertical: isNarrow ? ZplaySpacing.s8 : ZplaySpacing.s12,
+                          horizontal: isNarrow
+                              ? ZplaySpacing.s16
+                              : ZplaySpacing.s20,
+                          vertical: isNarrow
+                              ? ZplaySpacing.s8
+                              : ZplaySpacing.s12,
                         ),
-                        shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.lgAll),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: ZplayRadius.lgAll,
+                        ),
                       ),
                       icon: const Icon(Icons.edit_rounded, size: 16),
                       label: Text(
@@ -915,7 +960,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   void _showCustomExtraDialog(String extraName) {
     final tokens = context.tokens;
-    final controller = TextEditingController(text: _selectedExtras[extraName] ?? '');
+    final controller = TextEditingController(
+      text: _selectedExtras[extraName] ?? '',
+    );
     final screenWidth = MediaQuery.sizeOf(context).width;
 
     showDialog(
@@ -943,7 +990,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 borderSide: tokens.hairlineStrong,
               ),
               focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: AppThemeService.currentPalette.value.primaryColor),
+                borderSide: BorderSide(
+                  color: AppThemeService.currentPalette.value.primaryColor,
+                ),
               ),
             ),
             onSubmitted: (val) {
@@ -962,9 +1011,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppThemeService.currentPalette.value.primaryColor,
+              backgroundColor:
+                  AppThemeService.currentPalette.value.primaryColor,
               foregroundColor: tokens.onAccent,
-              shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
+              shape: const RoundedRectangleBorder(
+                borderRadius: ZplayRadius.smAll,
+              ),
             ),
             onPressed: () {
               Navigator.pop(ctx);
@@ -1035,7 +1087,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 child: Text(
                   option,
                   style: ZplayType.body.toStyle(
-                    color: option == currentVal ? tokens.accent : tokens.textPrimary,
+                    color: option == currentVal
+                        ? tokens.accent
+                        : tokens.textPrimary,
                   ),
                 ),
               ),
@@ -1109,8 +1163,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     // on that row - and the budget below has to agree with it, or the grid is
     // sized against chrome that is no longer there and the cards come out too
     // small for a screen that has just gained 56 dp.
-    final television =
-        FormFactorService.of(context) == FormFactor.television;
+    final television = FormFactorService.of(context) == FormFactor.television;
 
     return AnimatedBuilder(
       // Scroll-driven tint: fully transparent at the top of the page, where all
@@ -1155,98 +1208,112 @@ class _DiscoverPageState extends State<DiscoverPage> {
           if (!television)
             SizedBox(
               height: toolbarH,
-            child: Row(
-              children: [
-                const SizedBox(width: ZplaySpacing.s8),
-                // Discover is a Browse vertical now, so this page is normally
-                // a shell slot with nothing below it to pop. Gated rather than
-                // deleted so the legacy search and genre route, which is still
-                // pushed with a query, keeps its back button. There is no
-                // layout jump in practice: inside the shell the gate is always
-                // false, so the row always starts at the gutter.
-                if (Navigator.of(context).canPop())
-                  IconButton(
-                    icon: Icon(
-                      Icons.arrow_back_ios_rounded,
-                      size: 19,
-                      color: tokens.textPrimary,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                const SizedBox(width: ZplaySpacing.s2),
-                if (!_isSearching) ...[
-                  Icon(Icons.explore_rounded, color: AppThemeService.currentPalette.value.primaryColor, size: 21),
+              child: Row(
+                children: [
                   const SizedBox(width: ZplaySpacing.s8),
-                  Text(
-                    l10nCurrent().dscDiscover,
-                    style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
-                  ),
-                ],
-                if (_isSearching)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ZplaySpacing.s12,
+                  // Discover is a Browse vertical now, so this page is normally
+                  // a shell slot with nothing below it to pop. Gated rather than
+                  // deleted so the legacy search and genre route, which is still
+                  // pushed with a query, keeps its back button. There is no
+                  // layout jump in practice: inside the shell the gate is always
+                  // false, so the row always starts at the gutter.
+                  if (Navigator.of(context).canPop())
+                    IconButton(
+                      icon: Icon(
+                        Icons.arrow_back_ios_rounded,
+                        size: 19,
+                        color: tokens.textPrimary,
                       ),
-                      child: TextField(
-                        controller: _searchController,
-                        // Never on a television.
-                        //
-                        // A focused `EditableText` installs
-                        // `DirectionalFocusAction.forTextField()`, which
-                        // swallows every arrow press - so a field that takes
-                        // focus on build traps the remote with no way back out
-                        // (the same trap `SearchPage` guards, and the same
-                        // guard: the form factor, not the width). This row is
-                        // already television-gated, so today the branch cannot
-                        // be taken there; the guard is kept because it is the
-                        // invariant, not the gate, that has to hold.
-                        autofocus:
-                            FormFactorService.of(context) != FormFactor.television,
-                        style: ZplayType.body.toStyle(color: tokens.textPrimary),
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: _onSearchSubmitted,
-                        decoration: InputDecoration(
-                          hintText: isNarrow
-                              ? l10nCurrent().dscSearchHint
-                              : l10nCurrent().dsc2SearchWithinCatalog(_selectedCatalogEntry?.catalog.name ?? 'catalog'),
-                          hintStyle: ZplayType.body.toStyle(
-                            color: tokens.textSecondary,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  const SizedBox(width: ZplaySpacing.s2),
+                  if (!_isSearching) ...[
+                    Icon(
+                      Icons.explore_rounded,
+                      color: AppThemeService.currentPalette.value.primaryColor,
+                      size: 21,
+                    ),
+                    const SizedBox(width: ZplaySpacing.s8),
+                    Text(
+                      l10nCurrent().dscDiscover,
+                      style: ZplayType.titleLarge.toStyle(
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ],
+                  if (_isSearching)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ZplaySpacing.s12,
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          // Never on a television.
+                          //
+                          // A focused `EditableText` installs
+                          // `DirectionalFocusAction.forTextField()`, which
+                          // swallows every arrow press - so a field that takes
+                          // focus on build traps the remote with no way back out
+                          // (the same trap `SearchPage` guards, and the same
+                          // guard: the form factor, not the width). This row is
+                          // already television-gated, so today the branch cannot
+                          // be taken there; the guard is kept because it is the
+                          // invariant, not the gate, that has to hold.
+                          autofocus:
+                              FormFactorService.of(context) !=
+                              FormFactor.television,
+                          style: ZplayType.body.toStyle(
+                            color: tokens.textPrimary,
                           ),
-                          border: InputBorder.none,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              Icons.close_rounded,
-                              size: 18,
-                              color: tokens.textEmphasis,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: _onSearchSubmitted,
+                          decoration: InputDecoration(
+                            hintText: isNarrow
+                                ? l10nCurrent().dscSearchHint
+                                : l10nCurrent().dsc2SearchWithinCatalog(
+                                    _selectedCatalogEntry?.catalog.name ??
+                                        'catalog',
+                                  ),
+                            hintStyle: ZplayType.body.toStyle(
+                              color: tokens.textSecondary,
                             ),
-                            onPressed: _clearSearch,
+                            border: InputBorder.none,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: tokens.textEmphasis,
+                              ),
+                              onPressed: _clearSearch,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  const Spacer(),
+                    )
+                  else
+                    const Spacer(),
 
-                // Search toggle button
-                if (!_isSearching &&
-                    (_selectedCatalogEntry?.catalog.supportsSearch ?? false) &&
-                    MetadataService.catalogSearchIsTrustworthy(
-                        _selectedCatalogEntry?.addon.baseUrl ?? ''))
-                  IconButton(
-                    icon: Icon(
-                      Icons.search_rounded,
-                      color: tokens.textEmphasis,
-                      size: 22,
+                  // Search toggle button
+                  if (!_isSearching &&
+                      (_selectedCatalogEntry?.catalog.supportsSearch ??
+                          false) &&
+                      MetadataService.catalogSearchIsTrustworthy(
+                        _selectedCatalogEntry?.addon.baseUrl ?? '',
+                      ))
+                    IconButton(
+                      icon: Icon(
+                        Icons.search_rounded,
+                        color: tokens.textEmphasis,
+                        size: 22,
+                      ),
+                      tooltip: l10nCurrent().dscSearchCatalog,
+                      onPressed: () => setState(() => _isSearching = true),
                     ),
-                    tooltip: l10nCurrent().dscSearchCatalog,
-                    onPressed: () => setState(() => _isSearching = true),
-                  ),
-                const SizedBox(width: ZplaySpacing.s8),
-              ],
+                  const SizedBox(width: ZplaySpacing.s8),
+                ],
+              ),
             ),
-          ),
 
           // ── Type and Catalog Selector Row ──
           Container(
@@ -1275,7 +1342,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     !_isSearching &&
                     (_selectedCatalogEntry?.catalog.supportsSearch ?? false) &&
                     MetadataService.catalogSearchIsTrustworthy(
-                        _selectedCatalogEntry?.addon.baseUrl ?? '')) ...[
+                      _selectedCatalogEntry?.addon.baseUrl ?? '',
+                    )) ...[
                   IconButton(
                     icon: Icon(
                       Icons.search_rounded,
@@ -1313,7 +1381,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       onSelected: _onTypeChanged,
                     ),
                   ),
-                  SizedBox(width: isNarrow ? ZplaySpacing.s8 : ZplaySpacing.s12),
+                  SizedBox(
+                    width: isNarrow ? ZplaySpacing.s8 : ZplaySpacing.s12,
+                  ),
                 ],
 
                 // Catalog selector horizontal scroll.
@@ -1331,37 +1401,39 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
                       child: Row(
-                      children: _currentTypeCatalogs.map((entry) {
-                        final isSelected = _selectedCatalogEntry == entry;
-                        // The 18+ view mixes addons, so name the source.
-                        final name =
-                            '${AddonManager.instance.catalogDisplayName(entry.catalog)}'
-                            '${_selectedType == _adultType ? ' · ${entry.addon.manifest.name}' : ''}';
-                        final hasReq = entry.catalog.hasRequiredExtra;
+                        children: _currentTypeCatalogs.map((entry) {
+                          final isSelected = _selectedCatalogEntry == entry;
+                          // The 18+ view mixes addons, so name the source.
+                          final name =
+                              '${AddonManager.instance.catalogDisplayName(entry.catalog)}'
+                              '${_selectedType == _adultType ? ' · ${entry.addon.manifest.name}' : ''}';
+                          final hasReq = entry.catalog.hasRequiredExtra;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(right: ZplaySpacing.s8),
-                          child: _DiscoverPill(
-                            label: name,
-                            // The badge names the filter the catalog will
-                            // demand, rather than saying only "Custom".
-                            //
-                            // "Custom" told the user nothing about what
-                            // selecting this chip would do, so selecting it
-                            // appeared to be a dead end: the grid was replaced
-                            // by "Select Required Filter". The gate is right -
-                            // the catalog genuinely needs a genre - but the chip
-                            // that triggers it is the only place the user can
-                            // find out beforehand.
-                            badge: hasReq
-                                ? _requiredExtraLabel(entry.catalog)
-                                : null,
-                            selected: isSelected,
-                            height: television ? selectorH : null,
-                            onActivate: (_) => _onCatalogChanged(entry),
-                          ),
-                        );
-                      }).toList(),
+                          return Padding(
+                            padding: const EdgeInsets.only(
+                              right: ZplaySpacing.s8,
+                            ),
+                            child: _DiscoverPill(
+                              label: name,
+                              // The badge names the filter the catalog will
+                              // demand, rather than saying only "Custom".
+                              //
+                              // "Custom" told the user nothing about what
+                              // selecting this chip would do, so selecting it
+                              // appeared to be a dead end: the grid was replaced
+                              // by "Select Required Filter". The gate is right -
+                              // the catalog genuinely needs a genre - but the chip
+                              // that triggers it is the only place the user can
+                              // find out beforehand.
+                              badge: hasReq
+                                  ? _requiredExtraLabel(entry.catalog)
+                                  : null,
+                              selected: isSelected,
+                              height: television ? selectorH : null,
+                              onActivate: (_) => _onCatalogChanged(entry),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
                   ),
@@ -1390,11 +1462,13 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   ),
                   ..._selectedCatalogEntry!.catalog.extra
                       .where(
-                        (extra) => extra.name != 'skip' &&
+                        (extra) =>
+                            extra.name != 'skip' &&
                             (extra.name != 'search' || extra.isRequired),
                       )
                       .map(
-                        (extra) => _buildInlineExtraChip(extra, height: selectorH),
+                        (extra) =>
+                            _buildInlineExtraChip(extra, height: selectorH),
                       ),
                 ],
               ],
@@ -1425,13 +1499,15 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 ),
                 physics: const BouncingScrollPhysics(),
                 children: _selectedCatalogEntry!.catalog.extra.map((extra) {
-                  if (extra.name == 'skip' || (extra.name == 'search' && !extra.isRequired)) {
+                  if (extra.name == 'skip' ||
+                      (extra.name == 'search' && !extra.isRequired)) {
                     return const SizedBox.shrink();
                   }
 
                   final currentVal = _selectedExtras[extra.name];
                   final isReq = extra.isRequired;
-                  final isSelected = currentVal != null && currentVal.isNotEmpty;
+                  final isSelected =
+                      currentVal != null && currentVal.isNotEmpty;
 
                   // Dropdown for extras with predefined options
                   if (extra.options.isNotEmpty) {
@@ -1473,7 +1549,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
                               ),
                             ),
                           ],
-                          onSelected: (val) => _onExtraOptionSelected(extra.name, val),
+                          onSelected: (val) =>
+                              _onExtraOptionSelected(extra.name, val),
                         ),
                       ),
                     );
@@ -1543,7 +1620,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
           const SizedBox(width: ZplaySpacing.s8),
           Expanded(
             child: Text(
-              widget.isGenre ? l10nCurrent().dsc2GenreQuery(widget.query ?? '') : l10nCurrent().dsc2SearchQuery(widget.query ?? ''),
+              widget.isGenre
+                  ? l10nCurrent().dsc2GenreQuery(widget.query ?? '')
+                  : l10nCurrent().dsc2SearchQuery(widget.query ?? ''),
               style: ZplayType.titleLarge.toStyle(color: tokens.textPrimary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1559,14 +1638,20 @@ class _DiscoverPageState extends State<DiscoverPage> {
         child: Stack(
           children: [
             if (_legacyLoading)
-              Center(child: CircularProgressIndicator(color: AppThemeService.currentPalette.value.primaryColor))
+              Center(
+                child: CircularProgressIndicator(
+                  color: AppThemeService.currentPalette.value.primaryColor,
+                ),
+              )
             else if (_legacyError != null)
               ErrorView(error: _legacyError, onRetry: _fetchLegacyData)
             else if (_legacySections.isEmpty)
               Center(
                 child: Text(
                   l10nCurrent().dsc2NoResultsFor(widget.query ?? ''),
-                  style: ZplayType.subtitle.toStyle(color: tokens.textSecondary),
+                  style: ZplayType.subtitle.toStyle(
+                    color: tokens.textSecondary,
+                  ),
                 ),
               )
             else
@@ -1603,10 +1688,13 @@ class _DiscoverPageState extends State<DiscoverPage> {
       ),
       physics: const BouncingScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: ((MediaQuery.sizeOf(context).width - sizing.sidePadding * 2 + sizing.spacing) /
-                (sizing.cardWidth + sizing.spacing))
-            .floor()
-            .clamp(2, 10),
+        crossAxisCount:
+            ((MediaQuery.sizeOf(context).width -
+                        sizing.sidePadding * 2 +
+                        sizing.spacing) /
+                    (sizing.cardWidth + sizing.spacing))
+                .floor()
+                .clamp(2, 10),
         mainAxisExtent: sizing.totalHeight,
         crossAxisSpacing: sizing.spacing,
         mainAxisSpacing: sizing.spacing,
@@ -1713,8 +1801,10 @@ class _DiscoverPill extends StatelessWidget {
             color: selected
                 ? Colors.white.withValues(alpha: ZplayOpacity.overlayHover)
                 : (attention
-                    ? tokens.warning.withValues(alpha: ZplayOpacity.overlayHover)
-                    : tokens.borderDefault),
+                      ? tokens.warning.withValues(
+                          alpha: ZplayOpacity.overlayHover,
+                        )
+                      : tokens.borderDefault),
             borderRadius: ZplayRadius.fullAll,
           ),
           child: Row(
@@ -1735,7 +1825,10 @@ class _DiscoverPill extends StatelessWidget {
               if (badge != null) ...[
                 const SizedBox(width: ZplaySpacing.s8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: selected
                         ? tokens.borderStrong

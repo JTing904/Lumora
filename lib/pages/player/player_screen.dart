@@ -453,8 +453,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
         setState(() {
           _isLoading = true;
           _streamStalled = true;
-          _statusMessage =
-              l10nCurrent().playerNotResponding;
+          _statusMessage = l10nCurrent().playerNotResponding;
         });
       });
     } else if (!isBuffering && _wasBuffering) {
@@ -1242,7 +1241,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
         if (useDebrid) {
           final activeService = await DebridService().getSelectedService();
           if (!mounted) return;
-          setState(() => _statusMessage = l10nCurrent().playerUsingDebrid(activeService));
+          setState(
+            () =>
+                _statusMessage = l10nCurrent().playerUsingDebrid(activeService),
+          );
 
           final debridFiles = await DebridService().resolveMagnet(
             magnet: magnet,
@@ -1307,7 +1309,15 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
 
       if (!mounted) return;
       final epLabel = _currentEpisode != null
-          ? l10nCurrent().playerEpisodeLabel('${_currentEpisode!.season ?? 1}', '${_currentEpisode!.episode ?? 1}', _currentEpisode!.title.isNotEmpty ? _currentEpisode!.title : l10nCurrent().panelEpisode('${_currentEpisode!.episode ?? 1}'))
+          ? l10nCurrent().playerEpisodeLabel(
+              '${_currentEpisode!.season ?? 1}',
+              '${_currentEpisode!.episode ?? 1}',
+              _currentEpisode!.title.isNotEmpty
+                  ? _currentEpisode!.title
+                  : l10nCurrent().panelEpisode(
+                      '${_currentEpisode!.episode ?? 1}',
+                    ),
+            )
           : (widget.detail?.name ?? _currentTitle);
       setState(() => _statusMessage = l10nCurrent().playerBuffering(epLabel));
 
@@ -1472,8 +1482,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
           _isLoading = false;
           _showSourcesPanel = true;
           _sourcesEpisode = _currentEpisode;
-          _sourcesErrorMessage =
-              l10nCurrent().playerSourceFailed;
+          _sourcesErrorMessage = l10nCurrent().playerSourceFailed;
         });
         _focusOverlayAfterFrame(_sourcesPanelKey);
         return;
@@ -1482,8 +1491,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       String displayMessage = l10nCurrent().ply2ErrorPrefix(e);
       if (e is PlatformException &&
           (e.message?.contains('invalid or unsupported media') ?? false)) {
-        displayMessage =
-            l10nCurrent().playerOpenError;
+        displayMessage = l10nCurrent().playerOpenError;
       }
 
       setState(() {
@@ -1539,8 +1547,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
 
     final bool advanced = _advanceResumeChain(
       failedUrl: _currentSource.url,
-      noticeText:
-          l10nCurrent().ply2DebridTryingAnother(e.service, _debridWording(e.kind).notice),
+      noticeText: l10nCurrent().ply2DebridTryingAnother(
+        e.service,
+        _debridWording(e.kind).notice,
+      ),
     );
     if (advanced) return;
 
@@ -1565,14 +1575,20 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
   ) {
     switch (kind) {
       case DebridFailureKind.sourceRejected:
-        return (reason: l10nCurrent().plyRefusedByProvider, notice: l10nCurrent().plyNoticeRefused);
+        return (
+          reason: l10nCurrent().plyRefusedByProvider,
+          notice: l10nCurrent().plyNoticeRefused,
+        );
       case DebridFailureKind.notCached:
         return (
           reason: l10nCurrent().plyNotReadyYet,
           notice: l10nCurrent().plyNoticeNotReady,
         );
       case DebridFailureKind.account:
-        return (reason: l10nCurrent().plyAccountRejected, notice: l10nCurrent().plyNoticeAccountRejected);
+        return (
+          reason: l10nCurrent().plyAccountRejected,
+          notice: l10nCurrent().plyNoticeAccountRejected,
+        );
       case DebridFailureKind.transient:
         return (
           reason: l10nCurrent().plyTemporarilyUnavailable,
@@ -1602,8 +1618,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
         // and the escape actions.
         _isLoading = true;
         _streamStalled = true;
-        _statusMessage =
-            l10nCurrent().playerNotResponding;
+        _statusMessage = l10nCurrent().playerNotResponding;
       });
     });
   }
@@ -1842,9 +1857,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       // read that as the chain being over.
       final String? notice =
           noticeText ??
-          (_searchOwnsMessage
-              ? null
-              : l10nCurrent().playerTryingAnother);
+          (_searchOwnsMessage ? null : l10nCurrent().playerTryingAnother);
       if (notice != null) _showNotice(notice);
     }
     return true;
@@ -1918,7 +1931,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       try {
         if (_speedPeakFromTorrent) {
           final hash = source.infoHash ?? source.url;
-          if (hash != null) mbps = await TorrentStreamService().downloadMbps(hash);
+          if (hash != null) {
+            mbps = await TorrentStreamService().downloadMbps(hash);
+          }
         } else if (_engine == null) {
           final raw = await (_player.platform as NativePlayer).getProperty(
             'cache-speed',
@@ -2196,8 +2211,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
         // Re-show that overlay so the message is actually visible to the user.
         _isLoading = true;
         _streamStalled = true;
-        _statusMessage =
-            l10nCurrent().playerNotResponding;
+        _statusMessage = l10nCurrent().playerNotResponding;
       });
     }
   }
@@ -2225,8 +2239,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
         _streamStalled = false;
         _statusMessage = '';
         _sourcesEpisode = target;
-        _sourcesErrorMessage =
-            l10nCurrent().playerNotRespondingPick;
+        _sourcesErrorMessage = l10nCurrent().playerNotRespondingPick;
         _showSourcesPanel = true;
       });
       _restoreFocusFromStallOverlay();
@@ -2277,7 +2290,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       if (t.id == 'no' || t.id == 'auto') continue;
       final lang = t.language;
       final title =
-          t.title ?? (lang != null ? lang.toUpperCase() : l10nCurrent().ply2TrackNumber(i + 1));
+          t.title ??
+          (lang != null
+              ? lang.toUpperCase()
+              : l10nCurrent().ply2TrackNumber(i + 1));
       final idx = int.tryParse(t.id) ?? (i + 1);
       audioTracks.add(
         PlayerAudioTrack(
@@ -2296,7 +2312,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       if (t.id == 'no' || t.id == 'auto') continue;
       final lang = t.language;
       final title =
-          t.title ?? (lang != null ? lang.toUpperCase() : l10nCurrent().ply2TrackNumber(i + 1));
+          t.title ??
+          (lang != null
+              ? lang.toUpperCase()
+              : l10nCurrent().ply2TrackNumber(i + 1));
       final idx = int.tryParse(t.id) ?? (i + 1);
       embeddedSubs.add(
         PlayerEmbeddedSubtitle(index: idx, title: title, language: lang),
@@ -2787,7 +2806,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10nCurrent().ply2DownloadingSubtitle(variant.language)),
+          content: Text(
+            l10nCurrent().ply2DownloadingSubtitle(variant.language),
+          ),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -2830,7 +2851,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10nCurrent().ply2SubtitleLoaded(variant.language, _currentCues.length),
+            l10nCurrent().ply2SubtitleLoaded(
+              variant.language,
+              _currentCues.length,
+            ),
           ),
           duration: const Duration(seconds: 2),
         ),
@@ -2928,11 +2952,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       _setSubtitleScale(_subtitleScale);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10nCurrent().playerSubSynced),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10nCurrent().playerSubSynced)));
       }
     }
   }
@@ -3055,7 +3077,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
         _isLoading = false;
         _showSourcesPanel = true;
         _sourcesEpisode = _currentEpisode;
-        _sourcesErrorMessage = l10nCurrent().ply2SelectAnotherSourceBelow(message);
+        _sourcesErrorMessage = l10nCurrent().ply2SelectAnotherSourceBelow(
+          message,
+        );
       });
       _focusOverlayAfterFrame(_sourcesPanelKey);
       return;
@@ -3387,8 +3411,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
         final epNum = newEpisode.episode ?? 1;
         final sNum = newEpisode.season ?? 1;
         _currentTitle = '$showName - S${sNum}E$epNum ${newEpisode.title}';
-        _statusMessage =
-            l10nCurrent().ply2BufferingEpisode(sNum, epNum, newEpisode.title.isNotEmpty ? newEpisode.title : 'Episode $epNum');
+        _statusMessage = l10nCurrent().ply2BufferingEpisode(
+          sNum,
+          epNum,
+          newEpisode.title.isNotEmpty ? newEpisode.title : 'Episode $epNum',
+        );
       }
       _showEpisodesPanel = false;
       _showSourcesPanel = false;
@@ -4109,9 +4136,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
               _startUnlockButtonTimer();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                    l10nCurrent().playerLocked,
-                  ),
+                  content: Text(l10nCurrent().playerLocked),
                   duration: const Duration(seconds: 2),
                   backgroundColor: tokens.surfaceOverlay,
                 ),
@@ -4600,9 +4625,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
     if (existing != null) {
       if (existing.status == DownloadStatus.downloading) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10nCurrent().playerDownloadInProgress),
-          ),
+          SnackBar(content: Text(l10nCurrent().playerDownloadInProgress)),
         );
         return;
       } else if (existing.status == DownloadStatus.completed) {
@@ -4642,18 +4665,16 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              l10nCurrent().playerDownloadStarted,
-            ),
+            content: Text(l10nCurrent().playerDownloadStarted),
             duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10nCurrent().ply2DownloadFailedStart(e))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10nCurrent().ply2DownloadFailedStart(e))),
+        );
       }
     }
   }
@@ -4710,7 +4731,12 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
     final episodeTitle = _currentEpisode?.title;
     final episodeSubtitle = _currentEpisode != null
         ? (isColl
-              ? l10nCurrent().ply2PartWithTitle(_currentEpisode!.episode ?? 1, episodeTitle != null && episodeTitle.isNotEmpty ? ' • $episodeTitle' : '')
+              ? l10nCurrent().ply2PartWithTitle(
+                  _currentEpisode!.episode ?? 1,
+                  episodeTitle != null && episodeTitle.isNotEmpty
+                      ? ' • $episodeTitle'
+                      : '',
+                )
               : 'S${_currentEpisode!.season ?? 1}:E${_currentEpisode!.episode ?? 1}${episodeTitle != null && episodeTitle.isNotEmpty ? " • $episodeTitle" : ""}')
         : widget.detail?.year;
 
@@ -5102,7 +5128,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
                   final match = _audioTracks
                       .where((t) => t.index == idx)
                       .firstOrNull;
-                  _showAudioHudToast(match?.title ?? l10nCurrent().ply2TrackIdx(idx));
+                  _showAudioHudToast(
+                    match?.title ?? l10nCurrent().ply2TrackIdx(idx),
+                  );
                 },
                 onDelayChanged: (sec) {
                   setState(() => _audioDelaySec = sec);
@@ -5119,7 +5147,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
                     } catch (_) {}
                   }
                   _showAudioHudToast(
-                    l10nCurrent().ply2AudioSyncOffset(sec > 0 ? '+' : '', sec.toStringAsFixed(2)),
+                    l10nCurrent().ply2AudioSyncOffset(
+                      sec > 0 ? '+' : '',
+                      sec.toStringAsFixed(2),
+                    ),
                   );
                 },
                 onClose: () => setState(() => _activeMenu = null),
@@ -5514,7 +5545,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody> {
                         Icon(Icons.bolt_rounded, size: 13, color: boostColor),
                         const SizedBox(width: ZplaySpacing.s2),
                         Text(
-                          _volume > 1.75 ? l10nCurrent().plyMaxBoost : l10nCurrent().plyBoost,
+                          _volume > 1.75
+                              ? l10nCurrent().plyMaxBoost
+                              : l10nCurrent().plyBoost,
                           style: ZplayType.caption
                               .copyWith(
                                 weight: FontWeight.w700,

@@ -246,14 +246,14 @@ class _IptvSearchPageState extends State<IptvSearchPage> {
     return Theme(
       data: luPanelTheme(),
       child: Scaffold(
-      backgroundColor: tokens.bg,
-      // One canvas under the whole page, gated on the same ambient-lights
-      // setting the Live TV vertical itself reads, so the two agree about what
-      // the app's background is.
-      body: IptvSettings.enableAmbientLights.value
-          ? AnimatedAmbientBackground(child: content)
-          : content,
-    ),
+        backgroundColor: tokens.bg,
+        // One canvas under the whole page, gated on the same ambient-lights
+        // setting the Live TV vertical itself reads, so the two agree about what
+        // the app's background is.
+        body: IptvSettings.enableAmbientLights.value
+            ? AnimatedAmbientBackground(child: content)
+            : content,
+      ),
     );
   }
 }
