@@ -408,7 +408,7 @@ void main() {
 
       final urls = AddonManager.instance.addons.map((a) => a.baseUrl).toList();
       expect(urls, contains(otherUrl));
-      expect(urls, contains('builtin:zplay'));
+      expect(urls, isNot(contains('builtin:zplay')));
       expect(urls, contains('builtin:zplayhttp'));
       expect(urls.where((u) => u == otherUrl).length, 1);
       expect(

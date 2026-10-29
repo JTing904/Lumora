@@ -574,14 +574,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchPinnedSpine => '置顶';
 
   @override
-  String searchCloudstreamSection(String provider) {
-    return 'CloudStream • $provider';
-  }
-
-  @override
-  String get searchCloudstreamExtension => 'CloudStream 扩展';
-
-  @override
   String get searchTitlesSection => '影片';
 
   @override
@@ -833,6 +825,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String detailsSeasonCount(int count) {
     return '$count 季';
+  }
+
+  @override
+  String detailsEpisodeRange(String from, String to) {
+    return '第 $from-$to 集';
   }
 
   @override
@@ -1659,7 +1656,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get animeCouldNotLoad => '动漫加载不了';
 
   @override
-  String get animeTrending => 'AniList 热门';
+  String get animeTrending => '热门动漫';
 
   @override
   String get animeTrendingSub => '最受欢迎、最热门的作品';
@@ -1710,7 +1707,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get animeSearch => '搜索动漫';
 
   @override
-  String get animeAnilistDetails => 'AniList 详情';
+  String get animeAnilistDetails => '详情';
 
   @override
   String get animeSortTrending => '热门';
@@ -3784,7 +3781,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiYourMatches => '你的专属推荐';
 
   @override
-  String get plyMedia3EngineError => 'Media3 引擎播放出错';
+  String get plyMedia3EngineError => '这个片源播放失败。';
 
   @override
   String get plyRefusedByProvider => '服务商拒绝';
@@ -4037,43 +4034,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgaRemove => '移除';
 
   @override
-  String get stgaInstallRepoPluginsBody => '要立即安装此仓库的全部插件吗？安装后其片源会立刻出现在播放页。';
-
-  @override
-  String get stgaBrowseLater => '稍后浏览';
-
-  @override
-  String get stgaInstallAllNow => '立即全部安装';
-
-  @override
-  String get stgaInstallingPlugins => '正在安装插件';
-
-  @override
-  String get stgaPreparingRuntime => '正在准备运行环境…';
-
-  @override
-  String get stgaAddCloudStreamRepo => '添加 CloudStream 仓库';
-
-  @override
-  String get stgaPasteRepoUrlHint =>
-      '粘贴仓库 URL（支持 cloudstreamrepo://、repo.json 或 plugins.json）。';
-
-  @override
-  String get stgaBrowseMarketplace => '浏览插件市场';
-
-  @override
-  String get stgaAddRepository => '添加仓库';
-
-  @override
-  String get stgaCsExtensionWillUninstall => '此 CloudStream 扩展将被卸载。';
-
-  @override
-  String get stgaRemoveRepoBody => '此仓库的插件不会被删除，但将不再获取仓库更新。';
-
-  @override
-  String get stgaStremioAddons => 'Stremio 插件';
-
-  @override
   String get stgaStremioTabDescription =>
       '插件提供元数据、片单和片源。长按拖动可调整优先级，排在上面的会优先加载并在片源中靠前显示。';
 
@@ -4097,77 +4057,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String stgaDebridAddonsPlaceholderNote(String realdebrid) {
     return '以 URL 参数传递密钥的插件支持 $realdebrid 这类占位符；把密钥藏在 base64 配置中的插件则需粘贴完整配置好的地址。';
   }
-
-  @override
-  String get stgaCloudStreamTabDescription =>
-      'CloudStream（.cs3）扩展直接从热门影视站点提供片源，扩展在本地沙盒 sidecar 或原生 ART 引擎中运行。';
-
-  @override
-  String get stgaCsEngineReady => 'CloudStream 引擎已就绪';
-
-  @override
-  String get stgaRuntimeSetupRequired => '需要配置运行环境';
-
-  @override
-  String get stgaNativeEngineActive => '原生引擎已启动，正在等待请求。';
-
-  @override
-  String get stgaDownloadingRuntime => '正在下载运行组件…';
-
-  @override
-  String get stgaRequiresRuntimeHost => '需要运行宿主来执行 .cs3 字节码。';
-
-  @override
-  String get stgaRequiresSidecarRuntime => '需要 sidecar 运行环境来执行 .cs3 字节码。';
-
-  @override
-  String get stgaRepoMarketplace => '仓库市场';
-
-  @override
-  String get stga45PlusRepos => '45+ 仓库';
-
-  @override
-  String get stgaRepoMarketplaceDescription =>
-      '浏览精选的土耳其语、阿拉伯语、英语、印地语及全球仓库，支持一键安装。';
-
-  @override
-  String get stgaBrowseAvailablePlugins => '浏览可用插件';
-
-  @override
-  String get stgaDeselectAll => '取消全选';
-
-  @override
-  String get stgaSelectAll => '全选';
-
-  @override
-  String get stgaInstalledExtensions => '已安装的扩展';
-
-  @override
-  String get stgaInstalledCsExtensions => '已安装的 CloudStream 扩展';
-
-  @override
-  String get stgaNoExtensionsInstalled => '尚未安装扩展';
-
-  @override
-  String get stgaNoExtensionsHint => '点击“浏览可用插件”查找并安装扩展。';
-
-  @override
-  String get stgaRepositories => '仓库';
-
-  @override
-  String get stgaNoReposHint => '尚未添加自定义仓库。点击“添加仓库”订阅 CloudStream 仓库。';
-
-  @override
-  String get stgaInstallAllFromRepoTooltip => '安装此仓库的全部插件';
-
-  @override
-  String get stgaBrowseRepoPlugins => '浏览仓库插件';
-
-  @override
-  String get stgaRemoveRepository => '移除仓库';
-
-  @override
-  String get stgaSetupEngine => '配置引擎';
 
   @override
   String get stgaBuiltinTorrServer => '内置 TorrServer P2P 播放引擎';
@@ -4228,67 +4117,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stgaSetupDebridFirst => '请先在设置中配置 Debrid 服务，再回来连接。';
-
-  @override
-  String get stgaCsDefaultDescription => 'CloudStream 抓取与播放来源';
-
-  @override
-  String get stgaAvailablePlugins => '可用插件';
-
-  @override
-  String get stgaAvailableCsPlugins => '可用的 CloudStream 插件';
-
-  @override
-  String get stgaSearchPluginsHint => '搜索插件（如 Sflix、SuperStream）…';
-
-  @override
-  String get stgaNoPluginsInRepos => '已添加的仓库中没有找到插件。\n请先添加 CloudStream 仓库 URL。';
-
-  @override
-  String get stgaInstalled => '已安装';
-
-  @override
-  String get stgaUninstall => '卸载';
-
-  @override
-  String get stgaInstallRepoPluginsNowQ => '要立即安装此仓库的插件吗？';
-
-  @override
-  String get stgaLater => '稍后';
-
-  @override
-  String get stgaInstallingRepoPlugins => '正在安装仓库插件';
-
-  @override
-  String get stgaInstallingExtensions => '正在安装扩展…';
-
-  @override
-  String get stgaMarketplace => '插件市场';
-
-  @override
-  String get stgaRefreshListFromWeb => '从网络刷新列表';
-
-  @override
-  String get stgaSearchRepoOrPluginHint =>
-      '搜索仓库或插件（如 Turkish、3rabi、DiziBox、Shahid）…';
-
-  @override
-  String get stgaAdded => '已添加';
-
-  @override
-  String get stgaAddingRepository => '正在添加仓库…';
-
-  @override
-  String get stgaInstallRepository => '安装仓库';
-
-  @override
-  String get stgaInstallAllPlugins => '安装全部插件';
-
-  @override
-  String get stgaBrowse => '浏览';
-
-  @override
-  String get stgaHidePlugins => '收起插件';
 
   @override
   String get stgaPastedKeyFromClipboard => '已从剪贴板粘贴密钥';
@@ -6759,82 +6587,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get stgcRepoAdded => '插件源添加成功！';
-
-  @override
-  String get stgcInstallRepoPluginsQ => '安装插件源中的插件？';
-
-  @override
-  String stgcInstalledFromRepo(Object count) {
-    return '已从插件源成功安装 $count 个插件！';
-  }
-
-  @override
-  String stgcInstallError(Object error) {
-    return '安装出错：$error';
-  }
-
-  @override
-  String stgcRemoveExtQ(Object name) {
-    return '移除 $name？';
-  }
-
-  @override
-  String stgcRemoveCountPluginsQ(Object count) {
-    return '移除 $count 个插件？';
-  }
-
-  @override
-  String stgcConfirmRemoveAllCs(Object count) {
-    return '确定要移除全部 $count 个已安装的 CloudStream 插件吗？所有已下载的插件文件（.jar/.cs3）都会被删除。';
-  }
-
-  @override
-  String stgcConfirmRemoveSelectedCs(Object count) {
-    return '确定要移除所选的 $count 个 CloudStream 插件吗？它们已下载的文件将从设备中删除。';
-  }
-
-  @override
-  String stgcRemovedCountPlugins(Object count) {
-    return '已成功移除 $count 个插件。';
-  }
-
-  @override
-  String stgcRemoveCount(Object count) {
-    return '移除（$count）';
-  }
-
-  @override
-  String stgcRemoveRepoQ(Object name) {
-    return '移除 $name？';
-  }
-
-  @override
   String get stgcAddonsExtensions => '插件与扩展';
 
   @override
   String stgcAddonsTotal(Object count) {
     return '共 $count 个';
-  }
-
-  @override
-  String stgcRemoveSelectedCount(Object count) {
-    return '移除（$count）';
-  }
-
-  @override
-  String stgcInstalledTotal(Object count) {
-    return '共 $count 个';
-  }
-
-  @override
-  String stgcReposCount(Object count) {
-    return '$count 个插件源';
-  }
-
-  @override
-  String stgcRuntimeSetupError(Object error) {
-    return '运行环境设置出错：$error';
   }
 
   @override
@@ -6858,109 +6615,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String stgcUsesYourServiceKey(Object service) {
     return '使用你的 $service 密钥';
-  }
-
-  @override
-  String stgcPluginInstalled(Object name) {
-    return '$name 安装成功！';
-  }
-
-  @override
-  String stgcPluginUninstalled(Object name) {
-    return '$name 已卸载。';
-  }
-
-  @override
-  String stgcInstalledCountPlugins(Object count) {
-    return '已成功安装 $count 个插件！';
-  }
-
-  @override
-  String stgcRemoveListPluginsQ(Object count) {
-    return '移除 $count 个插件？';
-  }
-
-  @override
-  String stgcConfirmUninstallList(Object count) {
-    return '确定要卸载此列表中全部 $count 个已安装插件吗？它们已下载的文件将被删除。';
-  }
-
-  @override
-  String stgcRemoveAllListCount(Object count) {
-    return '全部移除（$count）';
-  }
-
-  @override
-  String stgcUninstalledCount(Object count) {
-    return '已成功卸载 $count 个插件。';
-  }
-
-  @override
-  String stgcRemoveAllCount(Object count) {
-    return '全部移除（$count）';
-  }
-
-  @override
-  String stgcInstallAllCount(Object count) {
-    return '全部安装（$count）';
-  }
-
-  @override
-  String stgcNoPluginsMatching(Object query) {
-    return '没有匹配“$query”的插件';
-  }
-
-  @override
-  String get stgcAllMatchingInstalled => '所有匹配的插件均已安装！';
-
-  @override
-  String stgcRepoNameAdded(Object name) {
-    return '$name 添加成功！';
-  }
-
-  @override
-  String stgcInstallRepoNamePluginsQ(Object name) {
-    return '安装 $name 的插件？';
-  }
-
-  @override
-  String stgcRepoIncludesPlugins(Object count, Object sample) {
-    return '该插件源包含 $count 个插件（$sample…）。现在全部安装，让它们的片源立即可用？';
-  }
-
-  @override
-  String stgcPluginsInstalledReady(Object count) {
-    return '$count 个插件已安装，可以使用了！';
-  }
-
-  @override
-  String stgcMarketplaceSubtitle(Object count) {
-    return '$count 个插件源 · 直接安装链接与已验证的提供方';
-  }
-
-  @override
-  String stgcNoReposFound(Object query) {
-    return '未找到与“$query”相关的插件源';
-  }
-
-  @override
-  String stgcRepoPluginsCount(Object count) {
-    return '$count 个插件';
-  }
-
-  @override
-  String stgcCopiedLink(Object url) {
-    return '已复制链接：$url';
-  }
-
-  @override
-  String stgcContainsPlugins(Object plugins) {
-    return '包含：$plugins';
-  }
-
-  @override
-  String stgcViewAllPlugins(Object count) {
-    return '查看全部 $count 个插件';
   }
 
   @override
@@ -8953,4 +8607,226 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get detailsSpecials => '特别篇';
+
+  @override
+  String epOutUpTo(String episode) {
+    return '已更新至第 $episode 集';
+  }
+
+  @override
+  String epNextAirs(String episode, String date) {
+    return '第 $episode 集 $date 上线';
+  }
+
+  @override
+  String epNotOutYet(String episode, String date) {
+    return '第 $episode 集还没播出，$date 上线';
+  }
+
+  @override
+  String get epUpcoming => '未播出';
+
+  @override
+  String get officialYouTubeName => 'YouTube 官方';
+
+  @override
+  String get officialYouTubeRowNote => '版权方官方频道上传 · 在 YouTube 播放器中播放';
+
+  @override
+  String officialYouTubeCompilation(int from, int to) {
+    return '合集 · 第 $from–$to 集';
+  }
+
+  @override
+  String get officialYouTubeUnavailable => '此视频无法在这里播放';
+
+  @override
+  String get officialYouTubeUnavailableBody =>
+      '频道可能限制了你所在的地区，或不允许在 YouTube 以外播放。';
+
+  @override
+  String get officialYouTubeBack => '返回';
+
+  @override
+  String epWatchedCount(Object count) {
+    return '看过 $count 集';
+  }
+
+  @override
+  String get epUpNextHere => '接着看';
+
+  @override
+  String get epWatchedTag => '看过';
+
+  @override
+  String wtwTitle(String region) {
+    return '去哪看 · $region';
+  }
+
+  @override
+  String get wtwOpensOtherApp => '以下是官方平台。点击后会离开 Lumora，打开该平台自己的应用或网站。';
+
+  @override
+  String get wtwFree => '免费';
+
+  @override
+  String get wtwAds => '免费（含广告）';
+
+  @override
+  String get wtwSubscription => '订阅';
+
+  @override
+  String get wtwRentBuy => '租借 / 购买';
+
+  @override
+  String wtwWatchOn(String provider) {
+    return '去 $provider 观看';
+  }
+
+  @override
+  String wtwOpensApp(String provider) {
+    return '在 Lumora 之外打开 $provider 的应用或网站';
+  }
+
+  @override
+  String wtwOpenFailed(String provider) {
+    return '无法打开 $provider';
+  }
+
+  @override
+  String get wtwMoreOnTmdb => '在 TMDb 查看更多';
+
+  @override
+  String get wtwAttribution => '数据来源：JustWatch（经 TMDb）';
+
+  @override
+  String archiveSourceName(String licence) {
+    return 'Internet Archive · $licence';
+  }
+
+  @override
+  String get archiveLicencePublicDomain => '公有领域';
+
+  @override
+  String archiveLicenceCc(String code) {
+    return '知识共享 $code';
+  }
+
+  @override
+  String get archiveRowNote => '免费且合法：由 Internet Archive（互联网档案馆）保存的公有领域或开放许可版本';
+
+  @override
+  String archiveMinutes(int minutes) {
+    return '$minutes 分钟';
+  }
+
+  @override
+  String get detailsSourceNoLongerSupported => '此片源已不再支持';
+
+  @override
+  String get partyTitle => '一起看';
+
+  @override
+  String get partyCreate => '开一个房间';
+
+  @override
+  String get partyCreateBody =>
+      '朋友输入房间码就能加入。大家的播放、暂停和进度会保持一致，每个人在自己的设备上播放。聊天和进度都不会被保存。';
+
+  @override
+  String get partyJoin => '加入一起看';
+
+  @override
+  String get partyJoinBody => '输入朋友给你的 6 位房间码。';
+
+  @override
+  String get partyJoinHint => '房间码';
+
+  @override
+  String get partyJoinButton => '加入';
+
+  @override
+  String get partyJoining => '正在加入房间…';
+
+  @override
+  String get partyJoinFailed => '找不到这个房间，或者房主已经离开了。';
+
+  @override
+  String partyJoinError(String error) {
+    return '加入失败：$error';
+  }
+
+  @override
+  String get partyCode => '房间码';
+
+  @override
+  String get partyCopy => '复制房间码';
+
+  @override
+  String get partyCopied => '已复制房间码';
+
+  @override
+  String partyMembers(String count) {
+    return '房间里的人（$count）';
+  }
+
+  @override
+  String get partyHost => '房主';
+
+  @override
+  String get partyMe => '我';
+
+  @override
+  String get partyOnlyHostControls => '只有我能控制播放';
+
+  @override
+  String get partyLeave => '离开房间';
+
+  @override
+  String get partyEnd => '结束房间';
+
+  @override
+  String get partyChat => '聊天';
+
+  @override
+  String get partyChatHint => '说点什么…';
+
+  @override
+  String get partyChatEmpty => '还没有消息，打个招呼吧。';
+
+  @override
+  String get partySend => '发送';
+
+  @override
+  String partyPaused(String name) {
+    return '$name 暂停了';
+  }
+
+  @override
+  String partyResumed(String name) {
+    return '$name 继续播放';
+  }
+
+  @override
+  String partySeeked(String name, String time) {
+    return '$name 跳到 $time';
+  }
+
+  @override
+  String get partyEnded => '房主结束了一起看';
+
+  @override
+  String get partyFollowEpisode => '房主换到了别的集数，正在跟上…';
+
+  @override
+  String get partyNoControl => '只有房主能控制播放';
+
+  @override
+  String get partyNeedSignIn => '需要登录才能一起看';
+
+  @override
+  String get partyEntrySubtitle => '输入房间码，和朋友同步看同一部片';
+
+  @override
+  String get partyServiceDown => '现在连不上一起看的服务，请稍后再试。';
 }

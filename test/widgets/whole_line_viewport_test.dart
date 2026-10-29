@@ -22,7 +22,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zplay/services/updater/app_updater_service.dart';
 import 'package:zplay/widgets/common/whole_line_viewport.dart';
-import 'package:zplay/widgets/p2p/p2p_warning_dialog.dart';
 import 'package:zplay/widgets/updater/update_dialog.dart';
 
 /// A line is either wholly inside the body's viewport or wholly outside it.
@@ -60,7 +59,11 @@ void expectNoLineCrossesTheFold(WidgetTester tester) {
       );
     }
   }
-  expect(lines, greaterThan(0), reason: 'the probe must have measured something');
+  expect(
+    lines,
+    greaterThan(0),
+    reason: 'the probe must have measured something',
+  );
 }
 
 /// Opens [dialog] the way the app opens it, at the television canvas.
@@ -150,9 +153,8 @@ const TextStyle _probeStyle = TextStyle(
 String _probeText(int lines) =>
     List<String>.generate(lines, (i) => 'line ${i + 1}').join('\n');
 
-Widget _probeBody(int lines) => SingleChildScrollView(
-  child: Text(_probeText(lines), style: _probeStyle),
-);
+Widget _probeBody(int lines) =>
+    SingleChildScrollView(child: Text(_probeText(lines), style: _probeStyle));
 
 /// The distance between two consecutive lines of the probe text, measured from
 /// its own line boxes so the expectation cannot drift from the font.
@@ -180,13 +182,6 @@ Future<void> _pumpProbe(WidgetTester tester, Widget box) async {
 }
 
 void main() {
-  testWidgets('the P2P advisory body ends on a whole line on a television', (
-    tester,
-  ) async {
-    await _pumpTelevision(tester, (_) => const P2pWarningDialog());
-    expectNoLineCrossesTheFold(tester);
-  });
-
   testWidgets('the update changelog box ends on a whole line on a television', (
     tester,
   ) async {
@@ -216,7 +211,8 @@ void main() {
     expect(
       viewport % pitch,
       closeTo(0, 0.01),
-      reason: 'a viewport of $viewport against a $pitch pitch does not end on '
+      reason:
+          'a viewport of $viewport against a $pitch pitch does not end on '
           'a line boundary',
     );
     expect(100 - viewport, lessThan(pitch));
@@ -224,7 +220,10 @@ void main() {
 
     // The outer box keeps the parent's height, so a fixed footer below the body
     // does not move when the viewport snaps.
-    expect(tester.getSize(find.byType(WholeLineViewport)).height, closeTo(100, 0.01));
+    expect(
+      tester.getSize(find.byType(WholeLineViewport)).height,
+      closeTo(100, 0.01),
+    );
     expectNoLineCrossesTheFold(tester);
   });
 

@@ -21,6 +21,7 @@ import '../../widgets/common/custom_scroll_track.dart';
 import '../../widgets/common/error_view.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../../widgets/common/hero_meta_line.dart';
+import '../../widgets/common/local_title_text.dart';
 import '../../widgets/common/pill_button.dart';
 import '../../widgets/common/rail_skeleton.dart';
 import '../../widgets/common/segmented_tabs.dart';
@@ -108,6 +109,7 @@ class _AnimePageState extends State<AnimePage> {
             _arabicCards[c.slug.hashCode.abs()] = c;
           }
         }
+
         registerCards(feed.spotlight);
         registerCards(feed.recentEpisodes);
         registerCards(feed.trending);
@@ -194,7 +196,8 @@ class _AnimePageState extends State<AnimePage> {
 
   void _playEpisode(AnimeMedia anime, int episodeNumber) {
     if (_isArabicMode || anime.isArabic || _arabicCards.containsKey(anime.id)) {
-      final card = _arabicCards[anime.id] ??
+      final card =
+          _arabicCards[anime.id] ??
           ArabicAnimeCard(
             slug: (anime.slug != null && anime.slug!.isNotEmpty)
                 ? anime.slug!
@@ -243,7 +246,8 @@ class _AnimePageState extends State<AnimePage> {
 
   void _openDetails(AnimeMedia anime, [int? preferredEpisode]) {
     if (_isArabicMode || anime.isArabic || _arabicCards.containsKey(anime.id)) {
-      final card = _arabicCards[anime.id] ??
+      final card =
+          _arabicCards[anime.id] ??
           ArabicAnimeCard(
             slug: (anime.slug != null && anime.slug!.isNotEmpty)
                 ? anime.slug!
@@ -251,7 +255,9 @@ class _AnimePageState extends State<AnimePage> {
             title: anime.displayTitle,
             cover: anime.coverUrl,
           );
-      final epNum = preferredEpisode ?? (anime.totalEpisodes > 0 ? anime.totalEpisodes : null);
+      final epNum =
+          preferredEpisode ??
+          (anime.totalEpisodes > 0 ? anime.totalEpisodes : null);
       Navigator.push(
         context,
         CinematicSlideRoute(
@@ -266,9 +272,7 @@ class _AnimePageState extends State<AnimePage> {
 
     Navigator.push(
       context,
-      CinematicSlideRoute(
-        page: AnimeDetailsPage(anime: anime),
-      ),
+      CinematicSlideRoute(page: AnimeDetailsPage(anime: anime)),
     );
   }
 
@@ -301,8 +305,9 @@ class _AnimePageState extends State<AnimePage> {
     // The palette needs no listener of its own here: it decides the app's
     // `ThemeData` (main.dart), `context.tokens` is read off that theme, and a
     // themed widget rebuilds when it changes.
-    final hasContent =
-        _isArabicMode ? _arabicFeed != null : _trending.isNotEmpty;
+    final hasContent = _isArabicMode
+        ? _arabicFeed != null
+        : _trending.isNotEmpty;
 
     final backgroundContent = AnimatedAmbientBackground(
       child: Stack(
@@ -332,14 +337,16 @@ class _AnimePageState extends State<AnimePage> {
                   if (_isArabicMode) ...[
                     // 1. Arabic Hero Carousel (Matching Home Page)
                     if (_arabicFeed != null &&
-                        (_arabicFeed!.spotlight.isNotEmpty || _arabicFeed!.trending.isNotEmpty))
+                        (_arabicFeed!.spotlight.isNotEmpty ||
+                            _arabicFeed!.trending.isNotEmpty))
                       _AnimeHeroCarousel(
-                        animeList: (_arabicFeed!.spotlight.isNotEmpty
-                                ? _arabicFeed!.spotlight
-                                : _arabicFeed!.trending)
-                            .take(6)
-                            .map((c) => c.toAnimeMedia())
-                            .toList(),
+                        animeList:
+                            (_arabicFeed!.spotlight.isNotEmpty
+                                    ? _arabicFeed!.spotlight
+                                    : _arabicFeed!.trending)
+                                .take(6)
+                                .map((c) => c.toAnimeMedia())
+                                .toList(),
                         onWatchNow: (anime) => _playEpisode(anime, 1),
                         onDetailsTap: _openDetails,
                       ),
@@ -360,49 +367,68 @@ class _AnimePageState extends State<AnimePage> {
                         AnimeSliderSection(
                           title: '⚡ آخر الحلقات المعروضة',
                           subtitle: 'أحدث الحلقات المضافة المترجمة للعربية',
-                          animeList: _arabicFeed!.recentEpisodes.map((c) => c.toAnimeMedia()).toList(),
-                          onAnimeTap: (anime) => _openDetails(anime, anime.totalEpisodes > 0 ? anime.totalEpisodes : null),
+                          animeList: _arabicFeed!.recentEpisodes
+                              .map((c) => c.toAnimeMedia())
+                              .toList(),
+                          onAnimeTap: (anime) => _openDetails(
+                            anime,
+                            anime.totalEpisodes > 0
+                                ? anime.totalEpisodes
+                                : null,
+                          ),
                         ),
                       if (_arabicFeed!.trending.isNotEmpty)
                         AnimeSliderSection(
                           title: '🔥 الأكثر شهرة وتداولاً',
                           subtitle: 'الأنميات الأكثر مشاهدة حالياً',
-                          animeList: _arabicFeed!.trending.map((c) => c.toAnimeMedia()).toList(),
+                          animeList: _arabicFeed!.trending
+                              .map((c) => c.toAnimeMedia())
+                              .toList(),
                           onAnimeTap: _openDetails,
                         ),
                       if (_arabicFeed!.popularMovies.isNotEmpty)
                         AnimeSliderSection(
                           title: '🎬 الأفلام الأكثر شعبية',
                           subtitle: 'أفلام الأنمي المميزة',
-                          animeList: _arabicFeed!.popularMovies.map((c) => c.toAnimeMedia()).toList(),
+                          animeList: _arabicFeed!.popularMovies
+                              .map((c) => c.toAnimeMedia())
+                              .toList(),
                           onAnimeTap: _openDetails,
                         ),
                       if (_arabicFeed!.topSeasonal.isNotEmpty)
                         AnimeSliderSection(
                           title: '👑 أفضل الأنميات',
                           subtitle: 'أنميات ذات تقييمات استثنائية',
-                          animeList: _arabicFeed!.topSeasonal.map((c) => c.toAnimeMedia()).toList(),
+                          animeList: _arabicFeed!.topSeasonal
+                              .map((c) => c.toAnimeMedia())
+                              .toList(),
                           onAnimeTap: _openDetails,
                         ),
                       if (_arabicFeed!.seasonal.isNotEmpty)
                         AnimeSliderSection(
                           title: '🌟 أنميات موسمية',
                           subtitle: 'عروض الموسم الحالي',
-                          animeList: _arabicFeed!.seasonal.map((c) => c.toAnimeMedia()).toList(),
+                          animeList: _arabicFeed!.seasonal
+                              .map((c) => c.toAnimeMedia())
+                              .toList(),
                           onAnimeTap: _openDetails,
                         ),
                       if (_arabicFeed!.legendary.isNotEmpty)
                         AnimeSliderSection(
                           title: '⚔️ أنميات أسطورية',
                           subtitle: 'أعمال خالدة يجب ألا تفوتك',
-                          animeList: _arabicFeed!.legendary.map((c) => c.toAnimeMedia()).toList(),
+                          animeList: _arabicFeed!.legendary
+                              .map((c) => c.toAnimeMedia())
+                              .toList(),
                           onAnimeTap: _openDetails,
                         ),
                       if (_arabicFeed!.upcoming.isNotEmpty)
                         AnimeSliderSection(
                           title: '🚀 المنتظرة قريباً',
                           subtitle: 'أنميات قادمة قريباً',
-                          animeList: _arabicFeed!.upcoming.map((c) => c.toAnimeMedia()).toList(),
+                          animeList: _arabicFeed!.upcoming
+                              .map((c) => c.toAnimeMedia())
+                              .toList(),
                           onAnimeTap: _openDetails,
                         ),
                     ],
@@ -434,7 +460,9 @@ class _AnimePageState extends State<AnimePage> {
                     ),
                     AnimeSliderSection(
                       title: l10nCurrent().animeSeasonPopular,
-                      subtitle: l10nCurrent().ani2CurrentlyAiringHits(AnilistService.currentSeason()),
+                      subtitle: l10nCurrent().ani2CurrentlyAiringHits(
+                        localizedAnimeSeason(AnilistService.currentSeason()),
+                      ),
                       animeList: _popularSeason,
                       onAnimeTap: _openDetails,
                     ),
@@ -477,7 +505,10 @@ class _AnimePageState extends State<AnimePage> {
                   ],
 
                   // Trailing gap only: the dock used to reserve 110 px of clearance here.
-                  SizedBox(height: ZplaySpacing.s24 + MediaQuery.paddingOf(context).bottom),
+                  SizedBox(
+                    height:
+                        ZplaySpacing.s24 + MediaQuery.paddingOf(context).bottom,
+                  ),
                 ],
               ),
             ),
@@ -508,7 +539,6 @@ class _AnimePageState extends State<AnimePage> {
           bottom: 40,
           child: CustomScrollTrack(controller: _scrollController),
         ),
-
     ];
 
     return Scaffold(
@@ -689,9 +719,7 @@ class _AnimeGlassAppBar extends StatelessWidget {
               tapTarget: minTapTarget,
               onTap: () {
                 final box = context.findRenderObject() as RenderBox?;
-                onSearchTap(
-                  box?.localToGlobal(box.size.center(Offset.zero)),
-                );
+                onSearchTap(box?.localToGlobal(box.size.center(Offset.zero)));
               },
             ),
           ),
@@ -712,8 +740,9 @@ class _AnimeGlassAppBar extends StatelessWidget {
       child: ListenableBuilder(
         listenable: scrollController,
         builder: (context, _) {
-          final offset =
-              scrollController.hasClients ? scrollController.offset : 0.0;
+          final offset = scrollController.hasClients
+              ? scrollController.offset
+              : 0.0;
           return _chrome(
             tokens,
             content,
@@ -971,33 +1000,35 @@ class _AnimeHeroCarouselState extends State<_AnimeHeroCarousel> {
                   skipTraversal:
                       FormFactorService.of(context) == FormFactor.television,
                   child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(widget.animeList.length, (i) {
-                    final active = i == _index;
-                    return FocusableCard(
-                      onTap: () => _goTo(i),
-                      builder: (_, state) => CardFocusRing(
-                        focused: state.focused,
-                        radius: ZplayRadius.xsAll,
-                        child: AnimatedContainer(
-                          duration: ZplayMotion.base,
-                          curve: ZplayMotion.standard,
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: ZplaySpacing.s4,
-                          ),
-                          width: active ? 22 : 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            borderRadius: ZplayRadius.xsAll,
-                            // The accent marks which slide is showing, and
-                            // nothing else. The glow that used to sit under the
-                            // active mark was a second, blurred edge saying the
-                            // same thing.
-                            color: active ? tokens.accent : tokens.textDisabled,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(widget.animeList.length, (i) {
+                      final active = i == _index;
+                      return FocusableCard(
+                        onTap: () => _goTo(i),
+                        builder: (_, state) => CardFocusRing(
+                          focused: state.focused,
+                          radius: ZplayRadius.xsAll,
+                          child: AnimatedContainer(
+                            duration: ZplayMotion.base,
+                            curve: ZplayMotion.standard,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: ZplaySpacing.s4,
+                            ),
+                            width: active ? 22 : 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              borderRadius: ZplayRadius.xsAll,
+                              // The accent marks which slide is showing, and
+                              // nothing else. The glow that used to sit under the
+                              // active mark was a second, blurred edge saying the
+                              // same thing.
+                              color: active
+                                  ? tokens.accent
+                                  : tokens.textDisabled,
+                            ),
                           ),
                         ),
-                      ),
-                    );
+                      );
                     }),
                   ),
                 ),
@@ -1130,9 +1161,7 @@ class _AnimeHeroSlide extends StatelessWidget {
                               ),
                             ),
                           ),
-                          ColoredBox(
-                            color: tokens.bg.withValues(alpha: 0.50),
-                          ),
+                          ColoredBox(color: tokens.bg.withValues(alpha: 0.50)),
                         ],
                       ),
                     ),
@@ -1153,8 +1182,10 @@ class _AnimeHeroSlide extends StatelessWidget {
                           top: 0,
                           bottom: 0,
                           right: 0,
-                          width: (containerHeight * (16 / 9))
-                              .clamp(0.0, containerWidth),
+                          width: (containerHeight * (16 / 9)).clamp(
+                            0.0,
+                            containerWidth,
+                          ),
                           child: ShaderMask(
                             shaderCallback: (bounds) {
                               return const LinearGradient(
@@ -1250,10 +1281,7 @@ class _AnimeHeroSlide extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.center,
-                colors: [
-                  tokens.bg.withValues(alpha: 0.75),
-                  Colors.transparent,
-                ],
+                colors: [tokens.bg.withValues(alpha: 0.75), Colors.transparent],
               ),
             ),
           ),
@@ -1312,7 +1340,7 @@ class _AnimeHeroSlide extends StatelessWidget {
                   // the line out.
                   HeroMetaLine(
                     terms: [
-                      ...anime.genres.take(3),
+                      ...anime.genres.take(3).map(localizedGenre),
                       if (anime.seasonYear > 0) '${anime.seasonYear}',
                       if (anime.totalEpisodes > 0)
                         l10nCurrent().ani2EpisodesCount(anime.totalEpisodes),
@@ -1328,13 +1356,14 @@ class _AnimeHeroSlide extends StatelessWidget {
                   ),
 
                   // Title
-                  Text(
-                    anime.displayTitle,
+                  LocalTitleText(
+                    id: 'anilist_${anime.id}',
+                    fallback: anime.displayTitle,
+                    series: anime.format != 'MOVIE',
+                    year: anime.seasonYear > 0 ? '${anime.seasonYear}' : null,
                     style: ZplayType.display
                         .copyWith(
-                          size: compactHeight
-                              ? 32
-                              : (isCompact ? 30 : 44),
+                          size: compactHeight ? 32 : (isCompact ? 30 : 44),
                         )
                         .toStyle(color: tokens.textPrimary),
                     maxLines: 2,
@@ -1353,8 +1382,15 @@ class _AnimeHeroSlide extends StatelessWidget {
                       constraints: BoxConstraints(
                         maxWidth: isCompact ? double.infinity : 580,
                       ),
-                      child: Text(
-                        anime.description,
+                      // AniList writes only English; TMDb usually has the
+                      // Chinese synopsis of the same title.
+                      child: LocalOverviewText(
+                        title: anime.displayTitle,
+                        fallback: anime.description,
+                        series: anime.format != 'MOVIE',
+                        year: anime.seasonYear > 0
+                            ? '${anime.seasonYear}'
+                            : null,
                         maxLines: isCompact ? 2 : 3,
                         overflow: TextOverflow.ellipsis,
                         style: ZplayType.body

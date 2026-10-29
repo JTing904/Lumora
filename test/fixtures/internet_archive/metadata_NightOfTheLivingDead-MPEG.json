@@ -1,0 +1,45 @@
+{
+ "metadata": {
+  "identifier": "NightOfTheLivingDead-MPEG",
+  "title": "Night Of The Living Dead",
+  "year": "1968",
+  "date": "1968",
+  "mediatype": "movies",
+  "collection": [
+   "SciFi_Horror",
+   "feature_films",
+   "moviesandfilms"
+  ]
+ },
+ "files": [
+  {
+   "name": "NightOfTheLivingDead.mp4",
+   "source": "derivative",
+   "format": "h.264",
+   "size": "598512838",
+   "length": "5744.97"
+  },
+  {
+   "name": "NightOfTheLivingDead.mpg",
+   "source": "original",
+   "format": "MPEG2",
+   "size": "1408210944",
+   "length": "5744.86"
+  },
+  {
+   "name": "NightOfTheLivingDead.ogv",
+   "source": "derivative",
+   "format": "Ogg Video",
+   "size": "411906346",
+   "length": "5744.97"
+  },
+  {
+   "name": "NightOfTheLivingDead_512kb.mp4",
+   "source": "derivative",
+   "format": "512Kb MPEG4",
+   "size": "417489001",
+   "length": "5744.97"
+  }
+ ],
+ "server": "dn600306.us.archive.org"
+}

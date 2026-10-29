@@ -12,7 +12,6 @@ import '../../utils/download/download_path_helper.dart';
 import '../../utils/platform/storage_space_helper.dart';
 import '../../utils/security/safe_paths.dart';
 import '../debrid/debrid_service.dart';
-import '../stream/torrent_stream_service.dart';
 import 'hls_download_engine.dart';
 
 /// Comprehensive Background & In-App Download Manager.
@@ -311,51 +310,13 @@ class DownloadService {
     return roots.any((root) => isWithinDirectory(root, targetPath));
   }
 
-  // ── Engine 1: TorrServer P2P Swarm Download ───────────────────────────────
-
   Future<void> _executeP2PDownload(DownloadTask task) async {
-    try {
-      final tss = TorrentStreamService();
-      if (!tss.controller.isRunning || tss.state != EngineState.ready) {
-        final started = await tss.start();
-        if (!started) {
-          throw Exception('Failed to initialize TorrServer background engine');
-        }
-      }
-
-      final magnet =
-          task.magnet ??
-          (task.infoHash != null ? 'magnet:?xt=urn:btih:${task.infoHash}' : '');
-      if (magnet.isEmpty) {
-        throw Exception('No valid magnet link for torrent download');
-      }
-
-      // Resolve stream URL from TorrentStreamService
-      final streamUrl = await tss.streamTorrent(
-        magnet,
-        season: task.season,
-        episode: task.episode,
-        fileIdx: task.fileIdx,
-      );
-
-      if (streamUrl == null || streamUrl.isEmpty) {
-        throw Exception('TorrServer could not resolve media stream URL');
-      }
-
-      final match = RegExp(r'[0-9a-fA-F]{40}').firstMatch(streamUrl);
-      final hash = match?.group(0) ?? task.infoHash;
-
-      // Stream torrent from TorrServer over loopback directly to destination file
-      final p2pTask = task.copyWith(rawUrl: streamUrl, infoHash: hash);
-      _updateTask(p2pTask);
-      await _executeHttpDownload(p2pTask);
-    } catch (e) {
-      if (!_canceledOrPausedTaskIds.contains(task.id)) {
-        _updateTask(
-          task.copyWith(status: DownloadStatus.failed, error: e.toString()),
-        );
-      }
-    }
+    _updateTask(
+      task.copyWith(
+        status: DownloadStatus.failed,
+        error: 'Torrent downloads are no longer supported',
+      ),
+    );
   }
 
   // ── Engine 2: Cloud Debrid Resolve + Dart HTTP Download ────────────────────
@@ -765,11 +726,7 @@ class DownloadService {
 
     await pauseDownload(taskId);
 
-    if (task.sourceType == DownloadSourceType.p2p && task.infoHash != null) {
-      try {
-        await TorrentStreamService().removeTorrent(task.infoHash!);
-      } catch (_) {}
-    } else {
+    {
       final partFile = File('${task.targetFilePath}.part');
       if (await partFile.exists()) {
         try {

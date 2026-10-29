@@ -34,22 +34,22 @@ void main() {
       }
       if (p.endsWith('/tv/297923') || p.endsWith('/tv/297924')) {
         return _json({
-            'name': '灵境行者',
-            'overview': '少年闯入灵境。',
-            'first_air_date': '2026-01-01',
-            'seasons': [
-              {'season_number': 1},
-            ],
-          });
+          'name': '灵境行者',
+          'overview': '少年闯入灵境。',
+          'first_air_date': '2026-01-01',
+          'seasons': [
+            {'season_number': 1},
+          ],
+        });
       }
       if (p.endsWith('/tv/297923/season/1') ||
           p.endsWith('/tv/297924/season/1')) {
         return _json({
-            'episodes': [
-              {'season_number': 1, 'episode_number': 1, 'name': '第1集'},
-              {'season_number': 1, 'episode_number': 2, 'name': '第2集'},
-            ],
-          });
+          'episodes': [
+            {'season_number': 1, 'episode_number': 1, 'name': '第1集'},
+            {'season_number': 1, 'episode_number': 2, 'name': '第2集'},
+          ],
+        });
       }
       return http.Response('{}', 404);
     });
@@ -110,5 +110,25 @@ void main() {
     }
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('第1集'), findsWidgets);
+  });
+  testWidgets('legacy CloudStream entries show an unsupported message', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DetailsPage(
+          movie: Movie(
+            id: 'cloudstream:old:example',
+            name: 'Old entry',
+            type: 'movie',
+            addonBaseUrl: 'cloudstream',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('This source is no longer supported'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

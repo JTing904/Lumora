@@ -13,7 +13,6 @@ import '../../services/layout/form_factor.dart';
 import '../../services/metadata/tmdb_catalog.dart';
 import '../../services/my_list/my_list_service.dart';
 import '../../services/my_list/new_episode_service.dart';
-import '../../services/p2p/p2p_settings_service.dart';
 import '../../services/playback/play_launcher.dart';
 import '../../services/recommend/recommender.dart';
 import '../../services/settings/locale_settings.dart';
@@ -24,7 +23,6 @@ import '../../ui/lu_theme.dart';
 import '../../widgets/common/local_title_text.dart';
 import '../../widgets/home/continue_watching_slider.dart'
     show continueWatchingCaption;
-import '../../widgets/p2p/p2p_warning_dialog.dart';
 
 /// One row of the home page: its title and its titles.
 ///
@@ -72,7 +70,6 @@ class _LuHomePageState extends State<LuHomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _load();
-      _p2pNotice();
     });
   }
 
@@ -86,18 +83,6 @@ class _LuHomePageState extends State<LuHomePage> {
   /// reads the page again. What is on screen stays until it is replaced.
   void _onLocaleChanged() {
     if (mounted) _load();
-  }
-
-  /// The torrent notice, once ever (see [P2pSettingsService]).
-  Future<void> _p2pNotice() async {
-    try {
-      if (!await P2pSettingsService.shouldShowWarning() || !mounted) return;
-      await showDialog(
-        context: context,
-        builder: (context) => const P2pWarningDialog(),
-      );
-      await P2pSettingsService.setNeverShowWarning(true);
-    } catch (_) {}
   }
 
   Future<List<Movie>> _list(TmdbQuery q, {int limit = 20}) async {
@@ -330,6 +315,8 @@ class _LuHomePageState extends State<LuHomePage> {
                         return LuPosterCard(
                           width: posterW,
                           title: m.name,
+                          titleId: m.id,
+                          series: m.type == 'series',
                           poster: m.poster,
                           rating: m.imdbRating,
                           badge: fresh == null ? null : l10n.newEpBadge,

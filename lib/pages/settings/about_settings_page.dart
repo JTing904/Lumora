@@ -7,6 +7,7 @@ import '../../widgets/common/animated_ambient_background.dart';
 import '../../widgets/player/player_glass.dart';
 import '../../widgets/settings/settings_app_bar.dart';
 import '../../widgets/settings/lu_settings_kit.dart';
+import '../../ui/lu_logo.dart';
 
 class AboutSettingsPage extends StatelessWidget {
   const AboutSettingsPage({super.key});
@@ -32,19 +33,9 @@ class AboutSettingsPage extends StatelessWidget {
                   Center(
                     child: Column(
                       children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: tokens.accent,
-                            borderRadius: ZplayRadius.lgAll,
-                          ),
-                          child: Icon(
-                            Icons.play_arrow_rounded,
-                            color: tokens.onAccent,
-                            size: 44,
-                          ),
-                        ),
+                        // The app's own mark (the lit and shaded L), not a
+                        // generic play button.
+                        const LuLogoMark(size: 72),
                         const SizedBox(height: 16),
                         Text(
                           'Lumora',

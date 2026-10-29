@@ -281,15 +281,6 @@
   "searchNothingToSuggest": "Nothing to suggest yet",
   "searchNothingToSuggestBody": "Search for a title above, or connect an addon in Settings to have something to search.",
   "searchPinnedSpine": "PINNED SPINE",
-  "searchCloudstreamSection": "CloudStream • {provider}",
-  "@searchCloudstreamSection": {
-    "placeholders": {
-      "provider": {
-        "type": "String"
-      }
-    }
-  },
-  "searchCloudstreamExtension": "CloudStream Extension",
   "searchTitlesSection": "Titles",
   "searchImdbSuggestions": "IMDb suggestions",
   "searchDirectStream": "Direct Stream",
@@ -463,6 +454,18 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "detailsEpisodeRange": "Ep {from}–{to}",
+  "@detailsEpisodeRange": {
+    "description": "A season chip for a show counted straight through: the episode numbers the season holds.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
       }
     }
   },
@@ -1725,7 +1728,7 @@
   "aiNotesHint": "Additional notes or specifics (optional)...",
   "aiSynthesizing": "Synthesizing taste vectors with multi-signal AI...",
   "aiYourMatches": "Your Personalized Matches",
-  "plyMedia3EngineError": "Playback error on the Media3 engine",
+  "plyMedia3EngineError": "This source failed to play.",
   "plyRefusedByProvider": "Refused by provider",
   "plyNoticeRefused": "refused this source",
   "plyNotReadyYet": "Not ready yet",
@@ -1809,18 +1812,6 @@
   "stgaInstall": "Install",
   "stgaRemoveAddonBody": "Its catalogs and metadata will be removed from your home page.",
   "stgaRemove": "Remove",
-  "stgaInstallRepoPluginsBody": "Would you like to install all plugins from this repository now so their streaming sources become available immediately on the watch screen?",
-  "stgaBrowseLater": "Browse Later",
-  "stgaInstallAllNow": "Install All Now",
-  "stgaInstallingPlugins": "Installing Plugins",
-  "stgaPreparingRuntime": "Preparing runtime...",
-  "stgaAddCloudStreamRepo": "Add CloudStream Repository",
-  "stgaPasteRepoUrlHint": "Paste the repository URL (supports cloudstreamrepo://, repo.json, or plugins.json).",
-  "stgaBrowseMarketplace": "Browse Marketplace",
-  "stgaAddRepository": "Add Repository",
-  "stgaCsExtensionWillUninstall": "This CloudStream extension will be uninstalled.",
-  "stgaRemoveRepoBody": "Plugins from this repository will not be deleted, but repository updates will no longer be fetched.",
-  "stgaStremioAddons": "Stremio Addons",
   "stgaStremioTabDescription": "Addons provide metadata, catalogs, and streaming sources. Hold and drag to reorder priority. Providers higher up load and appear first in watch sources.",
   "stgaInstalledProvidersAddons": "INSTALLED PROVIDERS & ADDONS",
   "stgaNoAddonsInstalled": "No Addons Installed",
@@ -1828,29 +1819,6 @@
   "stgaDebridAddons": "DEBRID ADDONS",
   "stgaDebridAddonsDescription": "Installs the addon for the Debrid provider selected in Settings and fills your saved key in at request time, so the key is never stored twice.",
   "stgaDebridAddonsPlaceholderNote": "Addons that take the key as a plain URL parameter accept a {realdebrid} style placeholder. Addons that hide it inside a base64 config blob have to be pasted fully configured instead.",
-  "stgaCloudStreamTabDescription": "CloudStream (.cs3) extensions provide stream providers directly from popular media sites. Extensions run locally in a sandboxed sidecar or native ART engine.",
-  "stgaCsEngineReady": "CloudStream Engine Ready",
-  "stgaRuntimeSetupRequired": "Runtime Setup Required",
-  "stgaNativeEngineActive": "Native engine active and listening for queries.",
-  "stgaDownloadingRuntime": "Downloading runtime components...",
-  "stgaRequiresRuntimeHost": "Requires runtime host to execute .cs3 bytecode.",
-  "stgaRequiresSidecarRuntime": "Requires sidecar runtime to execute .cs3 bytecode.",
-  "stgaRepoMarketplace": "Repository Marketplace",
-  "stga45PlusRepos": "45+ Repos",
-  "stgaRepoMarketplaceDescription": "Browse curated Turkish, 3rabi, English, Hindi & global repos with direct install links.",
-  "stgaBrowseAvailablePlugins": "Browse Available Plugins",
-  "stgaDeselectAll": "Deselect All",
-  "stgaSelectAll": "Select All",
-  "stgaInstalledExtensions": "INSTALLED EXTENSIONS",
-  "stgaInstalledCsExtensions": "INSTALLED CLOUDSTREAM EXTENSIONS",
-  "stgaNoExtensionsInstalled": "No Extensions Installed",
-  "stgaNoExtensionsHint": "Click \"Browse Available Plugins\" to find and install extensions.",
-  "stgaRepositories": "REPOSITORIES",
-  "stgaNoReposHint": "No custom repositories added. Click \"Add Repository\" to subscribe to a CloudStream repository.",
-  "stgaInstallAllFromRepoTooltip": "Install all plugins from this repository",
-  "stgaBrowseRepoPlugins": "Browse repository plugins",
-  "stgaRemoveRepository": "Remove repository",
-  "stgaSetupEngine": "Setup Engine",
   "stgaBuiltinTorrServer": "Built-in TorrServer P2P streaming engine",
   "stgaBuiltinHttpScrapers": "Built-in multi-source fast HTTP scrapers",
   "stgaMoveUpPriority": "Move up in priority",
@@ -1871,26 +1839,6 @@
   "stgaConnected": "Connected",
   "stgaNoDebridProviderYet": "No Debrid provider is set up yet",
   "stgaSetupDebridFirst": "Set up a Debrid provider in Settings first, then come back to connect it.",
-  "stgaCsDefaultDescription": "CloudStream scraping & streaming provider",
-  "stgaAvailablePlugins": "Available Plugins",
-  "stgaAvailableCsPlugins": "Available CloudStream Plugins",
-  "stgaSearchPluginsHint": "Search plugins (e.g. Sflix, SuperStream)...",
-  "stgaNoPluginsInRepos": "No plugins found in added repositories.\nPlease add a CloudStream repository URL first.",
-  "stgaInstalled": "Installed",
-  "stgaUninstall": "Uninstall",
-  "stgaInstallRepoPluginsNowQ": "Would you like to install plugins from this repository now?",
-  "stgaLater": "Later",
-  "stgaInstallingRepoPlugins": "Installing Repository Plugins",
-  "stgaInstallingExtensions": "Installing extensions...",
-  "stgaMarketplace": "Marketplace",
-  "stgaRefreshListFromWeb": "Refresh list from web",
-  "stgaSearchRepoOrPluginHint": "Search repository or plugin (e.g. Turkish, 3rabi, DiziBox, Shahid)...",
-  "stgaAdded": "Added",
-  "stgaAddingRepository": "Adding Repository...",
-  "stgaInstallRepository": "Install Repository",
-  "stgaInstallAllPlugins": "Install All Plugins",
-  "stgaBrowse": "Browse",
-  "stgaHidePlugins": "Hide plugins",
   "stgaPastedKeyFromClipboard": "Pasted key from clipboard",
   "stgaDismiss": "Dismiss",
   "stgaDebridPageDescription": "Stream torrents and magnet links instantly through high-speed cloud debrid providers without local peer-to-peer downloading.",
@@ -4161,80 +4109,6 @@
     }
   },
   "stgcRemoveAddonQ": "Remove {name}?",
-  "stgcRepoAdded": "Repository added successfully!",
-  "stgcInstallRepoPluginsQ": "Install Repository Plugins?",
-  "@stgcInstalledFromRepo": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcInstalledFromRepo": "Successfully installed {count} plugins from repository!",
-  "@stgcInstallError": {
-    "placeholders": {
-      "error": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcInstallError": "Installation error: {error}",
-  "@stgcRemoveExtQ": {
-    "placeholders": {
-      "name": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveExtQ": "Remove {name}?",
-  "@stgcRemoveCountPluginsQ": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveCountPluginsQ": "Remove {count} plugin(s)?",
-  "@stgcConfirmRemoveAllCs": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcConfirmRemoveAllCs": "Are you sure you want to remove all {count} installed CloudStream plugins? All downloaded plugin files (.jar/.cs3) will be deleted.",
-  "@stgcConfirmRemoveSelectedCs": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcConfirmRemoveSelectedCs": "Are you sure you want to remove the {count} selected CloudStream plugins? Their downloaded files will be deleted from your device.",
-  "@stgcRemovedCountPlugins": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemovedCountPlugins": "Successfully removed {count} plugin(s).",
-  "@stgcRemoveCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveCount": "Remove ({count})",
-  "@stgcRemoveRepoQ": {
-    "placeholders": {
-      "name": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveRepoQ": "Remove {name}?",
   "stgcAddonsExtensions": "Addons & Extensions",
   "@stgcAddonsTotal": {
     "placeholders": {
@@ -4244,38 +4118,6 @@
     }
   },
   "stgcAddonsTotal": "{count} Total",
-  "@stgcRemoveSelectedCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveSelectedCount": "Remove ({count})",
-  "@stgcInstalledTotal": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcInstalledTotal": "{count} Total",
-  "@stgcReposCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcReposCount": "{count} Repos",
-  "@stgcRuntimeSetupError": {
-    "placeholders": {
-      "error": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRuntimeSetupError": "Runtime setup error: {error}",
   "@stgcAddonSubtitlesProvider": {
     "placeholders": {
       "version": {
@@ -4318,170 +4160,6 @@
     }
   },
   "stgcUsesYourServiceKey": "Uses your {service} key",
-  "@stgcPluginInstalled": {
-    "placeholders": {
-      "name": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcPluginInstalled": "{name} installed successfully!",
-  "@stgcPluginUninstalled": {
-    "placeholders": {
-      "name": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcPluginUninstalled": "{name} uninstalled.",
-  "@stgcInstalledCountPlugins": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcInstalledCountPlugins": "Successfully installed {count} plugins!",
-  "@stgcRemoveListPluginsQ": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveListPluginsQ": "Remove {count} plugin(s)?",
-  "@stgcConfirmUninstallList": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcConfirmUninstallList": "Are you sure you want to uninstall all {count} installed plugins from this list? Their downloaded files will be removed.",
-  "@stgcRemoveAllListCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveAllListCount": "Remove All ({count})",
-  "@stgcUninstalledCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcUninstalledCount": "Successfully uninstalled {count} plugins.",
-  "@stgcRemoveAllCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRemoveAllCount": "Remove All ({count})",
-  "@stgcInstallAllCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcInstallAllCount": "Install All ({count})",
-  "@stgcNoPluginsMatching": {
-    "placeholders": {
-      "query": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcNoPluginsMatching": "No plugins matching \"{query}\"",
-  "stgcAllMatchingInstalled": "All matching plugins are already installed!",
-  "@stgcRepoNameAdded": {
-    "placeholders": {
-      "name": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRepoNameAdded": "{name} added successfully!",
-  "@stgcInstallRepoNamePluginsQ": {
-    "placeholders": {
-      "name": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcInstallRepoNamePluginsQ": "Install {name} Plugins?",
-  "@stgcRepoIncludesPlugins": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      },
-      "sample": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRepoIncludesPlugins": "This repository includes {count} plugins ({sample}...). Install all plugins now so their stream sources appear immediately?",
-  "@stgcPluginsInstalledReady": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcPluginsInstalledReady": "{count} plugins installed and ready!",
-  "@stgcMarketplaceSubtitle": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcMarketplaceSubtitle": "{count} repos · Direct install links & verified providers",
-  "@stgcNoReposFound": {
-    "placeholders": {
-      "query": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcNoReposFound": "No repositories found for \"{query}\"",
-  "@stgcRepoPluginsCount": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcRepoPluginsCount": "{count} Plugins",
-  "@stgcCopiedLink": {
-    "placeholders": {
-      "url": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcCopiedLink": "Copied link: {url}",
-  "@stgcContainsPlugins": {
-    "placeholders": {
-      "plugins": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcContainsPlugins": "Contains: {plugins}",
-  "@stgcViewAllPlugins": {
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
-  },
-  "stgcViewAllPlugins": "View all {count} plugins",
   "@stgcDebridKeyVerified": {
     "placeholders": {
       "provider": {
@@ -5929,5 +5607,159 @@
   "abkCatalogueUnavailableBody": "You can still import your own MP3 or M4B audiobooks, or turn an EPUB into an audiobook, in the Studio.",
   "abkCatalogueUnavailableBodyImportOnly": "You can still import your own MP3 or M4B audiobooks in the Studio.",
   "abkHubSubtitleOwnLibrary": "Your own audiobooks, ready to listen",
-  "detailsSpecials": "Specials"
+  "detailsSpecials": "Specials",
+  "epOutUpTo": "Out now up to episode {episode}",
+  "@epOutUpTo": {
+    "placeholders": {
+      "episode": {
+        "type": "String"
+      }
+    }
+  },
+  "epNextAirs": "Episode {episode} airs {date}",
+  "@epNextAirs": {
+    "placeholders": {
+      "episode": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "epNotOutYet": "Episode {episode} isn't out yet: it airs {date}",
+  "@epNotOutYet": {
+    "placeholders": {
+      "episode": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "epUpcoming": "Not out yet",
+  "officialYouTubeName": "Official on YouTube",
+  "officialYouTubeRowNote": "Uploaded by the rights holder's own channel · plays in YouTube's player",
+  "officialYouTubeCompilation": "Compilation · episodes {from}–{to}",
+  "@officialYouTubeCompilation": {
+    "placeholders": {
+      "from": {
+        "type": "int"
+      },
+      "to": {
+        "type": "int"
+      }
+    }
+  },
+  "officialYouTubeUnavailable": "This video can't play here",
+  "officialYouTubeUnavailableBody": "The channel may block it in your region or outside YouTube.",
+  "officialYouTubeBack": "Back",
+  "epWatchedCount": "Watched {count}",
+  "epUpNextHere": "Next",
+  "epWatchedTag": "Seen",
+  "wtwTitle": "Where to watch · {region}",
+  "@wtwTitle": {
+    "description": "Header of the official streaming services list; region is an ISO country code such as MY.",
+    "placeholders": {
+      "region": {
+        "type": "String"
+      }
+    }
+  },
+  "wtwOpensOtherApp": "Official services. Tapping one leaves Lumora and opens that service's own app or website.",
+  "wtwFree": "Free",
+  "wtwAds": "Free with ads",
+  "wtwSubscription": "Subscription",
+  "wtwRentBuy": "Rent / Buy",
+  "wtwWatchOn": "Watch on {provider}",
+  "@wtwWatchOn": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "wtwOpensApp": "Opens the {provider} app or website, outside Lumora",
+  "@wtwOpensApp": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "wtwOpenFailed": "Couldn't open {provider}",
+  "@wtwOpenFailed": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "wtwMoreOnTmdb": "More on TMDb",
+  "wtwAttribution": "Listings: JustWatch via TMDb",
+  "archiveSourceName": "Internet Archive · {licence}",
+  "@archiveSourceName": {
+    "placeholders": {
+      "licence": {
+        "type": "String"
+      }
+    }
+  },
+  "archiveLicencePublicDomain": "Public domain",
+  "archiveLicenceCc": "Creative Commons {code}",
+  "@archiveLicenceCc": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "archiveRowNote": "Free and legal: a public-domain or openly licensed copy kept by the Internet Archive",
+  "archiveMinutes": "{minutes} min",
+  "@archiveMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "detailsSourceNoLongerSupported": "This source is no longer supported",
+  "partyTitle": "Watch together",
+  "partyCreate": "Start a room",
+  "partyCreateBody": "Friends join with the room code. Everyone's play, pause and position stay together, and each person plays on their own device. Nothing is saved.",
+  "partyJoin": "Join a room",
+  "partyJoinBody": "Enter the 6-character code a friend gave you.",
+  "partyJoinHint": "Room code",
+  "partyJoinButton": "Join",
+  "partyJoining": "Joining the room…",
+  "partyJoinFailed": "No room with this code, or the host has left.",
+  "partyJoinError": "Could not join: {error}",
+  "@partyJoinError": {"placeholders": {"error": {"type": "String"}}},
+  "partyCode": "Room code",
+  "partyCopy": "Copy code",
+  "partyCopied": "Code copied",
+  "partyMembers": "In the room ({count})",
+  "@partyMembers": {"placeholders": {"count": {"type": "String"}}},
+  "partyHost": "Host",
+  "partyMe": "Me",
+  "partyOnlyHostControls": "Only I control playback",
+  "partyLeave": "Leave the room",
+  "partyEnd": "End the room",
+  "partyChat": "Chat",
+  "partyChatHint": "Say something…",
+  "partyChatEmpty": "No messages yet. Say hello.",
+  "partySend": "Send",
+  "partyPaused": "{name} paused",
+  "@partyPaused": {"placeholders": {"name": {"type": "String"}}},
+  "partyResumed": "{name} resumed",
+  "@partyResumed": {"placeholders": {"name": {"type": "String"}}},
+  "partySeeked": "{name} jumped to {time}",
+  "@partySeeked": {"placeholders": {"name": {"type": "String"}, "time": {"type": "String"}}},
+  "partyEnded": "The host ended the room",
+  "partyFollowEpisode": "The host moved to another episode. Following…",
+  "partyNoControl": "Only the host controls playback",
+  "partyNeedSignIn": "Sign in to watch together",
+  "partyEntrySubtitle": "Join a friend's room with its code and watch in step",
+  "partyServiceDown": "Can't reach the watch-together service right now. Try again later."
 }

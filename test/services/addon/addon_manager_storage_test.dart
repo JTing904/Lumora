@@ -45,10 +45,9 @@ void main() {
 
     await AddonManager.instance.reload();
 
-    expect(
-      AddonManager.instance.addons.map((addon) => addon.baseUrl),
-      contains('https://legacy.example.test'),
-    );
+    final urls = AddonManager.instance.addons.map((addon) => addon.baseUrl);
+    expect(urls, contains('https://legacy.example.test'));
+    expect(urls, isNot(contains('builtin:zplay')));
 
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString(_key);

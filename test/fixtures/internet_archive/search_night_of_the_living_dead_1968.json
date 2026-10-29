@@ -1,0 +1,161 @@
+{
+ "responseHeader": {
+  "status": 0,
+  "QTime": 159,
+  "params": {
+   "query": "title:&quot;Night of the Living Dead&quot; AND mediatype:movies AND year:1968 AND collection:(feature_films OR film_scifi OR SciFi_Horror OR Film_Noir OR silent_films OR Comedy_Films OR classic_cartoons OR vintage_cartoons OR prelinger)",
+   "qin": "title:(&quot;Night of the Living Dead&quot;) AND mediatype:(movies) AND year:(1968) AND collection:(feature_films OR film_scifi OR SciFi_Horror OR Film_Noir OR silent_films OR Comedy_Films OR classic_cartoons OR vintage_cartoons OR prelinger)",
+   "fields": "identifier,title,year,licenseurl,downloads,collection",
+   "wt": "json",
+   "sort": "downloads desc",
+   "rows": 30,
+   "start": 0
+  }
+ },
+ "response": {
+  "numFound": 12,
+  "start": 0,
+  "docs": [
+   {
+    "collection": [
+     "film_scifi",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 316103,
+    "identifier": "Night.Of.The.Living.Dead_1080p",
+    "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+    "title": "Night of the Living Dead",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "SciFi_Horror",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 305139,
+    "identifier": "night_of_the_living_dead_dvd",
+    "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+    "title": "Night of the Living Dead",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "TheVideoCellarCollection",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 138709,
+    "identifier": "Night_Of_The_Living_Dead_raw_HD_WS",
+    "licenseurl": "http://creativecommons.org/publicdomain/mark/1.0/",
+    "title": "Night Of The Living Dead",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "SciFi_Horror",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 133024,
+    "identifier": "NightOfTheLivingDead-MPEG",
+    "title": "Night Of The Living Dead",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "SciFi_Horror",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 57145,
+    "identifier": "night_of_the_living_dead_ipod",
+    "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+    "title": "Night of the Living Dead iPod and Flash video versions",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "SciFi_Horror",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 28040,
+    "identifier": "night-of-the-living-dead-1968-english",
+    "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "title": "Night Of The Living Dead ( 1968) English FULL HD",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "SciFi_Horror",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 26782,
+    "identifier": "Night_of_the_Living_Dead_AVI",
+    "title": "Night of the Living Dead",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "feature_films_unsorted",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 8431,
+    "identifier": "night-of-the-living-dead_1968",
+    "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "title": "Night of the Living Dead",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "SciFi_Horror",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 5818,
+    "identifier": "notld_201610",
+    "title": "Night of the Living Dead",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "feature_films_unsorted",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 4928,
+    "identifier": "night-of-the-living-dead-1968_202312",
+    "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "title": "Night of the Living Dead (1968)",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "colorized-movies",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 3356,
+    "identifier": "night-of-the-living-dead-colorized-1968",
+    "title": "Night Of The Living Dead ( Colorized, 1968)",
+    "year": 1968
+   },
+   {
+    "collection": [
+     "SciFi_Horror",
+     "feature_films",
+     "moviesandfilms"
+    ],
+    "downloads": 2082,
+    "identifier": "night-of-the-living-dead-1968-doblada-al-espanol",
+    "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "title": "Night Of The Living Dead ( 1968) Doblada Al Español FULL HD",
+    "year": 1968
+   }
+  ]
+ }
+}

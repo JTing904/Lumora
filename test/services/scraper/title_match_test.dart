@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zplay/services/anime_arabic/anime_arabic_service.dart';
-import 'package:zplay/services/cloudstream/cloudstream_manager.dart';
 import 'package:zplay/services/scraper/sites/tmdb_helper.dart';
 import 'package:zplay/services/scraper/title_match.dart';
 
@@ -50,8 +49,18 @@ void main() {
 
   group('TMDb title search', () {
     final hits = [
-      {'id': 243224, 'name': '凡人修仙传', 'original_name': '凡人修仙传', 'first_air_date': '2025-07-27'},
-      {'id': 106449, 'name': '凡人修仙传', 'original_name': '凡人修仙传', 'first_air_date': '2020-07-25'},
+      {
+        'id': 243224,
+        'name': '凡人修仙传',
+        'original_name': '凡人修仙传',
+        'first_air_date': '2025-07-27',
+      },
+      {
+        'id': 106449,
+        'name': '凡人修仙传',
+        'original_name': '凡人修仙传',
+        'first_air_date': '2020-07-25',
+      },
       {'id': 1, 'name': 'Something Else', 'first_air_date': '2020-01-01'},
     ];
 
@@ -59,34 +68,29 @@ void main() {
       expect(TmdbHelper.pickSearchHit(hits, '凡人修仙传', 2020)?['id'], 106449);
       expect(TmdbHelper.pickSearchHit(hits, '凡人修仙传', 2025)?['id'], 243224);
       final english = [
-        {'id': 243224, 'name': "A Mortal's Journey", 'first_air_date': '2025-07-27'},
-        {'id': 106449, 'name': "A Mortal's Journey", 'first_air_date': '2020-07-25'},
+        {
+          'id': 243224,
+          'name': "A Mortal's Journey",
+          'first_air_date': '2025-07-27',
+        },
+        {
+          'id': 106449,
+          'name': "A Mortal's Journey",
+          'first_air_date': '2020-07-25',
+        },
       ];
-      expect(TmdbHelper.pickSearchHit(english, "A Mortal's Journey", 2020)?['id'], 106449);
-      expect(TmdbHelper.pickSearchHit(english, "A Mortal's Journey", 2025)?['id'], 243224);
+      expect(
+        TmdbHelper.pickSearchHit(english, "A Mortal's Journey", 2020)?['id'],
+        106449,
+      );
+      expect(
+        TmdbHelper.pickSearchHit(english, "A Mortal's Journey", 2025)?['id'],
+        243224,
+      );
     });
 
     test('nothing that matches means no id, never the first result', () {
       expect(TmdbHelper.pickSearchHit(hits, 'Breaking Bad', 2008), isNull);
-    });
-  });
-
-  group('CloudStream result kind', () {
-    test('an animation request rejects live-action series', () {
-      expect(CloudStreamManager.kindFits({'type': 'TvSeries'}, wantAnimation: true), isFalse);
-      expect(CloudStreamManager.kindFits({'type': 'AsianDrama'}, wantAnimation: true), isFalse);
-      expect(CloudStreamManager.kindFits({'type': 'Anime'}, wantAnimation: true), isTrue);
-      expect(CloudStreamManager.kindFits({'type': 'Movie'}, wantAnimation: true), isTrue);
-    });
-
-    test('a live-action request rejects animation', () {
-      expect(CloudStreamManager.kindFits({'type': 'Anime'}, wantAnimation: false), isFalse);
-      expect(CloudStreamManager.kindFits({'type': 'TvSeries'}, wantAnimation: false), isTrue);
-    });
-
-    test('an unknown kind on either side rejects nothing', () {
-      expect(CloudStreamManager.kindFits({}, wantAnimation: true), isTrue);
-      expect(CloudStreamManager.kindFits({'type': 'Anime'}, wantAnimation: null), isTrue);
     });
   });
 
@@ -96,7 +100,10 @@ void main() {
         ArabicAnimeCard(slug: 'naruto', title: 'Naruto'),
         ArabicAnimeCard(slug: 'one-piece', title: 'One Piece'),
       ];
-      expect(ArabicAnimeCard.bestMatch(results, 'One Piece')?.slug, 'one-piece');
+      expect(
+        ArabicAnimeCard.bestMatch(results, 'One Piece')?.slug,
+        'one-piece',
+      );
     });
 
     test('returns nothing when no result is the request', () {

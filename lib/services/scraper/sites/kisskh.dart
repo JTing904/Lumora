@@ -19,13 +19,13 @@ class KissKhScraper extends StreamScraper {
   static const _ua =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-  static const _headers = {
-    'User-Agent': _ua,
-    'Accept': 'application/json',
-  };
+  static const _headers = {'User-Agent': _ua, 'Accept': 'application/json'};
 
   static String _cleanTitle(String t) {
-    return t.toLowerCase().replaceAll(RegExp(r'\(\d{4}\)'), '').replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return t
+        .toLowerCase()
+        .replaceAll(RegExp(r'\(\d{4}\)'), '')
+        .replaceAll(RegExp(r'[^a-z0-9]'), '');
   }
 
   /// How strongly [itemTitle] identifies [title]; 0 means it names nothing the
@@ -47,7 +47,9 @@ class KissKhScraper extends StreamScraper {
     // inside "spidermanbrandnewday".
     bool contains(String long, String short) =>
         long.contains(short) && short.length >= long.length * 0.7;
-    if (parts.any((p) => contains(p, targetClean) || contains(targetClean, p))) {
+    if (parts.any(
+      (p) => contains(p, targetClean) || contains(targetClean, p),
+    )) {
       return 3;
     }
     // Every significant word of the request appears in one of the listing's
@@ -64,7 +66,10 @@ class KissKhScraper extends StreamScraper {
 
   static Set<String> _words(String t) => RegExp(r'[a-z0-9]+')
       .allMatches(
-        t.toLowerCase().replaceAll("'", '').replaceAll(RegExp(r'\(\d{4}\)'), ''),
+        t
+            .toLowerCase()
+            .replaceAll("'", '')
+            .replaceAll(RegExp(r'\(\d{4}\)'), ''),
       )
       .map((m) => m.group(0)!)
       .toSet();
@@ -84,7 +89,11 @@ class KissKhScraper extends StreamScraper {
   /// Every listing that names [title], best first: the requested season ahead
   /// of the others, then the stronger title match.
   @visibleForTesting
-  static List<Map> rankDramas(List<dynamic> results, String title, {int? season}) {
+  static List<Map> rankDramas(
+    List<dynamic> results,
+    String title, {
+    int? season,
+  }) {
     final wantSeason = season ?? 1;
     final scored = <(Map, int, bool)>[];
     for (final item in results) {
@@ -143,12 +152,18 @@ class KissKhScraper extends StreamScraper {
     return ranked.isEmpty ? null : ranked.first;
   }
 
-  Future<String?> _encKey(http.Client client, dynamic episodeId, String type) async {
+  Future<String?> _encKey(
+    http.Client client,
+    dynamic episodeId,
+    String type,
+  ) async {
     try {
-      final res = await client.get(
-        Uri.parse('$_encApi/enc-kisskh?text=$episodeId&type=$type'),
-        headers: {'User-Agent': _ua, 'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 6));
+      final res = await client
+          .get(
+            Uri.parse('$_encApi/enc-kisskh?text=$episodeId&type=$type'),
+            headers: {'User-Agent': _ua, 'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 6));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -172,10 +187,14 @@ class KissKhScraper extends StreamScraper {
     try {
       final client = http.Client();
       try {
-        final searchRes = await client.get(
-          Uri.parse('$_base/api/DramaList/Search?q=${Uri.encodeComponent(title)}'),
-          headers: _headers,
-        ).timeout(const Duration(seconds: 6));
+        final searchRes = await client
+            .get(
+              Uri.parse(
+                '$_base/api/DramaList/Search?q=${Uri.encodeComponent(title)}',
+              ),
+              headers: _headers,
+            )
+            .timeout(const Duration(seconds: 6));
 
         if (searchRes.statusCode != 200) return;
         final results = jsonDecode(searchRes.body);
@@ -187,6 +206,10 @@ class KissKhScraper extends StreamScraper {
           type: type,
           year: year,
         );
+        // KissKH's season splits can differ from the selected catalog, even
+        // when its local episode number exists. Never guess for later anime
+        // seasons without a verified cross-catalog mapping.
+        if ((season ?? 1) > 1 && (facts == null || facts.isAnimation)) return;
         final targetEpNum = episode ?? 1;
 
         // The first listing that is the right kind of title and actually has
@@ -195,13 +218,19 @@ class KissKhScraper extends StreamScraper {
         // matched, which is a wrong stream that looks like a right one.
         Map? detail;
         Map? epMatch;
-        for (final drama in rankDramas(results, title, season: season).take(6)) {
+        for (final drama in rankDramas(
+          results,
+          title,
+          season: season,
+        ).take(6)) {
           final dramaId = drama['id'];
           if (dramaId == null) continue;
-          final detailRes = await client.get(
-            Uri.parse('$_base/api/DramaList/Drama/$dramaId'),
-            headers: _headers,
-          ).timeout(const Duration(seconds: 8));
+          final detailRes = await client
+              .get(
+                Uri.parse('$_base/api/DramaList/Drama/$dramaId'),
+                headers: _headers,
+              )
+              .timeout(const Duration(seconds: 8));
           if (detailRes.statusCode != 200) continue;
           final candidate = jsonDecode(detailRes.body);
           if (candidate is! Map || candidate['episodes'] is! List) continue;
@@ -223,16 +252,21 @@ class KissKhScraper extends StreamScraper {
 
         if (detail == null || epMatch == null || epMatch['id'] == null) return;
         final episodeId = epMatch['id'];
-        final kindLabel =
-            detail['type']?.toString().toLowerCase() == 'anime' ? 'Anime' : 'Drama';
+        final kindLabel = detail['type']?.toString().toLowerCase() == 'anime'
+            ? 'Anime'
+            : 'Drama';
 
         final vidKey = await _encKey(client, episodeId, 'vid');
         if (vidKey == null || vidKey.isEmpty) return;
 
-        final videoRes = await client.get(
-          Uri.parse('$_base/api/DramaList/Episode/$episodeId.png?err=false&ts=&time=&kkey=$vidKey'),
-          headers: _headers,
-        ).timeout(const Duration(seconds: 10));
+        final videoRes = await client
+            .get(
+              Uri.parse(
+                '$_base/api/DramaList/Episode/$episodeId.png?err=false&ts=&time=&kkey=$vidKey',
+              ),
+              headers: _headers,
+            )
+            .timeout(const Duration(seconds: 10));
 
         if (videoRes.statusCode != 200) return;
         final videoData = jsonDecode(videoRes.body);
@@ -242,10 +276,7 @@ class KissKhScraper extends StreamScraper {
         if (streamUrl.isEmpty) return;
 
         final isHls = streamUrl.contains('.m3u8');
-        final reqHeaders = {
-          'User-Agent': _ua,
-          'Referer': '$_base/',
-        };
+        final reqHeaders = {'User-Agent': _ua, 'Referer': '$_base/'};
 
         yield StreamSource(
           name: 'ZPlayHTTP',
@@ -256,9 +287,7 @@ class KissKhScraper extends StreamScraper {
           headers: reqHeaders,
           behaviorHints: {
             'notWebReady': false,
-            'proxyHeaders': {
-              'request': reqHeaders,
-            },
+            'proxyHeaders': {'request': reqHeaders},
           },
         );
       } finally {

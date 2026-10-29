@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -110,6 +111,12 @@ class _LoginPageState extends State<LoginPage> {
   /// Set once a reset email is on its way: the card asks for its code.
   String? _resetEmail;
   final _resetCode = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(AccountService.ensureSocialProviders());
+  }
 
   @override
   void dispose() {

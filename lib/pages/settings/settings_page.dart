@@ -1,3 +1,4 @@
+import '../party/join_party.dart';
 import '../../services/account/account_service.dart';
 import '../account/invite_codes_page.dart';
 import '../account/login_page.dart';
@@ -5,6 +6,7 @@ import '../../shell/app_shell_scope.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -45,9 +47,7 @@ import 'diagnostics_page.dart';
 import 'language_settings_page.dart';
 import 'about_settings_page.dart';
 import '../../services/player/player_settings.dart';
-import '../../services/p2p/p2p_settings_service.dart';
 import '../../services/scraper/builtin_providers_settings_service.dart';
-import '../../widgets/p2p/p2p_warning_dialog.dart';
 import '../../services/discord/discord_rpc_service.dart';
 import '../../services/backup/backup_restore_service.dart';
 import '../../services/home/home_page_settings.dart';
@@ -116,14 +116,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: tokens.success.withValues(
+                          color: tokens.accent.withValues(
                             alpha: ZplayOpacity.overlayHover,
                           ),
                           borderRadius: ZplayRadius.smAll,
                         ),
                         child: Icon(
                           Icons.backup_rounded,
-                          color: tokens.success,
+                          color: tokens.accent,
                           size: 22,
                         ),
                       ),
@@ -190,8 +190,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: tokens.success,
-                            foregroundColor: Colors.white,
+                            backgroundColor: tokens.accent,
+                            foregroundColor: tokens.onAccent,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: const RoundedRectangleBorder(
                               borderRadius: ZplayRadius.smAll,
@@ -752,6 +752,11 @@ class _SettingsPageState extends State<SettingsPage> {
   /// (and so every `_navigateTo` destination where it was) while still giving a
   /// television a single press to reach a group instead of a dozen.
   void _jumpToSection(String label) {
+    // The pane cannot lift the last sections to the top - it runs out of
+    // page first - so the scroll that follows would light whichever heading
+    // did reach it (内容 for a tap on 应用). The tap holds the highlight until
+    // the viewer scrolls the pane themselves.
+    _pinnedSection = label;
     if (label == _activeSection) {
       _scrollToSection(label);
       return;
@@ -760,9 +765,21 @@ class _SettingsPageState extends State<SettingsPage> {
     _scrollToSection(label);
   }
 
+  /// The section a sidebar tap chose, held until the viewer drags the pane.
+  String? _pinnedSection;
+
   /// Lights the last section whose heading is at or above the top of the
   /// pane, so the sidebar says where the page is after a scroll by any means.
-  void _followScroll() {
+  /// At the very bottom it lights the last section, whose heading may never
+  /// reach the top.
+  void _followScroll(ScrollMetrics metrics) {
+    if (_pinnedSection != null) return;
+    if (metrics.maxScrollExtent > 0 &&
+        metrics.pixels >= metrics.maxScrollExtent - 2) {
+      final last = _sectionLabels.last;
+      if (last != _activeSection) setState(() => _activeSection = last);
+      return;
+    }
     String? current;
     for (final label in _sectionLabels) {
       final box =
@@ -923,9 +940,19 @@ class _SettingsPageState extends State<SettingsPage> {
             final split = constraints.maxWidth >= 720;
             // The sidebar follows the pane: as the page scrolls, the section
             // whose heading has reached the top is the one it lights.
-            final content = NotificationListener<ScrollUpdateNotification>(
+            final content = NotificationListener<ScrollNotification>(
               onNotification: (n) {
-                if (split && n.depth == 0) _followScroll();
+                if (!split || n.depth != 0) return false;
+                // A drag (or wheel) is the viewer's own scroll: it releases
+                // the section a sidebar tap pinned.
+                if (n is ScrollStartNotification && n.dragDetails != null) {
+                  _pinnedSection = null;
+                }
+                if (n is UserScrollNotification &&
+                    n.direction != ScrollDirection.idle) {
+                  _pinnedSection = null;
+                }
+                if (n is ScrollUpdateNotification) _followScroll(n.metrics);
                 return false;
               },
               child: Center(
@@ -1056,6 +1083,15 @@ class _SettingsPageState extends State<SettingsPage> {
                                 context,
                               )?.go(ShellSlot.browse),
                             ),
+                            // 一起看: a room is started from the player; this
+                            // is where a friend joins one with its code.
+                            LuSettingsNavRow(
+                              icon: Icons.groups_rounded,
+                              iconColor: tokens.accent,
+                              title: l10nOf(context).partyTitle,
+                              subtitle: l10nOf(context).partyEntrySubtitle,
+                              onTap: () => showJoinPartyDialog(context),
+                            ),
                             // Video & Anime4K Upscaling
                             ValueListenableBuilder<Anime4KPreset>(
                               valueListenable: PlayerSettings.anime4kPreset,
@@ -1075,40 +1111,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                             .trim(),
                                   onTap: () =>
                                       _navigateTo(const VideoSettingsPage()),
-                                );
-                              },
-                            ),
-                            // Built-in P2P Torrent Source Toggle (ZPlay)
-                            ValueListenableBuilder<bool>(
-                              valueListenable: P2pSettingsService.isP2pEnabled,
-                              builder: (context, isP2p, _) {
-                                return LuSettingsSwitchRow(
-                                  icon: Icons.hub_rounded,
-                                  iconColor: isP2p
-                                      ? tokens.warning
-                                      : tokens.textSecondary,
-                                  title: l10nOf(context).settingsP2pTitle,
-                                  subtitle: isP2p
-                                      ? l10nOf(
-                                          context,
-                                        ).settingsP2pActiveSubtitle
-                                      : l10nOf(
-                                          context,
-                                        ).settingsP2pDisabledSubtitle,
-                                  valueText: isP2p
-                                      ? l10nOf(context).settingsP2pActiveValue
-                                      : l10nOf(context).settingsP2pHttpValue,
-                                  value: isP2p,
-                                  onChanged: (val) async {
-                                    await P2pSettingsService.setP2pEnabled(val);
-                                  },
-                                  onInfoTap: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) =>
-                                          const P2pWarningDialog(),
-                                    );
-                                  },
                                 );
                               },
                             ),

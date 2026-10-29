@@ -10,6 +10,15 @@ class Video {
   final String? overview;
   final List<StreamSource> streams;
 
+  /// The number viewers know this episode by when it differs from
+  /// [episode]: a donghua the addon splits into seasons but TMDb (and its
+  /// audience) counts straight through - 凡人修仙传 S8E22 is 第194集. Display
+  /// only; [season] and [episode] stay what the addon and the sources use.
+  final int? displayNumber;
+
+  /// The number to show for this episode.
+  int? get shownNumber => displayNumber ?? episode;
+
   Video({
     required this.id,
     required this.title,
@@ -19,6 +28,7 @@ class Video {
     this.thumbnail,
     this.overview,
     this.streams = const [],
+    this.displayNumber,
   });
 
   factory Video.fromJson(Map<String, dynamic> json) {
@@ -31,9 +41,14 @@ class Video {
     final rawStreams = json['streams'] as List<dynamic>?;
     final parsedStreams = rawStreams != null
         ? rawStreams
-            .whereType<Map>()
-            .map((s) => StreamSource.fromJson(Map<String, dynamic>.from(s), 'TorBox'))
-            .toList()
+              .whereType<Map>()
+              .map(
+                (s) => StreamSource.fromJson(
+                  Map<String, dynamic>.from(s),
+                  'TorBox',
+                ),
+              )
+              .toList()
         : const <StreamSource>[];
 
     return Video(

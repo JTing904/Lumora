@@ -11,22 +11,35 @@ import io.flutter.plugin.common.MethodChannel
 import android.app.UiModeManager
 import android.content.res.Configuration
 import android.content.pm.PackageManager
+import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "io.github.tzero86.zplay/power"
     private val DEVICE_CHANNEL = "io.github.tzero86.zplay/device"
     private var wifiLock: WifiManager.WifiLock? = null
     private var wakeLock: PowerManager.WakeLock? = null
-    private var cloudStreamBridge: CloudStreamNativeBridge? = null
     private var exoPlayerBridge: ExoPlayerBridge? = null
     private var voiceSearchBridge: VoiceSearchBridge? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        cloudStreamBridge = CloudStreamNativeBridge(applicationContext, this).apply {
-            register(flutterEngine)
-        }
+        // Retry on later launches if any old plugin file could not be removed.
+        Thread {
+            val prefs = getSharedPreferences("lumora_migrations", Context.MODE_PRIVATE)
+            if (!prefs.getBoolean("cloudstream_cleanup_v1", false)) {
+                val targets = mutableListOf(
+                    File(filesDir, "cloudstream_runtime"),
+                    File(filesDir, "extensions/CloudStream"),
+                    File(filesDir, "zplay_cs_runtime.apk"),
+                    File(filesDir, "cs_native_libs"),
+                )
+                codeCacheDir.listFiles()?.filter { it.name.startsWith("cs_dex_") }?.let { targets.addAll(it) }
+                if (targets.all { !it.exists() || it.deleteRecursively() }) {
+                    prefs.edit().putBoolean("cloudstream_cleanup_v1", true).apply()
+                }
+            }
+        }.start()
 
         // The second playback engine. Registered on every platform; the Dart
         // side checks availability and falls back to mpv where it is absent.
@@ -145,7 +158,6 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         try {
-            cloudStreamBridge?.destroy()
             exoPlayerBridge?.destroy()
             voiceSearchBridge?.destroy()
             if (wifiLock?.isHeld == true) wifiLock?.release()

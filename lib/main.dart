@@ -19,7 +19,6 @@ import './services/continue_watching/watched_episodes.dart';
 import './services/stream/network_speed.dart';
 import './services/recommend/taste_store.dart';
 import './services/addon/addon_manager.dart';
-import './services/cloudstream/cloudstream_manager.dart';
 import './services/theme/app_theme_service.dart';
 import './services/updater/app_updater_service.dart';
 import './services/books/continue_reading_service.dart';
@@ -41,7 +40,6 @@ import './services/metadata/tmdb_service.dart';
 import './services/my_list/my_list_service.dart';
 import './services/debrid/debrid_rejection_store.dart';
 import './services/debrid/debrid_service.dart';
-import './services/stream/torrent_stream_service.dart';
 import './services/player/player_settings.dart';
 import './services/playback/music_now_playing_bridge.dart';
 import './services/collections/collections_service.dart';
@@ -51,7 +49,6 @@ import './services/config/env_service.dart';
 import './services/config/service_credentials.dart';
 import './services/window/window_service.dart';
 import './services/profiles/windows_state_migration.dart';
-import './services/p2p/p2p_settings_service.dart';
 import './services/discord/discord_rpc_service.dart';
 import './services/diagnostics/crash_breadcrumbs.dart';
 import './services/diagnostics/crash_reporter.dart';
@@ -164,7 +161,6 @@ Future<void> _initializeDeferredServices() async {
 
   await Future.wait([
     guard('AddonManager', AddonManager.instance.initialize),
-    guard('CloudStreamManager', CloudStreamManager.instance.initialize),
     guard(
       'BuiltinProvidersSettingsService',
       BuiltinProvidersSettingsService.instance.init,
@@ -185,13 +181,11 @@ Future<void> _initializeDeferredServices() async {
     ),
     guard('MusicDownloadService', MusicDownloadService.instance.init),
     guard('QobuzMusicService', QobuzMusicService.instance.initialize),
-    guard('P2pSettingsService', P2pSettingsService.initialize),
     guard('DebridService', DebridService.refreshDebridReady),
     guard('DebridRejectionStore', DebridRejectionStore.instance.initialize),
     guard('TmdbService', TmdbService.initialize),
     guard('ServiceCredentials', ServiceCredentials.initialize),
     guard('DownloadService', DownloadService.instance.initialize),
-    guard('TorrentStreamService', TorrentStreamService().start),
     guard('DiscordRpcService', DiscordRpcService.instance.initialize),
   ]);
 }

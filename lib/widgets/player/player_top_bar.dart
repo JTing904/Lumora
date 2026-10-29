@@ -34,6 +34,12 @@ class PlayerTopBar extends StatelessWidget {
   final VoidCallback? onDownload;
   final bool isDownloading;
   final VoidCallback? onCopyStreamUrl;
+
+  /// 一起看: opens the room sheet. [partyActive] marks it while in a room,
+  /// and [onPartyChat] (in a room only) opens the room's chat.
+  final VoidCallback? onParty;
+  final bool partyActive;
+  final VoidCallback? onPartyChat;
   final VoidCallback? onLock;
 
   const PlayerTopBar({
@@ -52,6 +58,9 @@ class PlayerTopBar extends StatelessWidget {
     this.onDownload,
     this.isDownloading = false,
     this.onCopyStreamUrl,
+    this.onParty,
+    this.partyActive = false,
+    this.onPartyChat,
     this.onLock,
   });
 
@@ -290,6 +299,29 @@ class PlayerTopBar extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
+              if (onPartyChat != null) ...[
+                PlayerIconButton(
+                  size: 40,
+                  iconSize: 20,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  tooltip: l10nCurrent().partyChat,
+                  backgroundColor: tokens.bg.withValues(alpha: 0.13),
+                  onPressed: onPartyChat,
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (onParty != null) ...[
+                PlayerIconButton(
+                  size: 40,
+                  iconSize: 20,
+                  icon: const Icon(Icons.groups_rounded),
+                  tooltip: l10nCurrent().partyTitle,
+                  active: partyActive,
+                  backgroundColor: tokens.bg.withValues(alpha: 0.13),
+                  onPressed: onParty,
+                ),
+                const SizedBox(width: 8),
               ],
               if (onCopyStreamUrl != null) ...[
                 PlayerIconButton(

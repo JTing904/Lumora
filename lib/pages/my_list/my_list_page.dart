@@ -249,18 +249,18 @@ class _MyListPageState extends State<MyListPage> {
             selected: _filterType == value,
             onTap: () => setState(() => _filterType = value),
           ),
-        const SizedBox(width: 8, height: 36),
-        for (final (value, label) in [
-          ('recent', l10n.listSortRecent),
-          ('title', l10n.listSortTitle),
-          ('year', l10n.listSortYear),
-        ])
-          _Chip(
-            label: label,
-            selected: _sortBy == value,
-            quiet: true,
-            onTap: () => setState(() => _sortBy = value),
-          ),
+        // The order is one menu pill rather than three: as loose text the
+        // two unchosen orders read as stray words and wrapped to a second
+        // line on a phone.
+        _SortChip(
+          current: _sortBy,
+          options: [
+            ('recent', l10n.listSortRecent),
+            ('title', l10n.listSortTitle),
+            ('year', l10n.listSortYear),
+          ],
+          onChanged: (value) => setState(() => _sortBy = value),
+        ),
       ],
     );
     final status = ValueListenableBuilder<bool>(
@@ -424,15 +424,11 @@ class _Chip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.quiet = false,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-
-  /// The order choices: text only until chosen.
-  final bool quiet;
 
   @override
   Widget build(BuildContext context) {
@@ -449,7 +445,7 @@ class _Chip extends StatelessWidget {
                 ? const Color(0x29F2B544)
                 : (hi ? const Color(0x1AFFFFFF) : Colors.transparent),
             borderRadius: LuRadius.pill,
-            border: selected || quiet ? null : Border.all(color: LuColors.line),
+            border: selected ? null : Border.all(color: LuColors.line),
           ),
           child: Center(
             widthFactor: 1,
@@ -461,6 +457,121 @@ class _Chip extends StatelessWidget {
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The list order as one pill (`最近加入 ▾`) that opens the three orders.
+class _SortChip extends StatelessWidget {
+  const _SortChip({
+    required this.current,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String current;
+  final List<(String, String)> options;
+  final ValueChanged<String> onChanged;
+
+  Future<void> _open(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final bottomRight = box.localToGlobal(
+      box.size.bottomRight(Offset.zero),
+      ancestor: overlay,
+    );
+    final picked = await showMenu<String>(
+      context: context,
+      color: LuColors.surfaceHigh,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        side: BorderSide(color: LuColors.line),
+      ),
+      position: RelativeRect.fromLTRB(
+        topLeft.dx,
+        bottomRight.dy + 6,
+        overlay.size.width - bottomRight.dx,
+        0,
+      ),
+      items: [
+        for (final (value, label) in options)
+          PopupMenuItem<String>(
+            value: value,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  child: value == current
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: LuColors.gold,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: LuText.body.copyWith(
+                    fontSize: 15,
+                    color: value == current ? LuColors.gold : LuColors.text,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (picked != null && picked != current) onChanged(picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = options
+        .firstWhere((o) => o.$1 == current, orElse: () => options.first)
+        .$2;
+    return Builder(
+      builder: (chipContext) => LuFocusable(
+        onTap: () => _open(chipContext),
+        semanticLabel: label,
+        builder: (context, hi) => AnimatedContainer(
+          duration: LuMotion.focus,
+          height: 36,
+          padding: const EdgeInsets.only(left: 16, right: 10),
+          decoration: BoxDecoration(
+            color: hi ? const Color(0x1AFFFFFF) : Colors.transparent,
+            borderRadius: LuRadius.pill,
+            border: Border.all(color: LuColors.line),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.sort_rounded,
+                size: 16,
+                color: LuColors.textSoft,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: LuText.body.copyWith(
+                  fontSize: 14,
+                  color: LuColors.textSoft,
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(
+                Icons.expand_more_rounded,
+                size: 18,
+                color: LuColors.textSoft,
+              ),
+            ],
           ),
         ),
       ),

@@ -1,9 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import '../services/layout/form_factor.dart';
 import '../services/storage/app_image_cache.dart';
+import '../widgets/common/local_title_text.dart';
 import 'lu_confirm.dart';
 import 'lu_focusable.dart';
 import 'lu_theme.dart';
@@ -84,9 +86,19 @@ class LuPosterCard extends StatelessWidget {
     this.rating,
     this.width = 160,
     this.onLongPress,
+    this.titleId,
+    this.series = false,
   });
 
   final String title;
+
+  /// The title's IMDb id: with one, the card shows the viewer's-language
+  /// name ([LocalTitleText]) once TMDb has it, [title] until then. Cinemeta
+  /// and the similar-titles rail carry English names only.
+  final String? titleId;
+
+  /// Whether [titleId] is a series, for the TMDb lookup.
+  final bool series;
   final String? poster;
   final String? subtitle;
   final String? badge;
@@ -104,6 +116,12 @@ class LuPosterCard extends StatelessWidget {
     double width, [
     TextScaler scaler = TextScaler.noScaling,
   ]) => width * 1.5 + 8 + scaler.scale(46);
+
+  static final TextStyle _titleStyle = LuText.body.copyWith(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -156,16 +174,23 @@ class LuPosterCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: LuText.body.copyWith(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                height: 1.3,
+            if (titleId case final id?)
+              LocalTitleText(
+                id: id,
+                fallback: title,
+                series: series,
+                year: subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _titleStyle,
+              )
+            else
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _titleStyle,
               ),
-            ),
             if (subtitle != null)
               Text(
                 subtitle!,
@@ -430,7 +455,6 @@ class LuRail extends StatefulWidget {
 
 class _LuRailState extends State<LuRail> {
   final _scroll = ScrollController();
-  bool _hover = false;
 
   @override
   void dispose() {
@@ -438,10 +462,83 @@ class _LuRailState extends State<LuRail> {
     super.dispose();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: widget.padding),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: LuText.heading,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              ?widget.trailing,
+            ],
+          ),
+        ),
+        const SizedBox(height: LuSpace.m),
+        SizedBox(
+          height: widget.height,
+          child: LuSideScroll(
+            controller: _scroll,
+            child: FocusTraversalGroup(
+              child: ListView.separated(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                padding: EdgeInsets.symmetric(horizontal: widget.padding),
+                itemCount: widget.itemCount,
+                separatorBuilder: (_, __) => SizedBox(width: widget.spacing),
+                itemBuilder: widget.itemBuilder,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A sideways list made usable with a mouse: arrows that page it appear
+/// while the pointer is over it (each only while there is more that way),
+/// and a mouse can drag it as a finger does. Flutter leaves the mouse out
+/// of dragging by default, and a wheel scrolls the page, not the row, so
+/// on a computer a row without these could not be moved at all.
+class LuSideScroll extends StatefulWidget {
+  const LuSideScroll({
+    super.key,
+    required this.controller,
+    required this.child,
+    this.arrowAlignment = Alignment.center,
+  });
+
+  /// The controller of the horizontal scrollable in [child].
+  final ScrollController controller;
+  final Widget child;
+
+  /// Where the arrows sit vertically, for a row whose cards are taller than
+  /// the art they should be centred on.
+  final Alignment arrowAlignment;
+
+  @override
+  State<LuSideScroll> createState() => _LuSideScrollState();
+}
+
+class _LuSideScrollState extends State<LuSideScroll> {
+  bool _hover = false;
+
   void _page(int dir) {
-    if (!_scroll.hasClients) return;
-    final p = _scroll.position;
-    _scroll.animateTo(
+    final c = widget.controller;
+    if (!c.hasClients) return;
+    final p = c.position;
+    c.animateTo(
       (p.pixels + dir * p.viewportDimension * 0.8).clamp(
         0.0,
         p.maxScrollExtent,
@@ -451,81 +548,64 @@ class _LuRailState extends State<LuRail> {
     );
   }
 
+  bool _canGo(int dir) {
+    final c = widget.controller;
+    if (!c.hasClients || !c.position.hasContentDimensions) return false;
+    final p = c.position;
+    return dir < 0 ? p.pixels > 1 : p.pixels < p.maxScrollExtent - 1;
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: widget.padding),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: LuText.heading,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                ?widget.trailing,
-              ],
-            ),
+          ScrollConfiguration(
+            behavior: ScrollConfiguration.of(
+              context,
+            ).copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+            child: widget.child,
           ),
-          const SizedBox(height: LuSpace.m),
-          SizedBox(
-            height: widget.height,
-            child: Stack(
-              children: [
-                FocusTraversalGroup(
-                  child: ListView.separated(
-                    controller: _scroll,
-                    scrollDirection: Axis.horizontal,
-                    clipBehavior: Clip.none,
-                    padding: EdgeInsets.symmetric(horizontal: widget.padding),
-                    itemCount: widget.itemCount,
-                    separatorBuilder: (_, __) =>
-                        SizedBox(width: widget.spacing),
-                    itemBuilder: widget.itemBuilder,
-                  ),
-                ),
-                for (final dir in const [-1, 1])
-                  Positioned(
-                    left: dir < 0 ? 8 : null,
-                    right: dir > 0 ? 8 : null,
-                    top: 0,
-                    bottom: 0,
-                    child: AnimatedOpacity(
-                      opacity: _hover ? 1 : 0,
-                      duration: LuMotion.focus,
-                      child: IgnorePointer(
-                        ignoring: !_hover,
-                        child: Center(
-                          child: ExcludeFocus(
-                            child: IconButton(
-                              onPressed: () => _page(dir),
-                              style: IconButton.styleFrom(
-                                backgroundColor: const Color(0xCC0A0A0C),
-                                fixedSize: const Size(44, 44),
-                              ),
-                              icon: Icon(
-                                dir < 0
-                                    ? Icons.chevron_left_rounded
-                                    : Icons.chevron_right_rounded,
-                                color: LuColors.text,
-                              ),
+          for (final dir in const [-1, 1])
+            Positioned(
+              left: dir < 0 ? 8 : null,
+              right: dir > 0 ? 8 : null,
+              top: 0,
+              bottom: 0,
+              child: ListenableBuilder(
+                listenable: widget.controller,
+                builder: (context, _) {
+                  final show = _hover && _canGo(dir);
+                  return AnimatedOpacity(
+                    opacity: show ? 1 : 0,
+                    duration: LuMotion.focus,
+                    child: IgnorePointer(
+                      ignoring: !show,
+                      child: Align(
+                        alignment: widget.arrowAlignment,
+                        child: ExcludeFocus(
+                          child: IconButton(
+                            onPressed: () => _page(dir),
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xCC0A0A0C),
+                              fixedSize: const Size(44, 44),
+                            ),
+                            icon: Icon(
+                              dir < 0
+                                  ? Icons.chevron_left_rounded
+                                  : Icons.chevron_right_rounded,
+                              color: LuColors.text,
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

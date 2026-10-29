@@ -4,8 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Global 18+ content switch, available to admins only.
 ///
 /// Single source of truth for whether adult material may surface anywhere in
-/// the app: catalog fetches, addon catalogs/search/streams, CloudStream NSFW
-/// plugins, the WatchHentai / Hentaini extractors, and saved state (Continue
+/// the app: catalog fetches, addon catalogs/search/streams,
+/// the WatchHentai / Hentaini extractors, and saved state (Continue
 /// Watching, My List, library). Sources read [adultEnabled] at query time.
 /// Pages listening to [adultEnabled] evict their adult-sensitive caches
 /// (catalog listings, recommendation sections) and reload on toggle, so one

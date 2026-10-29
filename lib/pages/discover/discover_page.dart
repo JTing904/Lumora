@@ -1405,7 +1405,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                           final isSelected = _selectedCatalogEntry == entry;
                           // The 18+ view mixes addons, so name the source.
                           final name =
-                              '${AddonManager.instance.catalogDisplayName(entry.catalog)}'
+                              '${AddonManager.instance.catalogDisplayName(entry.catalog, withType: false)}'
                               '${_selectedType == _adultType ? ' · ${entry.addon.manifest.name}' : ''}';
                           final hasReq = entry.catalog.hasRequiredExtra;
 

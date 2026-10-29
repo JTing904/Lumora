@@ -10,8 +10,6 @@ import '../addon/addon_manager.dart';
 import '../addon/addon_url_resolver.dart';
 import '../scraper/stream_scraper.dart';
 import '../scraper/sites/tmdb_helper.dart';
-import '../scraper/sites/knaben.dart';
-import '../scraper/sites/torrent_galaxy.dart';
 import '../scraper/sites/fourkhdhub.dart';
 import '../scraper/sites/xdownloader.dart';
 import '../scraper/sites/videasy.dart';
@@ -62,9 +60,6 @@ import '../scraper/sites/hindmoviez.dart';
 import '../anime/anime_scraper_service.dart';
 import '../anime_arabic/anime_arabic_service.dart';
 import '../anime_arabic/anime_arabic_extractor.dart';
-import '../debrid/debrid_service.dart';
-import '../p2p/p2p_settings_service.dart';
-import '../cloudstream/cloudstream_manager.dart';
 
 /// Service that fetches playback streams from all installed Stremio addons
 /// and built-in scrapers.
@@ -83,20 +78,21 @@ class StreamService {
     int? year,
     int? season,
     int? episode,
+    int? chineseEpisode,
   }) async* {
     final String? imdbId = id.startsWith('tt')
         ? id.split(':').first
         : id.startsWith('tmdb:')
-            ? await TmdbHelper.imdbIdFor(id, type)
-            : null;
+        ? await TmdbHelper.imdbIdFor(id, type)
+        : null;
     // An episode TMDb positively does not have (a catalog numbering it
     // differently, a "season 0" of renumbered episodes) is skipped by the
     // sources that look episodes up by TMDb numbers; they would return
     // whatever their host serves for it. Unknown is not "missing".
     final tmdbHasEpisode =
         (type == 'series' || type == 'tv') && season != null && episode != null
-            ? await TmdbHelper.hasEpisode(imdbId ?? id, season, episode)
-            : null;
+        ? await TmdbHelper.hasEpisode(imdbId ?? id, season, episode)
+        : null;
     yield* ScraperManager.instance.scrapeAll(
       type: type,
       title: title,
@@ -106,6 +102,7 @@ class StreamService {
       imdbId: imdbId,
       skipTmdbNumbered: tmdbHasEpisode == false,
       tmdbRef: id.startsWith('tmdb:') ? id : null,
+      chineseEpisode: chineseEpisode,
     );
   }
 
@@ -115,10 +112,12 @@ class StreamService {
   static final List<StreamSubscription> _activeSubscriptions = [];
   static int _streamSessionId = 0;
 
-  /// Stops and cancels all active scrapers (Built-in HTTP, Built-in P2P, CloudStream, and Stremio Addons).
+  /// Stops and cancels active built-in scrapers and Stremio addons.
   static void stopAllScrapers() {
     _streamSessionId++;
-    debugPrint('[StreamService] stopAllScrapers() called (session: $_streamSessionId)');
+    debugPrint(
+      '[StreamService] stopAllScrapers() called (session: $_streamSessionId)',
+    );
 
     // 1. Cancel tracked subscriptions in StreamService
     for (final sub in _activeSubscriptions) {
@@ -134,22 +133,9 @@ class StreamService {
 
     // 3. Cancel built-in scrapers
     ScraperManager.instance.cancelActiveScrapes();
-
-    // 4. Cancel CloudStream scrapers & Android bridge jobs
-    CloudStreamManager.instance.cancelActiveScrapes();
   }
 
   static void _registerBuiltInScrapers() {
-    // Debrid resolves magnets in the cloud, so the BitTorrent indexers stay
-    // usable when the local P2P engine is off but a Debrid service is set up.
-    final torrentsUsable = P2pSettingsService.isP2pEnabled.value ||
-        DebridService.isDebridReady.value;
-    if (torrentsUsable) {
-      ScraperManager.instance.registerScraper(KnabenScraper());
-      ScraperManager.instance.registerScraper(TorrentGalaxyScraper());
-    } else {
-      ScraperManager.instance.unregisterTorrentScrapers();
-    }
     ScraperManager.instance.registerScraper(A111477Scraper());
     ScraperManager.instance.registerScraper(VadapavScraper());
     ScraperManager.instance.registerScraper(FourKHDHubScraper());
@@ -208,6 +194,7 @@ class StreamService {
     int? year,
     int? season,
     int? episode,
+    int? chineseEpisode,
     List<String>? genres,
   }) {
     stopAllScrapers();
@@ -217,10 +204,8 @@ class StreamService {
 
     final addons = AddonManager.instance.activeStreamAddons;
     final isHttpActive = AddonManager.instance.isZplayHttpActive;
-    final csExtensions = CloudStreamManager.instance.activeExtensions;
-    final hasCs = csExtensions.isNotEmpty;
 
-    if (addons.isEmpty && !isHttpActive && !hasCs) {
+    if (addons.isEmpty && !isHttpActive) {
       controller.close();
       return controller.stream;
     }
@@ -240,86 +225,50 @@ class StreamService {
       }
     };
 
-    int pending = addons.length + (isHttpActive ? 1 : 0) + (hasCs ? 1 : 0);
-
-    // Direct CloudStream link resolution if targeting a CloudStream item
-    if (hasCs && (id.startsWith('cloudstream_ep:') || id.startsWith('cloudstream:'))) {
-      final parts = id.split(':');
-      if (parts.length >= 3) {
-        final sourceId = parts[1];
-        final dataUrl = id.startsWith('cloudstream_ep:')
-            ? Uri.decodeComponent(parts[2])
-            : Uri.decodeComponent(parts.sublist(2).join(':'));
-
-        final sub = CloudStreamManager.instance.resolveStreamsForDataUrl(
-          sourceId: sourceId,
-          dataUrl: dataUrl,
-          title: title,
-        ).listen((source) {
-          if (!controller.isClosed && currentSession == _streamSessionId) {
-            controller.add(source);
-          }
-        }, onError: (_) {});
-        sessionSubs.add(sub);
-        _activeSubscriptions.add(sub);
-      }
-    }
-
-    // CloudStream extensions (if active)
-    if (hasCs) {
-      final sub = CloudStreamManager.instance.scrapeStreams(
-        type: type,
-        title: title,
-        year: year,
-        season: season,
-        episode: episode,
-        genres: genres,
-      ).listen((source) {
-        if (!controller.isClosed && currentSession == _streamSessionId) {
-          controller.add(source);
-        }
-      }, onError: (_) {}, onDone: () {
-        pending--;
-        if (pending <= 0 && !controller.isClosed) controller.close();
-      });
-      sessionSubs.add(sub);
-      _activeSubscriptions.add(sub);
-    }
+    int pending = addons.length + (isHttpActive ? 1 : 0);
 
     // Local ZPlayHTTP scrapers (if active)
     if (isHttpActive) {
-      final sub = _scrapeBuiltIns(
-        id: id,
-        type: type,
-        title: title,
-        year: year,
-        season: season,
-        episode: episode,
-      ).listen((source) {
-        if (!controller.isClosed && currentSession == _streamSessionId) {
-          controller.add(source);
-        }
-      }, onDone: () {
-        pending--;
-        if (pending <= 0 && !controller.isClosed) controller.close();
-      });
+      final sub =
+          _scrapeBuiltIns(
+            id: id,
+            type: type,
+            title: title,
+            year: year,
+            season: season,
+            episode: episode,
+            chineseEpisode: chineseEpisode,
+          ).listen(
+            (source) {
+              if (!controller.isClosed && currentSession == _streamSessionId) {
+                controller.add(source);
+              }
+            },
+            onDone: () {
+              pending--;
+              if (pending <= 0 && !controller.isClosed) controller.close();
+            },
+          );
       sessionSubs.add(sub);
       _activeSubscriptions.add(sub);
     }
 
     for (final addon in addons) {
-      _fetchFromAddon(addon, type, id).then((sources) {
-        if (!controller.isClosed && currentSession == _streamSessionId) {
-          for (final source in sources) {
-            controller.add(source);
-          }
-        }
-      }).catchError((_) {}).whenComplete(() {
-        pending--;
-        if (pending <= 0 && !controller.isClosed) {
-          controller.close();
-        }
-      });
+      _fetchFromAddon(addon, type, id)
+          .then((sources) {
+            if (!controller.isClosed && currentSession == _streamSessionId) {
+              for (final source in sources) {
+                controller.add(source);
+              }
+            }
+          })
+          .catchError((_) {})
+          .whenComplete(() {
+            pending--;
+            if (pending <= 0 && !controller.isClosed) {
+              controller.close();
+            }
+          });
     }
 
     return controller.stream;
@@ -338,7 +287,9 @@ class StreamService {
     int? year,
     int? season,
     int? episode,
+    int? chineseEpisode,
     List<String>? genres,
+
     /// When true, every active stream provider is queried (the same fan-out
     /// [fetchStreams] does) instead of only [targetAddonName]. Used by the
     /// in-player sources panel, whose job is to offer alternatives to the
@@ -348,7 +299,8 @@ class StreamService {
     final controller = StreamController<StreamSource>();
     final normalizedTarget = targetAddonName.trim().toLowerCase();
 
-    final isArabicAnime = id.startsWith('arabic_anime:') ||
+    final isArabicAnime =
+        id.startsWith('arabic_anime:') ||
         normalizedTarget == 'arabicanime' ||
         normalizedTarget.contains('arabic');
 
@@ -363,7 +315,9 @@ class StreamService {
             slug = id;
           }
           if (slug.isEmpty && title.isNotEmpty) {
-            final searchResults = await AnimeArabicService.instance.search(title);
+            final searchResults = await AnimeArabicService.instance.search(
+              title,
+            );
             slug = ArabicAnimeCard.bestMatch(searchResults, title)?.slug ?? '';
           }
           final epNum = episode ?? 1;
@@ -378,7 +332,9 @@ class StreamService {
                 watchPath: '/e/$slug-$epNum#tok',
               ),
             );
-            final hits = await AnimeArabicExtractor.instance.resolveEpisode(targetEp);
+            final hits = await AnimeArabicExtractor.instance.resolveEpisode(
+              targetEp,
+            );
             final sources = AnimeArabicExtractor.toSources(
               hits,
               animeTitle: details.title,
@@ -395,7 +351,8 @@ class StreamService {
     }
 
     // Check if targeting general anime providers
-    final isAnime = type == 'anime' ||
+    final isAnime =
+        type == 'anime' ||
         id.startsWith('anilist:') ||
         normalizedTarget == 'megaplay' ||
         normalizedTarget == 'anidb' ||
@@ -415,6 +372,8 @@ class StreamService {
         title: title,
         anilistId: anilistId,
         episodeNumber: episode ?? 1,
+        season: season,
+        year: year,
       );
     }
 
@@ -428,12 +387,14 @@ class StreamService {
         year: year,
         season: season,
         episode: episode,
+        chineseEpisode: chineseEpisode,
         genres: genres,
       );
     }
 
     // Check if targeting built-in ZPlayHTTP / ZPlay
-    final isLocalZplay = normalizedTarget == 'zplayhttp' ||
+    final isLocalZplay =
+        normalizedTarget == 'zplayhttp' ||
         normalizedTarget == 'zplay' ||
         normalizedTarget.contains('zplay');
 
@@ -447,6 +408,7 @@ class StreamService {
         year: year,
         season: season,
         episode: episode,
+        chineseEpisode: chineseEpisode,
       ).listen(
         (source) {
           if (!controller.isClosed) {
@@ -472,45 +434,29 @@ class StreamService {
       return controller.stream;
     }
 
-    // Check if targeting a CloudStream extension
-    final matchingCs = CloudStreamManager.instance.activeExtensions.where(
-      (e) =>
-          e.name.toLowerCase() == normalizedTarget ||
-          (e.internalName != null && e.internalName!.toLowerCase() == normalizedTarget) ||
-          e.name.toLowerCase().contains(normalizedTarget) ||
-          normalizedTarget.contains(e.name.toLowerCase()),
-    ).toList();
-
-    if (matchingCs.isNotEmpty) {
-      return CloudStreamManager.instance.scrapeStreams(
-        type: type,
-        title: title,
-        year: year,
-        season: season,
-        episode: episode,
-        genres: genres,
-      );
-    }
-
-    // Otherwise, find the matching Stremio addon
-    final matchingAddons = AddonManager.instance.activeStreamAddons.where(
-      (a) =>
-          a.manifest.name.toLowerCase() == normalizedTarget ||
-          a.manifest.name.toLowerCase().contains(normalizedTarget) ||
-          normalizedTarget.contains(a.manifest.name.toLowerCase()),
-    ).toList();
+    final matchingAddons = AddonManager.instance.activeStreamAddons
+        .where(
+          (a) =>
+              a.manifest.name.toLowerCase() == normalizedTarget ||
+              a.manifest.name.toLowerCase().contains(normalizedTarget) ||
+              normalizedTarget.contains(a.manifest.name.toLowerCase()),
+        )
+        .toList();
 
     if (matchingAddons.isNotEmpty) {
       final matchingAddon = matchingAddons.first;
-      _fetchFromAddon(matchingAddon, type, id).then((sources) {
-        if (!controller.isClosed) {
-          for (final source in sources) {
-            controller.add(source);
-          }
-        }
-      }).catchError((_) {}).whenComplete(() {
-        if (!controller.isClosed) controller.close();
-      });
+      _fetchFromAddon(matchingAddon, type, id)
+          .then((sources) {
+            if (!controller.isClosed) {
+              for (final source in sources) {
+                controller.add(source);
+              }
+            }
+          })
+          .catchError((_) {})
+          .whenComplete(() {
+            if (!controller.isClosed) controller.close();
+          });
     } else {
       // Fallback: If no exact addon match found, run general fetch
       return fetchStreams(
@@ -520,6 +466,7 @@ class StreamService {
         year: year,
         season: season,
         episode: episode,
+        chineseEpisode: chineseEpisode,
         genres: genres,
       );
     }
@@ -546,7 +493,9 @@ class StreamService {
     try {
       // Check idPrefixes filtering if declared by addon
       if (addon.manifest.idPrefixes.isNotEmpty) {
-        final matchesPrefix = addon.manifest.idPrefixes.any((p) => id.startsWith(p));
+        final matchesPrefix = addon.manifest.idPrefixes.any(
+          (p) => id.startsWith(p),
+        );
         if (!matchesPrefix) return [];
       }
 
@@ -560,13 +509,16 @@ class StreamService {
       final baseUrl = await AddonUrlResolver.resolve(addon.baseUrl);
       final url = '$baseUrl/stream/$stremioType/$pathId.json';
 
-      final response = await _stremioClient.get(
-        Uri.parse(url),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await _stremioClient
+          .get(
+            Uri.parse(url),
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) return [];
 
@@ -577,14 +529,21 @@ class StreamService {
 
       return streams
           .whereType<Map>()
-          .map((json) => StreamSource.fromJson(Map<String, dynamic>.from(json), addon.manifest.name))
+          .map(
+            (json) => StreamSource.fromJson(
+              Map<String, dynamic>.from(json),
+              addon.manifest.name,
+            ),
+          )
           // A source whose only link is a web page is not something this app
           // can play - it would send the viewer out to a browser - so it is
           // dropped. `stremio://` links stay: they open another title in-app.
-          .where((s) =>
-              s.url != null ||
-              s.infoHash != null ||
-              (s.externalUrl?.startsWith('stremio://') ?? false))
+          .where(
+            (s) =>
+                !s.isMagnet &&
+                (s.url != null ||
+                    (s.externalUrl?.startsWith('stremio://') ?? false)),
+          )
           .toList();
     } catch (e) {
       debugPrint('Addon ${addon.manifest.name} stream fetch failed: $e');

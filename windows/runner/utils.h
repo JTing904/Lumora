@@ -8,6 +8,10 @@
 // it for both the runner and the Flutter library.
 void CreateAndAttachConsole();
 
+// Points stdout and stderr at NUL for a process with no console, so a write
+// to either succeeds and goes nowhere instead of failing.
+void RedirectOutputToNul();
+
 // Takes a null-terminated wchar_t* encoded in UTF-16 and returns a std::string
 // encoded in UTF-8. Returns an empty std::string on failure.
 std::string Utf8FromUtf16(const wchar_t* utf16_string);

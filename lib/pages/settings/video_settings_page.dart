@@ -355,12 +355,6 @@ class _VideoSettingsPageState extends State<VideoSettingsPage> {
                             onSelect: PlayerSettings.setPlaybackEngine,
                           ),
                           const SizedBox(height: 8),
-                          _buildInfoRow(
-                            icon: Icons.info_outline_rounded,
-                            title: l10nCurrent().stgbTorrentsLiveUseMpv,
-                            description:
-                                l10nCurrent().stgbTorrentsLiveUseMpvDesc,
-                          ),
                         ],
                       );
                     },

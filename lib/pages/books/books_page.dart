@@ -135,7 +135,10 @@ class _BooksPageState extends State<BooksPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingMore = false);
+      setState(() {
+        _currentPage--;
+        _loadingMore = false;
+      });
     }
   }
 

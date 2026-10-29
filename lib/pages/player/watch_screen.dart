@@ -1,9 +1,11 @@
 import '../../services/metadata/title_kind_service.dart';
+import '../../services/metadata/episode_art.dart';
 import '../account/login_page.dart' show SignInRequired;
 import '../../services/player/source_pick_settings.dart';
 import '../../services/stream/network_speed.dart';
 import '../../services/stream/auto_source_picker.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/lu_button.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -39,6 +41,10 @@ import '../details/details_page.dart';
 import '../../utils/navigation/route_transitions.dart';
 import '../../services/storage/app_image_cache.dart';
 import '../../widgets/player/lu_player_style.dart';
+import '../../services/official/official_source_loader.dart';
+import '../../widgets/player/official_youtube_player.dart';
+import '../../services/archive/archive_source_loader.dart';
+import '../../widgets/watch_providers/watch_providers_panel.dart';
 
 // ---------------------------------------------------------------------------
 // WatchScreen
@@ -209,12 +215,43 @@ class _WatchScreenState extends State<_WatchScreenBody>
     if (!mounted || _autoCancelled) return;
 
     final pick = _picker.pickNow(_filteredSources);
+    // Nothing the picker can play, but the rights holder's own upload is
+    // there: that is the pick. The picker never races it (it is not a stream).
+    final official = pick == null
+        ? _filteredSources.where(OfficialSourceLoader.isOfficial).firstOrNull
+        : null;
     setState(() {
       _autoPicking = false;
-      _autoFoundNothing = pick == null;
+      _autoFoundNothing = pick == null && official == null;
     });
+    if (official != null) {
+      _openSource(official, alternatives: const []);
+      return;
+    }
     if (pick == null) return;
-    _openSource(pick.source, alternatives: pick.alternatives, autoPicked: true);
+    _openSource(
+      pick.source,
+      alternatives: _archiveSecond(pick.alternatives),
+      autoPicked: true,
+    );
+  }
+
+  /// [queue] with the Internet Archive copy right behind the first pick.
+  ///
+  /// The picker orders by probe speed and quality, so a public-domain file -
+  /// standard definition, on a host slower to answer a probe - sat behind a
+  /// dozen third-party links, past the switcher's last attempt, while those
+  /// links served nothing. It is the one source here known to be lawful and
+  /// still there, so it is the first fallback.
+  static List<StreamSource> _archiveSecond(List<StreamSource> queue) {
+    if (queue.length < 2) return queue;
+    final archive = queue.skip(1).where(ArchiveSourceLoader.isArchive).toList();
+    if (archive.isEmpty) return queue;
+    return [
+      queue.first,
+      ...archive,
+      ...queue.skip(1).where((s) => !ArchiveSourceLoader.isArchive(s)),
+    ];
   }
 
   final List<SubtitleVariant> _discoveredSubtitles = [];
@@ -222,6 +259,20 @@ class _WatchScreenState extends State<_WatchScreenBody>
   Timer? _sourceBatchTimer;
   bool _isLoadingSources = true;
   StreamSubscription<StreamSource>? _streamSub;
+
+  /// The scrapers and the official-upload lookup run side by side; the list
+  /// stops saying "searching" only when both have answered, so an official
+  /// upload replaces the "no sources" state instead of following it.
+  bool _scrapeDone = false;
+  bool _officialPending = false;
+
+  /// The Internet Archive lookup (public-domain films), run beside the two
+  /// above on the same terms.
+  bool _archivePending = false;
+
+  /// Whether every lookup has answered, so the list may stop "searching".
+  bool get _allSourcesAnswered =>
+      _scrapeDone && !_officialPending && !_archivePending;
 
   void _recordSubtitles(List<SubtitleVariant>? subs) {
     if (subs == null || subs.isEmpty) return;
@@ -357,6 +408,18 @@ class _WatchScreenState extends State<_WatchScreenBody>
         : leadingYear(widget.detail.year);
     final effectiveSeason = isColl ? null : widget.selectedEpisode?.season;
     final effectiveEpisode = isColl ? null : widget.selectedEpisode?.episode;
+    int? chineseEpisode;
+    if (!isColl &&
+        effectiveSeason != null &&
+        effectiveSeason > 0 &&
+        effectiveEpisode != null) {
+      chineseEpisode = await EpisodeArt.runningNumber(
+        widget.detail,
+        season: effectiveSeason,
+        episode: effectiveEpisode,
+      );
+      if (!mounted) return;
+    }
 
     _streamSub =
         StreamService.fetchStreams(
@@ -366,6 +429,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
           year: effectiveYear,
           season: effectiveSeason,
           episode: effectiveEpisode,
+          chineseEpisode: chineseEpisode,
           genres: widget.detail.genres,
         ).listen(
           (source) {
@@ -383,12 +447,55 @@ class _WatchScreenState extends State<_WatchScreenBody>
           },
           onError: (_) {},
           onDone: () {
+            _scrapeDone = true;
             _flushPendingSources();
-            if (mounted && _isLoadingSources) {
+            if (mounted && _isLoadingSources && _allSourcesAnswered) {
               setState(() => _isLoadingSources = false);
             }
           },
         );
+
+    if (!isColl) _loadOfficialUploads();
+    if (!isColl) _loadArchiveFilms();
+  }
+
+  /// A public-domain or openly licensed copy on the Internet Archive, matched
+  /// by exact title and year. Fails quietly: no row, nothing else changes.
+  Future<void> _loadArchiveFilms() async {
+    _archivePending = true;
+    final rows = await ArchiveSourceLoader.load(
+      detail: widget.detail,
+      type: widget.type,
+      // Started from initState, where no inherited widget may be read.
+      l10n: l10nCurrent(),
+    );
+    _archivePending = false;
+    if (!mounted) return;
+    _pendingSources.addAll(rows);
+    _flushPendingSources();
+    if (_allSourcesAnswered && _isLoadingSources) {
+      setState(() => _isLoadingSources = false);
+    }
+  }
+
+  /// The rights holder's own full upload on YouTube, when there is one.
+  /// Fails quietly: no row, nothing else changes.
+  Future<void> _loadOfficialUploads() async {
+    _officialPending = true;
+    final rows = await OfficialSourceLoader.load(
+      detail: widget.detail,
+      episode: widget.selectedEpisode,
+      type: widget.type,
+      // Started from initState, where no inherited widget may be read.
+      l10n: l10nCurrent(),
+    );
+    _officialPending = false;
+    if (!mounted) return;
+    _pendingSources.addAll(rows);
+    _flushPendingSources();
+    if (_allSourcesAnswered && _isLoadingSources) {
+      setState(() => _isLoadingSources = false);
+    }
   }
 
   void _flushPendingSources() {
@@ -397,8 +504,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
     if (!mounted || _pendingSources.isEmpty) return;
 
     final bool firstBatch = _sources.isEmpty;
-    final batch = List<StreamSource>.of(_pendingSources);
+    final batch = _pendingSources.where((source) => !source.isMagnet).toList();
     _pendingSources.clear();
+    if (batch.isEmpty) return;
     setState(() {
       _sources.addAll(batch);
     });
@@ -460,6 +568,29 @@ class _WatchScreenState extends State<_WatchScreenBody>
     bool autoPicked = false,
   }) {
     HapticFeedback.lightImpact();
+
+    // The rights holder's own upload plays in YouTube's embedded player,
+    // never in the stream player.
+    final String? officialVideoId = OfficialSourceLoader.videoIdOf(source);
+    if (officialVideoId != null) {
+      CrashBreadcrumbs.stream(
+        'open',
+        title: source.displayTitle,
+        addon: source.addonName,
+      );
+      OfficialYouTubePlayer.open(
+        context,
+        videoId: officialVideoId,
+        title: source.displayTitle,
+        channelName: source.providerName,
+        // Progress and watched marks, as the stream player records them.
+        detail: widget.detail,
+        episode: widget.selectedEpisode,
+        source: source,
+        initialPosition: widget.initialPosition,
+      );
+      return;
+    }
 
     final String? externalUrl = source.externalUrl;
     if (externalUrl != null && externalUrl.isNotEmpty) {
@@ -538,7 +669,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
   String? _selectedAddonFilter;
   String? _selectedSizeFilter;
   String _selectedTypeFilter = 'all'; // 'all', 'debrid', 'torrent', 'direct'
-  String _selectedSeederFilter =
+  final String _selectedSeederFilter =
       'all'; // 'all', 'most', '50+', '20+', '5+', '1+'
   String _selectedAudioFilter =
       'all'; // 'all', 'multi', 'english', 'hindi', 'german', 'french', 'spanish', 'spanish_castilian', 'spanish_latino', 'russian', 'japanese', 'italian'
@@ -640,9 +771,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
 
     // Filter by active status of built-in providers. Torrents stay listed while a
     // Debrid service can resolve them, even with the local P2P engine switched off.
-    if (!AddonManager.instance.isZplayActive && !_debridReady) {
-      list = list.where((s) => !s.isTorrent || s.isDebrid).toList();
-    }
+    list = list.where((s) => !s.isMagnet).toList();
     if (!AddonManager.instance.isZplayHttpActive) {
       list = list
           .where((s) => s.addonName.toLowerCase() != 'zplayhttp')
@@ -716,13 +845,23 @@ class _WatchScreenState extends State<_WatchScreenBody>
     // this is information, not an error, and a refusal only holds until the
     // provider changes its mind. Partitioned by hand because sort() is not
     // stable and would shuffle the ranking it just produced.
+    // The rights holder's own uploads go first: they are the one source here
+    // that is licensed to play.
+    final official = <StreamSource>[];
     final usable = <StreamSource>[];
     final refused = <StreamSource>[];
     for (final s in list) {
+      // The Internet Archive's public-domain copies are licensed to play
+      // too, so they sit with the official uploads.
+      if (OfficialSourceLoader.isOfficial(s) ||
+          ArchiveSourceLoader.isArchive(s)) {
+        official.add(s);
+        continue;
+      }
       (DebridRejectionStore.instance.isRejected(s.infoHash) ? refused : usable)
           .add(s);
     }
-    return <StreamSource>[...usable, ...refused];
+    return <StreamSource>[...official, ...usable, ...refused];
   }
 
   /// The ranked remainder behind [index] in the visible list, minus the torrents
@@ -733,25 +872,13 @@ class _WatchScreenState extends State<_WatchScreenBody>
     final store = DebridRejectionStore.instance;
     return list
         .skip(index + 1)
-        .where((s) => !store.isRejected(s.infoHash))
+        .where(
+          (s) =>
+              !store.isRejected(s.infoHash) &&
+              // An official upload is not a stream the player can fall to.
+              !OfficialSourceLoader.isOfficial(s),
+        )
         .toList();
-  }
-
-  String _getSeederFilterLabel(String filter) {
-    switch (filter) {
-      case 'most':
-        return l10nOf(context).watchSeedsMost;
-      case '50+':
-        return l10nOf(context).watchSeedsAtLeast(50);
-      case '20+':
-        return l10nOf(context).watchSeedsAtLeast(20);
-      case '5+':
-        return l10nOf(context).watchSeedsAtLeast(5);
-      case '1+':
-        return l10nOf(context).watchSeedsActive;
-      default:
-        return l10nOf(context).watchSeedsAll;
-    }
   }
 
   String _getSizeFilterLabel(String? filter) {
@@ -1014,12 +1141,6 @@ class _WatchScreenState extends State<_WatchScreenBody>
                             luTokens.info,
                           ),
                           _buildTypeChip(
-                            'torrent',
-                            '🧲 ${l10nOf(context).watchFilterTorrents(_sources.where((s) => s.isTorrent).length)}',
-                            Icons.share_rounded,
-                            luTokens.accent,
-                          ),
-                          _buildTypeChip(
                             'direct',
                             '🌐 ${l10nOf(context).watchFilterDirect(_sources.where((s) => s.isHttpDirect).length)}',
                             Icons.link_rounded,
@@ -1033,13 +1154,18 @@ class _WatchScreenState extends State<_WatchScreenBody>
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          _buildSeederFilterDropdown(),
                           _buildSizeFilterDropdown(),
                           _buildAddonFilterDropdown(),
                           _buildAudioFilterDropdown(),
                         ],
                       ),
                     ],
+                    if (!_isCollection)
+                      WatchProvidersPanel(
+                        detail: widget.detail,
+                        type: widget.type,
+                        padding: const EdgeInsets.only(top: ZplaySpacing.s12),
+                      ),
                     const SizedBox(height: ZplaySpacing.s16),
                   ],
                 ),
@@ -1136,6 +1262,9 @@ class _WatchScreenState extends State<_WatchScreenBody>
             child: Text(
               _isCollection
                   ? l10nCurrent().ply2PartCaps(ep.episode ?? 1)
+                  : ep.displayNumber != null
+                  // A show counted straight through: 第194集, not S8E22.
+                  ? l10nCurrent().panelEpisode('${ep.displayNumber}')
                   : 'S${ep.season ?? '?'}E${ep.episode ?? '?'}',
               style: ZplayType.label
                   .copyWith(weight: FontWeight.w700, letterSpacing: 0.5)
@@ -1154,7 +1283,7 @@ class _WatchScreenState extends State<_WatchScreenBody>
           Padding(
             padding: const EdgeInsets.only(bottom: ZplaySpacing.s12),
             child: Text(
-              ep.title,
+              _episodeTitle(ep.title),
               style: ZplayType.title.toStyle(
                 color: luTokens.textPrimary.withValues(alpha: 0.85),
               ),
@@ -1197,6 +1326,14 @@ class _WatchScreenState extends State<_WatchScreenBody>
         const SizedBox(height: ZplaySpacing.s24),
       ],
     );
+  }
+
+  /// TMDb names an episode it knows nothing about "Episode 196"; that
+  /// placeholder reads in the app's language, a real title as written.
+  String _episodeTitle(String title) {
+    final n = RegExp(r'^Episode (\d+)$').firstMatch(title.trim());
+    if (n == null) return title;
+    return l10nOf(context).panelEpisode(n.group(1)!);
   }
 
   String? _getSynopsis() {
@@ -1609,12 +1746,6 @@ class _WatchScreenState extends State<_WatchScreenBody>
                 luTokens.info,
               ),
               _buildTypeChip(
-                'torrent',
-                '🧲 ${l10nOf(context).watchFilterTorrents(_sources.where((s) => s.isTorrent).length)}',
-                Icons.share_rounded,
-                luTokens.accent,
-              ),
-              _buildTypeChip(
                 'direct',
                 '🌐 ${l10nOf(context).watchFilterDirect(_sources.where((s) => s.isHttpDirect).length)}',
                 Icons.link_rounded,
@@ -1628,7 +1759,6 @@ class _WatchScreenState extends State<_WatchScreenBody>
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _buildSeederFilterDropdown(),
               _buildSizeFilterDropdown(),
               _buildAddonFilterDropdown(),
               _buildAudioFilterDropdown(),
@@ -1636,6 +1766,14 @@ class _WatchScreenState extends State<_WatchScreenBody>
           ),
           const SizedBox(height: ZplaySpacing.s12),
         ],
+
+        // Where to watch: official services, opened in their own apps.
+        if (!_isCollection)
+          WatchProvidersPanel(
+            detail: widget.detail,
+            type: widget.type,
+            padding: const EdgeInsets.only(bottom: ZplaySpacing.s12),
+          ),
 
         // Source list
         if (isDesktop)
@@ -1823,261 +1961,6 @@ class _WatchScreenState extends State<_WatchScreenBody>
     );
 
     return list;
-  }
-
-  Widget _buildSeederFilterDropdown() {
-    final currentText = _getSeederFilterLabel(_selectedSeederFilter);
-
-    return Builder(
-      builder: (buttonContext) {
-        return FocusableCard(
-          onTap: () => _isDesktop()
-              ? _showSeederGlassDropdown(buttonContext)
-              : _showSeederBottomSheet(),
-          builder: (context, _) => DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: ZplayRadius.mdAll,
-              boxShadow: [
-                BoxShadow(
-                  color: luTokens.bg.withValues(alpha: 0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: PerformanceLiquidLens(
-              style: PerformanceGlassStyles.menuButton,
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  borderRadius: ZplayRadius.mdAll,
-                  border: Border.all(
-                    color: _selectedSeederFilter != 'all'
-                        ? luTokens.success.withValues(alpha: 0.6)
-                        : luTokens.textPrimary.withValues(
-                            alpha: ZplayOpacity.overlayHover,
-                          ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.people_alt_rounded,
-                      color: _selectedSeederFilter != 'all'
-                          ? luTokens.success
-                          : luTokens.textEmphasis,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      currentText,
-                      style: ZplayType.label
-                          .copyWith(weight: FontWeight.w600)
-                          .toStyle(
-                            color: _selectedSeederFilter != 'all'
-                                ? luTokens.success
-                                : luTokens.textPrimary,
-                          ),
-                    ),
-                    const SizedBox(width: ZplaySpacing.s4),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      color: luTokens.textEmphasis,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showSeederGlassDropdown(BuildContext buttonContext) {
-    final RenderBox button = buttonContext.findRenderObject() as RenderBox;
-    final RenderBox overlay =
-        Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
-    final Offset buttonOffset = button.localToGlobal(
-      Offset.zero,
-      ancestor: overlay,
-    );
-    const double dialogWidth = 230.0;
-    final double spaceBelow =
-        overlay.size.height - (buttonOffset.dy + button.size.height + 8) - 16;
-    final double spaceAbove = buttonOffset.dy - 16;
-    final bool openAbove = spaceBelow < 280 && spaceAbove > spaceBelow;
-
-    final double maxMenuHeight = (openAbove ? spaceAbove : spaceBelow).clamp(
-      160.0,
-      420.0,
-    );
-    final double? topOffset = openAbove
-        ? null
-        : (buttonOffset.dy + button.size.height + 8);
-    final double? bottomOffset = openAbove
-        ? (overlay.size.height - buttonOffset.dy + 8)
-        : null;
-
-    final double rawLeft = buttonOffset.dx;
-    final double maxLeft = overlay.size.width - dialogWidth - 12.0;
-    final double leftOffset = rawLeft.clamp(
-      12.0,
-      maxLeft > 12.0 ? maxLeft : 12.0,
-    );
-
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: l10nCurrent().plyDismiss,
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 250),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned(
-              top: topOffset,
-              bottom: bottomOffset,
-              left: leftOffset,
-              child: Material(
-                color: Colors.transparent,
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut,
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, (openAbove ? 10 : -10) * (1 - value)),
-                      child: Opacity(
-                        opacity: value.clamp(0.0, 1.0),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: ZplayRadius.mdAll,
-                      boxShadow: [
-                        BoxShadow(
-                          color: luTokens.bg.withValues(alpha: 0.60),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: PerformanceLiquidLens(
-                      style: PerformanceGlassStyles.menu,
-                      child: Container(
-                        width: dialogWidth,
-                        constraints: BoxConstraints(maxHeight: maxMenuHeight),
-                        padding: const EdgeInsets.all(ZplaySpacing.s8),
-                        decoration: BoxDecoration(
-                          borderRadius: ZplayRadius.mdAll,
-                          border: Border.all(
-                            color: luTokens.textPrimary.withValues(
-                              alpha: ZplayOpacity.overlayHover,
-                            ),
-                          ),
-                        ),
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSeederDropdownItem(
-                                l10nOf(context).watchSeedsAll,
-                                'all',
-                              ),
-                              const SizedBox(height: ZplaySpacing.s4),
-                              Container(
-                                height: 1,
-                                color: luTokens.textPrimary.withValues(
-                                  alpha: ZplayOpacity.borderMedium,
-                                ),
-                              ),
-                              const SizedBox(height: ZplaySpacing.s4),
-                              _buildSeederDropdownItem(
-                                l10nOf(context).watchSeedsMostLong,
-                                'most',
-                              ),
-                              _buildSeederDropdownItem(
-                                l10nOf(context).watchSeedsAtLeast(50),
-                                '50+',
-                              ),
-                              _buildSeederDropdownItem(
-                                l10nOf(context).watchSeedsAtLeast(20),
-                                '20+',
-                              ),
-                              _buildSeederDropdownItem(
-                                l10nOf(context).watchSeedsAtLeast(5),
-                                '5+',
-                              ),
-                              _buildSeederDropdownItem(
-                                l10nOf(context).watchSeedsActiveLong,
-                                '1+',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSeederDropdownItem(String title, String value) {
-    final isSelected = _selectedSeederFilter == value;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedSeederFilter = value;
-        });
-        Navigator.pop(context);
-      },
-      borderRadius: ZplayRadius.mdAll,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-        decoration: BoxDecoration(
-          borderRadius: ZplayRadius.mdAll,
-          color: isSelected
-              ? luTokens.textPrimary.withValues(
-                  alpha: ZplayOpacity.borderMedium,
-                )
-              : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: ZplayType.body
-                    .copyWith(
-                      weight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    )
-                    .toStyle(
-                      color: isSelected
-                          ? luTokens.textPrimary
-                          : luTokens.textEmphasis,
-                    ),
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: luTokens.success, size: 18),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildSizeFilterDropdown() {
@@ -3150,121 +3033,6 @@ class _WatchScreenState extends State<_WatchScreenBody>
     );
   }
 
-  void _showSeederBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return _buildGlassBottomSheetContainer(
-          context: context,
-          header: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(ZplaySpacing.s8),
-                decoration: BoxDecoration(
-                  color: luTokens.success.withValues(
-                    alpha: ZplayOpacity.overlayHover,
-                  ),
-                  borderRadius: ZplayRadius.smAll,
-                ),
-                child: Icon(
-                  Icons.people_alt_rounded,
-                  color: luTokens.success,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: ZplaySpacing.s12),
-              Expanded(
-                child: Text(
-                  l10nOf(context).watchSeedersFilter,
-                  style: ZplayType.subtitle
-                      .copyWith(weight: FontWeight.w700)
-                      .toStyle(color: luTokens.textPrimary),
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.close,
-                  color: luTokens.textSecondary,
-                  size: 20,
-                ),
-                onPressed: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.55,
-            ),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildBottomSheetItem(
-                    title: l10nOf(context).watchSeedsAll,
-                    isSelected: _selectedSeederFilter == 'all',
-                    activeColor: luTokens.success,
-                    onTap: () {
-                      setState(() => _selectedSeederFilter = 'all');
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  _buildBottomSheetItem(
-                    title: l10nOf(context).watchSeedsMostLong,
-                    isSelected: _selectedSeederFilter == 'most',
-                    activeColor: luTokens.success,
-                    onTap: () {
-                      setState(() => _selectedSeederFilter = 'most');
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  _buildBottomSheetItem(
-                    title: l10nOf(context).watchSeedsAtLeast(50),
-                    isSelected: _selectedSeederFilter == '50+',
-                    activeColor: luTokens.success,
-                    onTap: () {
-                      setState(() => _selectedSeederFilter = '50+');
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  _buildBottomSheetItem(
-                    title: l10nOf(context).watchSeedsAtLeast(20),
-                    isSelected: _selectedSeederFilter == '20+',
-                    activeColor: luTokens.success,
-                    onTap: () {
-                      setState(() => _selectedSeederFilter = '20+');
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  _buildBottomSheetItem(
-                    title: l10nOf(context).watchSeedsAtLeast(5),
-                    isSelected: _selectedSeederFilter == '5+',
-                    activeColor: luTokens.success,
-                    onTap: () {
-                      setState(() => _selectedSeederFilter = '5+');
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  _buildBottomSheetItem(
-                    title: l10nOf(context).watchSeedsActiveLong,
-                    isSelected: _selectedSeederFilter == '1+',
-                    activeColor: luTokens.success,
-                    onTap: () {
-                      setState(() => _selectedSeederFilter = '1+');
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void _showSizeBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -3593,84 +3361,20 @@ class _SourceCardState extends State<_SourceCard> {
   /// The node the row focusses through when the screen has not named one.
   ///
   /// Owned here rather than left to [FocusableCard]'s own internal node,
-  /// because the row has to be able to put focus back on itself after the
-  /// remote has stepped into the action beside it, and that node is private.
+  /// because the screen hands focus to the first source after it loads.
   final FocusNode _ownedRowNode = FocusNode(debugLabel: 'WatchSourceRow');
 
-  /// The row's own action - the copy-magnet button - as its own focus stop.
-  ///
-  /// [FocusNode.skipTraversal] is what keeps this stop out of the arrows a
-  /// viewer presses to walk the list. It is not reachable by a directional
-  /// search anyway (it sits inside the row's own rectangle, and the search only
-  /// looks *beyond* the focused node), but without this it is a *candidate* for
-  /// one: the in-band rule then prefers whatever lines up closest to the remote,
-  /// and the button - which sits directly under the button above it - wins over
-  /// the row it belongs to, so Down would step from action to action and skip
-  /// the rows in between. Skipping it here leaves the vertical arrows to the list
-  /// and the horizontal pair to [_onRowKeyEvent].
-  final FocusNode _actionNode = FocusNode(
-    debugLabel: 'WatchSourceRowAction',
-    skipTraversal: true,
-  );
-
   FocusNode get _rowNode => widget.focusNode ?? _ownedRowNode;
-
-  /// Whether this row offers anything besides its own activation.
-  ///
-  /// Only a torrent does. The magnet link is what hands the stream to another
-  /// app; a direct link has nothing to copy, and on such a row Right stays what
-  /// it was - a key the list has nothing on.
-  bool get _hasRowAction =>
-      widget.source.isMagnet && widget.source.magnetUrl != null;
 
   @override
   void dispose() {
     _ownedRowNode.dispose();
-    _actionNode.dispose();
     super.dispose();
   }
 
   /// Longest stored rejection reason that still fits the badge row. Anything
   /// longer falls back to plain 'Unavailable', because a chip is not a sentence.
   static const int _rejectionBadgeMaxChars = 24;
-
-  /// The row's own key handling, for the one move the framework cannot make.
-  ///
-  /// A nested stop cannot be found by directional traversal: the search looks
-  /// for a target beyond the focused node's rectangle, and this button sits
-  /// *inside* the row's own rectangle, so the arrow that ought to reach it finds
-  /// nothing. The row therefore makes that one move itself.
-  ///
-  /// Right is the key, because the button is drawn at the right end of the row:
-  /// it is the move a viewer already makes towards the next control along a row,
-  /// and - a single column having no neighbour to its right - it is a key this
-  /// list had nothing on, which the device pass that found this measured as a
-  /// dead press. Left is claimed only on the way *out* of the action, where the
-  /// framework's own search would otherwise decide between the row and whatever
-  /// else lines up beside it; on the row itself Left is left alone, because on
-  /// this screen that is how focus leaves the list for the column beside it.
-  /// Up and down are never touched: they walk the list from either stop, which
-  /// is what keeps a remote from getting stuck inside one row.
-  KeyEventResult _onRowKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      if (_actionNode.hasFocus) {
-        _rowNode.requestFocus();
-      } else {
-        _actionNode.requestFocus();
-      }
-      return KeyEventResult.handled;
-    }
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-        _actionNode.hasFocus) {
-      _rowNode.requestFocus();
-      return KeyEventResult.handled;
-    }
-
-    return KeyEventResult.ignored;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -3790,7 +3494,7 @@ class _SourceCardState extends State<_SourceCard> {
       // of the primary focus - including an ancestor whose own inner control is
       // the one holding it.
       child: ListenableBuilder(
-        listenable: _actionNode,
+        listenable: _rowNode,
         builder: (context, _) => FocusableCard(
           focusNode: _rowNode,
           onTap: widget.onActivate,
@@ -3810,7 +3514,7 @@ class _SourceCardState extends State<_SourceCard> {
             // and this one stands down. The wash stays on `highlighted`, so the row
             // the action belongs to still reads as the active row.
             return CardFocusRing(
-              focused: state.focused && !_actionNode.hasFocus,
+              focused: state.focused,
               radius: ZplayRadius.smAll,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -3841,7 +3545,11 @@ class _SourceCardState extends State<_SourceCard> {
                 child: Row(
                   children: [
                     // Addon icon
-                    _AddonSourceIcon(addonName: s.addonName),
+                    OfficialSourceLoader.isOfficial(s)
+                        ? const _OfficialSourceIcon()
+                        : ArchiveSourceLoader.isArchive(s)
+                        ? const _ArchiveSourceIcon()
+                        : _AddonSourceIcon(addonName: s.addonName),
                     const SizedBox(width: ZplaySpacing.s12),
                     // Info
                     Expanded(
@@ -3886,14 +3594,6 @@ class _SourceCardState extends State<_SourceCard> {
                       ),
                     ),
                     const SizedBox(width: ZplaySpacing.s8),
-                    if (s.isMagnet && s.magnetUrl != null) ...[
-                      _CopyMagnetButton(
-                        focusNode: _actionNode,
-                        focused: _actionNode.hasFocus,
-                        magnetUrl: s.magnetUrl!,
-                      ),
-                      const SizedBox(width: ZplaySpacing.s8),
-                    ],
                     // Play chevron
                     Container(
                       width: 36,
@@ -3924,17 +3624,7 @@ class _SourceCardState extends State<_SourceCard> {
     final Widget shown = widget.deadReason == null
         ? row
         : Opacity(opacity: 0.45, child: row);
-    if (!_hasRowAction) return shown;
-
-    // The row's key handling, on the row rather than on its focus node:
-    // `canRequestFocus: false` and `skipTraversal: true` make this a listener
-    // for keys that bubble up from the row or its action, not a stop of its own.
-    return Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
-      onKeyEvent: _onRowKeyEvent,
-      child: shown,
-    );
+    return shown;
   }
 
   Widget _badge(String text, Color color) {
@@ -3950,6 +3640,54 @@ class _SourceCardState extends State<_SourceCard> {
         style: ZplayType.caption
             .copyWith(weight: FontWeight.w700, letterSpacing: 0.3)
             .toStyle(color: color),
+      ),
+    );
+  }
+}
+
+/// The mark on an "Official on YouTube" row: a play badge, so the rights
+/// holder's own upload reads apart from the scraped sources under it.
+class _OfficialSourceIcon extends StatelessWidget {
+  const _OfficialSourceIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: luTokens.danger.withValues(alpha: ZplayOpacity.overlayHover),
+        borderRadius: ZplayRadius.smAll,
+        border: Border.all(color: luTokens.danger.withValues(alpha: 0.4)),
+      ),
+      child: Icon(
+        Icons.smart_display_rounded,
+        color: luTokens.danger,
+        size: 24,
+      ),
+    );
+  }
+}
+
+/// The mark on an "Internet Archive" row: a library, so a public-domain copy
+/// reads apart from the scraped sources.
+class _ArchiveSourceIcon extends StatelessWidget {
+  const _ArchiveSourceIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: luTokens.success.withValues(alpha: ZplayOpacity.overlayHover),
+        borderRadius: ZplayRadius.smAll,
+        border: Border.all(color: luTokens.success.withValues(alpha: 0.4)),
+      ),
+      child: Icon(
+        Icons.account_balance_rounded,
+        color: luTokens.success,
+        size: 22,
       ),
     );
   }
@@ -4089,163 +3827,6 @@ class _AddonSourceIcon extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Copy Magnet Button
-// ─────────────────────────────────────────────────────────────────────────────
-/// The row's own action, as a real focus target.
-///
-/// The `InkWell` that was this whole control is pointer-only in effect: it
-/// installs a focus node, but nothing can move focus onto it (see
-/// [_SourceCardState._onRowKeyEvent]) and it drew nothing when focus
-/// was on it, so on a television the button did not exist. It is now the house
-/// pair - [FocusableCard] for the node and the `ActivateIntent` binding,
-/// [CardFocusRing] for the one indicator - with the `InkWell` kept inside for
-/// its shape and ripple and cooled with [ExcludeFocus], the same way
-/// `player_loading_overlay.dart` rings the player's two escape actions.
-class _CopyMagnetButton extends StatefulWidget {
-  final String magnetUrl;
-
-  /// Supplied by the row, which owns the stop so it can hand the remote into it.
-  final FocusNode? focusNode;
-
-  /// Whether the remote is on this button.
-  ///
-  /// Handed in rather than read from the button's own focus state, and that is
-  /// load bearing. The row's ring stands down while the remote is here - the row's
-  /// node still reports focus either way, because `hasFocus` counts descendants -
-  /// and that flip rebuilds this subtree, `CardFocusRing` building a different
-  /// tree lit than unlit. A ring read from inside would therefore be reset by the
-  /// very transition that lights it; the row computes the answer above that
-  /// flip.
-  final bool focused;
-
-  const _CopyMagnetButton({
-    required this.magnetUrl,
-    this.focusNode,
-    required this.focused,
-  });
-
-  @override
-  State<_CopyMagnetButton> createState() => _CopyMagnetButtonState();
-}
-
-class _CopyMagnetButtonState extends State<_CopyMagnetButton> {
-  bool _copied = false;
-  bool _hovered = false;
-  Timer? _timer;
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _copy() {
-    Clipboard.setData(ClipboardData(text: widget.magnetUrl));
-    HapticFeedback.lightImpact();
-
-    setState(() => _copied = true);
-    _timer?.cancel();
-    _timer = Timer(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _copied = false);
-    });
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle_rounded, color: luTokens.success, size: 18),
-            const SizedBox(width: ZplaySpacing.s8),
-            Text(
-              l10nOf(context).watchMagnetCopied,
-              style: ZplayType.label
-                  .copyWith(weight: FontWeight.w600)
-                  .toStyle(color: luTokens.textPrimary),
-            ),
-          ],
-        ),
-        backgroundColor: luTokens.surfaceRaised,
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(borderRadius: ZplayRadius.smAll),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FocusableCard(
-      focusNode: widget.focusNode,
-      onTap: _copy,
-      builder: (context, _) => CardFocusRing(
-        focused: widget.focused,
-        // The button is a circle, so the ring has to be one too.
-        radius: ZplayRadius.fullAll,
-        child: ExcludeFocus(
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: Tooltip(
-              message: _copied
-                  ? l10nOf(context).watchCopied
-                  : l10nOf(context).watchCopyMagnet,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _copy,
-                  borderRadius: ZplayRadius.mdAll,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: _copied
-                          ? luTokens.success.withValues(alpha: 0.2)
-                          : (_hovered
-                                ? luTokens.info.withValues(alpha: 0.18)
-                                : luTokens.textPrimary.withValues(
-                                    alpha: ZplayOpacity.borderSubtle,
-                                  )),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _copied
-                            ? luTokens.success.withValues(alpha: 0.5)
-                            : (_hovered
-                                  ? luTokens.info.withValues(alpha: 0.4)
-                                  : luTokens.textPrimary.withValues(
-                                      alpha: ZplayOpacity.borderDefault,
-                                    )),
-                        width: 1,
-                      ),
-                    ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        _copied ? Icons.check_rounded : Icons.link_rounded,
-                        key: ValueKey(_copied),
-                        color: _copied
-                            ? luTokens.success
-                            : (_hovered
-                                  ? luTokens.info
-                                  : luTokens.textSecondary),
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer Card
 // ─────────────────────────────────────────────────────────────────────────────
 class _ShimmerCard extends StatefulWidget {
   const _ShimmerCard();
@@ -4442,59 +4023,14 @@ class _EmptySourcesStateWidgetState extends State<_EmptySourcesStateWidget>
             ),
           ),
           const SizedBox(height: ZplaySpacing.s32),
-          FocusableCard(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            },
-            builder: (context, state) {
-              final isHovering = state.highlighted;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: ZplayRadius.xlAll,
-                  gradient: LinearGradient(
-                    colors: [luTokens.accent, luTokens.success],
-                  ),
-                  boxShadow: isHovering
-                      ? [
-                          BoxShadow(
-                            color: luTokens.accent.withValues(alpha: 0.4),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : [],
-                ),
-                child: AnimatedScale(
-                  scale: isHovering ? 1.05 : 1.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.extension_rounded,
-                        color: luTokens.textPrimary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: ZplaySpacing.s8),
-                      Text(
-                        l10nOf(context).watchInstallAddons,
-                        style: ZplayType.body
-                            .copyWith(weight: FontWeight.w600)
-                            .toStyle(color: luTokens.textPrimary),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+          LuButton(
+            label: l10nOf(context).watchInstallAddons,
+            icon: Icons.extension_rounded,
+            compact: true,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
           ),
         ],
       ),

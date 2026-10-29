@@ -22,8 +22,9 @@ AppLocalizations l10nOf(BuildContext context) =>
 AppLocalizations l10nCurrent() {
   final chosen =
       LocaleSettings.locale.value ?? PlatformDispatcher.instance.locale;
-  final supported = AppLocalizations.supportedLocales
-      .any((l) => l.languageCode == chosen.languageCode);
+  final supported = AppLocalizations.supportedLocales.any(
+    (l) => l.languageCode == chosen.languageCode,
+  );
   return lookupAppLocalizations(
     supported ? Locale(chosen.languageCode) : const Locale('en'),
   );
@@ -46,4 +47,57 @@ String localizedCatalogName(String name) {
     'calendar videos': '播出日历',
   };
   return zh[name.trim().toLowerCase()] ?? name;
+}
+
+/// An AniList or TMDb genre name in the app's language. Names it does not
+/// know stay as they are.
+String localizedGenre(String name) {
+  if (l10nCurrent().localeName != 'zh') return name;
+  const zh = <String, String>{
+    'action': '动作',
+    'adventure': '冒险',
+    'comedy': '喜剧',
+    'drama': '剧情',
+    'fantasy': '奇幻',
+    'horror': '恐怖',
+    'mahou shoujo': '魔法少女',
+    'mecha': '机甲',
+    'music': '音乐',
+    'mystery': '悬疑',
+    'psychological': '心理',
+    'romance': '爱情',
+    'sci-fi': '科幻',
+    'slice of life': '日常',
+    'sports': '运动',
+    'supernatural': '超自然',
+    'thriller': '惊悚',
+  };
+  return zh[name.trim().toLowerCase()] ?? name;
+}
+
+/// An AniList format (TV, MOVIE, ONA...) as the app shows it.
+String localizedAnimeFormat(String format) {
+  final zh = l10nCurrent().localeName == 'zh';
+  return switch (format.toUpperCase()) {
+    'TV' => zh ? 'TV 动画' : 'TV Series',
+    'TV_SHORT' => zh ? '泡面番' : 'TV Short',
+    'MOVIE' => zh ? '剧场版' : 'Movie',
+    'SPECIAL' => zh ? '特别篇' : 'Special',
+    'OVA' => 'OVA',
+    'ONA' => zh ? '网络动画' : 'ONA',
+    'MUSIC' => zh ? '音乐 MV' : 'Music',
+    _ => format,
+  };
+}
+
+/// An AniList season (WINTER, SPRING...) as the app shows it.
+String localizedAnimeSeason(String season) {
+  final zh = l10nCurrent().localeName == 'zh';
+  return switch (season.toUpperCase()) {
+    'WINTER' => zh ? '冬季' : 'Winter',
+    'SPRING' => zh ? '春季' : 'Spring',
+    'SUMMER' => zh ? '夏季' : 'Summer',
+    'FALL' => zh ? '秋季' : 'Fall',
+    _ => season,
+  };
 }

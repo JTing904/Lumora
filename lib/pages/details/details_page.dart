@@ -7,11 +7,11 @@ import '../../models/movie/movie.dart';
 import '../../models/movie/movie_detail.dart';
 import '../../models/movie/video.dart';
 import '../../models/my_list/my_list_item.dart';
-import '../../services/cloudstream/cloudstream_manager.dart';
 import '../../services/continue_watching/continue_watching_service.dart';
 import '../../services/continue_watching/watched_episodes.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/metadata/bestsimilar_scraper.dart';
+import '../../services/metadata/episode_art.dart';
 import '../../services/metadata/localized_meta.dart';
 import '../../services/metadata/metadata_service.dart';
 import '../../services/metadata/tmdb_catalog.dart';
@@ -29,6 +29,7 @@ import '../../widgets/common/trailer_modal.dart';
 import '../discover/discover_page.dart';
 import '../player/watch_screen.dart';
 import 'episode_number_grid.dart';
+import '../../widgets/watch_providers/watch_providers_panel.dart';
 
 /// A `bestsimilar_` row resolved to real details: the meta that was found plus
 /// the identity it was found under, so the page can report the winning addon
@@ -97,6 +98,17 @@ class _DetailsPageState extends State<DetailsPage> {
         !_isCollection;
   }
 
+  /// The number viewers know [season]x[episode] by (see
+  /// [Video.displayNumber]).
+  int _shownNumberOf(int? season, int episode) {
+    for (final v in _detail?.videos ?? const <Video>[]) {
+      if (v.season == season && v.episode == episode) {
+        return v.shownNumber ?? episode;
+      }
+    }
+    return episode;
+  }
+
   /// The primary action's words: where the viewer is, not just "play".
   String get _playLabel {
     final l10n = l10nOf(context);
@@ -104,13 +116,16 @@ class _DetailsPageState extends State<DetailsPage> {
     if (resume != null) {
       final time = _clock(resume.positionSeconds);
       return resume.episode != null
-          ? l10n.detailsResumeEpisode(resume.episode!, time)
+          ? l10n.detailsResumeEpisode(
+              _shownNumberOf(resume.season, resume.episode!),
+              time,
+            )
           : l10n.detailsResume(time);
     }
     if (_nextUp case final next?) {
-      return (next.season ?? 1) > 1
+      return (next.season ?? 1) > 1 && next.displayNumber == null
           ? l10n.detailsPlaySeasonEpisode(next.season!, next.episode!)
-          : l10n.detailsPlayEpisode(next.episode!);
+          : l10n.detailsPlayEpisode(next.shownNumber!);
     }
     return _isCollection
         ? l10n.detailsPlayFirstMovie
@@ -202,6 +217,24 @@ class _DetailsPageState extends State<DetailsPage> {
 
   Future<void> _handlePlayAction(Video? ep) async {
     if (_detail == null) return;
+    // An episode that has not aired has nothing to find yet: say when it
+    // comes out instead of opening a source search that can only fail.
+    if (ep != null && !episodeIsOut(ep)) {
+      final day = episodeAirDay(ep)!;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              l10nOf(context).epNotOutYet(
+                '${ep.shownNumber ?? ''}',
+                episodeAirLabel(context, day),
+              ),
+            ),
+          ),
+        );
+      return;
+    }
     Navigator.push(
       context,
       CinematicSlideRoute(
@@ -251,49 +284,26 @@ class _DetailsPageState extends State<DetailsPage> {
       }
     }
 
-    // Handle direct CloudStream detail resolution
+    // Legacy CloudStream entries are no longer resolvable.
     if (effectiveId.startsWith('cloudstream:') ||
+        effectiveId.startsWith('cloudstream_ep:') ||
         effectiveBaseUrl == 'cloudstream') {
-      final parts = effectiveId.split(':');
-      if (parts.length >= 3) {
-        final sourceId = parts[1];
-        final mediaUrl = Uri.decodeComponent(parts.sublist(2).join(':'));
-        final csDetail = await CloudStreamManager.instance
-            .fetchCloudStreamDetail(
-              sourceId: sourceId,
-              mediaUrl: mediaUrl,
-              fallbackTitle: widget.movie.name,
-              fallbackPoster: widget.movie.poster,
-            );
-        if (csDetail != null) {
-          if (mounted) {
-            setState(() {
-              _detail = csDetail;
-              _resolvedType = csDetail.type;
-              _isLoading = false;
-
-              if (csDetail.videos.isNotEmpty) {
-                final seasons = csDetail.videos
-                    .map((v) => v.season)
-                    .where((s) => s != null)
-                    .toSet()
-                    .toList();
-                seasons.sort();
-                if (seasons.isNotEmpty) {
-                  _selectedSeason = _openingSeason(seasons);
-                  _updateEpisodesForSeason();
-                } else {
-                  _currentSeasonEpisodes = List.from(csDetail.videos);
-                }
-              }
-            });
-            _claimPrimaryActionFocus();
-
-            _fetchSimilarContent();
-          }
-          return;
-        }
+      await Future<void>.delayed(Duration.zero);
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            content: Text(l10nOf(context).detailsSourceNoLongerSupported),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l10nOf(context).detailsGoBack),
+              ),
+            ],
+          ),
+        );
       }
+      return;
     }
 
     // Bestsimilar rows carry the scraper's own id (`bestsimilar_10856`), not
@@ -385,6 +395,7 @@ class _DetailsPageState extends State<DetailsPage> {
 
       // Fire off similar content fetch in background
       _fetchSimilarContent();
+      if (meta != null) _addEpisodeArt(meta);
     }
   }
 
@@ -407,6 +418,25 @@ class _DetailsPageState extends State<DetailsPage> {
     });
     _claimPrimaryActionFocus();
     _fetchSimilarContent();
+    _addEpisodeArt(meta);
+  }
+
+  /// TMDb's stills and episode names, once they arrive, over the addon's
+  /// missing images and "Episode 4" placeholders. Episode ids are untouched.
+  void _addEpisodeArt(MovieDetail meta) {
+    EpisodeArt.enrich(meta).then((better) {
+      if (!mounted || identical(better, meta) || !identical(_detail, meta)) {
+        return;
+      }
+      setState(() {
+        _detail = better;
+        if (_selectedSeason != null) {
+          _currentSeasonEpisodes =
+              better.videos.where((v) => v.season == _selectedSeason).toList()
+                ..sort((a, b) => (a.episode ?? 0).compareTo(b.episode ?? 0));
+        }
+      });
+    });
   }
 
   /// Resolves a `bestsimilar_` row to real details.
@@ -776,6 +806,15 @@ class _DetailsPageState extends State<DetailsPage> {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: header),
+        // Where to watch: official services, opened in their own apps.
+        if (!_isCollection)
+          SliverToBoxAdapter(
+            child: WatchProvidersPanel(
+              detail: meta,
+              type: _resolvedType ?? meta.type,
+              padding: EdgeInsets.fromLTRB(pad, 24, pad, 0),
+            ),
+          ),
         if (meta.videos.isNotEmpty)
           SliverToBoxAdapter(child: _buildEpisodes(pad)),
         if (meta.cast.isNotEmpty)
@@ -835,7 +874,24 @@ class _DetailsPageState extends State<DetailsPage> {
       if (meta.year case final y? when y.isNotEmpty)
         Text(y, style: LuText.bodySoft),
       if (_isSeries)
-        if (meta.videos.map((v) => v.season).whereType<int>().toSet().length
+        // A show counted straight through says how many episodes it has;
+        // otherwise the seasons, specials (season 0) not counted as one.
+        if (meta.videos.any((v) => v.displayNumber != null))
+          Text(
+            l10n.wgAniEpisodeCount(
+              meta.videos
+                  .where((v) => (v.season ?? 0) > 0)
+                  .map((v) => v.shownNumber ?? 0)
+                  .fold<int>(0, (a, b) => a > b ? a : b),
+            ),
+            style: LuText.bodySoft,
+          )
+        else if (meta.videos
+                .map((v) => v.season)
+                .whereType<int>()
+                .where((s) => s > 0)
+                .toSet()
+                .length
             case final n when n > 0)
           Text(l10n.detailsSeasonCount(n), style: LuText.bodySoft),
       if (!_isSeries)
@@ -1096,6 +1152,25 @@ class _DetailsPageState extends State<DetailsPage> {
     ];
   }
 
+  /// A season chip's words: 第 2 季, or the episodes it holds (第 22-46 集)
+  /// when the cards count the show straight through.
+  String _seasonLabel(int season) {
+    final l10n = l10nOf(context);
+    final videos = _detail?.videos ?? const <Video>[];
+    // One renumbered episode means the whole show is counted straight
+    // through, season 1 included (its numbers just happen to agree).
+    if (!videos.any((v) => v.displayNumber != null)) {
+      return l10n.detailsSeason(season);
+    }
+    final shown = [
+      for (final v in videos)
+        if (v.season == season && v.shownNumber != null) v.shownNumber!,
+    ];
+    if (shown.isEmpty) return l10n.detailsSeason(season);
+    shown.sort();
+    return l10n.detailsEpisodeRange('${shown.first}', '${shown.last}');
+  }
+
   Widget _buildSeasonChips(List<int> seasons) {
     final l10n = l10nOf(context);
     return SizedBox(
@@ -1125,7 +1200,7 @@ class _DetailsPageState extends State<DetailsPage> {
                 ),
                 child: Text(
                   // Season 0 is TMDb's specials, not a season.
-                  s == 0 ? l10n.detailsSpecials : l10n.detailsSeason(s),
+                  s == 0 ? l10n.detailsSpecials : _seasonLabel(s),
                   style: LuText.body.copyWith(
                     fontSize: 15,
                     color: on ? LuColors.bg : LuColors.textSoft,
@@ -1164,32 +1239,38 @@ class _DetailsPageState extends State<DetailsPage> {
     // label and title lines at the viewer's text size, with a little slack.
     final scaler = MediaQuery.textScalerOf(context);
     final lines = (scaler.scale(16) + scaler.scale(13)) * 1.6;
+    final height = width * 9 / 16 + 20 + lines + 2;
     return SizedBox(
-      height: width * 9 / 16 + 20 + lines + 2,
-      child: ListView.separated(
-        key: ValueKey(_selectedSeason),
+      height: height,
+      child: LuSideScroll(
         controller: _episodeScroll,
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        padding: EdgeInsets.symmetric(horizontal: pad, vertical: 6),
-        itemCount: episodes.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
-        itemBuilder: (context, i) {
-          final ep = episodes[i];
-          return _EpisodeCard(
-            episode: ep,
-            width: width,
-            fallbackImage: fallback,
-            isCollection: _isCollection,
-            resume: _resumeFor(ep),
-            watched: _isWatched(ep),
-            current:
-                target != null &&
-                target.season == ep.season &&
-                target.episode == ep.episode,
-            onTap: () => _handlePlayAction(ep),
-          );
-        },
+        // On the still, not on the whole card with its two lines of text.
+        arrowAlignment: Alignment(0, (6 + width * 9 / 32) / height * 2 - 1),
+        child: ListView.separated(
+          key: ValueKey(_selectedSeason),
+          controller: _episodeScroll,
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 6),
+          itemCount: episodes.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 16),
+          itemBuilder: (context, i) {
+            final ep = episodes[i];
+            return _EpisodeCard(
+              episode: ep,
+              width: width,
+              fallbackImage: fallback,
+              isCollection: _isCollection,
+              resume: _resumeFor(ep),
+              watched: _isWatched(ep),
+              current:
+                  target != null &&
+                  target.season == ep.season &&
+                  target.episode == ep.episode,
+              onTap: () => _handlePlayAction(ep),
+            );
+          },
+        ),
       ),
     );
   }
@@ -1233,6 +1314,8 @@ class _DetailsPageState extends State<DetailsPage> {
           return LuPosterCard(
             width: w,
             title: m.name,
+            titleId: m.id,
+            series: m.type == 'series',
             poster: m.poster,
             subtitle: m.year,
             rating: m.imdbRating,
@@ -1257,6 +1340,8 @@ class _DetailsPageState extends State<DetailsPage> {
           return LuPosterCard(
             width: w,
             title: m.name,
+            titleId: m.id,
+            series: m.type == 'series',
             poster: m.poster,
             subtitle: m.year,
             rating: m.imdbRating,
@@ -1594,11 +1679,14 @@ class _EpisodeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = l10nOf(context);
     final ep = episode;
-    final number = '${ep.episode ?? "?"}';
+    final number = '${ep.shownNumber ?? "?"}';
     final label = isCollection
         ? l10n.detailsPartBadge(number)
         : l10n.detailsEpisodeBadge(number);
-    final tag = resume != null
+    final airDay = episodeIsOut(ep) ? null : episodeAirDay(ep);
+    final tag = airDay != null
+        ? '${l10n.epUpcoming} · ${episodeAirLabel(context, airDay)}'
+        : resume != null
         ? l10n.detailsWatchedTo(_clock(resume!.positionSeconds))
         : (watched ? l10n.detailsWatched : null);
     final progress = resume?.progressPercent ?? (watched ? 1.0 : 0.0);
@@ -1629,7 +1717,10 @@ class _EpisodeCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    LuImage(url: ep.thumbnail ?? fallbackImage),
+                    Opacity(
+                      opacity: airDay != null ? 0.35 : 1,
+                      child: LuImage(url: ep.thumbnail ?? fallbackImage),
+                    ),
                     if (tag != null)
                       Positioned(
                         right: 8,

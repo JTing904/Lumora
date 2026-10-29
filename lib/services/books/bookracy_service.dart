@@ -50,17 +50,17 @@ class BookracyService {
         if (kDebugMode) {
           debugPrint('[BookracyService] HTTP ${response.statusCode} for $uri');
         }
-        return [];
+        throw StateError('Bookracy HTTP ${response.statusCode}');
       }
 
       final dynamic decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is! Map<String, dynamic>) {
-        return [];
+        throw const FormatException('Invalid Bookracy response');
       }
 
       final resultsList = decoded['results'];
       if (resultsList is! List) {
-        return [];
+        throw const FormatException('Invalid Bookracy results');
       }
 
       final books = <BookResult>[];
@@ -104,7 +104,7 @@ class BookracyService {
           '[BookracyService] Error searching books ($effectiveQuery): $e',
         );
       }
-      return [];
+      rethrow;
     }
   }
 

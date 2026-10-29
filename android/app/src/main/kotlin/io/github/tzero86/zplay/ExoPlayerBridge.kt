@@ -2,6 +2,8 @@ package io.github.tzero86.zplay
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -57,6 +59,7 @@ class ExoPlayerBridge(private val context: Context) {
         const val METHOD_CHANNEL = "io.github.tzero86.zplay/exo_player"
         const val EVENT_CHANNEL = "io.github.tzero86.zplay/exo_player/events"
         const val VIEW_ID = "io.github.tzero86.zplay/exo_surface"
+        const val TICK_MS = 500L
     }
 
     private var player: ExoPlayer? = null
@@ -209,8 +212,36 @@ class ExoPlayerBridge(private val context: Context) {
     }
 
     private fun release() {
+        ticker.removeCallbacks(tick)
         player?.release()
         player = null
+    }
+
+    /**
+     * Media3 has no position callback, so the time, length and buffer are read
+     * off the player twice a second and sent like every other event. Without
+     * them the Dart side sat at 0:00 / 0:00: no seek bar, no remaining time,
+     * and no progress saved, so nothing watched on this engine was ever marked
+     * as watched or offered in Continue Watching.
+     */
+    private val ticker = Handler(Looper.getMainLooper())
+    private val tick: Runnable = object : Runnable {
+        override fun run() {
+            val p = player ?: return
+            emit(mapOf("type" to "position", "value" to p.currentPosition))
+            val length = p.duration
+            if (length != C.TIME_UNSET && length > 0) {
+                emit(mapOf("type" to "duration", "value" to length))
+            }
+            emit(
+                mapOf(
+                    "type" to "buffering",
+                    "value" to (p.playbackState == Player.STATE_BUFFERING),
+                    "ms" to p.bufferedPosition
+                )
+            )
+            ticker.postDelayed(this, TICK_MS)
+        }
     }
 
     private fun load(
@@ -325,6 +356,8 @@ class ExoPlayerBridge(private val context: Context) {
 
         player = exo
         attachSurfaceIfPossible()
+        ticker.removeCallbacks(tick)
+        ticker.post(tick)
     }
 
     /**

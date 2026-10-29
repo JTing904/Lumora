@@ -572,6 +572,17 @@ abstract final class AccountService {
     const {},
   );
 
+  /// Asks again when the start-up read came back empty: on a slow or
+  /// waking phone network the first request can time out, and the sign-in
+  /// page would then offer no GitHub or Discord button for the whole session.
+  static Future<void> ensureSocialProviders() async {
+    if (socialProviders.value.isNotEmpty) return;
+    final url = projectUrl;
+    final key = publishableKey;
+    if (url == null || key == null) return;
+    await _loadSocialProviders(url, key);
+  }
+
   static Future<void> _loadSocialProviders(String url, String key) async {
     try {
       final res = await http
@@ -579,7 +590,7 @@ abstract final class AccountService {
             Uri.parse('${url.replaceAll(RegExp(r'/+$'), '')}/auth/v1/settings'),
             headers: {'apikey': key},
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode != 200) return;
       final external = (jsonDecode(res.body) as Map)['external'];
       if (external is! Map) return;

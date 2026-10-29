@@ -186,19 +186,5 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # Same pinned binary, same directory, same name as build.yml: the plugin
-      # ships no binary of its own and 404s fetching one, so the build fails in
-      # cmake_install unless TORRSERVER_FLUTTER_LOCAL_BINARIES points at a real
-      # download. Keep this in step with build.yml when the tag is bumped.
-      - name: Fetch TorrServer binary
-        shell: bash
-        run: |
-          mkdir -p torrserver_bin
-          curl -fSL "https://github.com/YouROK/TorrServer/releases/download/MatriX.146.1/TorrServer-windows-amd64.exe" \
-            -o torrserver_bin/torrserver-windows-amd64.exe
-          ls -la torrserver_bin
-
       - name: Build Windows app (debug)
-        env:
-          TORRSERVER_FLUTTER_LOCAL_BINARIES: ${{ github.workspace }}/torrserver_bin
         run: flutter build windows --debug

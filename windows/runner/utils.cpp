@@ -21,6 +21,26 @@ void CreateAndAttachConsole() {
   }
 }
 
+void RedirectOutputToNul() {
+  // A GUI process started from Explorer has no stdout or stderr: the standard
+  // handles are invalid, so Dart's stdout/stderr fail every write with
+  // "The handle is invalid" (errno 6). TorrServer's controller copies each
+  // line of the engine's log to stderr, which turned into a stream of
+  // uncaught errors on Windows. Dart reads the Win32 standard handles, so
+  // those are replaced, not only the C runtime's streams.
+  FILE *unused;
+  if (freopen_s(&unused, "NUL", "w", stdout) == 0) {
+    ::SetStdHandle(STD_OUTPUT_HANDLE, reinterpret_cast<HANDLE>(
+                                          _get_osfhandle(_fileno(stdout))));
+  }
+  if (freopen_s(&unused, "NUL", "w", stderr) == 0) {
+    ::SetStdHandle(STD_ERROR_HANDLE, reinterpret_cast<HANDLE>(
+                                         _get_osfhandle(_fileno(stderr))));
+  }
+  std::ios::sync_with_stdio();
+  FlutterDesktopResyncOutputStreams();
+}
+
 std::vector<std::string> GetCommandLineArguments() {
   // Convert the UTF-16 command line arguments to UTF-8 for the Engine to use.
   int argc;

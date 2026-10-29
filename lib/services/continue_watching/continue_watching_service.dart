@@ -31,6 +31,9 @@ import '../simkl/simkl_service.dart';
 import '../simkl/simkl_continue_watching_service.dart';
 import '../account/library_sync.dart';
 import '../account/account_scope.dart';
+import '../../l10n/l10n.dart';
+import '../archive/archive_source_loader.dart';
+import '../official/official_source_loader.dart';
 
 class ContinueWatchingService {
   static const _storageKey = 'continue_watching_sessions_v1';
@@ -683,8 +686,12 @@ class ContinueWatchingService {
     // 0. First-Launch Trakt/Simkl Cloud Session:
     // If no saved local stream source or magnet exists, open WatchScreen
     // so the user can choose their preferred provider manually, then auto-seek!
+    // A session watched on a rights holder's official YouTube upload has no
+    // stream to rescrape: the source list finds the upload again (it sorts
+    // first) and its player resumes at the saved position.
     final isFirstLaunchCloudItem =
-        item.addonName == null &&
+        (item.addonName == null ||
+            OfficialSourceLoader.isOfficialAddonName(item.addonName)) &&
         (item.magnetUrl == null || item.magnetUrl!.isEmpty) &&
         (item.rawUrl == null || item.rawUrl!.isEmpty);
 
@@ -1057,6 +1064,14 @@ class ContinueWatchingService {
 
     final candidateSources = <StreamSource>[];
     StreamSubscription<StreamSource>? sub;
+    // The Internet Archive's public-domain copy is not an addon stream, so the
+    // rescrape below never finds it; asked alongside it, within the same
+    // window, so a film first watched there can resume there.
+    final archiveFuture = ArchiveSourceLoader.load(
+      detail: movieDetail,
+      type: item.type,
+      l10n: l10nCurrent(),
+    );
 
     try {
       final stream = StreamService.fetchStreams(
@@ -1097,11 +1112,19 @@ class ContinueWatchingService {
       await Future.wait<Object?>([
         completer.future,
         metaFuture,
+        archiveFuture,
       ]).timeout(_resumeScrapeWindow, onTimeout: () => const <Object?>[]);
     } catch (_) {
     } finally {
       sub?.cancel();
     }
+
+    // Answered within the window above, or it is left out.
+    final archiveRows = await archiveFuture.timeout(
+      Duration.zero,
+      onTimeout: () => const <StreamSource>[],
+    );
+    candidateSources.addAll(archiveRows);
 
     // Close loading dialog
     if (context.mounted && Navigator.canPop(context)) {
@@ -1154,9 +1177,24 @@ class ContinueWatchingService {
       // to the best textual match. The probe can yield false negatives (providers
       // that block range requests but stream fine over HLS), so it must only ever
       // reorder preference toward a verified source, never reduce reach.
-      final StreamSource chosen = firstAliveIndex >= 0
-          ? probeCandidates[firstAliveIndex]
-          : candidateSources.first;
+      // A session last played from the Internet Archive resumes there: the
+      // same public-domain file is known to play, while a third-party link
+      // that answers the probe often still serves nothing.
+      final lastOnArchive = item.addonName == 'Internet Archive';
+      // The very file that was playing when there is one, any copy else.
+      final archiveFirst = lastOnArchive
+          ? (candidateSources
+                    .where((s) => s.url != null && s.url == item.rawUrl)
+                    .firstOrNull ??
+                candidateSources
+                    .where(ArchiveSourceLoader.isArchive)
+                    .firstOrNull)
+          : null;
+      final StreamSource chosen =
+          archiveFirst ??
+          (firstAliveIndex >= 0
+              ? probeCandidates[firstAliveIndex]
+              : candidateSources.first);
       selectedSource = chosen;
 
       // Attempt order for the player: the candidates the probe accepted, in
@@ -1175,9 +1213,16 @@ class ContinueWatchingService {
           unverified.add(candidateSources[i]);
         }
       }
+      // The Internet Archive copy goes right behind the chosen source - first
+      // of all when the session last played from it. A third-party link that
+      // answers the probe still often serves nothing, so behind "the verified
+      // ones" put a file sure to play past the switcher's last attempt.
+      bool isArchive(StreamSource s) => ArchiveSourceLoader.isArchive(s);
+      final ranked = <StreamSource>[...verified, ...unverified];
       handoverCandidates = _excludingRejected(<StreamSource>[
-        ...verified,
-        ...unverified,
+        chosen,
+        ...ranked.where((s) => isArchive(s) && !identical(s, chosen)),
+        ...ranked.where((s) => !isArchive(s) && !identical(s, chosen)),
       ]);
 
       final bestScore = calculateSourceMatchScore(chosen, item);

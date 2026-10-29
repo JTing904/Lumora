@@ -5,11 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zplay/models/cloudstream/cloudstream_source.dart';
 import 'package:zplay/pages/search/search_page.dart';
 import 'package:zplay/services/addon/addon_manager.dart';
-import 'package:zplay/services/cloudstream/cloudstream_manager.dart';
-import 'package:zplay/services/cloudstream/runtime/cloudstream_dispatcher.dart';
 import 'package:zplay/services/metadata/metadata_service.dart';
 
 /// Failure propagation from the search sources up to the page's ledger.
@@ -42,7 +39,8 @@ class _Reply {
 /// matching nothing throws, which is what an offline device or a dead addon
 /// looks like to `package:http`.
 class _Routes {
-  final List<({bool Function(Uri) matches, Object Function() reply})> _rules = [];
+  final List<({bool Function(Uri) matches, Object Function() reply})> _rules =
+      [];
   final List<Uri> requested = [];
 
   void answer(bool Function(Uri) matches, Object Function() reply) =>
@@ -62,93 +60,53 @@ class _Routes {
       _rules.removeWhere((r) => r.matches(Uri.parse('https://$host/')));
 
   http.Client get client => MockClient((request) async {
-        requested.add(request.url);
-        for (final rule in _rules) {
-          if (!rule.matches(request.url)) continue;
-          final answer = rule.reply();
-          if (answer is _Hang) {
-            // Never completing is what a stalled server does; the service's
-            // own timeout is expected to fire.
-            return Completer<http.Response>().future;
-          }
-          final reply = answer as _Reply;
-          return http.Response(reply.body, reply.status);
-        }
-        throw http.ClientException('offline', request.url);
-      });
+    requested.add(request.url);
+    for (final rule in _rules) {
+      if (!rule.matches(request.url)) continue;
+      final answer = rule.reply();
+      if (answer is _Hang) {
+        // Never completing is what a stalled server does; the service's
+        // own timeout is expected to fire.
+        return Completer<http.Response>().future;
+      }
+      final reply = answer as _Reply;
+      return http.Response(reply.body, reply.status);
+    }
+    throw http.ClientException('offline', request.url);
+  });
 }
 
 String _catalogBody(int count) => jsonEncode({
-      'metas': [
-        for (var i = 0; i < count; i++)
-          {
-            'id': 'tt000000${i + 1}',
-            'name': 'Match ${i + 1}',
-            'type': 'movie',
-          }
-      ]
-    });
+  'metas': [
+    for (var i = 0; i < count; i++)
+      {'id': 'tt000000${i + 1}', 'name': 'Match ${i + 1}', 'type': 'movie'},
+  ],
+});
 
 String _suggestionBody(int count) => jsonEncode({
-      'd': [
-        for (var i = 0; i < count; i++)
-          {'id': 'tt100000${i + 1}', 'l': 'Title ${i + 1}', 'q': 'feature'}
-      ]
-    });
+  'd': [
+    for (var i = 0; i < count; i++)
+      {'id': 'tt100000${i + 1}', 'l': 'Title ${i + 1}', 'q': 'feature'},
+  ],
+});
 
 /// A manifest advertising [catalogCount] search-capable catalogs.
 String _manifest(int catalogCount) => jsonEncode({
-      'id': 'org.deadaddons.testsource',
-      'name': 'Dead Addon',
-      'version': '1.0.0',
-      'resources': ['catalog'],
-      'types': ['movie', 'series'],
-      'catalogs': [
-        for (var i = 0; i < catalogCount; i++)
-          {
-            'type': i.isEven ? 'movie' : 'series',
-            'id': 'search-${i.isEven ? 'movie' : 'series'}',
-            'name': 'Search ${i + 1}',
-            'extra': ['search'],
-          }
-      ],
-    });
-
-/// Answers each extension search with [reply], or fails it with [error].
-class _FakeDispatcher implements CloudStreamDispatcher {
-  _FakeDispatcher({this.reply, this.error});
-
-  final Object? Function()? reply;
-  final Object? error;
-  final List<String> searchedSourceIds = [];
-
-  @override
-  Future<dynamic> search({
-    required String sourceId,
-    required String query,
-    int page = 1,
-  }) {
-    searchedSourceIds.add(sourceId);
-    final failure = error;
-    if (failure != null) return Future<dynamic>.error(failure);
-    final answer = reply;
-    // No reply means the runtime never comes back with anything.
-    if (answer == null) return Completer<dynamic>().future;
-    return Future<dynamic>.value(answer());
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-/// The one extension these tests install. The manager is a singleton, so it is
-/// installed once and re-pointed at a new dispatcher per test rather than
-/// appended again.
-final _extension = CloudStreamSource(
-  id: 'dead-extension',
-  name: 'Dead Extension',
-  internalName: 'dead-extension',
-);
+  'id': 'org.deadaddons.testsource',
+  'name': 'Dead Addon',
+  'version': '1.0.0',
+  'resources': ['catalog'],
+  'types': ['movie', 'series'],
+  'catalogs': [
+    for (var i = 0; i < catalogCount; i++)
+      {
+        'type': i.isEven ? 'movie' : 'series',
+        'id': 'search-${i.isEven ? 'movie' : 'series'}',
+        'name': 'Search ${i + 1}',
+        'extra': ['search'],
+      },
+  ],
+});
 
 void main() {
   late _Routes routes;
@@ -186,27 +144,6 @@ void main() {
     await AddonManager.instance.addAddon('https://$_addonHost');
   }
 
-  /// Points the single installed extension at [dispatcher], enabling it.
-  Future<void> installExtension(_FakeDispatcher dispatcher) async {
-    CloudStreamManager.instance.dispatcher = dispatcher;
-    for (final ext in CloudStreamManager.instance.installedExtensions) {
-      await CloudStreamManager.instance.toggleExtension(ext.id, true);
-    }
-    if (!CloudStreamManager.instance.installedExtensions
-        .any((e) => e.id == _extension.id)) {
-      CloudStreamManager.instance.installExtensionForTest(_extension);
-    }
-  }
-
-  /// Hides the extension again, so a run that queried no extension does not
-  /// pick up a leftover leg.
-  Future<void> hideExtension() async {
-    for (final ext in CloudStreamManager.instance.installedExtensions) {
-      await CloudStreamManager.instance.toggleExtension(ext.id, false);
-    }
-    CloudStreamManager.instance.dispatcher = CloudStreamDispatcher.instance;
-  }
-
   /// One search run through the same entry points the page calls, in the same
   /// order, into the same ledger the page keeps.
   Future<SearchFailureLedger> runSearch({String query = 'The Bear'}) async {
@@ -216,18 +153,11 @@ void main() {
       onSourceError(source, error);
     }
 
-    final addonSections = await AddonManager.instance
-        .searchAll(query, onSourceError: record);
+    final addonSections = await AddonManager.instance.searchAll(
+      query,
+      onSourceError: record,
+    );
     if (addonSections.isNotEmpty) resultSections++;
-
-    // The page only runs this leg when an extension is installed.
-    if (CloudStreamManager.instance.activeExtensions.isNotEmpty) {
-      final providers = await CloudStreamManager.instance.searchAcrossExtensions(
-        query,
-        onSourceError: record,
-      );
-      if (providers.isNotEmpty) resultSections++;
-    }
 
     final titles = await MetadataService.suggestionSearch(
       query: query,
@@ -236,13 +166,9 @@ void main() {
     if (titles.isNotEmpty) resultSections++;
 
     // The denominator the page's copy divides by: one per leg it queried.
-    ledger.searchedSourceCount = 1 +
-        (CloudStreamManager.instance.activeExtensions.isNotEmpty ? 1 : 0) +
-        1;
+    ledger.searchedSourceCount = 2;
     return ledger;
   }
-
-  tearDown(hideExtension);
 
   group('AddonManager.searchAll', () {
     test('a dead addon is reported once, naming it', () async {
@@ -257,8 +183,9 @@ void main() {
       );
 
       expect(sections, isEmpty);
-      expect(failures, ['Dead Addon'],
-          reason: 'a dead addon was indistinguishable from an empty catalog');
+      expect(failures, [
+        'Dead Addon',
+      ], reason: 'a dead addon was indistinguishable from an empty catalog');
     });
 
     test('every failing catalog on one addon still reports once', () async {
@@ -276,13 +203,18 @@ void main() {
         3,
         reason: 'all three catalogs really were queried',
       );
-      expect(failures, ['Dead Addon'],
-          reason: 'one dead addon is one source, not one per catalog');
+      expect(failures, [
+        'Dead Addon',
+      ], reason: 'one dead addon is one source, not one per catalog');
     });
 
     test('an addon matching nothing is not a failure', () async {
       await installAddon();
-      routes.answerPath(_addonHost, '/catalog/', () => _Reply(200, _catalogBody(0)));
+      routes.answerPath(
+        _addonHost,
+        '/catalog/',
+        () => _Reply(200, _catalogBody(0)),
+      );
 
       final sections = await AddonManager.instance.searchAll(
         'The Bear',
@@ -290,13 +222,21 @@ void main() {
       );
 
       expect(sections, isEmpty);
-      expect(failures, isEmpty,
-          reason: 'a healthy source that matched nothing is a miss, not an outage');
+      expect(
+        failures,
+        isEmpty,
+        reason:
+            'a healthy source that matched nothing is a miss, not an outage',
+      );
     });
 
     test('a healthy non-empty answer is not a failure', () async {
       await installAddon();
-      routes.answerPath(_addonHost, '/catalog/', () => _Reply(200, _catalogBody(2)));
+      routes.answerPath(
+        _addonHost,
+        '/catalog/',
+        () => _Reply(200, _catalogBody(2)),
+      );
 
       final sections = await AddonManager.instance.searchAll(
         'The Bear',
@@ -309,7 +249,11 @@ void main() {
 
     test('omitting the callback leaves the result set unchanged', () async {
       await installAddon();
-      routes.answerPath(_addonHost, '/catalog/', () => _Reply(200, _catalogBody(2)));
+      routes.answerPath(
+        _addonHost,
+        '/catalog/',
+        () => _Reply(200, _catalogBody(2)),
+      );
 
       final sections = await AddonManager.instance.searchAll('The Bear');
 
@@ -317,99 +261,12 @@ void main() {
     });
   });
 
-  group('CloudStreamManager.searchAcrossExtensions', () {
-    test('a dispatcher answering with nothing is a dead runtime', () async {
-      await installExtension(_FakeDispatcher(reply: () => null));
-
-      final results = await CloudStreamManager.instance.searchAcrossExtensions(
-        'The Bear',
-        onSourceError: onSourceError,
-      );
-
-      expect(results, isEmpty);
-      expect(failures, ['Dead Extension'],
-          reason: 'an expired CloudStream runtime read as an empty result');
-    });
-
-    test('a throwing extension is reported', () async {
-      await installExtension(
-        _FakeDispatcher(error: StateError('sidecar died')),
-      );
-
-      final results = await CloudStreamManager.instance.searchAcrossExtensions(
-        'The Bear',
-        onSourceError: onSourceError,
-      );
-
-      expect(results, isEmpty);
-      expect(failures, ['Dead Extension']);
-    });
-
-    test('an extension that never answers is reported as a timeout', () async {
-      await installExtension(_FakeDispatcher());
-
-      final errors = <Object>[];
-      final results = await CloudStreamManager.instance.searchAcrossExtensions(
-        'The Bear',
-        onSourceError: (source, error) {
-          failures.add(source);
-          errors.add(error);
-        },
-      );
-
-      expect(results, isEmpty);
-      expect(failures, ['Dead Extension']);
-      expect(errors.single, isA<TimeoutException>());
-    });
-
-    test('an extension matching nothing is not a failure', () async {
-      await installExtension(
-        _FakeDispatcher(reply: () => <String, dynamic>{'list': <dynamic>[]}),
-      );
-
-      final results = await CloudStreamManager.instance.searchAcrossExtensions(
-        'The Bear',
-        onSourceError: onSourceError,
-      );
-
-      expect(results, isEmpty);
-      expect(failures, isEmpty,
-          reason: 'a live extension that matched nothing is a miss, not an outage');
-    });
-
-    test('a healthy non-empty answer is not a failure', () async {
-      await installExtension(
-        _FakeDispatcher(
-          reply: () => <String, dynamic>{
-            'list': [
-              {'title': 'The Bear', 'url': 'https://example.test/1'}
-            ],
-          },
-        ),
-      );
-
-      final results = await CloudStreamManager.instance.searchAcrossExtensions(
-        'The Bear',
-        onSourceError: onSourceError,
-      );
-
-      expect(results['Dead Extension'], isNotEmpty);
-      expect(failures, isEmpty);
-    });
-
-    test('omitting the callback leaves the result set unchanged', () async {
-      await installExtension(_FakeDispatcher(reply: () => null));
-
-      final results =
-          await CloudStreamManager.instance.searchAcrossExtensions('The Bear');
-
-      expect(results, isEmpty);
-    });
-  });
-
   group('MetadataService.suggestionSearch', () {
     test('a non-200 is reported, not a missing title', () async {
-      routes.answerHost(_suggestionHost, () => const _Reply(503, 'unavailable'));
+      routes.answerHost(
+        _suggestionHost,
+        () => const _Reply(503, 'unavailable'),
+      );
 
       final movies = await MetadataService.suggestionSearch(
         query: 'The Bear',
@@ -417,8 +274,9 @@ void main() {
       );
 
       expect(movies, isEmpty);
-      expect(failures, ['Title lookup'],
-          reason: 'a 503 was indistinguishable from "no such title"');
+      expect(failures, [
+        'Title lookup',
+      ], reason: 'a 503 was indistinguishable from "no such title"');
     });
 
     test('an unreachable endpoint is reported, naming the source', () async {
@@ -429,8 +287,9 @@ void main() {
       );
 
       expect(movies, isEmpty);
-      expect(failures, ['Title lookup'],
-          reason: 'being offline looked exactly like "no such title"');
+      expect(failures, [
+        'Title lookup',
+      ], reason: 'being offline looked exactly like "no such title"');
     });
 
     test('a timeout is reported', () async {
@@ -458,8 +317,11 @@ void main() {
       );
 
       expect(second, isNotEmpty);
-      expect(failures, isEmpty,
-          reason: 'a cache hit is this source having answered, not a source down');
+      expect(
+        failures,
+        isEmpty,
+        reason: 'a cache hit is this source having answered, not a source down',
+      );
     });
 
     test('a healthy non-empty answer is not a failure', () async {
@@ -514,24 +376,33 @@ void main() {
       );
     });
 
-    test('every source healthy behind an empty list stays a no-results',
-        () async {
-      await installAddon();
-      routes.answerPath(_addonHost, '/catalog/', () => _Reply(200, _catalogBody(0)));
-      routes.answerHost(_suggestionHost, () => _Reply(200, _suggestionBody(0)));
+    test(
+      'every source healthy behind an empty list stays a no-results',
+      () async {
+        await installAddon();
+        routes.answerPath(
+          _addonHost,
+          '/catalog/',
+          () => _Reply(200, _catalogBody(0)),
+        );
+        routes.answerHost(
+          _suggestionHost,
+          () => _Reply(200, _suggestionBody(0)),
+        );
 
-      final ledger = await runSearch();
+        final ledger = await runSearch();
 
-      expect(ledger.failedSources, 0);
-      expect(resultSections, 0);
-      expect(
-        classifySearchResult(
-          resultCount: resultSections,
-          failureCount: ledger.failedSources,
-        ),
-        SearchOutcome.noResults,
-      );
-    });
+        expect(ledger.failedSources, 0);
+        expect(resultSections, 0);
+        expect(
+          classifySearchResult(
+            resultCount: resultSections,
+            failureCount: ledger.failedSources,
+          ),
+          SearchOutcome.noResults,
+        );
+      },
+    );
 
     test('partial results beside a dead source are incomplete', () async {
       await installAddon();
@@ -552,18 +423,16 @@ void main() {
       );
     });
 
-    test('all three legs dead is still a source failure', () async {
+    test('both legs dead is still a source failure', () async {
       await installAddon();
       routes.forget(_addonHost);
-      final dispatcher = _FakeDispatcher(error: StateError('runtime gone'));
-      await installExtension(dispatcher);
       routes.neverAnswers(_suggestionHost);
 
       final ledger = await runSearch();
 
-      expect(failures, containsAll(<String>['Dead Addon', 'Dead Extension']));
-      expect(ledger.failedSources, 3);
-      expect(ledger.searchedSourceCount, 3);
+      expect(failures, contains('Dead Addon'));
+      expect(ledger.failedSources, 2);
+      expect(ledger.searchedSourceCount, 2);
       expect(
         classifySearchResult(
           resultCount: resultSections,

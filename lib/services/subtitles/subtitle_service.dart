@@ -36,34 +36,44 @@ class SubtitleService {
     int pending = _providers.length;
 
     for (final p in _providers) {
-      p.search(
-        movieName,
-        imdbId: imdbId,
-        season: season,
-        episode: episode,
-        year: year,
-      ).timeout(const Duration(seconds: 5), onTimeout: () {
-        debugPrint('[SubtitleService] ${p.name} search timed out (5s)');
-        return <SubtitleVariant>[];
-      }).then((variants) {
-        if (variants.isNotEmpty && !controller.isClosed) {
-          controller.add(variants);
-        }
-      }).catchError((e) {
-        debugPrint('[SubtitleService] ${p.name} search error: $e');
-      }).whenComplete(() {
-        pending--;
-        if (pending <= 0 && !controller.isClosed) {
-          controller.close();
-        }
-      });
+      p
+          .search(
+            movieName,
+            imdbId: imdbId,
+            season: season,
+            episode: episode,
+            year: year,
+          )
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              debugPrint('[SubtitleService] ${p.name} search timed out (5s)');
+              return <SubtitleVariant>[];
+            },
+          )
+          .then((variants) {
+            if (variants.isNotEmpty && !controller.isClosed) {
+              controller.add(variants);
+            }
+          })
+          .catchError((e) {
+            debugPrint('[SubtitleService] ${p.name} search error: $e');
+          })
+          .whenComplete(() {
+            pending--;
+            if (pending <= 0 && !controller.isClosed) {
+              controller.close();
+            }
+          });
     }
 
     return controller.stream;
   }
 
   /// Groups variants by language and deduplicates identical download URLs.
-  static List<SubtitleLanguageGroup> groupVariantsByLanguage(List<SubtitleVariant> variants) {
+  static List<SubtitleLanguageGroup> groupVariantsByLanguage(
+    List<SubtitleVariant> variants,
+  ) {
     if (variants.isEmpty) return [];
     final Map<String, List<SubtitleVariant>> grouped = {};
     final Set<String> seenUrls = {};
@@ -72,7 +82,12 @@ class SubtitleService {
       grouped.putIfAbsent(variant.language, () => []).add(variant);
     }
     final sortedKeys = grouped.keys.toList()..sort((a, b) => a.compareTo(b));
-    return sortedKeys.map((lang) => SubtitleLanguageGroup(language: lang, variants: grouped[lang]!)).toList();
+    return sortedKeys
+        .map(
+          (lang) =>
+              SubtitleLanguageGroup(language: lang, variants: grouped[lang]!),
+        )
+        .toList();
   }
 
   /// Fetches subtitles from all registered providers concurrently.
@@ -99,26 +114,31 @@ class SubtitleService {
 
   /// Downloads and extracts the specific subtitle variant.
   Future<String?> downloadSubtitle(SubtitleVariant variant) async {
-    // Extract any custom headers / referer provided by CloudStream or direct stream
+    // Extract any custom headers / referer provided by the stream.
     Map<String, String>? customHeaders;
     if (variant.extraData['headers'] is Map) {
-      customHeaders = (variant.extraData['headers'] as Map)
-          .map((k, v) => MapEntry(k.toString(), v.toString()));
+      customHeaders = (variant.extraData['headers'] as Map).map(
+        (k, v) => MapEntry(k.toString(), v.toString()),
+      );
     }
     final referer = variant.extraData['referer']?.toString();
     if (referer != null && referer.isNotEmpty) {
       customHeaders ??= {};
-      customHeaders.putIfAbsent('Referer', () => referer.endsWith('/') ? referer : '$referer/');
+      customHeaders.putIfAbsent(
+        'Referer',
+        () => referer.endsWith('/') ? referer : '$referer/',
+      );
     }
 
     // Check if it's one of the dedicated online subtitle search providers
     for (final provider in _providers) {
-      if (provider is! StremioSubtitleProvider && provider.name == variant.providerName) {
+      if (provider is! StremioSubtitleProvider &&
+          provider.name == variant.providerName) {
         return provider.download(variant);
       }
     }
 
-    // Direct / CloudStream / Stremio subtitle download
+    // Direct or Stremio subtitle download.
     return SubtitleExtractor.downloadAndExtract(
       variant.downloadUrl,
       headers: customHeaders,

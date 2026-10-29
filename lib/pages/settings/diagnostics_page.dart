@@ -308,9 +308,53 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     );
   }
 
-  /// `operatingSystemVersion` -> `Operating system version`.
+  /// The report's keys in Chinese. The copied report keeps its English keys
+  /// (it goes to whoever debugs it); only the page reads in the app's
+  /// language.
+  static const Map<String, String> _zhLabels = {
+    'version': '版本',
+    'build': '版本号',
+    'packageName': '包名',
+    'buildMode': '构建模式',
+    'targetPlatform': '平台',
+    'operatingSystem': '操作系统',
+    'operatingSystemVersion': '系统版本',
+    'formFactor': '设备类型',
+    'television': '电视',
+    'rendererBackend': '渲染引擎',
+    'engine': '播放引擎',
+    'hardwareDecoding': '硬件解码',
+    'surfaceProducer': 'Surface 输出',
+    'autoRecoverBlackScreen': '黑屏自动恢复',
+    'anime4k': 'Anime4K',
+    'subtitleStyle': '字幕样式',
+    'torrentEngine': '种子引擎',
+    'streamEngine': '串流引擎',
+    'rememberedFailures': '记住的失败片源',
+    'rssMb': '内存占用 (MB)',
+    'secretsExcluded': '已排除敏感信息',
+    'redactedKeyCount': '隐去的项目数',
+    'generatedAt': '生成时间',
+    'schemaVersion': '格式版本',
+    'localOnly': '仅本机',
+    'available': '可用',
+    'count': '数量',
+    'limit': '上限',
+    'entries': '条目',
+    'category': '类别',
+    'message': '信息',
+    'at': '时间',
+    'seq': '序号',
+  };
+
+  /// `operatingSystemVersion` -> `Operating system version` (系统版本 in
+  /// Chinese).
   static String _labelOf(String key) {
     if (key.isEmpty) return key;
+    if (l10nCurrent().localeName == 'zh') {
+      final zh = _zhLabels[key];
+      if (zh != null) return zh;
+    }
     final spaced = key.replaceAllMapped(
       RegExp(r'(?<=[a-z0-9])([A-Z])'),
       (match) => ' ${match[1]!.toLowerCase()}',

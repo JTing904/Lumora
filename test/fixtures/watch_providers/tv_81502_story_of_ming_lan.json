@@ -1,0 +1,58 @@
+{
+ "id": 81502,
+ "results": {
+  "MY": {
+   "link": "https://www.themoviedb.org/tv/81502/watch?locale=MY",
+   "flatrate": [
+    {
+     "logo_path": "/wonfCSSdI55EfVFlWJyyQZIlYx7.png",
+     "provider_id": 623,
+     "provider_name": "WeTV",
+     "display_priority": 41
+    }
+   ]
+  },
+  "SG": {
+   "link": "https://www.themoviedb.org/tv/81502/watch?locale=SG",
+   "flatrate": [
+    {
+     "logo_path": "/wonfCSSdI55EfVFlWJyyQZIlYx7.png",
+     "provider_id": 623,
+     "provider_name": "WeTV",
+     "display_priority": 44
+    }
+   ]
+  },
+  "US": {
+   "link": "https://www.themoviedb.org/tv/81502/watch?locale=US",
+   "ads": [
+    {
+     "logo_path": "/AoNsevRecTdVv4xQEf1oLRGO2yh.png",
+     "provider_id": 344,
+     "provider_name": "Rakuten Viki",
+     "display_priority": 98
+    },
+    {
+     "logo_path": "/qcq4iKj21lUGZEYBZbI8jjegqZM.png",
+     "provider_id": 581,
+     "provider_name": "iQIYI",
+     "display_priority": 140
+    }
+   ],
+   "flatrate": [
+    {
+     "logo_path": "/qcq4iKj21lUGZEYBZbI8jjegqZM.png",
+     "provider_id": 581,
+     "provider_name": "iQIYI",
+     "display_priority": 140
+    },
+    {
+     "logo_path": "/wonfCSSdI55EfVFlWJyyQZIlYx7.png",
+     "provider_id": 623,
+     "provider_name": "WeTV",
+     "display_priority": 383
+    }
+   ]
+  }
+ }
+}

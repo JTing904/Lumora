@@ -1,0 +1,55 @@
+{
+ "id": 106449,
+ "results": {
+  "HK": {
+   "link": "https://www.themoviedb.org/tv/106449/watch?locale=HK",
+   "ads": [
+    {
+     "logo_path": "/eJ6QYYiZvSjGHibzaeyjY1rceKJ.png",
+     "provider_id": 625,
+     "provider_name": "LINE TV",
+     "display_priority": 28
+    }
+   ]
+  },
+  "IN": {
+   "link": "https://www.themoviedb.org/tv/106449/watch?locale=IN",
+   "ads": [
+    {
+     "logo_path": "/46U3TOB3PhVDjA7qaFOuYSaGMiq.png",
+     "provider_id": 1898,
+     "provider_name": "Amazon MX Player",
+     "display_priority": 40
+    },
+    {
+     "logo_path": "/fuVBtr57kxnYzOILZ38xqSmBeyR.png",
+     "provider_id": 613,
+     "provider_name": "Amazon Prime Video Free with Ads",
+     "display_priority": 92
+    }
+   ]
+  },
+  "RU": {
+   "link": "https://www.themoviedb.org/tv/106449/watch?locale=RU",
+   "flatrate": [
+    {
+     "logo_path": "/j5NFNAdVCTTRLL2fP2MvJcYZgKz.png",
+     "provider_id": 115,
+     "provider_name": "Okko",
+     "display_priority": 1
+    }
+   ]
+  },
+  "TW": {
+   "link": "https://www.themoviedb.org/tv/106449/watch?locale=TW",
+   "ads": [
+    {
+     "logo_path": "/eJ6QYYiZvSjGHibzaeyjY1rceKJ.png",
+     "provider_id": 625,
+     "provider_name": "LINE TV",
+     "display_priority": 28
+    }
+   ]
+  }
+ }
+}

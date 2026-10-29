@@ -8,7 +8,6 @@ import '../../models/movie/movie.dart';
 import '../../models/movie/movie_section.dart';
 import '../../utils/search/relevance_scorer.dart';
 import '../metadata/metadata_service.dart';
-import '../p2p/p2p_settings_service.dart';
 import '../storage/json_document_store.dart';
 import '../content/content_settings.dart';
 
@@ -41,12 +40,6 @@ class AddonManager {
 
   void _ensureBuiltInsExist() {
     bool changed = false;
-    if (!_addons.any(
-      (a) => a.manifest.id == 'builtin.zplay' || a.baseUrl == 'builtin:zplay',
-    )) {
-      _addons.add(zplayBuiltin);
-      changed = true;
-    }
     if (!_addons.any(
       (a) =>
           a.manifest.id == 'builtin.zplayhttp' ||
@@ -107,15 +100,6 @@ class AddonManager {
         .toList();
   }
 
-  bool get isZplayActive {
-    _ensureBuiltInsExist();
-    final p2p = _addons.firstWhere(
-      (a) => a.manifest.id == 'builtin.zplay' || a.baseUrl == 'builtin:zplay',
-      orElse: () => zplayBuiltin,
-    );
-    return p2p.isStreamsActive;
-  }
-
   bool get isZplayHttpActive {
     _ensureBuiltInsExist();
     final http = _addons.firstWhere(
@@ -146,26 +130,6 @@ class AddonManager {
     }
     return null;
   }
-
-  static final InstalledAddon zplayBuiltin = InstalledAddon(
-    baseUrl: 'builtin:zplay',
-    manifest: AddonManifest(
-      id: 'builtin.zplay',
-      name: 'ZPlay',
-      version: '3.0.0',
-      description:
-          'Built-in BitTorrent P2P streaming engine (TorrServer). Plays torrents, magnets, and infohashes directly.',
-      resources: ['stream'],
-      types: ['movie', 'series', 'anime'],
-      idPrefixes: ['tt', 'tmdb:', 'kitsu:', 'mal:'],
-      catalogs: [],
-    ),
-    enabled: true,
-    enableCatalogs: false,
-    enableSearch: false,
-    enableSubtitles: false,
-    enableStreams: true,
-  );
 
   static final InstalledAddon zplayHttpBuiltin = InstalledAddon(
     baseUrl: 'builtin:zplayhttp',
@@ -225,7 +189,11 @@ class AddonManager {
     final stored = await _readStored();
 
     if (stored != null) {
-      _addons = List<InstalledAddon>.from(stored);
+      _addons = List<InstalledAddon>.from(stored)
+        ..removeWhere(
+          (a) =>
+              a.manifest.id == 'builtin.zplay' || a.baseUrl == 'builtin:zplay',
+        );
     }
 
     // First launch → install Cinemeta. It is seeded as a hybrid source: its
@@ -246,14 +214,6 @@ class AddonManager {
       }
     }
 
-    // Ensure ZPlay P2P engine is registered in the list
-    if (!_addons.any(
-      (a) => a.manifest.id == 'builtin.zplay' || a.baseUrl == 'builtin:zplay',
-    )) {
-      _addons.add(zplayBuiltin);
-      await _save();
-    }
-
     // Ensure ZPlayHTTP is registered in the list
     if (!_addons.any(
       (a) =>
@@ -263,13 +223,6 @@ class AddonManager {
       _addons.add(zplayHttpBuiltin);
       await _save();
     }
-
-    // Sync P2P state
-    final p2pAddon = _addons.firstWhere(
-      (a) => a.manifest.id == 'builtin.zplay' || a.baseUrl == 'builtin:zplay',
-      orElse: () => zplayBuiltin,
-    );
-    P2pSettingsService.isP2pEnabled.value = p2pAddon.isStreamsActive;
 
     _initialized = true;
   }
@@ -425,7 +378,7 @@ class AddonManager {
   }
 
   Future<void> removeAddon(String addonId) async {
-    if (addonId == 'builtin.zplay' || addonId == 'builtin.zplayhttp') {
+    if (addonId == 'builtin.zplayhttp') {
       // For built-in providers, disable instead of deleting
       await toggleAddon(addonId, false);
       return;
@@ -441,9 +394,6 @@ class AddonManager {
         addon.enabled = enabled;
         break;
       }
-    }
-    if (addonId == 'builtin.zplay') {
-      await P2pSettingsService.setP2pEnabled(enabled);
     }
     MetadataService.clearCache();
     await _save();
@@ -483,9 +433,6 @@ class AddonManager {
         if (enableStreams != null) addon.enableStreams = enableStreams;
         break;
       }
-    }
-    if (addonId == 'builtin.zplay' && enableStreams != null) {
-      await P2pSettingsService.setP2pEnabled(enableStreams);
     }
     MetadataService.clearCache();
     await _save();
@@ -759,11 +706,9 @@ class AddonManager {
   String _catalogDisplayName(AddonCatalog catalog) =>
       catalogDisplayName(catalog);
 
-  String catalogDisplayName(AddonCatalog catalog) {
-    if (catalog.name != null && catalog.name!.isNotEmpty) {
-      return localizedCatalogName(catalog.name!);
-    }
-
+  /// [withType] off for a page that already shows one type, where
+  /// "Popular · Movies" on the Movies page would say the type twice.
+  String catalogDisplayName(AddonCatalog catalog, {bool withType = true}) {
     final l10n = l10nCurrent();
     final typeLabel = catalog.type == 'series'
         ? l10n.typeSeries
@@ -771,7 +716,27 @@ class AddonManager {
               ? l10n.typeAnime
               : (catalog.type == 'collections' || catalog.type == 'collection'
                     ? l10n.typeCollections
-                    : (catalog.type == 'movie' ? l10n.typeMovies : catalog.type)));
+                    : (catalog.type == 'movie'
+                          ? l10n.typeMovies
+                          : catalog.type)));
+
+    if (catalog.name != null && catalog.name!.isNotEmpty) {
+      final name = localizedCatalogName(catalog.name!);
+      // Cinemeta names its movie and its series catalog both "Popular": a
+      // generic name carries its type, or the shelf shows two "Popular" rows.
+      const generic = {
+        'popular',
+        'featured',
+        'new',
+        'top',
+        'top rated',
+        'trending',
+        'latest',
+      };
+      return withType && generic.contains(catalog.name!.trim().toLowerCase())
+          ? '$name · $typeLabel'
+          : name;
+    }
 
     switch (catalog.id) {
       case 'top':

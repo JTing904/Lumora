@@ -26,6 +26,8 @@ class MacCmsSite {
 /// (LibreTV, KatelyaTV, hafrey1/LunaTV-config) and that the latter's daily
 /// health report shows answering. All free; none needs a key.
 class MacCmsScraper extends StreamScraper {
+  MacCmsScraper({this.animationOnly = false});
+  final bool animationOnly;
   @override
   String get name => 'ZPlayHTTP';
 
@@ -63,8 +65,21 @@ class MacCmsScraper extends StreamScraper {
   /// Categories these sites file adult material under. Withheld unless the
   /// viewer is allowed it, like every other adult path in the app.
   static const _adultTypes = [
-    '伦理', '福利', '擦边', '里番', '写真', '无码', '有码', '三级', '情色',
-    '色情', '同性', '主播', '自拍', '偷拍', '传媒',
+    '伦理',
+    '福利',
+    '擦边',
+    '里番',
+    '写真',
+    '无码',
+    '有码',
+    '三级',
+    '情色',
+    '色情',
+    '同性',
+    '主播',
+    '自拍',
+    '偷拍',
+    '传媒',
   ];
 
   @override
@@ -84,17 +99,23 @@ class MacCmsScraper extends StreamScraper {
     var pending = sites.length;
     for (final site in sites) {
       _searchSite(
-        site,
-        names,
-        series: series,
-        year: year,
-        season: season,
-        episode: episode,
-      ).then((source) {
-        if (source != null && !found.isClosed) found.add(source);
-      }).whenComplete(() {
-        if (--pending == 0) found.close();
-      });
+            site,
+            names,
+            series: series,
+            year: year,
+            season: season,
+            episode: episode,
+          )
+          .then((sources) {
+            if (!found.isClosed) {
+              for (final source in sources) {
+                found.add(source);
+              }
+            }
+          })
+          .whenComplete(() {
+            if (--pending == 0) found.close();
+          });
     }
     yield* found.stream;
   }
@@ -127,7 +148,7 @@ class MacCmsScraper extends StreamScraper {
       } catch (_) {}
     }
     final t = title.trim();
-    if (t.isNotEmpty && !names.contains(t) && _hasCjk(t)) names.add(t);
+    if (t.isNotEmpty && !names.contains(t)) names.add(t);
     return names;
   }
 
@@ -154,7 +175,7 @@ class MacCmsScraper extends StreamScraper {
 
   static bool _hasCjk(String s) => RegExp(r'[一-鿿]').hasMatch(s);
 
-  Future<StreamSource?> _searchSite(
+  Future<List<StreamSource>> _searchSite(
     MacCmsSite site,
     List<String> names, {
     required bool series,
@@ -167,43 +188,49 @@ class MacCmsScraper extends StreamScraper {
         final uri = Uri.parse(
           site.api,
         ).replace(queryParameters: {'ac': 'videolist', 'wd': query});
-        final res = await client
-            .get(uri, headers: _headers)
-            .timeout(_timeout);
+        final res = await client.get(uri, headers: _headers).timeout(_timeout);
         if (res.statusCode != 200) continue;
-        final body = jsonDecode(utf8.decode(res.bodyBytes, allowMalformed: true));
+        final body = jsonDecode(
+          utf8.decode(res.bodyBytes, allowMalformed: true),
+        );
         final list = body is Map ? body['list'] : null;
         if (list is! List) continue;
-        final item = pick(
+        final items = pickAll(
           list,
           query,
           series: series,
           year: year,
           season: season,
+          animationOnly: animationOnly,
         );
-        if (item == null) continue;
-        final url = playUrlFor(
-          item['vod_play_url']?.toString() ?? '',
-          series: series,
-          episode: episode,
-        );
-        if (url == null) continue;
-        final vodName = item['vod_name']?.toString() ?? query;
-        final remarks = item['vod_remarks']?.toString().trim() ?? '';
-        return StreamSource(
-          addonName: 'ZPlayHTTP',
-          name: site.name,
-          title: '$vodName${remarks.isEmpty ? '' : ' · $remarks'}',
-          url: url,
-          description: '${site.name} · HLS',
-          providerId: 'maccms',
-          providerName: '中文资源站',
-        );
+        final sources = <StreamSource>[];
+        for (final item in items) {
+          final url = playUrlFor(
+            item['vod_play_url']?.toString() ?? '',
+            series: series,
+            episode: episode,
+          );
+          if (url == null) continue;
+          final vodName = item['vod_name']?.toString() ?? query;
+          final remarks = item['vod_remarks']?.toString().trim() ?? '';
+          sources.add(
+            StreamSource(
+              addonName: 'ZPlayHTTP',
+              name: site.name,
+              title: '$vodName${remarks.isEmpty ? '' : ' · $remarks'}',
+              url: url,
+              description: '${site.name} · HLS',
+              providerId: 'maccms',
+              providerName: '中文资源站',
+            ),
+          );
+        }
+        if (sources.isNotEmpty) return sources;
       } catch (e) {
         debugPrint('[MacCms] ${site.name}: $e');
       }
     }
-    return null;
+    return [];
   }
 
   /// The listing that is the title asked for, or null.
@@ -221,15 +248,38 @@ class MacCmsScraper extends StreamScraper {
     int? year,
     int? season,
   }) {
-    final want = _norm(query);
-    if (want.isEmpty) return null;
+    final matches = pickAll(
+      list,
+      query,
+      series: series,
+      year: year,
+      season: season,
+    );
+    return matches.isEmpty ? null : matches.first;
+  }
+
+  @visibleForTesting
+  static List<Map> pickAll(
+    List list,
+    String query, {
+    required bool series,
+    int? year,
+    int? season,
+    bool animationOnly = false,
+  }) {
+    final want = _matchName(query);
+    if (want.isEmpty) return [];
     final s = season ?? 1;
-    Map? best;
+    final best = <Map>[];
     var bestScore = 0;
     for (final raw in list) {
       if (raw is! Map) continue;
       final name = raw['vod_name']?.toString() ?? '';
       final typeName = raw['type_name']?.toString() ?? '';
+      if (animationOnly &&
+          !RegExp(r'动漫|動畫|动画|anime', caseSensitive: false).hasMatch(typeName)) {
+        continue;
+      }
       if (!AdultGuard.allowed &&
           (_adultTypes.any(typeName.contains) ||
               AdultGuard.looksAdult([name, typeName], flagged: false))) {
@@ -237,13 +287,16 @@ class MacCmsScraper extends StreamScraper {
       }
       // Any 片 category is a film (动画片 included); a 纪录片 listing can
       // also be a documentary series.
-      final isFilm = typeName.endsWith('片');
+      final isFilm =
+          typeName.endsWith('片') ||
+          typeName.contains('电影') ||
+          typeName.contains('電影');
       final isDoc = typeName.contains('纪录');
       if (typeName.isNotEmpty && (series ? isFilm && !isDoc : !isFilm)) {
         continue;
       }
 
-      final got = _norm(name);
+      final got = _matchName(name);
       // A film has no seasons, and a title that itself ends in a number
       // ("流浪地球2") is not that number's season.
       final tagged = !series || got == want ? null : seasonOf(name);
@@ -261,14 +314,18 @@ class MacCmsScraper extends StreamScraper {
       if (score == 0) continue;
 
       final y = int.tryParse(raw['vod_year']?.toString() ?? '');
-      if (year != null && y != null && y > 0 && s == 1 &&
+      if (year != null &&
+          y != null &&
+          y > 0 &&
+          s == 1 &&
           (y - year).abs() > 1) {
         continue;
       }
       if (score > bestScore) {
-        best = raw;
+        best.clear();
         bestScore = score;
       }
+      if (score == bestScore) best.add(raw);
     }
     return best;
   }
@@ -276,15 +333,16 @@ class MacCmsScraper extends StreamScraper {
   static bool _isHttp(String url) =>
       RegExp(r'^https?://', caseSensitive: false).hasMatch(url);
 
-  static String _norm(String s) => s
-      .toLowerCase()
-      .replaceAll(RegExp(r'[\s\p{P}\p{S}]+', unicode: true), '');
+  static String _norm(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[\s\p{P}\p{S}]+', unicode: true), '');
+
+  static String _matchName(String name) =>
+      _norm(name).replaceFirst(RegExp(r'(国语|粤语|普通话|国語|粵語)版?$'), '');
 
   static const _cnDigits = '零一二三四五六七八九';
 
   /// The season a listing names: 第二季, 第2季, or a trailing number
   /// ("斗罗大陆2"); null when it names none.
-  @visibleForTesting
   static int? seasonOf(String name) {
     final m = RegExp(r'第\s*([0-9]+|[一二两三四五六七八九十]+)\s*[季部]').firstMatch(name);
     if (m != null) return _number(m.group(1)!);
@@ -331,18 +389,42 @@ class MacCmsScraper extends StreamScraper {
         ],
     ].where((g) => g.any((e) => _isHttp(e.$2))).toList();
     if (groups.isEmpty) return null;
-    final group = groups.firstWhere(
-      (g) => g.any((e) => e.$2.contains('.m3u8')),
-      orElse: () => groups.first,
+    groups.sort(
+      (a, b) => (b.any((e) => e.$2.contains('.m3u8')) ? 1 : 0).compareTo(
+        a.any((e) => e.$2.contains('.m3u8')) ? 1 : 0,
+      ),
     );
-    if (!series) return group.where((e) => _isHttp(e.$2)).firstOrNull?.$2;
-    final want = episode ?? 1;
-    for (final e in group) {
-      final n = RegExp(r'(\d+)').firstMatch(e.$1)?.group(1);
-      if (n != null && int.parse(n) == want && _isHttp(e.$2)) return e.$2;
+    if (!series) {
+      for (final group in groups) {
+        final url = group.where((e) => _isHttp(e.$2)).firstOrNull?.$2;
+        if (url != null) return url;
+      }
+      return null;
     }
-    if (want < 1 || want > group.length) return null;
-    final url = group[want - 1].$2;
-    return _isHttp(url) ? url : null;
+    final want = episode ?? 1;
+    if (want < 1) return null;
+    for (final group in groups) {
+      int? number(String label) {
+        final episodeMatch = RegExp(
+          r'(?:第\s*(\d+)\s*集|[Ee][Pp]?\s*(\d+)|^\s*(\d+)\s*$)',
+        ).firstMatch(label);
+        final n =
+            episodeMatch?.group(1) ??
+            episodeMatch?.group(2) ??
+            episodeMatch?.group(3);
+        return n == null ? null : int.tryParse(n);
+      }
+
+      for (final entry in group) {
+        if (number(entry.$1) == want && _isHttp(entry.$2)) return entry.$2;
+      }
+      // Only unnumbered lists can safely use positional lookup.
+      if (group.every((e) => !RegExp(r'\d').hasMatch(e.$1)) &&
+          want <= group.length) {
+        final url = group[want - 1].$2;
+        if (_isHttp(url)) return url;
+      }
+    }
+    return null;
   }
 }

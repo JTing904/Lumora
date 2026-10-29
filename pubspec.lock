@@ -10,7 +10,7 @@ packages:
     source: hosted
     version: "1.0.0"
   app_links:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: app_links
       sha256: "08ba88bf19d9edea33130cb71c8ced2cb982b4e00b82efef4a434d1357bc69c3"
@@ -569,7 +569,7 @@ packages:
     dependency: "direct main"
     description:
       path: media_kit
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -578,7 +578,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: "libs/android/media_kit_libs_android_video"
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -587,7 +587,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: "libs/ios/media_kit_libs_ios_video"
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -596,7 +596,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: "libs/linux/media_kit_libs_linux"
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -605,7 +605,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: "libs/macos/media_kit_libs_macos_video"
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -614,7 +614,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: "libs/ohos/media_kit_libs_ohos"
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -623,7 +623,7 @@ packages:
     dependency: "direct main"
     description:
       path: "libs/universal/media_kit_libs_video"
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -632,7 +632,7 @@ packages:
     dependency: "direct main"
     description:
       path: "libs/windows/media_kit_libs_windows_video"
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -641,7 +641,7 @@ packages:
     dependency: "direct main"
     description:
       path: media_kit_video
-      ref: HEAD
+      ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       resolved-ref: "994465d9bfca3f39d0b41199d16e7fd93fe97881"
       url: "https://github.com/Predidit/media-kit.git"
     source: git
@@ -1131,14 +1131,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.12"
-  torrserver_flutter:
-    dependency: "direct main"
-    description:
-      name: torrserver_flutter
-      sha256: "9f4fdec1845903cf9c6c226c53407454f25046b185aaeb27fd6c59f554a7441f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.7"
   typed_data:
     dependency: transitive
     description:

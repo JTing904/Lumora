@@ -1166,18 +1166,6 @@ abstract class AppLocalizations {
   /// **'PINNED SPINE'**
   String get searchPinnedSpine;
 
-  /// No description provided for @searchCloudstreamSection.
-  ///
-  /// In en, this message translates to:
-  /// **'CloudStream • {provider}'**
-  String searchCloudstreamSection(String provider);
-
-  /// No description provided for @searchCloudstreamExtension.
-  ///
-  /// In en, this message translates to:
-  /// **'CloudStream Extension'**
-  String get searchCloudstreamExtension;
-
   /// No description provided for @searchTitlesSection.
   ///
   /// In en, this message translates to:
@@ -1633,6 +1621,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 Season} other{{count} Seasons}}'**
   String detailsSeasonCount(int count);
+
+  /// A season chip for a show counted straight through: the episode numbers the season holds.
+  ///
+  /// In en, this message translates to:
+  /// **'Ep {from}–{to}'**
+  String detailsEpisodeRange(String from, String to);
 
   /// No description provided for @detailsSeason.
   ///
@@ -7343,7 +7337,7 @@ abstract class AppLocalizations {
   /// No description provided for @plyMedia3EngineError.
   ///
   /// In en, this message translates to:
-  /// **'Playback error on the Media3 engine'**
+  /// **'This source failed to play.'**
   String get plyMedia3EngineError;
 
   /// No description provided for @plyRefusedByProvider.
@@ -7844,78 +7838,6 @@ abstract class AppLocalizations {
   /// **'Remove'**
   String get stgaRemove;
 
-  /// No description provided for @stgaInstallRepoPluginsBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Would you like to install all plugins from this repository now so their streaming sources become available immediately on the watch screen?'**
-  String get stgaInstallRepoPluginsBody;
-
-  /// No description provided for @stgaBrowseLater.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse Later'**
-  String get stgaBrowseLater;
-
-  /// No description provided for @stgaInstallAllNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Install All Now'**
-  String get stgaInstallAllNow;
-
-  /// No description provided for @stgaInstallingPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Installing Plugins'**
-  String get stgaInstallingPlugins;
-
-  /// No description provided for @stgaPreparingRuntime.
-  ///
-  /// In en, this message translates to:
-  /// **'Preparing runtime...'**
-  String get stgaPreparingRuntime;
-
-  /// No description provided for @stgaAddCloudStreamRepo.
-  ///
-  /// In en, this message translates to:
-  /// **'Add CloudStream Repository'**
-  String get stgaAddCloudStreamRepo;
-
-  /// No description provided for @stgaPasteRepoUrlHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Paste the repository URL (supports cloudstreamrepo://, repo.json, or plugins.json).'**
-  String get stgaPasteRepoUrlHint;
-
-  /// No description provided for @stgaBrowseMarketplace.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse Marketplace'**
-  String get stgaBrowseMarketplace;
-
-  /// No description provided for @stgaAddRepository.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Repository'**
-  String get stgaAddRepository;
-
-  /// No description provided for @stgaCsExtensionWillUninstall.
-  ///
-  /// In en, this message translates to:
-  /// **'This CloudStream extension will be uninstalled.'**
-  String get stgaCsExtensionWillUninstall;
-
-  /// No description provided for @stgaRemoveRepoBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Plugins from this repository will not be deleted, but repository updates will no longer be fetched.'**
-  String get stgaRemoveRepoBody;
-
-  /// No description provided for @stgaStremioAddons.
-  ///
-  /// In en, this message translates to:
-  /// **'Stremio Addons'**
-  String get stgaStremioAddons;
-
   /// No description provided for @stgaStremioTabDescription.
   ///
   /// In en, this message translates to:
@@ -7957,144 +7879,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Addons that take the key as a plain URL parameter accept a {realdebrid} style placeholder. Addons that hide it inside a base64 config blob have to be pasted fully configured instead.'**
   String stgaDebridAddonsPlaceholderNote(String realdebrid);
-
-  /// No description provided for @stgaCloudStreamTabDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'CloudStream (.cs3) extensions provide stream providers directly from popular media sites. Extensions run locally in a sandboxed sidecar or native ART engine.'**
-  String get stgaCloudStreamTabDescription;
-
-  /// No description provided for @stgaCsEngineReady.
-  ///
-  /// In en, this message translates to:
-  /// **'CloudStream Engine Ready'**
-  String get stgaCsEngineReady;
-
-  /// No description provided for @stgaRuntimeSetupRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Runtime Setup Required'**
-  String get stgaRuntimeSetupRequired;
-
-  /// No description provided for @stgaNativeEngineActive.
-  ///
-  /// In en, this message translates to:
-  /// **'Native engine active and listening for queries.'**
-  String get stgaNativeEngineActive;
-
-  /// No description provided for @stgaDownloadingRuntime.
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading runtime components...'**
-  String get stgaDownloadingRuntime;
-
-  /// No description provided for @stgaRequiresRuntimeHost.
-  ///
-  /// In en, this message translates to:
-  /// **'Requires runtime host to execute .cs3 bytecode.'**
-  String get stgaRequiresRuntimeHost;
-
-  /// No description provided for @stgaRequiresSidecarRuntime.
-  ///
-  /// In en, this message translates to:
-  /// **'Requires sidecar runtime to execute .cs3 bytecode.'**
-  String get stgaRequiresSidecarRuntime;
-
-  /// No description provided for @stgaRepoMarketplace.
-  ///
-  /// In en, this message translates to:
-  /// **'Repository Marketplace'**
-  String get stgaRepoMarketplace;
-
-  /// No description provided for @stga45PlusRepos.
-  ///
-  /// In en, this message translates to:
-  /// **'45+ Repos'**
-  String get stga45PlusRepos;
-
-  /// No description provided for @stgaRepoMarketplaceDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse curated Turkish, 3rabi, English, Hindi & global repos with direct install links.'**
-  String get stgaRepoMarketplaceDescription;
-
-  /// No description provided for @stgaBrowseAvailablePlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse Available Plugins'**
-  String get stgaBrowseAvailablePlugins;
-
-  /// No description provided for @stgaDeselectAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Deselect All'**
-  String get stgaDeselectAll;
-
-  /// No description provided for @stgaSelectAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Select All'**
-  String get stgaSelectAll;
-
-  /// No description provided for @stgaInstalledExtensions.
-  ///
-  /// In en, this message translates to:
-  /// **'INSTALLED EXTENSIONS'**
-  String get stgaInstalledExtensions;
-
-  /// No description provided for @stgaInstalledCsExtensions.
-  ///
-  /// In en, this message translates to:
-  /// **'INSTALLED CLOUDSTREAM EXTENSIONS'**
-  String get stgaInstalledCsExtensions;
-
-  /// No description provided for @stgaNoExtensionsInstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'No Extensions Installed'**
-  String get stgaNoExtensionsInstalled;
-
-  /// No description provided for @stgaNoExtensionsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Click \"Browse Available Plugins\" to find and install extensions.'**
-  String get stgaNoExtensionsHint;
-
-  /// No description provided for @stgaRepositories.
-  ///
-  /// In en, this message translates to:
-  /// **'REPOSITORIES'**
-  String get stgaRepositories;
-
-  /// No description provided for @stgaNoReposHint.
-  ///
-  /// In en, this message translates to:
-  /// **'No custom repositories added. Click \"Add Repository\" to subscribe to a CloudStream repository.'**
-  String get stgaNoReposHint;
-
-  /// No description provided for @stgaInstallAllFromRepoTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Install all plugins from this repository'**
-  String get stgaInstallAllFromRepoTooltip;
-
-  /// No description provided for @stgaBrowseRepoPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse repository plugins'**
-  String get stgaBrowseRepoPlugins;
-
-  /// No description provided for @stgaRemoveRepository.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove repository'**
-  String get stgaRemoveRepository;
-
-  /// No description provided for @stgaSetupEngine.
-  ///
-  /// In en, this message translates to:
-  /// **'Setup Engine'**
-  String get stgaSetupEngine;
 
   /// No description provided for @stgaBuiltinTorrServer.
   ///
@@ -8215,126 +7999,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set up a Debrid provider in Settings first, then come back to connect it.'**
   String get stgaSetupDebridFirst;
-
-  /// No description provided for @stgaCsDefaultDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'CloudStream scraping & streaming provider'**
-  String get stgaCsDefaultDescription;
-
-  /// No description provided for @stgaAvailablePlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Available Plugins'**
-  String get stgaAvailablePlugins;
-
-  /// No description provided for @stgaAvailableCsPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Available CloudStream Plugins'**
-  String get stgaAvailableCsPlugins;
-
-  /// No description provided for @stgaSearchPluginsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Search plugins (e.g. Sflix, SuperStream)...'**
-  String get stgaSearchPluginsHint;
-
-  /// No description provided for @stgaNoPluginsInRepos.
-  ///
-  /// In en, this message translates to:
-  /// **'No plugins found in added repositories.\nPlease add a CloudStream repository URL first.'**
-  String get stgaNoPluginsInRepos;
-
-  /// No description provided for @stgaInstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'Installed'**
-  String get stgaInstalled;
-
-  /// No description provided for @stgaUninstall.
-  ///
-  /// In en, this message translates to:
-  /// **'Uninstall'**
-  String get stgaUninstall;
-
-  /// No description provided for @stgaInstallRepoPluginsNowQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Would you like to install plugins from this repository now?'**
-  String get stgaInstallRepoPluginsNowQ;
-
-  /// No description provided for @stgaLater.
-  ///
-  /// In en, this message translates to:
-  /// **'Later'**
-  String get stgaLater;
-
-  /// No description provided for @stgaInstallingRepoPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Installing Repository Plugins'**
-  String get stgaInstallingRepoPlugins;
-
-  /// No description provided for @stgaInstallingExtensions.
-  ///
-  /// In en, this message translates to:
-  /// **'Installing extensions...'**
-  String get stgaInstallingExtensions;
-
-  /// No description provided for @stgaMarketplace.
-  ///
-  /// In en, this message translates to:
-  /// **'Marketplace'**
-  String get stgaMarketplace;
-
-  /// No description provided for @stgaRefreshListFromWeb.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh list from web'**
-  String get stgaRefreshListFromWeb;
-
-  /// No description provided for @stgaSearchRepoOrPluginHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Search repository or plugin (e.g. Turkish, 3rabi, DiziBox, Shahid)...'**
-  String get stgaSearchRepoOrPluginHint;
-
-  /// No description provided for @stgaAdded.
-  ///
-  /// In en, this message translates to:
-  /// **'Added'**
-  String get stgaAdded;
-
-  /// No description provided for @stgaAddingRepository.
-  ///
-  /// In en, this message translates to:
-  /// **'Adding Repository...'**
-  String get stgaAddingRepository;
-
-  /// No description provided for @stgaInstallRepository.
-  ///
-  /// In en, this message translates to:
-  /// **'Install Repository'**
-  String get stgaInstallRepository;
-
-  /// No description provided for @stgaInstallAllPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Install All Plugins'**
-  String get stgaInstallAllPlugins;
-
-  /// No description provided for @stgaBrowse.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse'**
-  String get stgaBrowse;
-
-  /// No description provided for @stgaHidePlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Hide plugins'**
-  String get stgaHidePlugins;
 
   /// No description provided for @stgaPastedKeyFromClipboard.
   ///
@@ -12421,72 +12085,6 @@ abstract class AppLocalizations {
   /// **'Remove {name}?'**
   String stgcRemoveAddonQ(Object name);
 
-  /// No description provided for @stgcRepoAdded.
-  ///
-  /// In en, this message translates to:
-  /// **'Repository added successfully!'**
-  String get stgcRepoAdded;
-
-  /// No description provided for @stgcInstallRepoPluginsQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Install Repository Plugins?'**
-  String get stgcInstallRepoPluginsQ;
-
-  /// No description provided for @stgcInstalledFromRepo.
-  ///
-  /// In en, this message translates to:
-  /// **'Successfully installed {count} plugins from repository!'**
-  String stgcInstalledFromRepo(Object count);
-
-  /// No description provided for @stgcInstallError.
-  ///
-  /// In en, this message translates to:
-  /// **'Installation error: {error}'**
-  String stgcInstallError(Object error);
-
-  /// No description provided for @stgcRemoveExtQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove {name}?'**
-  String stgcRemoveExtQ(Object name);
-
-  /// No description provided for @stgcRemoveCountPluginsQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove {count} plugin(s)?'**
-  String stgcRemoveCountPluginsQ(Object count);
-
-  /// No description provided for @stgcConfirmRemoveAllCs.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to remove all {count} installed CloudStream plugins? All downloaded plugin files (.jar/.cs3) will be deleted.'**
-  String stgcConfirmRemoveAllCs(Object count);
-
-  /// No description provided for @stgcConfirmRemoveSelectedCs.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to remove the {count} selected CloudStream plugins? Their downloaded files will be deleted from your device.'**
-  String stgcConfirmRemoveSelectedCs(Object count);
-
-  /// No description provided for @stgcRemovedCountPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Successfully removed {count} plugin(s).'**
-  String stgcRemovedCountPlugins(Object count);
-
-  /// No description provided for @stgcRemoveCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove ({count})'**
-  String stgcRemoveCount(Object count);
-
-  /// No description provided for @stgcRemoveRepoQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove {name}?'**
-  String stgcRemoveRepoQ(Object name);
-
   /// No description provided for @stgcAddonsExtensions.
   ///
   /// In en, this message translates to:
@@ -12498,30 +12096,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} Total'**
   String stgcAddonsTotal(Object count);
-
-  /// No description provided for @stgcRemoveSelectedCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove ({count})'**
-  String stgcRemoveSelectedCount(Object count);
-
-  /// No description provided for @stgcInstalledTotal.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} Total'**
-  String stgcInstalledTotal(Object count);
-
-  /// No description provided for @stgcReposCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} Repos'**
-  String stgcReposCount(Object count);
-
-  /// No description provided for @stgcRuntimeSetupError.
-  ///
-  /// In en, this message translates to:
-  /// **'Runtime setup error: {error}'**
-  String stgcRuntimeSetupError(Object error);
 
   /// No description provided for @stgcAddonSubtitlesProvider.
   ///
@@ -12552,132 +12126,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uses your {service} key'**
   String stgcUsesYourServiceKey(Object service);
-
-  /// No description provided for @stgcPluginInstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} installed successfully!'**
-  String stgcPluginInstalled(Object name);
-
-  /// No description provided for @stgcPluginUninstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} uninstalled.'**
-  String stgcPluginUninstalled(Object name);
-
-  /// No description provided for @stgcInstalledCountPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Successfully installed {count} plugins!'**
-  String stgcInstalledCountPlugins(Object count);
-
-  /// No description provided for @stgcRemoveListPluginsQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove {count} plugin(s)?'**
-  String stgcRemoveListPluginsQ(Object count);
-
-  /// No description provided for @stgcConfirmUninstallList.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to uninstall all {count} installed plugins from this list? Their downloaded files will be removed.'**
-  String stgcConfirmUninstallList(Object count);
-
-  /// No description provided for @stgcRemoveAllListCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove All ({count})'**
-  String stgcRemoveAllListCount(Object count);
-
-  /// No description provided for @stgcUninstalledCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Successfully uninstalled {count} plugins.'**
-  String stgcUninstalledCount(Object count);
-
-  /// No description provided for @stgcRemoveAllCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove All ({count})'**
-  String stgcRemoveAllCount(Object count);
-
-  /// No description provided for @stgcInstallAllCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Install All ({count})'**
-  String stgcInstallAllCount(Object count);
-
-  /// No description provided for @stgcNoPluginsMatching.
-  ///
-  /// In en, this message translates to:
-  /// **'No plugins matching \"{query}\"'**
-  String stgcNoPluginsMatching(Object query);
-
-  /// No description provided for @stgcAllMatchingInstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'All matching plugins are already installed!'**
-  String get stgcAllMatchingInstalled;
-
-  /// No description provided for @stgcRepoNameAdded.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} added successfully!'**
-  String stgcRepoNameAdded(Object name);
-
-  /// No description provided for @stgcInstallRepoNamePluginsQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Install {name} Plugins?'**
-  String stgcInstallRepoNamePluginsQ(Object name);
-
-  /// No description provided for @stgcRepoIncludesPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'This repository includes {count} plugins ({sample}...). Install all plugins now so their stream sources appear immediately?'**
-  String stgcRepoIncludesPlugins(Object count, Object sample);
-
-  /// No description provided for @stgcPluginsInstalledReady.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} plugins installed and ready!'**
-  String stgcPluginsInstalledReady(Object count);
-
-  /// No description provided for @stgcMarketplaceSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} repos · Direct install links & verified providers'**
-  String stgcMarketplaceSubtitle(Object count);
-
-  /// No description provided for @stgcNoReposFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No repositories found for \"{query}\"'**
-  String stgcNoReposFound(Object query);
-
-  /// No description provided for @stgcRepoPluginsCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} Plugins'**
-  String stgcRepoPluginsCount(Object count);
-
-  /// No description provided for @stgcCopiedLink.
-  ///
-  /// In en, this message translates to:
-  /// **'Copied link: {url}'**
-  String stgcCopiedLink(Object url);
-
-  /// No description provided for @stgcContainsPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'Contains: {plugins}'**
-  String stgcContainsPlugins(Object plugins);
-
-  /// No description provided for @stgcViewAllPlugins.
-  ///
-  /// In en, this message translates to:
-  /// **'View all {count} plugins'**
-  String stgcViewAllPlugins(Object count);
 
   /// No description provided for @stgcDebridKeyVerified.
   ///
@@ -16164,6 +15612,378 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Specials'**
   String get detailsSpecials;
+
+  /// No description provided for @epOutUpTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Out now up to episode {episode}'**
+  String epOutUpTo(String episode);
+
+  /// No description provided for @epNextAirs.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {episode} airs {date}'**
+  String epNextAirs(String episode, String date);
+
+  /// No description provided for @epNotOutYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {episode} isn\'t out yet: it airs {date}'**
+  String epNotOutYet(String episode, String date);
+
+  /// No description provided for @epUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Not out yet'**
+  String get epUpcoming;
+
+  /// No description provided for @officialYouTubeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Official on YouTube'**
+  String get officialYouTubeName;
+
+  /// No description provided for @officialYouTubeRowNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded by the rights holder\'s own channel · plays in YouTube\'s player'**
+  String get officialYouTubeRowNote;
+
+  /// No description provided for @officialYouTubeCompilation.
+  ///
+  /// In en, this message translates to:
+  /// **'Compilation · episodes {from}–{to}'**
+  String officialYouTubeCompilation(int from, int to);
+
+  /// No description provided for @officialYouTubeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This video can\'t play here'**
+  String get officialYouTubeUnavailable;
+
+  /// No description provided for @officialYouTubeUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The channel may block it in your region or outside YouTube.'**
+  String get officialYouTubeUnavailableBody;
+
+  /// No description provided for @officialYouTubeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get officialYouTubeBack;
+
+  /// No description provided for @epWatchedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched {count}'**
+  String epWatchedCount(Object count);
+
+  /// No description provided for @epUpNextHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get epUpNextHere;
+
+  /// No description provided for @epWatchedTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Seen'**
+  String get epWatchedTag;
+
+  /// Header of the official streaming services list; region is an ISO country code such as MY.
+  ///
+  /// In en, this message translates to:
+  /// **'Where to watch · {region}'**
+  String wtwTitle(String region);
+
+  /// No description provided for @wtwOpensOtherApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Official services. Tapping one leaves Lumora and opens that service\'s own app or website.'**
+  String get wtwOpensOtherApp;
+
+  /// No description provided for @wtwFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get wtwFree;
+
+  /// No description provided for @wtwAds.
+  ///
+  /// In en, this message translates to:
+  /// **'Free with ads'**
+  String get wtwAds;
+
+  /// No description provided for @wtwSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription'**
+  String get wtwSubscription;
+
+  /// No description provided for @wtwRentBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Rent / Buy'**
+  String get wtwRentBuy;
+
+  /// No description provided for @wtwWatchOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch on {provider}'**
+  String wtwWatchOn(String provider);
+
+  /// No description provided for @wtwOpensApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens the {provider} app or website, outside Lumora'**
+  String wtwOpensApp(String provider);
+
+  /// No description provided for @wtwOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open {provider}'**
+  String wtwOpenFailed(String provider);
+
+  /// No description provided for @wtwMoreOnTmdb.
+  ///
+  /// In en, this message translates to:
+  /// **'More on TMDb'**
+  String get wtwMoreOnTmdb;
+
+  /// No description provided for @wtwAttribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Listings: JustWatch via TMDb'**
+  String get wtwAttribution;
+
+  /// No description provided for @archiveSourceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet Archive · {licence}'**
+  String archiveSourceName(String licence);
+
+  /// No description provided for @archiveLicencePublicDomain.
+  ///
+  /// In en, this message translates to:
+  /// **'Public domain'**
+  String get archiveLicencePublicDomain;
+
+  /// No description provided for @archiveLicenceCc.
+  ///
+  /// In en, this message translates to:
+  /// **'Creative Commons {code}'**
+  String archiveLicenceCc(String code);
+
+  /// No description provided for @archiveRowNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Free and legal: a public-domain or openly licensed copy kept by the Internet Archive'**
+  String get archiveRowNote;
+
+  /// No description provided for @archiveMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String archiveMinutes(int minutes);
+
+  /// No description provided for @detailsSourceNoLongerSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This source is no longer supported'**
+  String get detailsSourceNoLongerSupported;
+
+  /// No description provided for @partyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch together'**
+  String get partyTitle;
+
+  /// No description provided for @partyCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a room'**
+  String get partyCreate;
+
+  /// No description provided for @partyCreateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends join with the room code. Everyone\'s play, pause and position stay together, and each person plays on their own device. Nothing is saved.'**
+  String get partyCreateBody;
+
+  /// No description provided for @partyJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Join a room'**
+  String get partyJoin;
+
+  /// No description provided for @partyJoinBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 6-character code a friend gave you.'**
+  String get partyJoinBody;
+
+  /// No description provided for @partyJoinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Room code'**
+  String get partyJoinHint;
+
+  /// No description provided for @partyJoinButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Join'**
+  String get partyJoinButton;
+
+  /// No description provided for @partyJoining.
+  ///
+  /// In en, this message translates to:
+  /// **'Joining the room…'**
+  String get partyJoining;
+
+  /// No description provided for @partyJoinFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'No room with this code, or the host has left.'**
+  String get partyJoinFailed;
+
+  /// No description provided for @partyJoinError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not join: {error}'**
+  String partyJoinError(String error);
+
+  /// No description provided for @partyCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Room code'**
+  String get partyCode;
+
+  /// No description provided for @partyCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy code'**
+  String get partyCopy;
+
+  /// No description provided for @partyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Code copied'**
+  String get partyCopied;
+
+  /// No description provided for @partyMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'In the room ({count})'**
+  String partyMembers(String count);
+
+  /// No description provided for @partyHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host'**
+  String get partyHost;
+
+  /// No description provided for @partyMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get partyMe;
+
+  /// No description provided for @partyOnlyHostControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Only I control playback'**
+  String get partyOnlyHostControls;
+
+  /// No description provided for @partyLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave the room'**
+  String get partyLeave;
+
+  /// No description provided for @partyEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End the room'**
+  String get partyEnd;
+
+  /// No description provided for @partyChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get partyChat;
+
+  /// No description provided for @partyChatHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Say something…'**
+  String get partyChatHint;
+
+  /// No description provided for @partyChatEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet. Say hello.'**
+  String get partyChatEmpty;
+
+  /// No description provided for @partySend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get partySend;
+
+  /// No description provided for @partyPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} paused'**
+  String partyPaused(String name);
+
+  /// No description provided for @partyResumed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} resumed'**
+  String partyResumed(String name);
+
+  /// No description provided for @partySeeked.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} jumped to {time}'**
+  String partySeeked(String name, String time);
+
+  /// No description provided for @partyEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'The host ended the room'**
+  String get partyEnded;
+
+  /// No description provided for @partyFollowEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'The host moved to another episode. Following…'**
+  String get partyFollowEpisode;
+
+  /// No description provided for @partyNoControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the host controls playback'**
+  String get partyNoControl;
+
+  /// No description provided for @partyNeedSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to watch together'**
+  String get partyNeedSignIn;
+
+  /// No description provided for @partyEntrySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join a friend\'s room with its code and watch in step'**
+  String get partyEntrySubtitle;
+
+  /// No description provided for @partyServiceDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the watch-together service right now. Try again later.'**
+  String get partyServiceDown;
 }
 
 class _AppLocalizationsDelegate

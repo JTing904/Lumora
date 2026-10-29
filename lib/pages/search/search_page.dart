@@ -15,19 +15,18 @@ import '../../models/movie/movie.dart';
 import '../../models/movie/movie_section.dart';
 import '../../models/stream/stream_model.dart';
 import '../../services/addon/addon_manager.dart';
-import '../../services/cloudstream/cloudstream_manager.dart';
 import '../../services/diagnostics/diagnostics_export.dart';
 import '../../services/home/home_page_settings.dart';
 import '../../services/metadata/metadata_service.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/platform/voice_search.dart';
 import '../../services/playback/play_launcher.dart';
+import '../../services/settings/locale_settings.dart';
 import '../../shell/app_shell_scope.dart';
 import '../../ui/lu_button.dart';
 import '../../ui/lu_cards.dart';
 import '../../ui/lu_focusable.dart';
 import '../../ui/lu_theme.dart';
-import '../../widgets/search/magnet_files_view.dart';
 import '../../widgets/search/tv_on_screen_keyboard.dart';
 import '../ai/wewatch_quiz_page.dart';
 import '../player/player_screen.dart';
@@ -246,7 +245,6 @@ class _SearchPageState extends State<SearchPage> {
   /// Each leg is one source the user believes is answering. The addon leg
   /// fans out internally, so a dead addon surfaces as one failure here.
   static const int _addonSearchSourceCount = 1;
-  static const int _cloudStreamSearchSourceCount = 1;
   static const int _titleSearchSourceCount = 1;
 
   final SearchFailureLedger _ledger = SearchFailureLedger();
@@ -259,11 +257,7 @@ class _SearchPageState extends State<SearchPage> {
   /// anyone expects an answer from, so it stays out of the count.
   static int _searchedSourceTotalFor({required String query}) {
     if (query.isEmpty) return 0;
-    return _titleSearchSourceCount +
-        _addonSearchSourceCount +
-        (CloudStreamManager.instance.activeExtensions.isNotEmpty
-            ? _cloudStreamSearchSourceCount
-            : 0);
+    return _titleSearchSourceCount + _addonSearchSourceCount;
   }
 
   SearchOutcome get _outcome => classifySearchResult(
@@ -351,6 +345,9 @@ class _SearchPageState extends State<SearchPage> {
     HardwareKeyboard.instance.addHandler(_onFieldKeyUp);
     _loadSearchHistory();
     _loadSuggestions();
+    // The rows' headings ("热门 · 电影") are worded when they load, so a
+    // language switch reloads them; the page stays mounted in the shell.
+    LocaleSettings.locale.addListener(_loadSuggestions);
     // After the first frame, never before: the field must paint and take input
     // immediately, and a channel round trip on the frame that opens the page
     // would put the microphone's existence between the user and the keyboard.
@@ -616,6 +613,7 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
+    LocaleSettings.locale.removeListener(_loadSuggestions);
     HardwareKeyboard.instance.removeHandler(_onFieldKeyUp);
     FocusManager.instance.removeListener(_onFocusChanged);
     _shell?.current.removeListener(_onSlotChanged);
@@ -636,11 +634,15 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
+  /// The field's length at the previous change, to tell a paste from typing.
+  int _previousLength = 0;
+
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
+      _previousLength = 0;
       setState(() {
         _results.clear();
         _isLoading = false;
@@ -654,8 +656,13 @@ class _SearchPageState extends State<SearchPage> {
       return;
     }
 
+    // A link opens at once only when it arrived whole - pasted, or dropped
+    // in by the paste button. Typed a letter at a time it would open at
+    // "https://d"; then it waits for Enter, which [_performSearch] handles.
+    final arrivedWhole = trimmed.length - _previousLength >= 8;
+    _previousLength = trimmed.length;
     if (_isStreamLink(trimmed)) {
-      _playDirectStream(trimmed);
+      if (arrivedWhole) _playDirectStream(trimmed);
       return;
     }
 
@@ -733,11 +740,7 @@ class _SearchPageState extends State<SearchPage> {
     // one now on screen.
     final recordFailure = _sourceErrorRecorderFor(currentQuery);
 
-    void addSection(
-      MovieSection section, {
-      bool isCloudStream = false,
-      bool first = false,
-    }) {
+    void addSection(MovieSection section, {bool first = false}) {
       if (!mounted || _lastQuery != currentQuery) return;
       if (section.movies.isEmpty) return;
 
@@ -753,9 +756,8 @@ class _SearchPageState extends State<SearchPage> {
       setState(() {
         if (first) {
           _results.insert(0, section);
-        } else if (!isCloudStream &&
-            (section.addonBaseUrl.contains('cinemeta') ||
-                section.subtitle.toLowerCase().contains('cinemeta'))) {
+        } else if ((section.addonBaseUrl.contains('cinemeta') ||
+            section.subtitle.toLowerCase().contains('cinemeta'))) {
           // Prioritize Cinemeta at the top
           _results.insert(0, section);
         } else {
@@ -771,7 +773,7 @@ class _SearchPageState extends State<SearchPage> {
           .searchAll(
             currentQuery,
             onSectionResult: (section) {
-              addSection(section, isCloudStream: false);
+              addSection(section);
             },
             onSourceError: _sourceErrorRecorderFor(currentQuery),
           )
@@ -779,87 +781,6 @@ class _SearchPageState extends State<SearchPage> {
             recordFailure('Addons', e);
             return <MovieSection>[];
           });
-
-      // 2. Search CloudStream Extensions with dynamic streaming
-      final csSearch =
-          (CloudStreamManager.instance.activeExtensions.isNotEmpty
-                  ? CloudStreamManager.instance.searchAcrossExtensions(
-                      currentQuery,
-                      onProviderResult: (providerName, items) {
-                        if (!mounted || _lastQuery != currentQuery) return;
-                        if (items.isEmpty) return;
-
-                        final movies = <Movie>[];
-                        for (final item in items) {
-                          final title =
-                              item['title']?.toString() ??
-                              item['name']?.toString() ??
-                              'Unknown';
-                          final rawUrl = item['url']?.toString() ?? '';
-                          final sourceId =
-                              item['_sourceId']?.toString() ??
-                              'cs_${providerName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}';
-                          final cover =
-                              item['cover']?.toString() ??
-                              item['poster']?.toString() ??
-                              item['image']?.toString();
-                          final isSeries =
-                              item['type'] == 1 ||
-                              item['type']?.toString().toLowerCase().contains(
-                                    'series',
-                                  ) ==
-                                  true ||
-                              item['type']?.toString().toLowerCase().contains(
-                                    'tv',
-                                  ) ==
-                                  true ||
-                              (item['extraData'] is Map &&
-                                  (item['extraData'] as Map)['type']
-                                          ?.toString()
-                                          .toLowerCase()
-                                          .contains('series') ==
-                                      true);
-
-                          movies.add(
-                            Movie(
-                              id: 'cloudstream:$sourceId:${Uri.encodeComponent(rawUrl)}',
-                              name: title,
-                              poster: cover,
-                              year:
-                                  item['year']?.toString() ??
-                                  (item['extraData'] is Map
-                                      ? (item['extraData'] as Map)['year']
-                                            ?.toString()
-                                      : null),
-                              type: isSeries ? 'series' : 'movie',
-                              addonBaseUrl: 'cloudstream',
-                            ),
-                          );
-                        }
-
-                        if (movies.isNotEmpty) {
-                          final section = MovieSection(
-                            title: l10n.searchCloudstreamSection(providerName),
-                            subtitle: l10n.searchCloudstreamExtension,
-                            contentType: 'movie',
-                            addonBaseUrl: 'cloudstream',
-                            catalog: AddonCatalog(
-                              type: 'movie',
-                              id: 'cs_$providerName',
-                              name: providerName,
-                            ),
-                            movies: movies,
-                          );
-                          addSection(section, isCloudStream: true);
-                        }
-                      },
-                      onSourceError: _sourceErrorRecorderFor(currentQuery),
-                    )
-                  : Future.value(<String, List<Map<String, dynamic>>>{}))
-              .catchError((e) {
-                recordFailure('CloudStream', e);
-                return <String, List<Map<String, dynamic>>>{};
-              });
 
       // 3. Keyless title lookup. An install whose only installed addon is
       // Cinemeta has no search catalog left, so without this the page would
@@ -918,7 +839,7 @@ class _SearchPageState extends State<SearchPage> {
                 })
           : Future<void>.value();
 
-      await Future.wait([addonSearch, csSearch, titleSearch, tmdbSearch]);
+      await Future.wait([addonSearch, titleSearch, tmdbSearch]);
     } catch (e) {
       // A leg that throws synchronously, or a Future.wait rejection that
       // outran the handlers above, is still a source that did not answer.
@@ -1418,9 +1339,8 @@ class _SearchPageState extends State<SearchPage> {
           child: Stack(
             children: [
               if (_isMagnetMode && _magnetQuery.isNotEmpty)
-                MagnetFilesView(
-                  key: ValueKey(_magnetQuery),
-                  magnet: _magnetQuery,
+                Center(
+                  child: Text(l10nOf(context).detailsSourceNoLongerSupported),
                 )
               else if (_isLoading && _results.isEmpty)
                 const Center(
@@ -1896,6 +1816,8 @@ class _SearchPageState extends State<SearchPage> {
                   return LuPosterCard(
                     width: posterW,
                     title: m.name,
+                    titleId: m.id,
+                    series: m.type == 'series',
                     poster: m.poster,
                     subtitle: m.year,
                     rating: m.imdbRating,

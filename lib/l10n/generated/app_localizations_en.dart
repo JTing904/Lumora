@@ -609,14 +609,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchPinnedSpine => 'PINNED SPINE';
 
   @override
-  String searchCloudstreamSection(String provider) {
-    return 'CloudStream • $provider';
-  }
-
-  @override
-  String get searchCloudstreamExtension => 'CloudStream Extension';
-
-  @override
   String get searchTitlesSection => 'Titles';
 
   @override
@@ -878,6 +870,11 @@ class AppLocalizationsEn extends AppLocalizations {
       one: '1 Season',
     );
     return '$_temp0';
+  }
+
+  @override
+  String detailsEpisodeRange(String from, String to) {
+    return 'Ep $from–$to';
   }
 
   @override
@@ -3923,7 +3920,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiYourMatches => 'Your Personalized Matches';
 
   @override
-  String get plyMedia3EngineError => 'Playback error on the Media3 engine';
+  String get plyMedia3EngineError => 'This source failed to play.';
 
   @override
   String get plyRefusedByProvider => 'Refused by provider';
@@ -4183,46 +4180,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stgaRemove => 'Remove';
 
   @override
-  String get stgaInstallRepoPluginsBody =>
-      'Would you like to install all plugins from this repository now so their streaming sources become available immediately on the watch screen?';
-
-  @override
-  String get stgaBrowseLater => 'Browse Later';
-
-  @override
-  String get stgaInstallAllNow => 'Install All Now';
-
-  @override
-  String get stgaInstallingPlugins => 'Installing Plugins';
-
-  @override
-  String get stgaPreparingRuntime => 'Preparing runtime...';
-
-  @override
-  String get stgaAddCloudStreamRepo => 'Add CloudStream Repository';
-
-  @override
-  String get stgaPasteRepoUrlHint =>
-      'Paste the repository URL (supports cloudstreamrepo://, repo.json, or plugins.json).';
-
-  @override
-  String get stgaBrowseMarketplace => 'Browse Marketplace';
-
-  @override
-  String get stgaAddRepository => 'Add Repository';
-
-  @override
-  String get stgaCsExtensionWillUninstall =>
-      'This CloudStream extension will be uninstalled.';
-
-  @override
-  String get stgaRemoveRepoBody =>
-      'Plugins from this repository will not be deleted, but repository updates will no longer be fetched.';
-
-  @override
-  String get stgaStremioAddons => 'Stremio Addons';
-
-  @override
   String get stgaStremioTabDescription =>
       'Addons provide metadata, catalogs, and streaming sources. Hold and drag to reorder priority. Providers higher up load and appear first in watch sources.';
 
@@ -4247,83 +4204,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String stgaDebridAddonsPlaceholderNote(String realdebrid) {
     return 'Addons that take the key as a plain URL parameter accept a $realdebrid style placeholder. Addons that hide it inside a base64 config blob have to be pasted fully configured instead.';
   }
-
-  @override
-  String get stgaCloudStreamTabDescription =>
-      'CloudStream (.cs3) extensions provide stream providers directly from popular media sites. Extensions run locally in a sandboxed sidecar or native ART engine.';
-
-  @override
-  String get stgaCsEngineReady => 'CloudStream Engine Ready';
-
-  @override
-  String get stgaRuntimeSetupRequired => 'Runtime Setup Required';
-
-  @override
-  String get stgaNativeEngineActive =>
-      'Native engine active and listening for queries.';
-
-  @override
-  String get stgaDownloadingRuntime => 'Downloading runtime components...';
-
-  @override
-  String get stgaRequiresRuntimeHost =>
-      'Requires runtime host to execute .cs3 bytecode.';
-
-  @override
-  String get stgaRequiresSidecarRuntime =>
-      'Requires sidecar runtime to execute .cs3 bytecode.';
-
-  @override
-  String get stgaRepoMarketplace => 'Repository Marketplace';
-
-  @override
-  String get stga45PlusRepos => '45+ Repos';
-
-  @override
-  String get stgaRepoMarketplaceDescription =>
-      'Browse curated Turkish, 3rabi, English, Hindi & global repos with direct install links.';
-
-  @override
-  String get stgaBrowseAvailablePlugins => 'Browse Available Plugins';
-
-  @override
-  String get stgaDeselectAll => 'Deselect All';
-
-  @override
-  String get stgaSelectAll => 'Select All';
-
-  @override
-  String get stgaInstalledExtensions => 'INSTALLED EXTENSIONS';
-
-  @override
-  String get stgaInstalledCsExtensions => 'INSTALLED CLOUDSTREAM EXTENSIONS';
-
-  @override
-  String get stgaNoExtensionsInstalled => 'No Extensions Installed';
-
-  @override
-  String get stgaNoExtensionsHint =>
-      'Click \"Browse Available Plugins\" to find and install extensions.';
-
-  @override
-  String get stgaRepositories => 'REPOSITORIES';
-
-  @override
-  String get stgaNoReposHint =>
-      'No custom repositories added. Click \"Add Repository\" to subscribe to a CloudStream repository.';
-
-  @override
-  String get stgaInstallAllFromRepoTooltip =>
-      'Install all plugins from this repository';
-
-  @override
-  String get stgaBrowseRepoPlugins => 'Browse repository plugins';
-
-  @override
-  String get stgaRemoveRepository => 'Remove repository';
-
-  @override
-  String get stgaSetupEngine => 'Setup Engine';
 
   @override
   String get stgaBuiltinTorrServer =>
@@ -4387,71 +4267,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get stgaSetupDebridFirst =>
       'Set up a Debrid provider in Settings first, then come back to connect it.';
-
-  @override
-  String get stgaCsDefaultDescription =>
-      'CloudStream scraping & streaming provider';
-
-  @override
-  String get stgaAvailablePlugins => 'Available Plugins';
-
-  @override
-  String get stgaAvailableCsPlugins => 'Available CloudStream Plugins';
-
-  @override
-  String get stgaSearchPluginsHint =>
-      'Search plugins (e.g. Sflix, SuperStream)...';
-
-  @override
-  String get stgaNoPluginsInRepos =>
-      'No plugins found in added repositories.\nPlease add a CloudStream repository URL first.';
-
-  @override
-  String get stgaInstalled => 'Installed';
-
-  @override
-  String get stgaUninstall => 'Uninstall';
-
-  @override
-  String get stgaInstallRepoPluginsNowQ =>
-      'Would you like to install plugins from this repository now?';
-
-  @override
-  String get stgaLater => 'Later';
-
-  @override
-  String get stgaInstallingRepoPlugins => 'Installing Repository Plugins';
-
-  @override
-  String get stgaInstallingExtensions => 'Installing extensions...';
-
-  @override
-  String get stgaMarketplace => 'Marketplace';
-
-  @override
-  String get stgaRefreshListFromWeb => 'Refresh list from web';
-
-  @override
-  String get stgaSearchRepoOrPluginHint =>
-      'Search repository or plugin (e.g. Turkish, 3rabi, DiziBox, Shahid)...';
-
-  @override
-  String get stgaAdded => 'Added';
-
-  @override
-  String get stgaAddingRepository => 'Adding Repository...';
-
-  @override
-  String get stgaInstallRepository => 'Install Repository';
-
-  @override
-  String get stgaInstallAllPlugins => 'Install All Plugins';
-
-  @override
-  String get stgaBrowse => 'Browse';
-
-  @override
-  String get stgaHidePlugins => 'Hide plugins';
 
   @override
   String get stgaPastedKeyFromClipboard => 'Pasted key from clipboard';
@@ -7042,82 +6857,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get stgcRepoAdded => 'Repository added successfully!';
-
-  @override
-  String get stgcInstallRepoPluginsQ => 'Install Repository Plugins?';
-
-  @override
-  String stgcInstalledFromRepo(Object count) {
-    return 'Successfully installed $count plugins from repository!';
-  }
-
-  @override
-  String stgcInstallError(Object error) {
-    return 'Installation error: $error';
-  }
-
-  @override
-  String stgcRemoveExtQ(Object name) {
-    return 'Remove $name?';
-  }
-
-  @override
-  String stgcRemoveCountPluginsQ(Object count) {
-    return 'Remove $count plugin(s)?';
-  }
-
-  @override
-  String stgcConfirmRemoveAllCs(Object count) {
-    return 'Are you sure you want to remove all $count installed CloudStream plugins? All downloaded plugin files (.jar/.cs3) will be deleted.';
-  }
-
-  @override
-  String stgcConfirmRemoveSelectedCs(Object count) {
-    return 'Are you sure you want to remove the $count selected CloudStream plugins? Their downloaded files will be deleted from your device.';
-  }
-
-  @override
-  String stgcRemovedCountPlugins(Object count) {
-    return 'Successfully removed $count plugin(s).';
-  }
-
-  @override
-  String stgcRemoveCount(Object count) {
-    return 'Remove ($count)';
-  }
-
-  @override
-  String stgcRemoveRepoQ(Object name) {
-    return 'Remove $name?';
-  }
-
-  @override
   String get stgcAddonsExtensions => 'Addons & Extensions';
 
   @override
   String stgcAddonsTotal(Object count) {
     return '$count Total';
-  }
-
-  @override
-  String stgcRemoveSelectedCount(Object count) {
-    return 'Remove ($count)';
-  }
-
-  @override
-  String stgcInstalledTotal(Object count) {
-    return '$count Total';
-  }
-
-  @override
-  String stgcReposCount(Object count) {
-    return '$count Repos';
-  }
-
-  @override
-  String stgcRuntimeSetupError(Object error) {
-    return 'Runtime setup error: $error';
   }
 
   @override
@@ -7141,110 +6885,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String stgcUsesYourServiceKey(Object service) {
     return 'Uses your $service key';
-  }
-
-  @override
-  String stgcPluginInstalled(Object name) {
-    return '$name installed successfully!';
-  }
-
-  @override
-  String stgcPluginUninstalled(Object name) {
-    return '$name uninstalled.';
-  }
-
-  @override
-  String stgcInstalledCountPlugins(Object count) {
-    return 'Successfully installed $count plugins!';
-  }
-
-  @override
-  String stgcRemoveListPluginsQ(Object count) {
-    return 'Remove $count plugin(s)?';
-  }
-
-  @override
-  String stgcConfirmUninstallList(Object count) {
-    return 'Are you sure you want to uninstall all $count installed plugins from this list? Their downloaded files will be removed.';
-  }
-
-  @override
-  String stgcRemoveAllListCount(Object count) {
-    return 'Remove All ($count)';
-  }
-
-  @override
-  String stgcUninstalledCount(Object count) {
-    return 'Successfully uninstalled $count plugins.';
-  }
-
-  @override
-  String stgcRemoveAllCount(Object count) {
-    return 'Remove All ($count)';
-  }
-
-  @override
-  String stgcInstallAllCount(Object count) {
-    return 'Install All ($count)';
-  }
-
-  @override
-  String stgcNoPluginsMatching(Object query) {
-    return 'No plugins matching \"$query\"';
-  }
-
-  @override
-  String get stgcAllMatchingInstalled =>
-      'All matching plugins are already installed!';
-
-  @override
-  String stgcRepoNameAdded(Object name) {
-    return '$name added successfully!';
-  }
-
-  @override
-  String stgcInstallRepoNamePluginsQ(Object name) {
-    return 'Install $name Plugins?';
-  }
-
-  @override
-  String stgcRepoIncludesPlugins(Object count, Object sample) {
-    return 'This repository includes $count plugins ($sample...). Install all plugins now so their stream sources appear immediately?';
-  }
-
-  @override
-  String stgcPluginsInstalledReady(Object count) {
-    return '$count plugins installed and ready!';
-  }
-
-  @override
-  String stgcMarketplaceSubtitle(Object count) {
-    return '$count repos · Direct install links & verified providers';
-  }
-
-  @override
-  String stgcNoReposFound(Object query) {
-    return 'No repositories found for \"$query\"';
-  }
-
-  @override
-  String stgcRepoPluginsCount(Object count) {
-    return '$count Plugins';
-  }
-
-  @override
-  String stgcCopiedLink(Object url) {
-    return 'Copied link: $url';
-  }
-
-  @override
-  String stgcContainsPlugins(Object plugins) {
-    return 'Contains: $plugins';
-  }
-
-  @override
-  String stgcViewAllPlugins(Object count) {
-    return 'View all $count plugins';
   }
 
   @override
@@ -9283,4 +8923,233 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get detailsSpecials => 'Specials';
+
+  @override
+  String epOutUpTo(String episode) {
+    return 'Out now up to episode $episode';
+  }
+
+  @override
+  String epNextAirs(String episode, String date) {
+    return 'Episode $episode airs $date';
+  }
+
+  @override
+  String epNotOutYet(String episode, String date) {
+    return 'Episode $episode isn\'t out yet: it airs $date';
+  }
+
+  @override
+  String get epUpcoming => 'Not out yet';
+
+  @override
+  String get officialYouTubeName => 'Official on YouTube';
+
+  @override
+  String get officialYouTubeRowNote =>
+      'Uploaded by the rights holder\'s own channel · plays in YouTube\'s player';
+
+  @override
+  String officialYouTubeCompilation(int from, int to) {
+    return 'Compilation · episodes $from–$to';
+  }
+
+  @override
+  String get officialYouTubeUnavailable => 'This video can\'t play here';
+
+  @override
+  String get officialYouTubeUnavailableBody =>
+      'The channel may block it in your region or outside YouTube.';
+
+  @override
+  String get officialYouTubeBack => 'Back';
+
+  @override
+  String epWatchedCount(Object count) {
+    return 'Watched $count';
+  }
+
+  @override
+  String get epUpNextHere => 'Next';
+
+  @override
+  String get epWatchedTag => 'Seen';
+
+  @override
+  String wtwTitle(String region) {
+    return 'Where to watch · $region';
+  }
+
+  @override
+  String get wtwOpensOtherApp =>
+      'Official services. Tapping one leaves Lumora and opens that service\'s own app or website.';
+
+  @override
+  String get wtwFree => 'Free';
+
+  @override
+  String get wtwAds => 'Free with ads';
+
+  @override
+  String get wtwSubscription => 'Subscription';
+
+  @override
+  String get wtwRentBuy => 'Rent / Buy';
+
+  @override
+  String wtwWatchOn(String provider) {
+    return 'Watch on $provider';
+  }
+
+  @override
+  String wtwOpensApp(String provider) {
+    return 'Opens the $provider app or website, outside Lumora';
+  }
+
+  @override
+  String wtwOpenFailed(String provider) {
+    return 'Couldn\'t open $provider';
+  }
+
+  @override
+  String get wtwMoreOnTmdb => 'More on TMDb';
+
+  @override
+  String get wtwAttribution => 'Listings: JustWatch via TMDb';
+
+  @override
+  String archiveSourceName(String licence) {
+    return 'Internet Archive · $licence';
+  }
+
+  @override
+  String get archiveLicencePublicDomain => 'Public domain';
+
+  @override
+  String archiveLicenceCc(String code) {
+    return 'Creative Commons $code';
+  }
+
+  @override
+  String get archiveRowNote =>
+      'Free and legal: a public-domain or openly licensed copy kept by the Internet Archive';
+
+  @override
+  String archiveMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get detailsSourceNoLongerSupported =>
+      'This source is no longer supported';
+
+  @override
+  String get partyTitle => 'Watch together';
+
+  @override
+  String get partyCreate => 'Start a room';
+
+  @override
+  String get partyCreateBody =>
+      'Friends join with the room code. Everyone\'s play, pause and position stay together, and each person plays on their own device. Nothing is saved.';
+
+  @override
+  String get partyJoin => 'Join a room';
+
+  @override
+  String get partyJoinBody => 'Enter the 6-character code a friend gave you.';
+
+  @override
+  String get partyJoinHint => 'Room code';
+
+  @override
+  String get partyJoinButton => 'Join';
+
+  @override
+  String get partyJoining => 'Joining the room…';
+
+  @override
+  String get partyJoinFailed => 'No room with this code, or the host has left.';
+
+  @override
+  String partyJoinError(String error) {
+    return 'Could not join: $error';
+  }
+
+  @override
+  String get partyCode => 'Room code';
+
+  @override
+  String get partyCopy => 'Copy code';
+
+  @override
+  String get partyCopied => 'Code copied';
+
+  @override
+  String partyMembers(String count) {
+    return 'In the room ($count)';
+  }
+
+  @override
+  String get partyHost => 'Host';
+
+  @override
+  String get partyMe => 'Me';
+
+  @override
+  String get partyOnlyHostControls => 'Only I control playback';
+
+  @override
+  String get partyLeave => 'Leave the room';
+
+  @override
+  String get partyEnd => 'End the room';
+
+  @override
+  String get partyChat => 'Chat';
+
+  @override
+  String get partyChatHint => 'Say something…';
+
+  @override
+  String get partyChatEmpty => 'No messages yet. Say hello.';
+
+  @override
+  String get partySend => 'Send';
+
+  @override
+  String partyPaused(String name) {
+    return '$name paused';
+  }
+
+  @override
+  String partyResumed(String name) {
+    return '$name resumed';
+  }
+
+  @override
+  String partySeeked(String name, String time) {
+    return '$name jumped to $time';
+  }
+
+  @override
+  String get partyEnded => 'The host ended the room';
+
+  @override
+  String get partyFollowEpisode =>
+      'The host moved to another episode. Following…';
+
+  @override
+  String get partyNoControl => 'Only the host controls playback';
+
+  @override
+  String get partyNeedSignIn => 'Sign in to watch together';
+
+  @override
+  String get partyEntrySubtitle =>
+      'Join a friend\'s room with its code and watch in step';
+
+  @override
+  String get partyServiceDown =>
+      'Can\'t reach the watch-together service right now. Try again later.';
 }

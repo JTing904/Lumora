@@ -4,16 +4,14 @@ import 'package:http/http.dart' as http;
 import '../../models/audiobook/audiobook_model.dart';
 import '../../utils/search/relevance_scorer.dart';
 import '../config/service_credentials.dart';
-import 'audiobookbay_scraper.dart';
 
 class AudiobookScraperService {
   AudiobookScraperService._();
 
   static final AudiobookScraperService instance = AudiobookScraperService._();
 
-  // List of scrapers to run in parallel (AudiobookBay first for fast results)
+  // List of direct audio sources to run in parallel.
   final List<Future<List<Audiobook>> Function(String)> _searchScrapers = [
-    AudiobookBayScraper.search,
     _searchBookAudio,
     _searchGolden,
     _searchFullLength,
@@ -67,8 +65,6 @@ class AudiobookScraperService {
           return await _getAudiobooks4SoulChapters(book.pageUrl);
         case 'audionest':
           return await _getAudionestChapters(book.audioBookId);
-        case 'audiobookbay':
-          return await AudiobookBayScraper.getChapters(book.pageUrl);
         default:
           return [];
       }
@@ -112,7 +108,10 @@ class AudiobookScraperService {
 
     // 2. Remove [Listen], [Download], [Audiobook], etc. prefixes/tags
     title = title.replaceAll(
-      RegExp(r'\[\s*(?:Listen|Download|Audiobook|Stream|MP3|Free)\s*\]', caseSensitive: false),
+      RegExp(
+        r'\[\s*(?:Listen|Download|Audiobook|Stream|MP3|Free)\s*\]',
+        caseSensitive: false,
+      ),
       '',
     );
 

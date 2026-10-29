@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart' show PlatformViewHitTestBehavior;
 import 'package:flutter/widgets.dart';
 
 import 'video_engine.dart';
@@ -32,10 +33,12 @@ class ExoPlayerEngine implements VideoEngine {
   /// The platform view id registered by the native `ExoPlayerBridge`. Must
   /// match `ExoPlayerBridge.VIEW_ID`.
   static const String viewType = 'io.github.tzero86.zplay/exo_surface';
-  static const MethodChannel _methods =
-      MethodChannel('io.github.tzero86.zplay/exo_player');
-  static const EventChannel _events =
-      EventChannel('io.github.tzero86.zplay/exo_player/events');
+  static const MethodChannel _methods = MethodChannel(
+    'io.github.tzero86.zplay/exo_player',
+  );
+  static const EventChannel _events = EventChannel(
+    'io.github.tzero86.zplay/exo_player/events',
+  );
 
   /// True when Media3 can be used at all. False on desktop and on any platform
   /// where the bridge is not registered.
@@ -57,14 +60,14 @@ class ExoPlayerEngine implements VideoEngine {
 
   @override
   EngineCapabilities get capabilities => const EngineCapabilities(
-        // Media3 renders subtitles with its own renderer, so libass styling has
-        // no equivalent here. A caller that needs styled subtitles must ask
-        // before offering the option, which is why this is a capability rather
-        // than a silently ignored setting.
-        subtitleStyling: false,
-        supportsTorrents: false,
-        zeroCopyVideo: true,
-      );
+    // Media3 renders subtitles with its own renderer, so libass styling has
+    // no equivalent here. A caller that needs styled subtitles must ask
+    // before offering the option, which is why this is a capability rather
+    // than a silently ignored setting.
+    subtitleStyling: false,
+    supportsTorrents: false,
+    zeroCopyVideo: true,
+  );
 
   @override
   EngineState get state => _state;
@@ -78,9 +81,8 @@ class ExoPlayerEngine implements VideoEngine {
   /// has to exist before a player can render, and the native side joins the two
   /// whenever both are present - a platform view can be created and destroyed
   /// independently of any load.
-  Widget buildVideoSurface() => ExoPlayerSurface(
-        onSurfaceAvailable: _onSurfaceAvailable,
-      );
+  Widget buildVideoSurface() =>
+      ExoPlayerSurface(onSurfaceAvailable: _onSurfaceAvailable);
 
   void _onSurfaceAvailable() {
     surfaceMounted.value = true;
@@ -131,38 +133,54 @@ class ExoPlayerEngine implements VideoEngine {
     final Object? type = event['type'];
     switch (type) {
       case 'state':
-        _emit(_state.copyWith(
-          ready: _readyFrom(event['state'] as String?),
-          buffering: event['state'] == 'buffering',
-        ));
+        _emit(
+          _state.copyWith(
+            ready: _readyFrom(event['state'] as String?),
+            buffering: event['state'] == 'buffering',
+          ),
+        );
       case 'isPlaying':
         _emit(_state.copyWith(playing: event['value'] == true));
       case 'position':
-        _emit(_state.copyWith(
-          position: Duration(milliseconds: (event['value'] as num?)?.toInt() ?? 0),
-        ));
+        _emit(
+          _state.copyWith(
+            position: Duration(
+              milliseconds: (event['value'] as num?)?.toInt() ?? 0,
+            ),
+          ),
+        );
       case 'duration':
-        _emit(_state.copyWith(
-          duration: Duration(milliseconds: (event['value'] as num?)?.toInt() ?? 0),
-        ));
+        _emit(
+          _state.copyWith(
+            duration: Duration(
+              milliseconds: (event['value'] as num?)?.toInt() ?? 0,
+            ),
+          ),
+        );
       case 'buffering':
-        _emit(_state.copyWith(
-          buffering: event['value'] == true,
-          buffer: Duration(milliseconds: (event['ms'] as num?)?.toInt() ?? 0),
-        ));
+        _emit(
+          _state.copyWith(
+            buffering: event['value'] == true,
+            buffer: Duration(milliseconds: (event['ms'] as num?)?.toInt() ?? 0),
+          ),
+        );
       case 'videoSize':
         final int? width = (event['width'] as num?)?.toInt();
         final int? height = (event['height'] as num?)?.toInt();
-        _emit(_state.copyWith(
-          decodedWidth: (width == null || width <= 0) ? null : width,
-          decodedHeight: (height == null || height <= 0) ? null : height,
-        ));
+        _emit(
+          _state.copyWith(
+            decodedWidth: (width == null || width <= 0) ? null : width,
+            decodedHeight: (height == null || height <= 0) ? null : height,
+          ),
+        );
       case 'tracks':
-        _emit(_state.copyWith(
-          audioTracks: _tracks(event['audio'], 'Audio'),
-          videoTracks: _tracks(event['video'], 'Video'),
-          subtitleTracks: _tracks(event['subtitle'], 'Subtitle'),
-        ));
+        _emit(
+          _state.copyWith(
+            audioTracks: _tracks(event['audio'], 'Audio'),
+            videoTracks: _tracks(event['video'], 'Video'),
+            subtitleTracks: _tracks(event['subtitle'], 'Subtitle'),
+          ),
+        );
       case 'error':
         _emit(_state.copyWith(ready: EngineReadyState.error));
       default:
@@ -177,12 +195,16 @@ class ExoPlayerEngine implements VideoEngine {
       if (entry is! Map) continue;
       final Map<Object?, Object?> track = Map<Object?, Object?>.from(entry);
       final Object? title = track['title'];
-      out.add(EngineTrack(
-        id: (track['id'] as num?)?.toInt() ?? out.length,
-        title: title is String && title.isNotEmpty ? title : '$fallback ${out.length + 1}',
-        language: track['language'] as String?,
-        codec: track['codec'] as String?,
-      ));
+      out.add(
+        EngineTrack(
+          id: (track['id'] as num?)?.toInt() ?? out.length,
+          title: title is String && title.isNotEmpty
+              ? title
+              : '$fallback ${out.length + 1}',
+          language: track['language'] as String?,
+          codec: track['codec'] as String?,
+        ),
+      );
     }
     return out;
   }
@@ -206,9 +228,7 @@ class ExoPlayerEngine implements VideoEngine {
     if (request.needsMpv) {
       // Better to refuse immediately than to hand a torrent URL to Media3 and
       // let it fail slowly: the caller falls back to mpv in the same tick.
-      throw const EngineUnsupported(
-        'Torrents are played by the mpv engine',
-      );
+      throw const EngineUnsupported('Torrents are played by the mpv engine');
     }
     _emit(const EngineState());
     start();
@@ -233,40 +253,28 @@ class ExoPlayerEngine implements VideoEngine {
   Future<void> stop() => _invoke('stop');
 
   @override
-  Future<void> seek(Duration position) => _invoke(
-        'seek',
-        <String, dynamic>{'positionMs': position.inMilliseconds},
-      );
+  Future<void> seek(Duration position) =>
+      _invoke('seek', <String, dynamic>{'positionMs': position.inMilliseconds});
 
   @override
-  Future<void> setRate(double rate) => _invoke(
-        'setRate',
-        <String, dynamic>{'rate': rate},
-      );
+  Future<void> setRate(double rate) =>
+      _invoke('setRate', <String, dynamic>{'rate': rate});
 
   @override
-  Future<void> setVolume(double volume) => _invoke(
-        'setVolume',
-        <String, dynamic>{'volume': volume},
-      );
+  Future<void> setVolume(double volume) =>
+      _invoke('setVolume', <String, dynamic>{'volume': volume});
 
   @override
-  Future<void> setAudioTrack(EngineTrack? track) => _invoke(
-        'selectAudioTrack',
-        <String, dynamic>{'trackId': track?.id},
-      );
+  Future<void> setAudioTrack(EngineTrack? track) =>
+      _invoke('selectAudioTrack', <String, dynamic>{'trackId': track?.id});
 
   @override
-  Future<void> setSubtitleTrack(EngineTrack? track) => _invoke(
-        'selectSubtitleTrack',
-        <String, dynamic>{'trackId': track?.id},
-      );
+  Future<void> setSubtitleTrack(EngineTrack? track) =>
+      _invoke('selectSubtitleTrack', <String, dynamic>{'trackId': track?.id});
 
   @override
-  Future<void> setSubtitlesVisible(bool visible) => _invoke(
-        'setSubtitlesVisible',
-        <String, dynamic>{'visible': visible},
-      );
+  Future<void> setSubtitlesVisible(bool visible) =>
+      _invoke('setSubtitlesVisible', <String, dynamic>{'visible': visible});
 
   @override
   Future<void> dispose() async {
@@ -316,6 +324,13 @@ class _ExoPlayerSurfaceState extends State<ExoPlayerSurface> {
     if (!ExoPlayerEngine.isSupported) {
       return const SizedBox.shrink();
     }
-    return const AndroidView(viewType: ExoPlayerEngine.viewType);
+    // Transparent to hit testing: the picture is not a control. As an opaque
+    // platform view it took every tap once the HUD had hidden itself, so on a
+    // phone a tap on the playing video never reached the player's own gesture
+    // detector and the controls could not be brought back.
+    return const AndroidView(
+      viewType: ExoPlayerEngine.viewType,
+      hitTestBehavior: PlatformViewHitTestBehavior.transparent,
+    );
   }
 }

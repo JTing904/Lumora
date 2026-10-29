@@ -3,11 +3,12 @@ import '../../l10n/l10n.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../models/movie/movie_detail.dart';
 import '../../models/movie/video.dart';
 import '../../models/stream/stream_model.dart';
+import '../../services/archive/archive_source_loader.dart';
 import '../../services/stream/stream_service.dart';
+import '../../services/metadata/episode_art.dart';
 import '../../services/anime/anime_scraper_service.dart';
 import '../../services/anime_arabic/anime_arabic_service.dart';
 import '../../services/anime_arabic/anime_arabic_extractor.dart';
@@ -80,7 +81,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
     super.initState();
 
     if (widget.cachedSources != null && widget.cachedSources!.isNotEmpty) {
-      _sources.addAll(widget.cachedSources!);
+      _sources.addAll(widget.cachedSources!.where((s) => !s.isMagnet));
       _isLoading = false;
     } else {
       _startScraping();
@@ -101,7 +102,10 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
     }
   }
 
-  void _startScraping() {
+  int _scrapeGeneration = 0;
+
+  Future<void> _startScraping() async {
+    final generation = ++_scrapeGeneration;
     setState(() {
       _sources.clear();
       _isLoading = true;
@@ -123,6 +127,18 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
         widget.currentAddonName == 'ArabicAnime';
 
     _streamSub?.cancel();
+    int? chineseEpisode;
+    if (detail != null &&
+        ep.season != null &&
+        ep.season! > 0 &&
+        ep.episode != null) {
+      chineseEpisode = await EpisodeArt.runningNumber(
+        detail,
+        season: ep.season!,
+        episode: ep.episode!,
+      );
+      if (!mounted || generation != _scrapeGeneration) return;
+    }
 
     if (isArabicAnime) {
       String slug = '';
@@ -169,7 +185,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
 
             if (mounted) {
               setState(() {
-                _sources.addAll(sources);
+                _sources.addAll(sources.where((s) => !s.isMagnet));
                 _isLoading = false;
               });
               widget.onSourcesLoaded(List.from(_sources));
@@ -215,7 +231,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
           )
           .listen(
             (source) {
-              if (!mounted) return;
+              if (!mounted || source.isMagnet) return;
               setState(() {
                 final exists = _sources.any(
                   (s) =>
@@ -240,6 +256,30 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
       return;
     }
 
+    // The Internet Archive copy is not an addon stream, so the fan-out below
+    // never returns it; it heads the list when there is one, as on the
+    // details page.
+    if (detail != null && type == 'movie') {
+      unawaited(
+        ArchiveSourceLoader.load(
+          detail: detail,
+          type: type,
+          l10n: l10nCurrent(),
+        ).then((rows) {
+          if (!mounted || generation != _scrapeGeneration || rows.isEmpty) {
+            return;
+          }
+          setState(() {
+            for (final row in rows.reversed) {
+              if (!_sources.any((s) => s.url == row.url)) {
+                _sources.insert(0, row);
+              }
+            }
+          });
+        }),
+      );
+    }
+
     _streamSub =
         StreamService.fetchStreamsForTargetAddon(
           targetAddonName: widget.currentAddonName,
@@ -249,6 +289,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
           year: year,
           season: ep.season,
           episode: ep.episode,
+          chineseEpisode: chineseEpisode,
           genres: detail?.genres,
           // The panel's job is to offer alternatives to the current source, so it
           // fans out to every active provider instead of re-scraping only the
@@ -257,7 +298,7 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
           allProviders: true,
         ).listen(
           (source) {
-            if (!mounted) return;
+            if (!mounted || source.isMagnet) return;
             setState(() {
               // Deduplicate by URL / infoHash / title
               final exists = _sources.any(
@@ -356,6 +397,9 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
     left: Radius.circular(24),
   );
 
+  bool get _isFilm =>
+      widget.detail?.type == 'movie' && widget.detail?.isCollection != true;
+
   Widget _buildHeader(int sNum, int eNum, bool isCompact) {
     const tokens = luTokens;
     return Container(
@@ -388,30 +432,45 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                    // A film has no season or episode: its badge read
+                    // "第 1 季 · 第 1 集".
+                    if (!_isFilm) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: LuPanel.selectedFill,
+                          borderRadius: LuRadius.pill,
+                          border: Border.all(color: LuPanel.selectedEdge),
+                        ),
+                        child: Text(
+                          widget.episode.displayNumber != null
+                              // Counted straight through: 第194集, not S8E22.
+                              ? l10nCurrent().panelEpisode(
+                                  '${widget.episode.displayNumber}',
+                                )
+                              : l10nCurrent().wgPlySeasonEpisodeBadge(
+                                  sNum,
+                                  eNum,
+                                ),
+                          style: ZplayType.caption
+                              .copyWith(
+                                weight: FontWeight.w800,
+                                letterSpacing: 0.4,
+                              )
+                              .toStyle(color: tokens.accent),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: LuPanel.selectedFill,
-                        borderRadius: LuRadius.pill,
-                        border: Border.all(color: LuPanel.selectedEdge),
-                      ),
-                      child: Text(
-                        l10nCurrent().wgPlySeasonEpisodeBadge(sNum, eNum),
-                        style: ZplayType.caption
-                            .copyWith(
-                              weight: FontWeight.w800,
-                              letterSpacing: 0.4,
-                            )
-                            .toStyle(color: tokens.accent),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                      const SizedBox(width: 8),
+                    ],
                     Flexible(
                       child: Text(
-                        widget.episode.title.isNotEmpty
+                        _isFilm
+                            ? (widget.detail?.displayName ??
+                                  widget.episode.title)
+                            : widget.episode.title.isNotEmpty
                             ? widget.episode.title
                             : l10nOf(context).panelEpisode('$eNum'),
                         style: ZplayType.subtitle
@@ -766,59 +825,6 @@ class _PlayerSourcesPanelState extends State<PlayerSourcesPanel> {
                 ),
 
                 const SizedBox(width: ZplaySpacing.s8),
-
-                if (source.isMagnet && source.magnetUrl != null) ...[
-                  FocusableInkWell(
-                    borderRadius: ZplayRadius.mdAll,
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: source.magnetUrl!));
-                      HapticFeedback.lightImpact();
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.check_circle_rounded,
-                                color: tokens.success,
-                                size: 18,
-                              ),
-                              const SizedBox(width: ZplaySpacing.s8),
-                              Text(
-                                l10nOf(context).watchMagnetCopied,
-                                style: ZplayType.label
-                                    .copyWith(weight: FontWeight.w600)
-                                    .toStyle(color: tokens.textPrimary),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: tokens.surfaceOverlay,
-                          behavior: SnackBarBehavior.floating,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: LuRadius.field,
-                          ),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: tokens.textPrimary.withValues(
-                          alpha: ZplayOpacity.borderDefault,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.link_rounded,
-                        color: tokens.textEmphasis,
-                        size: 16,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
 
                 // Play Button Icon
                 Container(

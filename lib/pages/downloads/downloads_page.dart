@@ -20,7 +20,12 @@ import '../../ui/lu_focusable.dart';
 import '../../ui/lu_theme.dart';
 
 class DownloadsPage extends StatefulWidget {
-  const DownloadsPage({super.key});
+  const DownloadsPage({super.key, this.showTitle = false});
+
+  /// Whether the page names itself. Inside 我的收藏 the library's own header
+  /// does; as the phone's 下载 tab nothing else would, and the page opened on
+  /// a bare "0 个进行中".
+  final bool showTitle;
 
   @override
   State<DownloadsPage> createState() => _DownloadsPageState();
@@ -246,6 +251,14 @@ class _DownloadsPageState extends State<DownloadsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (widget.showTitle)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      l10nOf(context).dlTitle,
+                      style: LuText.title.copyWith(fontSize: 30),
+                    ),
+                  ),
                 Text(
                   l10nOf(
                     context,

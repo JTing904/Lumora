@@ -112,8 +112,8 @@ const Map<String, String> _zh = {
   'Frosted Cyber': '磨砂赛博',
   'Custom': '自定义',
   'Lumora Gold': 'Lumora 金色',
-  'Built-in BitTorrent P2P streaming engine (TorrServer). Plays torrents, magnets, and infohashes directly.':
-      '内置 BitTorrent P2P 播放引擎（TorrServer），可直接播放种子、磁力链接和 infohash。',
+  // Cinemeta's own manifest text; every installation has it.
+  'The official addon for movie and series catalogs': '电影和剧集目录的官方插件',
   'Built-in fast HTTP stream scrapers (111477, Cinejoy, Vuflix, Movy, RiveStream, Vadapav, VidCore, VidSrc, etc.)':
       '内置高速 HTTP 片源抓取（111477、Cinejoy、Vuflix、Movy、RiveStream、Vadapav、VidCore、VidSrc 等）。',
   'Stremio addon that searches BitTorrent indexers and flags which results are already cached on the connected Debrid service.':

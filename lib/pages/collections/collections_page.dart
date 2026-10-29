@@ -49,11 +49,17 @@ class CollectionsPage extends StatelessWidget {
                 const SliverToBoxAdapter(child: _PageHeader()),
                 if (sagas.isNotEmpty)
                   SliverToBoxAdapter(
-                    child: _Group(label: l10nCurrent().colFranchises, collections: sagas),
+                    child: _Group(
+                      label: l10nCurrent().colFranchises,
+                      collections: sagas,
+                    ),
                   ),
                 if (eras.isNotEmpty)
                   SliverToBoxAdapter(
-                    child: _Group(label: l10nCurrent().colMemoryLane, collections: eras),
+                    child: _Group(
+                      label: l10nCurrent().colMemoryLane,
+                      collections: eras,
+                    ),
                   ),
                 SliverToBoxAdapter(
                   child: SizedBox(
@@ -128,8 +134,7 @@ class _Group extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final columns =
-        FormFactorService.of(context) == FormFactor.compact ? 1 : 3;
+    final columns = FormFactorService.of(context) == FormFactor.compact ? 1 : 3;
 
     final rows = <List<CuratedCollection>>[
       for (var i = 0; i < collections.length; i += columns)
@@ -230,7 +235,7 @@ class CollectionTile extends StatelessWidget {
                   SizedBox(
                     height: titleBlock,
                     child: Text(
-                      collection.title,
+                      collection.displayTitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: ZplayType.subtitle
@@ -242,7 +247,7 @@ class CollectionTile extends StatelessWidget {
                   SizedBox(
                     height: metaBlock,
                     child: Text(
-                      collection.subtitle,
+                      collection.displaySubtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: ZplayType.caption.toStyle(color: tokens.textMuted),

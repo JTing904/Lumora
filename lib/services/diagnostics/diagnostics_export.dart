@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../layout/device_profile.dart';
 import '../player/player_settings.dart';
 import '../storage/secret_keys.dart';
-import '../stream/torrent_stream_service.dart';
 import 'crash_breadcrumbs.dart';
 import 'renderer_backend.dart';
 
@@ -367,11 +366,5 @@ class DiagnosticsExport {
   /// The engine's lifecycle state is a plain field on the singleton, so this is
   /// a read with no HTTP call and no start. A device that never plays a torrent
   /// reports `stopped`, which is the truth rather than a failure.
-  static String? _defaultTorrentEngineState() {
-    try {
-      return TorrentStreamService().state.name;
-    } catch (_) {
-      return null;
-    }
-  }
+  static String? _defaultTorrentEngineState() => null;
 }

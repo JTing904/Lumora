@@ -2,6 +2,66 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zplay/services/scraper/sites/maccms.dart';
 
 void main() {
+  test('matches language suffixes without matching other titles', () {
+    final items = [
+      {'vod_name': '璀璨之城粤语', 'vod_year': '2026', 'type_name': '香港剧'},
+      {'vod_name': '璀璨人生', 'vod_year': '2026', 'type_name': '香港剧'},
+    ];
+    expect(
+      MacCmsScraper.pick(items, '璀璨之城', series: true, year: 2026)?['vod_name'],
+      '璀璨之城粤语',
+    );
+    expect(MacCmsScraper.pick(items, '璀璨之城', series: true, year: 2020), isNull);
+  });
+  test('keeps both language variants', () {
+    final items = [
+      {'vod_name': '璀璨之城国语', 'type_name': '香港剧'},
+      {'vod_name': '璀璨之城粤语', 'type_name': '香港剧'},
+    ];
+    expect(MacCmsScraper.pickAll(items, '璀璨之城', series: true), hasLength(2));
+  });
+  test(
+    'does not select a different episode from an incomplete numbered list',
+    () {
+      const list = r'第02集$https://a/2.m3u8#第03集$https://a/3.m3u8';
+      expect(MacCmsScraper.playUrlFor(list, series: true, episode: 1), isNull);
+      expect(
+        MacCmsScraper.playUrlFor(list, series: true, episode: 2),
+        'https://a/2.m3u8',
+      );
+      const season = r'第2季第03集$https://a/3.m3u8';
+      expect(
+        MacCmsScraper.playUrlFor(season, series: true, episode: 3),
+        'https://a/3.m3u8',
+      );
+    },
+  );
+  test('accepts the movie category', () {
+    expect(
+      MacCmsScraper.pick(
+        [
+          {'vod_name': '测试', 'type_name': '电影'},
+        ],
+        '测试',
+        series: false,
+      ),
+      isNotNull,
+    );
+  });
+  test('anime filter rejects live action with the same title', () {
+    final items = [
+      {'vod_name': '仙逆', 'type_name': '国产剧'},
+      {'vod_name': '仙逆', 'type_name': '国产动漫'},
+    ];
+    final matches = MacCmsScraper.pickAll(
+      items,
+      '仙逆',
+      series: true,
+      animationOnly: true,
+    );
+    expect(matches, hasLength(1));
+    expect(matches.single['type_name'], '国产动漫');
+  });
   group('seasonOf', () {
     test('reads 第二季, 第2季 and a trailing number', () {
       expect(MacCmsScraper.seasonOf('凡人修仙传 第二季'), 2);

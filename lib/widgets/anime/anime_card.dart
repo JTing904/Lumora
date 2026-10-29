@@ -8,6 +8,7 @@ import '../../utils/a11y.dart';
 import '../common/card_badges.dart';
 import '../common/poster_skeleton.dart';
 import '../common/focusable_card.dart';
+import '../common/local_title_text.dart';
 import '../../services/storage/app_image_cache.dart';
 
 /// True for AniList's episodic formats. `MOVIE` is a film, so it gets no badge.
@@ -90,8 +91,13 @@ class AnimeCard extends StatelessWidget {
 
                 // Title
                 const SizedBox(height: ZplaySpacing.s8),
-                Text(
-                  anime.displayTitle,
+                // AniList has no Chinese titles; TMDb, asked by the English
+                // name and year, usually does.
+                LocalTitleText(
+                  id: 'anilist_${anime.id}',
+                  fallback: anime.displayTitle,
+                  series: anime.format != 'MOVIE',
+                  year: anime.seasonYear > 0 ? '${anime.seasonYear}' : null,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: ZplayType.subtitle.toStyle(color: tokens.textPrimary),
@@ -125,8 +131,8 @@ class AnimeCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         anime.genres.isNotEmpty
-                            ? anime.genres.first
-                            : anime.formattedFormat,
+                            ? localizedGenre(anime.genres.first)
+                            : localizedAnimeFormat(anime.format),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: ZplayType.label.toStyle(color: tokens.textMuted),

@@ -377,6 +377,8 @@ class _CategoryPageState extends State<CategoryPage> {
                         return LuPosterCard(
                           width: posterW,
                           title: m.name,
+                          titleId: m.id,
+                          series: m.type == 'series',
                           poster: m.poster,
                           subtitle: m.year,
                           rating: m.imdbRating,

@@ -69,34 +69,30 @@ abstract final class CollectionsService {
   }
 
   static List<MovieSection> homeSections() => [
-        for (final collection in collections.value) sectionFor(collection),
-      ];
+    for (final collection in collections.value) sectionFor(collection),
+  ];
 
   static MovieSection sectionFor(CuratedCollection c) => MovieSection(
-        title: c.title,
-        subtitle: c.subtitle,
-        contentType: 'movie',
-        addonBaseUrl: _addonBaseUrl,
-        catalog: AddonCatalog(
-          type: 'movie',
-          id: 'curated_${c.id}',
-          name: c.title,
-        ),
-        movies: moviesFor(c),
-      );
+    title: c.displayTitle,
+    subtitle: c.displaySubtitle,
+    contentType: 'movie',
+    addonBaseUrl: _addonBaseUrl,
+    catalog: AddonCatalog(type: 'movie', id: 'curated_${c.id}', name: c.title),
+    movies: moviesFor(c),
+  );
 
   static List<Movie> moviesFor(CuratedCollection c) => [
-        for (final item in c.items) movieFor(item),
-      ];
+    for (final item in c.items) movieFor(item),
+  ];
 
   static Movie movieFor(CuratedItem item) => Movie(
-        id: item.imdbId,
-        name: item.title,
-        poster: '$_posterBaseUrl/${item.imdbId}/img',
-        year: item.year.toString(),
-        type: 'movie',
-        addonBaseUrl: _addonBaseUrl,
-      );
+    id: item.imdbId,
+    name: item.title,
+    poster: '$_posterBaseUrl/${item.imdbId}/img',
+    year: item.year.toString(),
+    type: 'movie',
+    addonBaseUrl: _addonBaseUrl,
+  );
 
   /// Applies the ranked view for the current key: cached lists first, then a
   /// fetch for the rails with no fresh cache. Clearing the key restores the

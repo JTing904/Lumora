@@ -11,6 +11,40 @@ import '../../ui/lu_theme.dart';
 /// What each version brought, in both languages, newest first. Shown once,
 /// on the first start after updating to that version.
 const Map<String, List<(String, String)>> releaseHighlights = {
+  '1.0.2': [
+    (
+      'Watch together: start a room in the player and friends join with its code. Play, pause and position stay in step, with chat and emoji.',
+      '一起看：在播放器里开一个房间，朋友输入房间码就能加入。播放、暂停和进度保持一致，还能聊天、发表情。',
+    ),
+    (
+      'When a source will not play, Lumora tries the next one by itself, up to eight.',
+      '片源播不了时会自动换下一个，最多试 8 个。',
+    ),
+    (
+      'Official and licensed uploads on YouTube: shows, films and documentaries posted by their own studios, broadcasters and licensed distributors play right in Lumora.',
+      '官方 YouTube 正片：片方、电视台和正版发行商自己上传的剧、综艺、电影和纪录片，可以直接在 Lumora 里看。',
+    ),
+    (
+      'Where to watch: the services that carry a title in your country, one tap away.',
+      '去哪看：列出你所在地区能合法观看的平台，点一下就打开。',
+    ),
+    (
+      'Public-domain classics from the Internet Archive, playable in the app.',
+      'Internet Archive 的公有领域经典电影，可以直接播放。',
+    ),
+    (
+      'Episodes that have not aired yet are marked with their date, and the ones you have seen are marked too.',
+      '还没播出的集数会标上上线日期，看过的集数也会标出来。',
+    ),
+    (
+      'Tapping a playing video brings the controls back, the time and seek bar work, and video pauses when you leave the app.',
+      '播放时点屏幕能叫出按钮，时间和进度条正常，切到后台会自动暂停。',
+    ),
+    (
+      'Anime pages are in Chinese, and later seasons of long donghua open the right episode.',
+      '动漫页改成中文；长篇动画的后几季会打开正确的集数。',
+    ),
+  ],
   '1.0.1': [
     (
       'A new look for Manga, Books, Audiobooks, Music, Live TV, the player menus and every settings page.',

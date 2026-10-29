@@ -79,14 +79,19 @@ Future<void> _dpadToRow(WidgetTester tester, Finder row) async {
     return false;
   }
 
-  if (await walk(LogicalKeyboardKey.arrowDown, find.byType(LuFocusable).first)) {
+  if (await walk(
+    LogicalKeyboardKey.arrowDown,
+    find.byType(LuFocusable).first,
+  )) {
     return;
   }
   if (await walk(LogicalKeyboardKey.arrowUp, find.byType(LuFocusable).last)) {
     return;
   }
-  fail('the D-pad never reached the row in either direction; it walked: '
-      '${path.join(' -> ')}');
+  fail(
+    'the D-pad never reached the row in either direction; it walked: '
+    '${path.join(' -> ')}',
+  );
 }
 
 /// Whether [node]'s centre is inside [rect] - i.e. the row is what is marked.
@@ -203,7 +208,9 @@ void main() {
     // The row is the target now, so a pointer press anywhere on it has to run
     // the setting - and only once, because both the row and the switch under
     // it own a tap handler.
-    await tester.tap(find.descendant(of: row, matching: find.text('Adult Content')));
+    await tester.tap(
+      find.descendant(of: row, matching: find.text('Adult Content')),
+    );
     await tester.pump();
     expect(ContentSettings.adultEnabled.value, isTrue);
 
@@ -220,7 +227,6 @@ void main() {
     // The Discord row is desktop-only and the test host decides whether it
     // exists, so it is not in this list.
     for (final title in const [
-      'Built-in P2P Torrent Source',
       'TV Airing Calendar',
       'AI Recommendation Quiz',
       'Adult Content',
@@ -293,9 +299,11 @@ void main() {
     );
     // The group's own heading (not the sidebar's copy of its name) is on
     // screen.
-    final heading = find.text('APP').evaluate().map(
-      (e) => tester.getTopLeft(find.byWidget(e.widget)),
-    ).where((o) => o.dx > 240);
+    final heading = find
+        .text('APP')
+        .evaluate()
+        .map((e) => tester.getTopLeft(find.byWidget(e.widget)))
+        .where((o) => o.dx > 240);
     expect(heading, isNotEmpty);
     expect(
       heading.first.dy,

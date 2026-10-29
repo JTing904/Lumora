@@ -118,6 +118,30 @@ class _ShowShortcutsIntent extends Intent {
   const _ShowShortcutsIntent();
 }
 
+/// Opens the sheet, unless text is being typed: there `?` and `/` are
+/// characters, and the sheet took them - a magnet link pasted key by key
+/// into search ended at "magnet:" with the sheet open over it. Disabled, the
+/// key goes on to the text field.
+class _ShowShortcutsAction extends Action<_ShowShortcutsIntent> {
+  _ShowShortcutsAction(this.onInvoke);
+
+  final VoidCallback onInvoke;
+
+  static bool get _typing =>
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<EditableText>() !=
+      null;
+
+  @override
+  bool isEnabled(_ShowShortcutsIntent intent) => !_typing;
+
+  @override
+  Object? invoke(_ShowShortcutsIntent intent) {
+    onInvoke();
+    return null;
+  }
+}
+
 /// The shell. Mount it once, above every destination and below anything pushed
 /// on top of the shell (details, player, reader), so a route above the shell
 /// covers the chrome instead of sitting inside it.
@@ -432,7 +456,7 @@ class _AppShellState extends State<AppShell> {
     ShellSlot.live => const IptvPage(),
     ShellSlot.myList => const LibraryPage(),
     ShellSlot.search => const SearchPage(),
-    ShellSlot.downloads => const DownloadsPage(),
+    ShellSlot.downloads => const DownloadsPage(showTitle: true),
     ShellSlot.settings => const SettingsPage(),
     ShellSlot.browse => const BrowsePage(),
   };
@@ -895,11 +919,8 @@ class _AppShellState extends State<AppShell> {
                   return null;
                 },
               ),
-              _ShowShortcutsIntent: CallbackAction<_ShowShortcutsIntent>(
-                onInvoke: (_ShowShortcutsIntent intent) {
-                  ShortcutsSheet.show(context);
-                  return null;
-                },
+              _ShowShortcutsIntent: _ShowShortcutsAction(
+                () => ShortcutsSheet.show(context),
               ),
             },
             // The shell paints the canvas the nav bar and every slot sit on, so

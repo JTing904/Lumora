@@ -111,7 +111,7 @@ class LuButton extends StatelessWidget {
             duration: LuMotion.focus,
             height: height,
             padding: EdgeInsets.symmetric(
-              horizontal: kind == LuButtonKind.text ? 6 : (phone ? 20 : 28),
+              horizontal: kind == LuButtonKind.text ? 6 : (phone ? 14 : 28),
             ),
             decoration: BoxDecoration(
               color: fill,

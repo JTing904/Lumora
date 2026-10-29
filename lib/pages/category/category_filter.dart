@@ -528,6 +528,8 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
                 LuPosterCard(
                   width: cardWidth,
                   title: movie.name,
+                  titleId: movie.id,
+                  series: movie.type == 'series',
                   poster: movie.poster,
                   subtitle: movie.year,
                   rating: movie.imdbRating,

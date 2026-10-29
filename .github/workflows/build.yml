@@ -53,26 +53,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # The plugin ships no binary of its own: it downloads one from its own
-      # GitHub release, and that release is gone — the repository 404s — so the
-      # build died in `cmake_install.cmake` looking for a file nobody could
-      # fetch. Fetch the real TorrServer binary from the project the plugin
-      # wraps instead, named exactly as the plugin looks for it:
-      # TORRSERVER_FLUTTER_LOCAL_BINARIES is the plugin's own escape hatch.
-      # The tag is pinned deliberately, so a new upstream release cannot
-      # silently change what this build ships; bump it when there is a reason.
-      - name: Fetch TorrServer binary
-        shell: bash
-        run: |
-          mkdir -p torrserver_bin
-          curl -fSL "https://github.com/YouROK/TorrServer/releases/download/MatriX.146.1/TorrServer-windows-amd64.exe" \
-            -o torrserver_bin/torrserver-windows-amd64.exe
-          ls -la torrserver_bin
-
       - name: Build Windows App
-        env:
-          # Read at CMake configure time, so it belongs on the build step.
-          TORRSERVER_FLUTTER_LOCAL_BINARIES: ${{ github.workspace }}/torrserver_bin
         run: flutter build windows --release --dart-define-from-file=.env --split-debug-info=build/symbols
 
       - name: Install Inno Setup
@@ -270,21 +251,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # Same vanished plugin release as the Windows job: see the note there.
-      # The Linux asset keeps upstream's own name, because the plugin asks for
-      # `torrserver-linux-amd64` in exactly that case.
-      - name: Fetch TorrServer binary
-        shell: bash
-        run: |
-          mkdir -p torrserver_bin
-          curl -fSL "https://github.com/YouROK/TorrServer/releases/download/MatriX.146.1/TorrServer-linux-amd64" \
-            -o torrserver_bin/torrserver-linux-amd64
-          chmod +x torrserver_bin/torrserver-linux-amd64
-          ls -la torrserver_bin
-
       - name: Build Linux Release
-        env:
-          TORRSERVER_FLUTTER_LOCAL_BINARIES: ${{ github.workspace }}/torrserver_bin
         run: flutter build linux --release --dart-define-from-file=.env --split-debug-info=build/symbols
 
       - name: Package as AppImage & Tar
@@ -481,14 +448,6 @@ jobs:
   ios:
     name: iOS (IPA)
     runs-on: macos-latest
-    # Allowed to fail on purpose. This plugin embeds TorrServer as a
-    # `TorrServerKit.xcframework` it downloads from its own release — the same
-    # vanished repository as the desktop binaries — and unlike those it cannot
-    # be replaced with upstream's own artefact: the Swift plugin imports a
-    # module only that package ever built, so there is nothing to point it at
-    # from here. An unsigned, sideload-only IPA is not worth holding a release
-    # for, so this job reports its failure without stopping the publish, and
-    # the IPA is attached whenever it does build.
     continue-on-error: true
     steps:
       - name: Checkout repository
@@ -605,17 +564,6 @@ jobs:
             # when the artifact actually made it into this release.
             if [ -f ZPlay-iOS.ipa ]; then
               printf -- '- **iOS** `ZPlay-iOS.ipa` (unsigned, sideload only)\n\n'
-            else
-              # The message carries an apostrophe and a backquoted name, and
-              # neither can live in a single-quoted bash string (a backslash
-              # does not escape a quote there) nor safely in a double-quoted
-              # one (backticks are command substitution). It is assembled
-              # from parts instead: the apostrophe and the backticks are
-              # written as separate quoted pieces.
-              printf -- '%s' '- **iOS** Not included in this release: the TorrServer plugin'
-              printf -- "'"
-              printf -- '%s' 's `TorrServerKit` artifact is unavailable upstream.'
-              printf -- '\n\n'
             fi
             printf 'ZPlay is a modified fork of PlayTorrio V3, © 2026 Ayman, distributed under the GNU GPL v3.0.\n'
             printf 'Corresponding source for this release: https://github.com/%s (tag %s)\n' "$GITHUB_REPOSITORY" "${GITHUB_REF_NAME}"

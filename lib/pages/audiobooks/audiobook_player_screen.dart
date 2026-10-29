@@ -9,8 +9,6 @@ import '../../models/audiobook/audiobook_model.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/audiobook/audiobook_progress_service.dart';
 import '../../services/audiobook/audiobook_settings.dart';
-import '../../services/debrid/debrid_service.dart';
-import '../../services/stream/torrent_stream_service.dart';
 import '../../services/discord/discord_rpc_service.dart';
 import '../../services/player/player_settings.dart';
 import '../../services/playback/now_playing_service.dart';
@@ -258,7 +256,6 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
     _playerSubscriptions.clear();
     _player?.dispose();
     _discAnimController.dispose();
-    TorrentStreamService().cleanup();
     DiscordRpcService.instance.clearToIdle();
     super.dispose();
   }
@@ -325,47 +322,15 @@ class _AudiobookPlayerScreenState extends State<_AudiobookPlayerBody>
 
     try {
       if (chapter.isTorrent) {
-        final useDebrid = await DebridService().isDebridActiveForStreams();
-        if (useDebrid) {
-          final activeService = await DebridService().getSelectedService();
-          if (stale()) return;
-          setState(
-            () => _statusMessage = l10nCurrent().abk2ResolvingAudioVia(
-              activeService,
-            ),
-          );
-
-          final debridFiles = await DebridService().resolveMagnet(
-            magnet: chapter.url,
-            fileIndex: chapter.torrentFileIndex,
-            filename: chapter.title,
-          );
-
-          if (stale()) return;
-          if (debridFiles.isEmpty || debridFiles.first.downloadUrl.isEmpty) {
-            throw _ChapterResolveException(
-              l10nCurrent().abkDebridCouldNotResolveAudio(activeService),
-            );
-          }
-
-          streamUrl = debridFiles.first.downloadUrl;
-        } else {
-          if (stale()) return;
-          setState(
-            () =>
-                _statusMessage = l10nCurrent().abkFetchingTorrentMetadataPeers,
-          );
-          streamUrl = await TorrentStreamService().streamTorrent(
-            chapter.url,
-            fileIdx: chapter.torrentFileIndex,
-          );
-          if (stale()) return;
-        }
+        if (stale()) return;
+        throw const _ChapterResolveException(
+          'Torrent playback is no longer supported',
+        );
       } else {
         streamUrl = chapter.url;
       }
 
-      if (streamUrl == null || streamUrl.isEmpty) {
+      if (streamUrl.isEmpty) {
         throw _ChapterResolveException(
           l10nCurrent().abkAudioStreamUrlUnresolved,
         );
