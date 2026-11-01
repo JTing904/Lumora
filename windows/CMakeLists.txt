@@ -87,6 +87,25 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# The Microsoft C++ runtime travels next to the executable: Windows does not
+# ship it, and on a PC that never installed the Visual C++ Redistributable
+# Lumora.exe and its plugins cannot start. A build that cannot find these
+# stops here rather than packaging an app that only runs on some machines.
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+include(InstallRequiredSystemLibraries)
+set(MSVC_RUNTIME_LIBRARIES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS})
+list(FILTER MSVC_RUNTIME_LIBRARIES INCLUDE
+  REGEX "/(msvcp140|vcruntime140|vcruntime140_1)\\.dll$")
+list(LENGTH MSVC_RUNTIME_LIBRARIES MSVC_RUNTIME_LIBRARY_COUNT)
+if(NOT MSVC_RUNTIME_LIBRARY_COUNT EQUAL 3)
+  message(FATAL_ERROR
+    "Expected 3 MSVC runtime DLLs, found: ${MSVC_RUNTIME_LIBRARIES}")
+endif()
+install(FILES ${MSVC_RUNTIME_LIBRARIES}
+  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  CONFIGURATIONS Profile;Release
+  COMPONENT Runtime)
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

@@ -5,11 +5,13 @@ import '../../models/movie/movie_detail.dart';
 import '../../models/movie/video.dart';
 import '../../services/account/account_service.dart';
 import '../../services/metadata/metadata_service.dart';
+import '../../services/official/official_source_loader.dart';
 import '../../services/party/watch_party_service.dart';
 import '../../ui/lu_button.dart';
 import '../../ui/lu_text_field.dart';
 import '../../ui/lu_theme.dart';
 import '../../utils/navigation/route_transitions.dart';
+import '../../widgets/player/official_youtube_player.dart';
 import '../player/player_screen.dart';
 
 /// 加入一起看: asks for a room code, joins, and opens what the host is
@@ -188,14 +190,28 @@ Future<void> openPartyPlayer(
   }
 
   if (!context.mounted) return;
-  final page = PlayerScreen(
-    source: media.source,
-    title: media.title,
-    backdropUrl: media.backdrop ?? detail.background,
-    detail: detail,
-    episode: episode,
-    initialPosition: WatchPartyService.instance.lastPlayback?.positionNow,
-  );
+  final at = WatchPartyService.instance.lastPlayback?.positionNow;
+  // An official upload plays in YouTube's embedded player, as it does when
+  // opened from the details page.
+  final officialId = OfficialSourceLoader.videoIdOf(media.source);
+  final Widget page = officialId != null
+      ? OfficialYouTubePlayer(
+          videoId: officialId,
+          title: media.source.displayTitle,
+          channelName: media.source.providerName,
+          detail: detail,
+          episode: episode,
+          source: media.source,
+          initialPosition: at,
+        )
+      : PlayerScreen(
+          source: media.source,
+          title: media.title,
+          backdropUrl: media.backdrop ?? detail.background,
+          detail: detail,
+          episode: episode,
+          initialPosition: at,
+        );
   final route = CinematicSlideRoute(page: page);
   if (replace) {
     await Navigator.of(context).pushReplacement(route);

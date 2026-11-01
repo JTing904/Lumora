@@ -11,6 +11,12 @@ import '../../ui/lu_theme.dart';
 /// What each version brought, in both languages, newest first. Shown once,
 /// on the first start after updating to that version.
 const Map<String, List<(String, String)>> releaseHighlights = {
+  '1.0.3': [
+    (
+      'Watch together now works on official uploads too: start a room on an official YouTube episode and friends stay in step.',
+      '一起看现在也支持官方正片：在官方 YouTube 剧集里开房间，朋友的播放进度会保持一致。',
+    ),
+  ],
   '1.0.2': [
     (
       'Watch together: start a room in the player and friends join with its code. Play, pause and position stay in step, with chat and emoji.',

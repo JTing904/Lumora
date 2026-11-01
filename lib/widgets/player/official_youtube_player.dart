@@ -25,6 +25,14 @@
 /// Continue Watching and the details page's watched marks (90%) follow. A
 /// reopened episode starts where it was left unless it was finished. A
 /// multi-episode compilation records nothing.
+///
+/// **一起看.** A room works here as in the stream player: the host's
+/// position goes out every 2 s, and a play, pause or jump made in YouTube's
+/// own controls is read off the page's reports (a state change, or a time
+/// that is not where playing on would have put it) and sent to the room.
+/// The room's moves come back through the IFrame API's playVideo,
+/// pauseVideo and seekTo. The embed offers no fine speed steps, so a viewer
+/// who drifts past 1 s jumps back into step instead of easing.
 library;
 
 import 'dart:async';
@@ -40,16 +48,20 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
+import '../../pages/party/join_party.dart';
 import '../../models/movie/movie_detail.dart';
 import '../../models/movie/video.dart';
 import '../../models/stream/stream_model.dart';
 import '../../services/continue_watching/continue_watching_service.dart';
 import '../../services/official/official_progress.dart';
+import '../../services/party/watch_party_service.dart';
 import '../../services/official/official_source_loader.dart';
 import '../../services/theme/design_tokens.dart';
 import '../common/focusable_card.dart';
 import '../common/webview_environment.dart';
+import '../party/watch_party_ui.dart';
 
 class OfficialYouTubePlayer extends StatefulWidget {
   const OfficialYouTubePlayer({
@@ -214,6 +226,11 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}
     if (player.getPlayerState() === 1) { player.pauseVideo(); }
     else { player.playVideo(); }
   };
+  window.lumoraPlay = function () { if (player) player.playVideo(); };
+  window.lumoraPause = function () { if (player) player.pauseVideo(); };
+  window.lumoraSeekTo = function (t) {
+    if (player && player.seekTo) player.seekTo(Math.max(0, t), true);
+  };
   window.lumoraSeek = function (delta) {
     if (!player || !player.getCurrentTime) return;
     player.seekTo(Math.max(0, player.getCurrentTime() + delta), true);
@@ -262,6 +279,30 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
   /// Where the video starts (a resume), in seconds; null from the start.
   int? _startSeconds;
 
+  // -- 一起看 --
+  StreamSubscription<PartyPlayback>? _partySub;
+  Timer? _partyHeartbeat;
+  bool _showPartyChat = false;
+  bool _partyHandingOver = false;
+  bool _partyWasGuest = false;
+
+  /// The page's last report: its IFrame state, time and when it came.
+  int _ytState = -1;
+  double? _ytTime;
+  DateTime _ytAt = DateTime.now();
+  bool _ytPlaying = false;
+
+  /// The last report that was playing or paused (not buffering), or where
+  /// the room last put the video: what a jump is measured against.
+  double? _refTime;
+  DateTime _refAt = DateTime.now();
+  bool _refPlaying = false;
+
+  /// Until then, a change on the page is the room's own move landing (or
+  /// the video still opening), not the viewer's, and is not sent back.
+  DateTime? _partyQuietUntil;
+  DateTime? _lastPartySeek;
+
   @override
   void initState() {
     super.initState();
@@ -296,10 +337,12 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
       );
     }
     _mount();
+    _startParty();
   }
 
   @override
   void dispose() {
+    _stopParty(leaveRoom: !_partyHandingOver);
     // Where the viewer stopped, from the last report (at most 1.5 s old).
     _tracker.close();
     _windowsMessages?.cancel();
@@ -469,11 +512,322 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
       duration: duration is num ? duration.toDouble() : null,
       state: state is num ? state.toInt() : null,
     );
+    _partySample(
+      time: time is num ? time.toDouble() : null,
+      state: state is num ? state.toInt() : null,
+    );
     final error = decoded['error'];
     if (error is num && error != 0 && mounted && !_failed) {
       _statusTimer?.cancel();
       setState(() => _failed = true);
     }
+  }
+
+  // -- 一起看 --
+
+  /// What this screen is playing, as a room describes it.
+  PartyMedia? get _partyMedia {
+    final detail = widget.detail;
+    final source = widget.source;
+    if (detail == null || source == null) return null;
+    final ep = widget.episode;
+    return PartyMedia(
+      id: detail.id,
+      type: detail.type,
+      title: detail.displayName,
+      year: detail.year,
+      poster: detail.poster,
+      backdrop: detail.background,
+      episodeId: ep?.id,
+      season: ep?.season,
+      episode: ep?.episode,
+      source: source,
+    );
+  }
+
+  /// Whether the room is about what this screen shows.
+  bool get _partyIsHere {
+    final m = WatchPartyService.instance.media.value;
+    if (m == null || m.id != widget.detail?.id) return false;
+    final ep = widget.episode;
+    if (m.episodeId == null && ep == null) return true;
+    return m.episodeId == ep?.id ||
+        (m.season == ep?.season && m.episode == ep?.episode);
+  }
+
+  /// Where the video is now: the last report, run on while playing (not
+  /// while buffering, when the picture stands still).
+  Duration get _positionNow {
+    final t = _ytTime ?? 0;
+    final run = _ytPlaying && _ytState == 1
+        ? DateTime.now().difference(_ytAt).inMilliseconds / 1000.0
+        : 0.0;
+    return Duration(milliseconds: ((t + run) * 1000).round());
+  }
+
+  void _startParty() {
+    final service = WatchPartyService.instance;
+    _partySub = service.playback.listen(_onPartyPlayback);
+    service.room.addListener(_onPartyRoom);
+    service.media.addListener(_onPartyMedia);
+    _partyWasGuest = service.room.value?.isHost == false;
+    _partyHeartbeat = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _partyTick(),
+    );
+  }
+
+  void _stopParty({required bool leaveRoom}) {
+    final service = WatchPartyService.instance;
+    _partySub?.cancel();
+    _partyHeartbeat?.cancel();
+    service.room.removeListener(_onPartyRoom);
+    service.media.removeListener(_onPartyMedia);
+    if (leaveRoom && service.active) unawaited(service.leave());
+  }
+
+  void _onPartyRoom() {
+    if (!mounted) return;
+    final room = WatchPartyService.instance.room.value;
+    if (room == null && _partyWasGuest) _notice(l10nCurrent().partyEnded);
+    _partyWasGuest = room?.isHost == false;
+    setState(() {
+      if (room == null) _showPartyChat = false;
+    });
+  }
+
+  /// A guest follows the host to another episode or title.
+  void _onPartyMedia() {
+    final service = WatchPartyService.instance;
+    final m = service.media.value;
+    if (!mounted || m == null || service.room.value?.isHost != false) return;
+    if (_partyIsHere || _partyHandingOver) return;
+    _partyHandingOver = true;
+    _notice(l10nCurrent().partyFollowEpisode);
+    unawaited(openPartyPlayer(context, m, replace: true));
+  }
+
+  void _partyTick() {
+    final service = WatchPartyService.instance;
+    if (!mounted || service.room.value?.isHost != true || _ytTime == null) {
+      return;
+    }
+    service.reportHostPosition(playing: _ytPlaying, position: _positionNow);
+    final m = _partyMedia;
+    final current = service.media.value;
+    if (m != null &&
+        (current == null ||
+            current.source.url != m.source.url ||
+            current.episodeId != m.episodeId)) {
+      unawaited(service.setMedia(m));
+    } else {
+      unawaited(service.sendState());
+    }
+  }
+
+  /// One page report: a play, pause or jump the viewer made in YouTube's
+  /// controls goes to the room.
+  void _partySample({double? time, int? state}) {
+    if (time == null) return;
+    final wasPlaying = _ytPlaying;
+    _ytTime = time;
+    _ytAt = DateTime.now();
+    if (state != null) _ytState = state;
+    // Buffering keeps whatever it interrupted; ended and cued are stopped.
+    if (_ytState == 1) {
+      _ytPlaying = true;
+    } else if (_ytState == 2 || _ytState == 0 || _ytState == 5) {
+      _ytPlaying = false;
+    }
+    final now = DateTime.now();
+    // The first frames: the start-up play is not a move anyone made.
+    if (_partyQuietUntil == null) {
+      if (_ytPlaying) _partyQuietUntil = now.add(const Duration(seconds: 2));
+      return;
+    }
+    final service = WatchPartyService.instance;
+    if (!service.active || !_partyIsHere || now.isBefore(_partyQuietUntil!)) {
+      return;
+    }
+    // Buffering says nothing about where the viewer wants to be.
+    if (_ytState != 1 && _ytState != 2) return;
+    final position = Duration(milliseconds: (time * 1000).round());
+    final jumped = _isJump(time);
+    _refTime = time;
+    _refAt = now;
+    _refPlaying = _ytState == 1;
+    final toggled = _ytPlaying != wasPlaying && (state == 1 || state == 2);
+    if (!jumped && !toggled) return;
+    final room = service.room.value;
+    if (room != null && !room.canControl) {
+      // Only the host moves this room: put the viewer back where it is.
+      _notice(l10nCurrent().partyNoControl);
+      final pb = service.lastPlayback;
+      if (pb != null) _applyRoom(pb.playing, pb.positionNow, seek: true);
+      return;
+    }
+    unawaited(
+      service.sendPlayback(
+        playing: _ytPlaying,
+        position: position,
+        seek: jumped,
+      ),
+    );
+  }
+
+  /// Whether the video moved to [time] by a jump rather than by playing on.
+  ///
+  /// Playing from the reference can reach anywhere from the reference itself
+  /// (it stalled to buffer all the time since) to where steady playing would
+  /// be; only a time outside that, with some slack, was a seek.
+  bool _isJump(double time) {
+    final ref = _refTime;
+    if (ref == null) return false;
+    final ran = _refPlaying
+        ? DateTime.now().difference(_refAt).inMilliseconds / 1000.0
+        : 0.0;
+    return time < ref - 1.5 || time > ref + ran + 2.5;
+  }
+
+  /// Applies the room's play, pause or seek here; see the library comment.
+  void _onPartyPlayback(PartyPlayback pb) {
+    if (!mounted || !_partyIsHere || _ytTime == null) return;
+    final settling =
+        _lastPartySeek != null &&
+        DateTime.now().difference(_lastPartySeek!) < const Duration(seconds: 4);
+    final off = (_positionNow - pb.position).inMilliseconds.abs() / 1000.0;
+    final bool seek;
+    if (pb.heartbeat) {
+      seek = pb.playing && _ytPlaying && !settling && off > 1.0;
+    } else {
+      final threshold = pb.seek ? 0.5 : (pb.playing ? 1.0 : 0.3);
+      seek = off > threshold && (pb.seek || !settling);
+    }
+    final changed = pb.playing != _ytPlaying;
+    _applyRoom(pb.playing, pb.position, seek: seek);
+    if (pb.heartbeat || pb.from.isEmpty) return;
+    final l10n = l10nCurrent();
+    if (pb.seek) {
+      final t = pb.position;
+      final mm = t.inMinutes.remainder(60).toString().padLeft(2, '0');
+      final ss = t.inSeconds.remainder(60).toString().padLeft(2, '0');
+      final time = t.inHours > 0
+          ? '${t.inHours}:$mm:$ss'
+          : '${t.inMinutes}:$ss';
+      _notice(l10n.partySeeked(pb.from, time));
+    } else if (changed) {
+      _notice(
+        pb.playing ? l10n.partyResumed(pb.from) : l10n.partyPaused(pb.from),
+      );
+    }
+  }
+
+  /// Moves the page to the room's [playing] and [position]; the reports
+  /// that follow are the room's move, not the viewer's.
+  void _applyRoom(bool playing, Duration position, {required bool seek}) {
+    final now = DateTime.now();
+    if (!seek && playing == _ytPlaying) return;
+    if (seek) {
+      _lastPartySeek = now;
+      _ytTime = position.inMilliseconds / 1000.0;
+      _ytAt = now;
+      _refTime = _ytTime;
+      final t = _ytTime!.toStringAsFixed(2);
+      _run('window.lumoraSeekTo && window.lumoraSeekTo($t)');
+    }
+    if (playing != _ytPlaying) {
+      _ytPlaying = playing;
+      _run(
+        playing
+            ? 'window.lumoraPlay && window.lumoraPlay()'
+            : 'window.lumoraPause && window.lumoraPause()',
+      );
+    }
+    _refAt = now;
+    _refPlaying = playing;
+    _refTime ??= _ytTime;
+    _partyQuietUntil = now.add(const Duration(milliseconds: 1500));
+  }
+
+  /// False, with a notice, when a room is on this title and only its host
+  /// may move playback.
+  bool _partyAllowsMe() {
+    final room = WatchPartyService.instance.room.value;
+    if (room == null || room.canControl || !_partyIsHere) return true;
+    _notice(l10nCurrent().partyNoControl);
+    return false;
+  }
+
+  void _notice(String text) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(text),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _openPartySheet() {
+    unawaited(
+      showWatchPartySheet(context, current: () => _partyMedia).then((_) {
+        // A room just started here: the guests open at this frame.
+        final service = WatchPartyService.instance;
+        if (service.room.value?.isHost == true && _ytTime != null) {
+          service.reportHostPosition(
+            playing: _ytPlaying,
+            position: _positionNow,
+          );
+          unawaited(service.sendState());
+        }
+        if (mounted) setState(() {});
+      }),
+    );
+  }
+
+  /// A round button in the top bar, drawn like Back.
+  Widget _barButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool active = false,
+  }) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.only(left: ZplaySpacing.s8),
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Tooltip(
+          message: label,
+          child: FocusableCard(
+            onTap: onTap,
+            builder: (context, state) => CardFocusRing(
+              focused: state.focused,
+              radius: ZplayRadius.smAll,
+              child: Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active || state.highlighted
+                      ? tokens.surfaceRaised
+                      : Colors.transparent,
+                  borderRadius: ZplayRadius.smAll,
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: active ? tokens.accent : tokens.textPrimary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -497,17 +851,19 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
             key == LogicalKeyboardKey.mediaPlayPause ||
             key == LogicalKeyboardKey.mediaPlay ||
             key == LogicalKeyboardKey.mediaPause)) {
-      _run('window.lumoraToggle && window.lumoraToggle()');
+      if (_partyAllowsMe()) {
+        _run('window.lumoraToggle && window.lumoraToggle()');
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowLeft ||
         key == LogicalKeyboardKey.mediaRewind) {
-      _run('window.lumoraSeek && window.lumoraSeek(-10)');
+      if (_partyAllowsMe()) _run('window.lumoraSeek && window.lumoraSeek(-10)');
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowRight ||
         key == LogicalKeyboardKey.mediaFastForward) {
-      _run('window.lumoraSeek && window.lumoraSeek(10)');
+      if (_partyAllowsMe()) _run('window.lumoraSeek && window.lumoraSeek(10)');
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowUp) {
@@ -529,88 +885,125 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
         ? l10n.officialYouTubeName
         : '${l10n.officialYouTubeName} · $channel';
 
+    final party = WatchPartyService.instance;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
         onKeyEvent: _onKey,
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  ZplaySpacing.s8,
-                  ZplaySpacing.s4,
-                  ZplaySpacing.s16,
-                  ZplaySpacing.s4,
+        child: Stack(
+          children: [
+            Positioned.fill(child: _page(tokens, l10n, subtitle, party)),
+            // 一起看: emoji floating up and the latest chat line, then the chat.
+            if (party.active)
+              Positioned.fill(child: PartyOverlay(chatOpen: _showPartyChat)),
+            if (_showPartyChat)
+              Positioned.fill(
+                child: PartyChatPanel(
+                  onClose: () => setState(() => _showPartyChat = false),
                 ),
-                child: Row(
-                  children: [
-                    Semantics(
-                      button: true,
-                      label: l10n.officialYouTubeBack,
-                      child: FocusableCard(
-                        focusNode: _backNode,
-                        onTap: () => Navigator.of(context).maybePop(),
-                        builder: (context, state) => CardFocusRing(
-                          focused: state.focused,
-                          radius: ZplayRadius.smAll,
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: state.highlighted
-                                  ? tokens.surfaceRaised
-                                  : Colors.transparent,
-                              borderRadius: ZplayRadius.smAll,
-                            ),
-                            child: Icon(
-                              Icons.arrow_back_rounded,
-                              size: 22,
-                              color: tokens.textPrimary,
-                            ),
-                          ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _page(
+    ZplayTokens tokens,
+    AppLocalizations l10n,
+    String subtitle,
+    WatchPartyService party,
+  ) {
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              ZplaySpacing.s8,
+              ZplaySpacing.s4,
+              ZplaySpacing.s16,
+              ZplaySpacing.s4,
+            ),
+            child: Row(
+              children: [
+                Semantics(
+                  button: true,
+                  label: l10n.officialYouTubeBack,
+                  child: FocusableCard(
+                    focusNode: _backNode,
+                    onTap: () => Navigator.of(context).maybePop(),
+                    builder: (context, state) => CardFocusRing(
+                      focused: state.focused,
+                      radius: ZplayRadius.smAll,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: state.highlighted
+                              ? tokens.surfaceRaised
+                              : Colors.transparent,
+                          borderRadius: ZplayRadius.smAll,
+                        ),
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          size: 22,
+                          color: tokens.textPrimary,
                         ),
                       ),
                     ),
-                    const SizedBox(width: ZplaySpacing.s12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            widget.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: ZplayType.label
-                                .copyWith(weight: FontWeight.w600)
-                                .toStyle(color: tokens.textPrimary),
-                          ),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: ZplayType.caption.toStyle(
-                              color: tokens.textMuted,
-                            ),
-                          ),
-                        ],
+                  ),
+                ),
+                const SizedBox(width: ZplaySpacing.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ZplayType.label
+                            .copyWith(weight: FontWeight.w600)
+                            .toStyle(color: tokens.textPrimary),
                       ),
-                    ),
-                  ],
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ZplayType.caption.toStyle(
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Focus(
-                  focusNode: _stageNode,
-                  autofocus: true,
-                  child: ColoredBox(color: Colors.black, child: _stage(tokens)),
-                ),
-              ),
-            ],
+                if (party.active)
+                  _barButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: l10n.partyChat,
+                    onTap: () => setState(() => _showPartyChat = true),
+                  ),
+                if (_partyMedia != null)
+                  _barButton(
+                    icon: Icons.groups_rounded,
+                    label: l10n.partyTitle,
+                    active: party.active,
+                    onTap: _openPartySheet,
+                  ),
+              ],
+            ),
           ),
-        ),
+          Expanded(
+            child: Focus(
+              focusNode: _stageNode,
+              autofocus: true,
+              child: ColoredBox(color: Colors.black, child: _stage(tokens)),
+            ),
+          ),
+        ],
       ),
     );
   }
