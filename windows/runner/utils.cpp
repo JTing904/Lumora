@@ -28,6 +28,11 @@ void RedirectOutputToNul() {
   // line of the engine's log to stderr, which turned into a stream of
   // uncaught errors on Windows. Dart reads the Win32 standard handles, so
   // those are replaced, not only the C runtime's streams.
+  //
+  // FlutterDesktopResyncOutputStreams must not be called here. It reopens the
+  // engine's own streams on CONOUT$, and with no console that fails and it
+  // passes an invalid descriptor to _dup2: the process dies at once with
+  // 0xc0000409 in flutter_windows.dll, on every start from an icon.
   FILE *unused;
   if (freopen_s(&unused, "NUL", "w", stdout) == 0) {
     ::SetStdHandle(STD_OUTPUT_HANDLE, reinterpret_cast<HANDLE>(
@@ -38,7 +43,6 @@ void RedirectOutputToNul() {
                                          _get_osfhandle(_fileno(stderr))));
   }
   std::ios::sync_with_stdio();
-  FlutterDesktopResyncOutputStreams();
 }
 
 std::vector<std::string> GetCommandLineArguments() {

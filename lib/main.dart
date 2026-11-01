@@ -62,6 +62,7 @@ import './widgets/updater/whats_new.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import './services/account/library_sync.dart';
 import './services/account/account_scope.dart';
+import './utils/download/download_path_helper.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -186,6 +187,7 @@ Future<void> _initializeDeferredServices() async {
     guard('TmdbService', TmdbService.initialize),
     guard('ServiceCredentials', ServiceCredentials.initialize),
     guard('DownloadService', DownloadService.instance.initialize),
+    guard('LegacyFolders', DownloadPathHelper.removeEmptyLegacyFolders),
     guard('DiscordRpcService', DiscordRpcService.instance.initialize),
   ]);
 }

@@ -147,7 +147,7 @@ class DiagnosticsExport {
   /// page and the player overlay be verified without a clipboard plugin.
   Future<String> copyText() => buildReportString();
 
-  /// Writes a timestamped `.json` under `<app support>/ZPlay/diagnostics/`.
+  /// Writes a timestamped `.json` under `<app support>/Lumora/diagnostics/`.
   ///
   /// Returns the written path, or null when no directory is available (a
   /// missing plugin, a platform with no writable support directory) or the
@@ -156,10 +156,10 @@ class DiagnosticsExport {
     try {
       final base = await _reportDirectory();
       if (base == null) return null;
-      final directory = Directory(p.join(base.path, 'ZPlay', 'diagnostics'));
+      final directory = Directory(p.join(base.path, 'Lumora', 'diagnostics'));
       await directory.create(recursive: true);
       final file = File(
-        p.join(directory.path, 'zplay-diagnostics-${_stamp(_clock())}.json'),
+        p.join(directory.path, 'lumora-diagnostics-${_stamp(_clock())}.json'),
       );
       await file.writeAsString(await buildReportString(), flush: true);
       return file.path;

@@ -60,7 +60,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
 
   Future<void> _loadStorageInfo() async {
     try {
-      final dir = await DownloadPathHelper.getDownloadsDirectoryPath();
+      final dir = await DownloadPathHelper.getExistingDownloadsVolumePath();
       final info = await StorageSpaceHelper.getAvailableSpace(dir);
       if (mounted) setState(() => _storageInfo = info);
     } catch (e) {

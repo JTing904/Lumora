@@ -235,7 +235,7 @@ void main() {
   });
 
   group('file write', () {
-    test('writes a timestamped json under ZPlay/diagnostics', () async {
+    test('writes a timestamped json under Lumora/diagnostics', () async {
       final temp = Directory.systemTemp.createTempSync(
         'zplay_diagnostics_test',
       );
@@ -247,11 +247,11 @@ void main() {
       expect(path, isNotNull);
       final saved = path!;
       final parts = p.split(saved);
-      expect(parts, contains('ZPlay'));
+      expect(parts, contains('Lumora'));
       expect(parts, contains('diagnostics'));
       expect(
         p.basename(saved),
-        matches(RegExp(r'^zplay-diagnostics-\d{8}-\d{6}\.json$')),
+        matches(RegExp(r'^lumora-diagnostics-\d{8}-\d{6}\.json$')),
       );
 
       final decoded = jsonDecode(File(saved).readAsStringSync());

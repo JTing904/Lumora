@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/platform/app_folders.dart';
 import '../config/service_credentials.dart';
 import '../storage/json_document_store.dart';
 
@@ -388,13 +389,14 @@ class Paper2AudioService {
       Directory? targetDir;
       try {
         final appDocDir = await getApplicationDocumentsDirectory();
-        targetDir = Directory(
-          p.join(appDocDir.path, 'ZPlay', 'GeneratedAudiobooks'),
+        targetDir = await AppFolders.under(
+          appDocDir.path,
+          'GeneratedAudiobooks',
         );
       } catch (_) {
         final temp = await getTemporaryDirectory();
         targetDir = Directory(
-          p.join(temp.path, 'ZPlay', 'GeneratedAudiobooks'),
+          p.join(temp.path, AppFolders.name, 'GeneratedAudiobooks'),
         );
       }
       if (!await targetDir.exists()) {

@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models/music/downloaded_music_track.dart';
 import '../../models/music/music_track.dart';
+import '../../utils/platform/app_folders.dart';
 import '../storage/json_document_store.dart';
 import 'music_player_controller.dart';
 import 'music_service.dart';
@@ -88,16 +89,9 @@ class MusicDownloadService extends ChangeNotifier {
 
     try {
       final appDocDir = await getApplicationDocumentsDirectory();
-      _musicDir = Directory(p.join(appDocDir.path, 'ZPlay', 'Music'));
+      _musicDir = await AppFolders.under(appDocDir.path, 'Music');
       _tracksDir = Directory(p.join(_musicDir!.path, 'Tracks'));
       _coversDir = Directory(p.join(_musicDir!.path, 'Covers'));
-
-      if (!await _tracksDir!.exists()) {
-        await _tracksDir!.create(recursive: true);
-      }
-      if (!await _coversDir!.exists()) {
-        await _coversDir!.create(recursive: true);
-      }
     } catch (e) {
       debugPrint('[MusicDownloadService] init error: $e');
       return;
@@ -362,6 +356,7 @@ class MusicDownloadService extends ChangeNotifier {
     if (track.coverUrl.isNotEmpty) {
       try {
         final safeId = _sanitizeFilename(track.id);
+        await _coversDir!.create(recursive: true);
         final coverFile = File(p.join(_coversDir!.path, '$safeId.jpg'));
         if (await coverFile.exists() && await coverFile.length() > 100) {
           localCoverPath = coverFile.path;
@@ -388,6 +383,7 @@ class MusicDownloadService extends ChangeNotifier {
     final tempFile = File(p.join(_tracksDir!.path, '$safeId.$format.tmp'));
 
     try {
+      await _tracksDir!.create(recursive: true);
       final client = HttpClient();
       final uri = Uri.parse(streamUrl);
       final request = await client.getUrl(uri);

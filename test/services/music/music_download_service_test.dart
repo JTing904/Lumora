@@ -73,6 +73,10 @@ void main() {
       final service = MusicDownloadService.instance;
       await service.init();
 
+      // Starting up makes no folders; the first download does.
+      expect(Directory('${temp.path}/Lumora').existsSync(), isFalse);
+      expect(Directory('${temp.path}/ZPlay').existsSync(), isFalse);
+
       expect(service.downloadedTracks.map((t) => t.id), [
         'present',
       ], reason: 'tracks whose file is gone must still be dropped');

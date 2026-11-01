@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../../models/audiobook/audiobook_model.dart';
+import '../../utils/platform/app_folders.dart';
 import '../storage/json_document_store.dart';
 
 /// Representation of a user-uploaded local audiobook.
@@ -141,12 +142,12 @@ class CustomAudiobookService {
     Directory? targetDir;
     try {
       final appDocDir = await getApplicationDocumentsDirectory();
-      targetDir = Directory(
-        p.join(appDocDir.path, 'ZPlay', 'CustomAudiobooks'),
-      );
+      targetDir = await AppFolders.under(appDocDir.path, 'CustomAudiobooks');
     } catch (_) {
       final temp = await getTemporaryDirectory();
-      targetDir = Directory(p.join(temp.path, 'ZPlay', 'CustomAudiobooks'));
+      targetDir = Directory(
+        p.join(temp.path, AppFolders.name, 'CustomAudiobooks'),
+      );
     }
 
     final id = DateTime.now().millisecondsSinceEpoch.toString();

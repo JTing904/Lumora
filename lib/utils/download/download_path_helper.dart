@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../platform/app_folders.dart';
+
 class DownloadPathHelper {
   static const String _customPathKey = 'custom_downloads_directory';
   static const String _customPathHistoryKey =
@@ -69,13 +71,21 @@ class DownloadPathHelper {
   }
 
   /// Download roots the app itself recorded, used to validate persisted task
-  /// paths without trusting the task file's own directory string.
+  /// paths without trusting the task file's own directory string. Runs at
+  /// every start, so it only names folders and creates none; the old `ZPlay`
+  /// roots stay here because downloads saved there are recorded by full path.
   static Future<List<String>> getTrustedDownloadDirectories() async {
     final prefs = await SharedPreferences.getInstance();
     final roots = <String>{
-      await getDownloadsDirectoryPath(),
-      await getDefaultDownloadsDirectoryPath(),
+      for (final base in await _downloadBases()) ...[
+        p.join(base, AppFolders.name),
+        p.join(base, AppFolders.legacyName),
+      ],
     };
+    try {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      roots.add(p.join(appDocDir.path, 'Downloads'));
+    } catch (_) {}
 
     final current = prefs.getString(_customPathKey);
     if (current != null && current.isNotEmpty) roots.add(current);
@@ -86,38 +96,61 @@ class DownloadPathHelper {
     return roots.toList();
   }
 
-  /// Returns the platform default download directory.
-  static Future<String> getDefaultDownloadsDirectoryPath() async {
-    if (!kIsWeb && Platform.isAndroid) {
-      try {
-        final publicDownload = Directory('/storage/emulated/0/Download/ZPlay');
-        if (await publicDownload.exists() || await _tryCreate(publicDownload)) {
-          return publicDownload.path;
-        }
+  /// An existing folder on the volume downloads go to, for measuring free
+  /// space. Opening the Downloads page creates nothing.
+  static Future<String> getExistingDownloadsVolumePath() async {
+    final prefs = await SharedPreferences.getInstance();
+    final custom = prefs.getString(_customPathKey);
+    if (custom != null &&
+        custom.isNotEmpty &&
+        await Directory(custom).exists()) {
+      return custom;
+    }
+    for (final base in await _downloadBases()) {
+      if (await Directory(base).exists()) return base;
+    }
+    return (await getApplicationDocumentsDirectory()).path;
+  }
 
+  /// Removes the old `ZPlay` folders that hold no files.
+  static Future<void> removeEmptyLegacyFolders() async {
+    final bases = await _downloadBases();
+    try {
+      bases.add((await getApplicationDocumentsDirectory()).path);
+    } catch (_) {}
+    for (final base in bases) {
+      await AppFolders.removeEmptyLegacy(base);
+    }
+  }
+
+  /// The folders the app's own download folder goes in, best first.
+  static Future<List<String>> _downloadBases() async {
+    final bases = <String>[];
+    if (kIsWeb) return bases;
+    try {
+      if (Platform.isAndroid) {
+        bases.add('/storage/emulated/0/Download');
         final extDirs = await getExternalStorageDirectories(
           type: StorageDirectory.downloads,
         );
         if (extDirs != null && extDirs.isNotEmpty) {
-          final target = Directory(p.join(extDirs.first.path, 'ZPlay'));
-          if (await target.exists() || await _tryCreate(target)) {
-            return target.path;
-          }
+          bases.add(extDirs.first.path);
         }
-      } catch (_) {}
-    }
-
-    if (!kIsWeb &&
-        (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-      try {
+      } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         final downloadsDir = await getDownloadsDirectory();
-        if (downloadsDir != null) {
-          final target = Directory(p.join(downloadsDir.path, 'ZPlay'));
-          if (await target.exists() || await _tryCreate(target)) {
-            return target.path;
-          }
-        }
-      } catch (_) {}
+        if (downloadsDir != null) bases.add(downloadsDir.path);
+      }
+    } catch (_) {}
+    return bases;
+  }
+
+  /// Returns the platform default download directory.
+  static Future<String> getDefaultDownloadsDirectoryPath() async {
+    for (final base in await _downloadBases()) {
+      final target = Directory(p.join(base, AppFolders.name));
+      if (await target.exists() || await _tryCreate(target)) {
+        return target.path;
+      }
     }
 
     final appDocDir = await getApplicationDocumentsDirectory();

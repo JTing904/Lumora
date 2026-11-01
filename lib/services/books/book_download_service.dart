@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../models/book/book_result.dart';
 
 import '../../utils/security/safe_paths.dart';
+import '../../utils/platform/app_folders.dart';
 
 class BookDownloadService {
   static final BookDownloadService instance = BookDownloadService._();
@@ -25,7 +26,7 @@ class BookDownloadService {
     }
     try {
       final appDocDir = await getApplicationDocumentsDirectory();
-      final dir = Directory(p.join(appDocDir.path, 'ZPlay', 'Books'));
+      final dir = await AppFolders.under(appDocDir.path, 'Books');
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
@@ -33,7 +34,7 @@ class BookDownloadService {
       return dir;
     } catch (_) {
       final temp = Directory(
-        p.join(Directory.systemTemp.path, 'ZPlay', 'Books'),
+        p.join(Directory.systemTemp.path, AppFolders.name, 'Books'),
       );
       if (!await temp.exists()) {
         await temp.create(recursive: true);

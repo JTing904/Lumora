@@ -11,6 +11,13 @@ import '../../ui/lu_theme.dart';
 /// What each version brought, in both languages, newest first. Shown once,
 /// on the first start after updating to that version.
 const Map<String, List<(String, String)>> releaseHighlights = {
+  '1.0.4': [
+    ('On Windows, Lumora opens from its icon again.', 'Windows 版从图标打开时不再闪退。'),
+    (
+      'Downloads, music and books go in Lumora folders, created when there is something to save.',
+      '下载、音乐和书改放在 Lumora 文件夹，要存东西时才建立。',
+    ),
+  ],
   '1.0.3': [
     (
       'Watch together now works on official uploads too: start a room on an official YouTube episode and friends stay in step.',
