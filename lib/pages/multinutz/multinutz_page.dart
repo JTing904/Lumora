@@ -13,6 +13,7 @@ import '../../services/theme/design_tokens.dart';
 import '../../services/theme/glass_settings.dart';
 import '../../services/iptv/iptv_controller.dart';
 import '../../models/iptv/iptv_models.dart';
+import '../../services/iptv/iptv_source_label.dart';
 import '../../services/iptv/iptv_storage.dart';
 import '../../services/player/player_settings.dart';
 import '../../widgets/common/animated_ambient_background.dart';
@@ -21,6 +22,7 @@ import '../../widgets/common/pill_button.dart';
 import '../../widgets/iptv/multinutz_channel_sheet.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/storage/app_image_cache.dart';
+import '../../services/window/window_service.dart';
 
 class MultiStreamCell {
   int index;
@@ -87,7 +89,8 @@ class _MultiNutzPageState extends State<_MultiNutzPageBody>
     with WidgetsBindingObserver {
   final List<MultiStreamCell> _cells = [];
   final List<StreamSubscription> _playingSubs = [];
-  MultiNutzLayout _currentLayout = MultiNutzLayout.vertical3; // Default to 3 vertical
+  MultiNutzLayout _currentLayout =
+      MultiNutzLayout.vertical3; // Default to 3 vertical
   int _activeCells = 3;
   int? _fullscreenIndex;
   bool _isRearrangeMode = false;
@@ -98,8 +101,9 @@ class _MultiNutzPageState extends State<_MultiNutzPageBody>
     WakelockPlus.enable();
     WidgetsBinding.instance.addObserver(this);
 
-    // Allow all orientations (portrait + landscape)
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // The app's normal system bars (a television stays immersive), and all
+    // orientations (portrait + landscape).
+    unawaited(WindowService.instance.applyNormalSystemUi());
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -135,13 +139,15 @@ class _MultiNutzPageState extends State<_MultiNutzPageBody>
       _cells.add(cell);
 
       // Setup listening states
-      _playingSubs.add(player.stream.playing.listen((playing) {
-        if (mounted) {
-          setState(() {
-            cell.isPlaying = playing;
-          });
-        }
-      }));
+      _playingSubs.add(
+        player.stream.playing.listen((playing) {
+          if (mounted) {
+            setState(() {
+              cell.isPlaying = playing;
+            });
+          }
+        }),
+      );
     }
   }
 
@@ -171,23 +177,25 @@ class _MultiNutzPageState extends State<_MultiNutzPageBody>
         cell.statusText = l10nCurrent().mnzPlaybackError;
       }
     }
-if (mounted) {
-        setState(() {});
-      }
+    if (mounted) {
+      setState(() {});
     }
+  }
 
   Future<void> _saveSession() async {
     final states = <MultiNutzCellState>[];
     for (final cell in _cells) {
       if (cell.streamUrl != null && cell.streamUrl!.isNotEmpty) {
-        states.add(MultiNutzCellState(
-          index: cell.index,
-          channelName: cell.channelName,
-          streamUrl: cell.streamUrl,
-          volume: cell.volume,
-          isMuted: cell.isMuted,
-          wasPlaying: cell.isPlaying,
-        ));
+        states.add(
+          MultiNutzCellState(
+            index: cell.index,
+            channelName: cell.channelName,
+            streamUrl: cell.streamUrl,
+            volume: cell.volume,
+            isMuted: cell.isMuted,
+            wasPlaying: cell.isPlaying,
+          ),
+        );
       }
     }
     await MultiNutzSessionStore.save(states);
@@ -231,7 +239,7 @@ if (mounted) {
   void _setLayout(MultiNutzLayout layout) {
     setState(() {
       _currentLayout = layout;
-      
+
       // Set active cells based on layout
       switch (layout) {
         case MultiNutzLayout.single:
@@ -333,9 +341,13 @@ if (mounted) {
                 ),
               ),
               child: ListTile(
-                leading: Icon(Icons.live_tv_rounded, color: tokens.textEmphasis, size: 20),
+                leading: Icon(
+                  Icons.live_tv_rounded,
+                  color: tokens.textEmphasis,
+                  size: 20,
+                ),
                 title: Text(
-                  hit.portal.name,
+                  IptvSourceLabel.of(hit.portal, position: i + 1),
                   style: ZplayType.label
                       .copyWith(weight: FontWeight.w700)
                       .toStyle(color: tokens.textPrimary),
@@ -351,7 +363,11 @@ if (mounted) {
                   overflow: TextOverflow.ellipsis,
                 ),
                 trailing: isSelected
-                    ? Icon(Icons.check_circle_rounded, color: tokens.accent, size: 18)
+                    ? Icon(
+                        Icons.check_circle_rounded,
+                        color: tokens.accent,
+                        size: 18,
+                      )
                     : null,
                 onTap: () {
                   Navigator.pop(context);
@@ -473,7 +489,9 @@ if (mounted) {
                   ),
                   Container(
                     height: 48,
-                    padding: const EdgeInsets.symmetric(horizontal: ZplaySpacing.s8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ZplaySpacing.s8,
+                    ),
                     child: TabBar(
                       labelColor: tokens.accent,
                       unselectedLabelColor: tokens.textSecondary,
@@ -492,13 +510,15 @@ if (mounted) {
                         // Xtreme Playlist Tab
                         MultiNutzChannelSheet(
                           cellIndex: index,
-                          onChannelSelected: (url, name) => _loadXtremeM3uInCell(index, url, name),
+                          onChannelSelected: (url, name) =>
+                              _loadXtremeM3uInCell(index, url, name),
                           tabType: ChannelSheetTab.xtreme,
                         ),
                         // M3U Playlist Tab
                         MultiNutzChannelSheet(
                           cellIndex: index,
-                          onChannelSelected: (url, name) => _loadXtremeM3uInCell(index, url, name),
+                          onChannelSelected: (url, name) =>
+                              _loadXtremeM3uInCell(index, url, name),
                           tabType: ChannelSheetTab.m3u,
                         ),
                         // Hardcoded IPTV Channels Tab
@@ -528,7 +548,7 @@ if (mounted) {
           padding: const EdgeInsets.all(ZplaySpacing.s16),
           itemCount: channels.length + quickChannels.length,
           itemBuilder: (context, i) {
-if (i < quickChannels.length) {
+            if (i < quickChannels.length) {
               final qc = quickChannels[i];
               final ch = HardcodedChannel(
                 id: 'qc_${qc.id}',
@@ -544,16 +564,38 @@ if (i < quickChannels.length) {
                 decoration: BoxDecoration(
                   color: tokens.accent.withValues(alpha: 0.06),
                   borderRadius: ZplayRadius.smAll,
-                  border: Border.all(color: tokens.accent.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: tokens.accent.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: ListTile(
                   leading: qc.iconUrl != null
-                      ? CachedNetworkImage(imageUrl: qc.iconUrl!, cacheManager: AppImageCache.manager,
- memCacheWidth: 96, width: 32, height: 32, errorWidget: (_, __, ___) => Icon(Icons.tv, color: tokens.textEmphasis))
+                      ? CachedNetworkImage(
+                          imageUrl: qc.iconUrl!,
+                          cacheManager: AppImageCache.manager,
+                          memCacheWidth: 96,
+                          width: 32,
+                          height: 32,
+                          errorWidget: (_, __, ___) =>
+                              Icon(Icons.tv, color: tokens.textEmphasis),
+                        )
                       : Icon(Icons.tv, color: tokens.textEmphasis),
-                  title: Text(qc.name, style: ZplayType.label.copyWith(weight: FontWeight.w700).toStyle(color: tokens.textPrimary)),
-                  subtitle: Text(qc.category, style: ZplayType.caption.toStyle(color: tokens.accent.withValues(alpha: 0.6))),
-                  trailing: Icon(Icons.add_rounded, color: tokens.textSecondary),
+                  title: Text(
+                    qc.name,
+                    style: ZplayType.label
+                        .copyWith(weight: FontWeight.w700)
+                        .toStyle(color: tokens.textPrimary),
+                  ),
+                  subtitle: Text(
+                    qc.category,
+                    style: ZplayType.caption.toStyle(
+                      color: tokens.accent.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.add_rounded,
+                    color: tokens.textSecondary,
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _loadStreamInCell(index, ch);
@@ -570,11 +612,28 @@ if (i < quickChannels.length) {
               ),
               child: ListTile(
                 leading: ch.iconUrl != null
-                    ? CachedNetworkImage(imageUrl: ch.iconUrl!, cacheManager: AppImageCache.manager,
- memCacheWidth: 96, width: 32, height: 32, errorWidget: (_, __, ___) => Icon(Icons.tv, color: tokens.textEmphasis))
+                    ? CachedNetworkImage(
+                        imageUrl: ch.iconUrl!,
+                        cacheManager: AppImageCache.manager,
+                        memCacheWidth: 96,
+                        width: 32,
+                        height: 32,
+                        errorWidget: (_, __, ___) =>
+                            Icon(Icons.tv, color: tokens.textEmphasis),
+                      )
                     : Icon(Icons.tv, color: tokens.textEmphasis),
-                title: Text(ch.name, style: ZplayType.label.copyWith(weight: FontWeight.w700).toStyle(color: tokens.textPrimary)),
-                subtitle: Text(ch.category, style: ZplayType.caption.toStyle(color: tokens.accent.withValues(alpha: 0.6))),
+                title: Text(
+                  ch.name,
+                  style: ZplayType.label
+                      .copyWith(weight: FontWeight.w700)
+                      .toStyle(color: tokens.textPrimary),
+                ),
+                subtitle: Text(
+                  ch.category,
+                  style: ZplayType.caption.toStyle(
+                    color: tokens.accent.withValues(alpha: 0.6),
+                  ),
+                ),
                 trailing: Icon(Icons.add_rounded, color: tokens.textSecondary),
                 onTap: () {
                   Navigator.pop(context);
@@ -656,7 +715,7 @@ if (i < quickChannels.length) {
   Future<void> _loadStreamInCell(int index, HardcodedChannel channel) async {
     if (index >= _cells.length) return;
     final cell = _cells[index];
-    
+
     setState(() {
       cell.channelName = channel.name;
       cell.isScanning = true;
@@ -715,7 +774,7 @@ if (i < quickChannels.length) {
     if (index >= _cells.length) return;
     Navigator.pop(context);
     final tokens = context.tokens;
-    
+
     showDialog(
       context: context,
       builder: (context) {
@@ -734,7 +793,9 @@ if (i < quickChannels.length) {
               hintText: 'http://example.com/stream.m3u8',
               hintStyle: ZplayType.body.toStyle(color: tokens.textDisabled),
               enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: tokens.accent.withValues(alpha: 0.5)),
+                borderSide: BorderSide(
+                  color: tokens.accent.withValues(alpha: 0.5),
+                ),
               ),
               focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: tokens.accent),
@@ -761,7 +822,10 @@ if (i < quickChannels.length) {
                 backgroundColor: tokens.accent,
                 foregroundColor: tokens.onAccent,
               ),
-              child: Text(l10nCurrent().mnzAdd, style: ZplayType.label.toStyle(color: tokens.onAccent)),
+              child: Text(
+                l10nCurrent().mnzAdd,
+                style: ZplayType.label.toStyle(color: tokens.onAccent),
+              ),
             ),
           ],
         );
@@ -787,11 +851,18 @@ if (i < quickChannels.length) {
       }
     });
     _saveSession();
-}
+  }
 
-  Widget _buildRearrangeGrid(int crossAxisCount, double childAspectRatio, double topPadding) {
+  Widget _buildRearrangeGrid(
+    int crossAxisCount,
+    double childAspectRatio,
+    double topPadding,
+  ) {
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: ZplaySpacing.s16, vertical: topPadding + 88),
+      padding: EdgeInsets.symmetric(
+        horizontal: ZplaySpacing.s16,
+        vertical: topPadding + 88,
+      ),
       physics: const ClampingScrollPhysics(),
       itemCount: _activeCells,
       itemBuilder: (context, index) {
@@ -803,19 +874,35 @@ if (i < quickChannels.length) {
                 data: index,
                 feedback: Material(
                   color: Colors.transparent,
-                  child: Opacity(opacity: 0.8, child: _buildPlayerCell(_cells[index], false, isRearrangeMode: true)),
+                  child: Opacity(
+                    opacity: 0.8,
+                    child: _buildPlayerCell(
+                      _cells[index],
+                      false,
+                      isRearrangeMode: true,
+                    ),
+                  ),
                 ),
                 childWhenDragging: Opacity(
                   opacity: 0.3,
-                  child: _buildPlayerCell(_cells[index], false, isRearrangeMode: true),
+                  child: _buildPlayerCell(
+                    _cells[index],
+                    false,
+                    isRearrangeMode: true,
+                  ),
                 ),
                 onDragEnd: (details) {
                   // No-op; handled by DragTarget's onWillAccept/onAccept
                 },
-                child: _buildPlayerCell(_cells[index], false, isRearrangeMode: true),
+                child: _buildPlayerCell(
+                  _cells[index],
+                  false,
+                  isRearrangeMode: true,
+                ),
               );
             },
-            onWillAccept: (fromIndex) => fromIndex != null && fromIndex != index,
+            onWillAccept: (fromIndex) =>
+                fromIndex != null && fromIndex != index,
             onAccept: (fromIndex) {
               _reorderCells(fromIndex, index);
             },
@@ -855,8 +942,8 @@ if (i < quickChannels.length) {
       cell.player.dispose();
     }
 
-    // Restore orientation
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Restore the app's normal bars and orientation
+    unawaited(WindowService.instance.applyNormalSystemUi());
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -873,7 +960,7 @@ if (i < quickChannels.length) {
     // Determine grid rows & columns based on layout
     int crossAxisCount;
     double childAspectRatio;
-    
+
     switch (_currentLayout) {
       case MultiNutzLayout.single:
         crossAxisCount = 1;
@@ -909,31 +996,37 @@ if (i < quickChannels.length) {
         break;
     }
 
-final gridContent = _fullscreenIndex != null
+    final gridContent = _fullscreenIndex != null
         ? _buildPlayerCell(_cells[_fullscreenIndex!], true)
         : (_isRearrangeMode
-            ? _buildRearrangeGrid(crossAxisCount, childAspectRatio, topPadding)
-            : GridView.builder(
-                // The 96 px bottom was dock clearance; the shell reserves its own space now.
-                padding: EdgeInsets.fromLTRB(
-                  ZplaySpacing.s16,
-                  topPadding + 88,
-                  ZplaySpacing.s16,
-                  ZplaySpacing.s24 + MediaQuery.paddingOf(context).bottom,
-                ),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: ZplaySpacing.s12,
-                  mainAxisSpacing: ZplaySpacing.s12,
-                  childAspectRatio: childAspectRatio,
-                ),
-                itemCount: _activeCells,
-                itemBuilder: (context, index) => _buildPlayerCell(_cells[index], false, isRearrangeMode: false),
-              ));
+              ? _buildRearrangeGrid(
+                  crossAxisCount,
+                  childAspectRatio,
+                  topPadding,
+                )
+              : GridView.builder(
+                  // The 96 px bottom was dock clearance; the shell reserves its own space now.
+                  padding: EdgeInsets.fromLTRB(
+                    ZplaySpacing.s16,
+                    topPadding + 88,
+                    ZplaySpacing.s16,
+                    ZplaySpacing.s24 + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: ZplaySpacing.s12,
+                    mainAxisSpacing: ZplaySpacing.s12,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  itemCount: _activeCells,
+                  itemBuilder: (context, index) => _buildPlayerCell(
+                    _cells[index],
+                    false,
+                    isRearrangeMode: false,
+                  ),
+                ));
 
-    final backgroundContent = AnimatedAmbientBackground(
-      child: gridContent,
-    );
+    final backgroundContent = AnimatedAmbientBackground(child: gridContent);
 
     final overlayChildren = <Widget>[
       Positioned(
@@ -985,7 +1078,11 @@ final gridContent = _fullscreenIndex != null
     );
   }
 
-  Widget _buildPlayerCell(MultiStreamCell cell, bool isFullscreen, {bool isRearrangeMode = false}) {
+  Widget _buildPlayerCell(
+    MultiStreamCell cell,
+    bool isFullscreen, {
+    bool isRearrangeMode = false,
+  }) {
     final tokens = context.tokens;
 
     return Container(
@@ -1006,10 +1103,7 @@ final gridContent = _fullscreenIndex != null
           if (cell.streamUrl != null)
             Positioned.fill(
               child: Center(
-                child: Video(
-                  controller: cell.controller,
-                  fit: BoxFit.contain,
-                ),
+                child: Video(controller: cell.controller, fit: BoxFit.contain),
               ),
             ),
 
@@ -1023,7 +1117,9 @@ final gridContent = _fullscreenIndex != null
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(tokens.accent),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          tokens.accent,
+                        ),
                       ),
                       if (cell.statusText != null) ...[
                         const SizedBox(height: ZplaySpacing.s12),
@@ -1094,7 +1190,9 @@ final gridContent = _fullscreenIndex != null
                       ),
                       child: Text(
                         cell.channelName ?? l10nCurrent().mnzLiveStream,
-                        style: ZplayType.overline.toStyle(color: tokens.textPrimary),
+                        style: ZplayType.overline.toStyle(
+                          color: tokens.textPrimary,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1106,8 +1204,14 @@ final gridContent = _fullscreenIndex != null
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildMiniHudButton(
-                        icon: cell.isMuted ? Icons.volume_off_rounded : (cell.volume < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
-                        color: cell.isMuted ? tokens.textEmphasis : tokens.accent,
+                        icon: cell.isMuted
+                            ? Icons.volume_off_rounded
+                            : (cell.volume < 0.5
+                                  ? Icons.volume_down_rounded
+                                  : Icons.volume_up_rounded),
+                        color: cell.isMuted
+                            ? tokens.textEmphasis
+                            : tokens.accent,
                         onTap: () => _onCellVolumeToggle(cell.index),
                       ),
                       const SizedBox(width: 4),
@@ -1117,8 +1221,12 @@ final gridContent = _fullscreenIndex != null
                         child: SliderTheme(
                           data: SliderThemeData(
                             trackHeight: 3,
-                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 5,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 8,
+                            ),
                             activeTrackColor: tokens.accent,
                             inactiveTrackColor: tokens.borderStrong,
                             thumbColor: tokens.accent,
@@ -1128,7 +1236,8 @@ final gridContent = _fullscreenIndex != null
                             value: cell.volume,
                             min: 0.0,
                             max: 1.0,
-                            onChanged: (v) => _onCellVolumeChanged(cell.index, v),
+                            onChanged: (v) =>
+                                _onCellVolumeChanged(cell.index, v),
                           ),
                         ),
                       ),
@@ -1136,12 +1245,16 @@ final gridContent = _fullscreenIndex != null
                   ),
                   const SizedBox(width: 6),
                   _buildMiniHudButton(
-                    icon: cell.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    icon: cell.isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
                     onTap: () => _onCellPauseToggle(cell.index),
                   ),
                   const SizedBox(width: 6),
                   _buildMiniHudButton(
-                    icon: isFullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                    icon: isFullscreen
+                        ? Icons.fullscreen_exit_rounded
+                        : Icons.fullscreen_rounded,
                     onTap: () {
                       setState(() {
                         if (isFullscreen) {
@@ -1178,7 +1291,11 @@ final gridContent = _fullscreenIndex != null
     );
   }
 
-  Widget _buildMiniHudButton({required IconData icon, Color? color, VoidCallback? onTap}) {
+  Widget _buildMiniHudButton({
+    required IconData icon,
+    Color? color,
+    VoidCallback? onTap,
+  }) {
     final tokens = context.tokens;
     return FocusableCard(
       onTap: onTap,
@@ -1234,40 +1351,54 @@ final gridContent = _fullscreenIndex != null
           child: Row(
             children: [
               // Left: title + layout label
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                if (Navigator.canPop(context)) ...[
-                  _buildGlassButton(
-                    icon: Icons.arrow_back_rounded,
-                    isSelected: false,
-                    tooltip: l10nCurrent().mnzBackToLiveTv,
-                    onTap: () => Navigator.pop(context),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (Navigator.canPop(context)) ...[
+                    _buildGlassButton(
+                      icon: Icons.arrow_back_rounded,
+                      isSelected: false,
+                      tooltip: l10nCurrent().mnzBackToLiveTv,
+                      onTap: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tokens.accent,
+                      borderRadius: ZplayRadius.smAll,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.dashboard_rounded,
+                          color: tokens.onAccent,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10nCurrent().mnzMultiStreams,
+                          style: ZplayType.label.toStyle(
+                            color: tokens.onAccent,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 10),
+                  Text(
+                    _currentLayout.label.toUpperCase(),
+                    style: ZplayType.overline.toStyle(
+                      color: tokens.textEmphasis,
+                    ),
+                  ),
                 ],
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: tokens.accent,
-                    borderRadius: ZplayRadius.smAll,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.dashboard_rounded, color: tokens.onAccent, size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        l10nCurrent().mnzMultiStreams,
-                        style: ZplayType.label.toStyle(color: tokens.onAccent),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  _currentLayout.label.toUpperCase(),
-                  style: ZplayType.overline.toStyle(color: tokens.textEmphasis),
-                ),
-              ]),
+              ),
 
               // Right: scrollable controls
               Expanded(
@@ -1295,7 +1426,11 @@ final gridContent = _fullscreenIndex != null
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.view_comfy_rounded, color: tokens.accent, size: 16),
+                            Icon(
+                              Icons.view_comfy_rounded,
+                              color: tokens.accent,
+                              size: 16,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               l10nCurrent().mnz2ActiveStreams(_activeCells),
@@ -1309,9 +1444,13 @@ final gridContent = _fullscreenIndex != null
                       ],
                       const SizedBox(width: ZplaySpacing.s16),
                       _buildGlassButton(
-                        icon: _isRearrangeMode ? Icons.check_rounded : Icons.swap_vert_rounded,
+                        icon: _isRearrangeMode
+                            ? Icons.check_rounded
+                            : Icons.swap_vert_rounded,
                         isSelected: _isRearrangeMode,
-                        tooltip: _isRearrangeMode ? l10nCurrent().mnzDoneRearranging : l10nCurrent().mnzRearrangeStreams,
+                        tooltip: _isRearrangeMode
+                            ? l10nCurrent().mnzDoneRearranging
+                            : l10nCurrent().mnzRearrangeStreams,
                         onTap: () {
                           setState(() {
                             _isRearrangeMode = !_isRearrangeMode;
@@ -1343,7 +1482,12 @@ final gridContent = _fullscreenIndex != null
     );
   }
 
-  Widget _buildGlassButton({required IconData icon, required bool isSelected, required String tooltip, VoidCallback? onTap}) {
+  Widget _buildGlassButton({
+    required IconData icon,
+    required bool isSelected,
+    required String tooltip,
+    VoidCallback? onTap,
+  }) {
     final tokens = context.tokens;
 
     return Tooltip(

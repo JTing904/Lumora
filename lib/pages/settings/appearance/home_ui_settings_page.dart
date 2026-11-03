@@ -1,15 +1,10 @@
 import '../../../l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../../l10n/option_labels.dart';
 import '../../../services/theme/app_theme_service.dart';
 import '../../../services/theme/custom_background_service.dart';
 import '../../../services/theme/design_tokens.dart';
 import '../../../services/home/home_page_settings.dart';
-import '../../../services/collections/collections_service.dart';
-import '../../../services/my_list/my_list_service.dart';
-import '../../../services/simkl/simkl_service.dart';
-import '../../../services/trakt/trakt_service.dart';
 import '../../../widgets/common/animated_ambient_background.dart';
 import '../../../widgets/common/segmented_tabs.dart';
 import '../../../widgets/settings/settings_app_bar.dart';
@@ -27,7 +22,6 @@ class _HomeUiSettingsPageState extends State<HomeUiSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final myListCount = MyListService.items.value.length;
 
     return LuSettingsTheme(
       child: AnimatedAmbientBackground(
@@ -142,23 +136,13 @@ class _HomeUiSettingsPageState extends State<HomeUiSettingsPage> {
 
                   const SizedBox(height: 28),
 
-                  // ── 3. "Because you have on your list" Section ──
+                  // ── 3. 为你推荐 ──
                   Text(
                     l10nCurrent().stgbSmartRecsCaps,
                     style: ZplayType.overline.toStyle(color: tokens.textMuted),
                   ),
                   const SizedBox(height: 12),
-                  _buildSimilarRecommendationsCard(myListCount),
-
-                  const SizedBox(height: 28),
-
-                  // ── 3b. Curated Collections ──
-                  Text(
-                    l10nCurrent().stgbCuratedCollections,
-                    style: ZplayType.overline.toStyle(color: tokens.textMuted),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildCollectionsCard(),
+                  _buildForYouCard(),
 
                   const SizedBox(height: 28),
 
@@ -455,235 +439,20 @@ class _HomeUiSettingsPageState extends State<HomeUiSettingsPage> {
     );
   }
 
-  Widget _buildSimilarRecommendationsCard(int myListCount) {
-    final tokens = context.tokens;
+  /// The one recommendation Lumora's Home has: 为你推荐. The old page's
+  /// other rails (because you saved / are watching, Trakt, Simkl, addon
+  /// rails without art, and where they sat) have no place on it.
+  Widget _buildForYouCard() {
     return Padding(
       padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppThemeService.currentPalette.value.primaryColor
-                      .withValues(alpha: ZplayOpacity.overlayHover),
-                  borderRadius: ZplayRadius.smAll,
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: AppThemeService.currentPalette.value.primaryColor,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10nCurrent().stgbSmartRecommendations,
-                      style: ZplayType.subtitle.toStyle(
-                        color: tokens.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      l10nCurrent().stgbSmartRecommendationsDesc,
-                      style: ZplayType.bodySmall.toStyle(
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-          Divider(color: tokens.borderSubtle),
-          const SizedBox(height: 8),
-
-          // 1. Because You Have... (My List)
-          _buildRecommendationToggleRow(
-            title: l10nCurrent().stgbBecauseYouHave,
-            subtitle: l10nCurrent().stgbBecauseYouHaveDesc,
-            listenable: HomePageSettings.enableSimilar,
-            onChanged: (val) {
-              HomePageSettings.setEnableSimilar(val);
-              setState(() {});
-            },
-          ),
-
-          // 2. Because You're Watching... (Continue Watching)
-          _buildRecommendationToggleRow(
-            title: l10nCurrent().stgbBecauseYoureWatching,
-            subtitle: l10nCurrent().stgbBecauseYoureWatchingDesc,
-            listenable: HomePageSettings.enableWatchingSimilar,
-            onChanged: (val) {
-              HomePageSettings.setEnableWatchingSimilar(val);
-              setState(() {});
-            },
-          ),
-
-          // Not a recommendation source like the two above, but it belongs with
-          // them: it decides which of the addon rails reach the shelf at all.
-          _buildRecommendationToggleRow(
-            title: localizedOptionLabel('Hide Rails With No Artwork'),
-            subtitle: l10nCurrent().stgcDropImagelessRails,
-            listenable: HomePageSettings.hideArtlessRails,
-            onChanged: (val) {
-              HomePageSettings.setHideArtlessRails(val);
-              setState(() {});
-            },
-          ),
-
-          // 3. Trakt Recommendations
-          FutureBuilder<bool>(
-            future: TraktService.instance.isAuthenticated(),
-            builder: (context, snapshot) {
-              final isAuthed = snapshot.data ?? false;
-              return _buildRecommendationToggleRow(
-                title: l10nCurrent().stgbTraktRecommendations,
-                subtitle: isAuthed
-                    ? l10nCurrent().stgbTraktRecommendationsDesc
-                    : l10nCurrent().stgbRequiresTraktLogin,
-                listenable: HomePageSettings.enableTraktRecommendations,
-                trailingExtra: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isAuthed
-                        ? const Color(0xFFED1C24).withValues(alpha: 0.2)
-                        : Colors.white.withValues(
-                            alpha: ZplayOpacity.borderStrong,
-                          ),
-                    borderRadius: ZplayRadius.xsAll,
-                    border: Border.all(
-                      color: isAuthed
-                          ? const Color(0xFFED1C24).withValues(alpha: 0.4)
-                          : tokens.borderStrong,
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Text(
-                    isAuthed
-                        ? l10nCurrent().stgbConnected
-                        : l10nCurrent().stgbDisconnected,
-                    style: ZplayType.overline.toStyle(
-                      color: isAuthed
-                          ? const Color(0xFFFF5252)
-                          : tokens.textMuted,
-                    ),
-                  ),
-                ),
-                onChanged: (val) {
-                  HomePageSettings.setEnableTraktRecommendations(val);
-                  setState(() {});
-                },
-              );
-            },
-          ),
-
-          // 4. Simkl Recommendations
-          FutureBuilder<bool>(
-            future: SimklService.instance.isAuthenticated(),
-            builder: (context, snapshot) {
-              final isAuthed = snapshot.data ?? false;
-              return _buildRecommendationToggleRow(
-                title: l10nCurrent().stgbSimklRecommendations,
-                subtitle: isAuthed
-                    ? l10nCurrent().stgbSimklRecommendationsDesc
-                    : l10nCurrent().stgbRequiresSimklLogin,
-                listenable: HomePageSettings.enableSimklRecommendations,
-                trailingExtra: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isAuthed
-                        ? const Color(0xFF00B2FF).withValues(alpha: 0.2)
-                        : Colors.white.withValues(
-                            alpha: ZplayOpacity.borderStrong,
-                          ),
-                    borderRadius: ZplayRadius.xsAll,
-                    border: Border.all(
-                      color: isAuthed
-                          ? const Color(0xFF00B2FF).withValues(alpha: 0.4)
-                          : tokens.borderStrong,
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Text(
-                    isAuthed
-                        ? l10nCurrent().stgbConnected
-                        : l10nCurrent().stgbDisconnected,
-                    style: ZplayType.overline.toStyle(
-                      color: isAuthed
-                          ? const Color(0xFF40C4FF)
-                          : tokens.textMuted,
-                    ),
-                  ),
-                ),
-                onChanged: (val) {
-                  HomePageSettings.setEnableSimklRecommendations(val);
-                  setState(() {});
-                },
-              );
-            },
-          ),
-
-          const SizedBox(height: 12),
-          Divider(color: tokens.borderSubtle),
-          const SizedBox(height: 12),
-
-          // Position Dropdown
-          Text(
-            l10nCurrent().stgbRecSlidersPosition,
-            style: ZplayType.subtitle.toStyle(color: tokens.textEmphasis),
-          ),
-          const SizedBox(height: 6),
-          ValueListenableBuilder<SimilarSectionPosition>(
-            valueListenable: HomePageSettings.similarPosition,
-            builder: (context, pos, _) {
-              return DropdownButtonFormField<SimilarSectionPosition>(
-                value: pos,
-                dropdownColor: tokens.surfaceOverlay,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: tokens.surface,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: ZplayRadius.smAll,
-                    borderSide: BorderSide(color: tokens.borderDefault),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: ZplayRadius.smAll,
-                    borderSide: BorderSide(color: tokens.borderDefault),
-                  ),
-                ),
-                style: ZplayType.label.toStyle(color: tokens.textPrimary),
-                items: SimilarSectionPosition.values.map((p) {
-                  return DropdownMenuItem(value: p, child: Text(p.label));
-                }).toList(),
-                onChanged: (newPos) {
-                  if (newPos != null) {
-                    HomePageSettings.setSimilarPosition(newPos);
-                    setState(() {});
-                  }
-                },
-              );
-            },
-          ),
-        ],
+      child: _buildRecommendationToggleRow(
+        title: l10nCurrent().homeUiForYou,
+        subtitle: l10nCurrent().homeUiForYouDesc,
+        listenable: HomePageSettings.enableSimilar,
+        onChanged: (val) {
+          HomePageSettings.setEnableSimilar(val);
+          setState(() {});
+        },
       ),
     );
   }
@@ -739,21 +508,6 @@ class _HomeUiSettingsPageState extends State<HomeUiSettingsPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildCollectionsCard() {
-    return Padding(
-      padding: const EdgeInsets.all(18),
-      child: _buildRecommendationToggleRow(
-        title: l10nCurrent().stgbCollections,
-        subtitle: l10nCurrent().stgbCollectionsDesc,
-        listenable: CollectionsService.showOnHome,
-        onChanged: (val) {
-          CollectionsService.showOnHome.value = val;
-          setState(() {});
-        },
-      ),
     );
   }
 
@@ -829,34 +583,6 @@ class _HomeUiSettingsPageState extends State<HomeUiSettingsPage> {
                   const SizedBox(height: 16),
                   Divider(color: tokens.borderSubtle),
                   const SizedBox(height: 12),
-
-                  // Hero Style Selector
-                  Text(
-                    l10nCurrent().stgbSpotlightStyle,
-                    style: ZplayType.subtitle.toStyle(
-                      color: tokens.textEmphasis,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ValueListenableBuilder<HeroStyle>(
-                    valueListenable: HomePageSettings.heroStyle,
-                    builder: (context, currentStyle, _) {
-                      return SegmentedTabs<HeroStyle>(
-                        selected: currentStyle,
-                        onSelected: (style) {
-                          HomePageSettings.setHeroStyle(style);
-                          setState(() {});
-                        },
-                        options: [
-                          for (final style in HeroStyle.values)
-                            SegmentedTabOption(
-                              value: style,
-                              label: style.label,
-                            ),
-                        ],
-                      );
-                    },
-                  ),
 
                   // Auto-Rotate Switch & Interval
                   ValueListenableBuilder<bool>(
@@ -946,48 +672,6 @@ class _HomeUiSettingsPageState extends State<HomeUiSettingsPage> {
                               },
                             ),
                           ],
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-                  Divider(color: tokens.borderSubtle),
-                  const SizedBox(height: 12),
-
-                  // Ambient Glow Switch
-                  ValueListenableBuilder<bool>(
-                    valueListenable: HomePageSettings.ambientGlow,
-                    builder: (context, glow, _) {
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10nCurrent().stgbAmbientBackdropLighting,
-                                  style: ZplayType.subtitle.toStyle(
-                                    color: tokens.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  l10nCurrent().stgbAmbientBackdropLightingDesc,
-                                  style: ZplayType.caption.toStyle(
-                                    color: tokens.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: glow,
-                            onChanged: (val) {
-                              HomePageSettings.setAmbientGlow(val);
-                              setState(() {});
-                            },
-                          ),
                         ],
                       );
                     },

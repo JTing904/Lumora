@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
 import '../../models/iptv/iptv_models.dart';
 import '../../models/iptv/m3u_models.dart';
@@ -11,6 +12,7 @@ import 'iptv_settings.dart';
 import 'iptv_storage.dart';
 import 'm3u_parser.dart';
 import 'm3u_store.dart';
+import 'stream_separator.dart';
 import 'sources/external_channel_source.dart';
 
 enum IptvView {
@@ -196,7 +198,9 @@ class IptvController extends ChangeNotifier {
   }
 
   List<ChannelHit> _sortHitsFavoritesFirst(
-      String channelId, List<ChannelHit> list) {
+    String channelId,
+    List<ChannelHit> list,
+  ) {
     final favs = _favoriteHits[channelId] ?? const <String>{};
     if (favs.isEmpty) return list;
     final f = <ChannelHit>[];
@@ -242,7 +246,7 @@ class IptvController extends ChangeNotifier {
   Future<void> scrape() async {
     if (isScraping) return;
     isScraping = true;
-    statusText = 'Finding live portals…';
+    statusText = l10nCurrent().tvStatusFindingPortals;
     canGetMore = false;
     notifyListeners();
     await _scrapeAndVerify();
@@ -251,7 +255,7 @@ class IptvController extends ChangeNotifier {
   Future<void> getMore() async {
     if (isScraping) return;
     isScraping = true;
-    statusText = 'Searching for more…';
+    statusText = l10nCurrent().tvStatusSearchingMore;
     notifyListeners();
     await _scrapeAndVerify();
   }
@@ -294,8 +298,10 @@ class IptvController extends ChangeNotifier {
         }
 
         final remaining = targetAlive - newAlive.length;
-        statusText =
-            'Verifying ${_pendingPortals.length} portals · need $remaining more';
+        statusText = l10nCurrent().tvStatusVerifyingNeed(
+          _pendingPortals.length,
+          remaining,
+        );
         notifyListeners();
 
         final snapshot = List<IptvPortal>.from(_pendingPortals);
@@ -310,7 +316,12 @@ class IptvController extends ChangeNotifier {
           },
           onProgress: (c, t, a) {
             final total = newAlive.length + a;
-            statusText = 'Verifying $c / $t · alive $total / $targetAlive';
+            statusText = l10nCurrent().tvStatusVerifyingAlive(
+              c,
+              t,
+              total,
+              targetAlive,
+            );
             notifyListeners();
           },
           onAlive: (v) {
@@ -333,40 +344,58 @@ class IptvController extends ChangeNotifier {
       if (newAlive.isNotEmpty) await IptvStore.save(verified);
 
       _invalidateChannelCaches();
-      canGetMore = _pendingPortals.isNotEmpty ||
-          (page?.hasMore ?? canGetMore);
+      canGetMore = _pendingPortals.isNotEmpty || (page?.hasMore ?? canGetMore);
 
-      if (newAlive.isEmpty) {
-        statusText = exhausted
-            ? 'No live portals found in this source.'
-            : (canGetMore
-                ? 'No new live portals. Try Get More.'
-                : 'No new live portals.');
-      } else {
-        final hit = newAlive.length >= targetAlive;
-        statusText = hit
-            ? 'Found ${newAlive.length} live portals.'
-            : 'Found ${newAlive.length} live portals'
-                '${exhausted ? ' (source exhausted).' : ' (stopped early).'}';
-        if (_pendingPortals.isNotEmpty) {
-          statusText += ' (${_pendingPortals.length} more queued)';
-        }
-      }
+      statusText = scrapeSummary(
+        l10nCurrent(),
+        found: newAlive.length,
+        target: targetAlive,
+        exhausted: exhausted,
+        canGetMore: canGetMore,
+        queued: _pendingPortals.length,
+      );
     } catch (e) {
-      statusText = 'Scrape failed: $e';
+      // The exception is for the log; the user gets a sentence they can act
+      // on in their language.
+      debugPrint('[IptvController] scrape failed: $e');
+      statusText = l10nCurrent().tvStatusScrapeFailed;
     } finally {
       isScraping = false;
       notifyListeners();
     }
   }
 
+  /// The line shown once a portal search ends.
+  @visibleForTesting
+  static String scrapeSummary(
+    AppLocalizations l10n, {
+    required int found,
+    required int target,
+    required bool exhausted,
+    required bool canGetMore,
+    required int queued,
+  }) {
+    if (found == 0) {
+      if (exhausted) return l10n.tvStatusSourceEmpty;
+      return canGetMore ? l10n.tvStatusNoNewTryAgain : l10n.tvStatusNoNew;
+    }
+    final head = found >= target
+        ? l10n.tvStatusFoundPortals(found)
+        : (exhausted
+              ? l10n.tvStatusFoundPortalsExhausted(found)
+              : l10n.tvStatusFoundPortalsStopped(found));
+    return queued > 0 ? '$head ${l10n.tvStatusMoreQueued(queued)}' : head;
+  }
+
   Future<void> runVerification() async {
     final manual = manualVerified;
     if (manual.isEmpty) return;
-    statusText = 'Re-checking saved portals…';
+    statusText = l10nCurrent().tvStatusRecheckingSaved;
     notifyListeners();
     final manualKeys = manual.map((v) => v.key).toSet();
-    final scrapedKept = verified.where((v) => !manualKeys.contains(v.key)).toList();
+    final scrapedKept = verified
+        .where((v) => !manualKeys.contains(v.key))
+        .toList();
     final freshManual = <VerifiedPortal>[];
     for (final v in manual) {
       final fresh = await IptvClient.verifyOrNull(v.portal);
@@ -378,7 +407,7 @@ class IptvController extends ChangeNotifier {
       ..addAll(verified.map((v) => v.credKey));
     _invalidateChannelCaches();
     await IptvStore.save(verified);
-    statusText = '${freshManual.length} portals still alive.';
+    statusText = l10nCurrent().tvStatusStillAlive(freshManual.length);
     notifyListeners();
   }
 
@@ -434,8 +463,13 @@ class IptvController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removeChannelHits(String channelId, Set<String> streamUrls) async {
-    channelResults = channelResults.where((h) => !streamUrls.contains(h.streamUrl)).toList();
+  Future<void> removeChannelHits(
+    String channelId,
+    Set<String> streamUrls,
+  ) async {
+    channelResults = channelResults
+        .where((h) => !streamUrls.contains(h.streamUrl))
+        .toList();
     await _saveChannelHits(channelId, channelResults);
     notifyListeners();
   }
@@ -463,7 +497,7 @@ class IptvController extends ChangeNotifier {
   }) async {
     final cleanUrl = normalizeUrl(url);
     if (cleanUrl.isEmpty || username.isEmpty || password.isEmpty) {
-      addError = 'All fields required';
+      addError = l10nCurrent().tvAddAllFieldsRequired;
       notifyListeners();
       return false;
     }
@@ -477,7 +511,7 @@ class IptvController extends ChangeNotifier {
       source: 'Manual',
     );
     if (_verifiedKeys.contains(p.credKey)) {
-      addError = 'Portal already added (same credentials)';
+      addError = l10nCurrent().tvAddAlreadyAdded;
       isAdding = false;
       notifyListeners();
       return false;
@@ -485,7 +519,7 @@ class IptvController extends ChangeNotifier {
     final v = await IptvClient.verifyOrNull(p);
     isAdding = false;
     if (v == null) {
-      addError = 'Login failed — wrong credentials or dead portal.';
+      addError = l10nCurrent().tvAddLoginFailed;
       notifyListeners();
       return false;
     }
@@ -515,9 +549,14 @@ class IptvController extends ChangeNotifier {
   bool isImporting = false;
 
   Future<({int added, int skipped, int failed, String? error})>
-      importFromJsonString(String contents) async {
+  importFromJsonString(String contents) async {
     if (isImporting) {
-      return (added: 0, skipped: 0, failed: 0, error: 'Already importing.');
+      return (
+        added: 0,
+        skipped: 0,
+        failed: 0,
+        error: l10nCurrent().tvImportBusy,
+      );
     }
     List<IptvPortal> candidates = [];
     try {
@@ -532,7 +571,7 @@ class IptvController extends ChangeNotifier {
             added: 0,
             skipped: 0,
             failed: 0,
-            error: 'JSON missing "portals" array.'
+            error: l10nCurrent().tvImportNoPortalsArray,
           );
         }
       } else if (decoded is List) {
@@ -542,7 +581,7 @@ class IptvController extends ChangeNotifier {
           added: 0,
           skipped: 0,
           failed: 0,
-          error: 'Unsupported JSON shape.'
+          error: l10nCurrent().tvImportBadShape,
         );
       }
       for (final e in raw) {
@@ -551,15 +590,23 @@ class IptvController extends ChangeNotifier {
         final user = e['username']?.toString() ?? '';
         final pass = e['password']?.toString() ?? '';
         if (url.isEmpty || user.isEmpty || pass.isEmpty) continue;
-        candidates.add(IptvPortal(
-          url: url,
-          username: user,
-          password: pass,
-          source: 'Manual',
-        ));
+        candidates.add(
+          IptvPortal(
+            url: url,
+            username: user,
+            password: pass,
+            source: 'Manual',
+          ),
+        );
       }
     } catch (e) {
-      return (added: 0, skipped: 0, failed: 0, error: 'Invalid JSON: $e');
+      debugPrint('[IptvController] import JSON unreadable: $e');
+      return (
+        added: 0,
+        skipped: 0,
+        failed: 0,
+        error: l10nCurrent().tvImportInvalidJson,
+      );
     }
 
     if (candidates.isEmpty) {
@@ -567,12 +614,12 @@ class IptvController extends ChangeNotifier {
         added: 0,
         skipped: 0,
         failed: 0,
-        error: 'No portal entries found.'
+        error: l10nCurrent().tvImportNoEntries,
       );
     }
 
     isImporting = true;
-    statusText = 'Importing 0 / ${candidates.length}…';
+    statusText = l10nCurrent().tvImportProgress(0, candidates.length);
     notifyListeners();
 
     int added = 0, skipped = 0, failed = 0, done = 0;
@@ -611,7 +658,7 @@ class IptvController extends ChangeNotifier {
           }
         }
         done++;
-        statusText = 'Importing $done / ${candidates.length}…';
+        statusText = l10nCurrent().tvImportProgress(done, candidates.length);
         notifyListeners();
       }
     }
@@ -625,7 +672,7 @@ class IptvController extends ChangeNotifier {
     }
 
     isImporting = false;
-    statusText = 'Imported $added · skipped $skipped · failed $failed';
+    statusText = l10nCurrent().tvImportSummary(added, skipped, failed);
     notifyListeners();
     return (added: added, skipped: skipped, failed: failed, error: null);
   }
@@ -751,7 +798,10 @@ class IptvController extends ChangeNotifier {
 
     // Filter stored hits with HardcodedChannels.matches so any contaminated cache is cleaned
     final validStored = stored
-        .where((h) => HardcodedChannels.matches(h.streamName, ch.keywords, ch.exclude))
+        .where(
+          (h) =>
+              HardcodedChannels.matches(h.streamName, ch.keywords, ch.exclude),
+        )
         .toList();
 
     if (validStored.length != stored.length) {
@@ -761,29 +811,31 @@ class IptvController extends ChangeNotifier {
     channelResults = _sortHitsFavoritesFirst(
       ch.id,
       validStored
-          .map((h) => ChannelHit(
-                portal: VerifiedPortal(
-                  portal: IptvPortal(
-                    url: h.portalUrl,
-                    username: h.portalUser,
-                    password: h.portalPass,
-                    source: 'Saved',
-                  ),
-                  name: h.portalName,
-                  expiry: '',
-                  maxConnections: '1',
-                  activeConnections: '0',
+          .map(
+            (h) => ChannelHit(
+              portal: VerifiedPortal(
+                portal: IptvPortal(
+                  url: h.portalUrl,
+                  username: h.portalUser,
+                  password: h.portalPass,
+                  source: 'Saved',
                 ),
-                stream: IptvStream(
-                  streamId: h.streamId,
-                  name: h.streamName,
-                  icon: h.streamIcon,
-                  categoryId: h.streamCategoryId,
-                  containerExt: h.streamContainerExt,
-                  kind: h.streamKind,
-                ),
-                streamUrl: h.streamUrl,
-              ))
+                name: h.portalName,
+                expiry: '',
+                maxConnections: '1',
+                activeConnections: '0',
+              ),
+              stream: IptvStream(
+                streamId: h.streamId,
+                name: h.streamName,
+                icon: h.streamIcon,
+                categoryId: h.streamCategoryId,
+                containerExt: h.streamContainerExt,
+                kind: h.streamKind,
+              ),
+              streamUrl: h.streamUrl,
+            ),
+          )
           .toList(),
     );
     notifyListeners();
@@ -799,7 +851,10 @@ class IptvController extends ChangeNotifier {
     await runChannelScan(ch, scrapeMore: true);
   }
 
-  Future<void> runChannelScan(HardcodedChannel ch, {bool scrapeMore = false}) async {
+  Future<void> runChannelScan(
+    HardcodedChannel ch, {
+    bool scrapeMore = false,
+  }) async {
     _channelCancel = false;
     final token = ++_channelScanToken;
     channelIsRunning = true;
@@ -818,13 +873,18 @@ class IptvController extends ChangeNotifier {
     final needsBootstrap =
         verified.isEmpty && pool.every((p) => attempted.contains(p.key));
     if (scrapeMore || needsBootstrap) {
-      final pendingQueue =
-          _channelPendingPortals.putIfAbsent(ch.id, () => <IptvPortal>[]);
-      final pendingKeys =
-          _channelPendingKeys.putIfAbsent(ch.id, () => <String>{});
+      final pendingQueue = _channelPendingPortals.putIfAbsent(
+        ch.id,
+        () => <IptvPortal>[],
+      );
+      final pendingKeys = _channelPendingKeys.putIfAbsent(
+        ch.id,
+        () => <String>{},
+      );
 
-      pendingQueue.removeWhere((p) =>
-          _verifiedKeys.contains(p.credKey) || attempted.contains(p.key));
+      pendingQueue.removeWhere(
+        (p) => _verifiedKeys.contains(p.credKey) || attempted.contains(p.key),
+      );
       pendingKeys
         ..clear()
         ..addAll(pendingQueue.map((p) => p.credKey));
@@ -836,22 +896,22 @@ class IptvController extends ChangeNotifier {
         try {
           final after = _channelCatalogAfter[ch.id];
           final page = await IptvScraper.scrapeCatalogPage(
-              maxResults: 60, after: after, source: scrapeSource);
-          if (_channelScanToken != token || activeHardcoded?.id != ch.id) return;
+            maxResults: 60,
+            after: after,
+            source: scrapeSource,
+          );
+          if (_channelScanToken != token || activeHardcoded?.id != ch.id) {
+            return;
+          }
 
           _channelCatalogAfter[ch.id] = page.nextAfter;
-          final knownKeys = {
-            ...pool.map((p) => p.key),
-            ...attempted,
-          };
+          final knownKeys = {...pool.map((p) => p.key), ...attempted};
           for (final p in page.portals) {
             if (_verifiedKeys.contains(p.credKey)) continue;
             if (knownKeys.contains(p.key)) continue;
             if (pendingKeys.add(p.credKey)) pendingQueue.add(p);
           }
-          if (pendingQueue.isEmpty &&
-              !page.hasMore &&
-              channelResults.isEmpty) {
+          if (pendingQueue.isEmpty && !page.hasMore && channelResults.isEmpty) {
             if (_channelScanToken == token && activeHardcoded?.id == ch.id) {
               channelIsRunning = false;
               channelStatus = l10nCurrent().tvStatusNoMore;
@@ -876,7 +936,9 @@ class IptvController extends ChangeNotifier {
             }
           },
           onAlive: (v) async {
-            if (_channelScanToken != token || activeHardcoded?.id != ch.id) return;
+            if (_channelScanToken != token || activeHardcoded?.id != ch.id) {
+              return;
+            }
             if (_verifiedKeys.add(v.credKey)) {
               verified = _sortFavoritesFirst([...verified, v]);
               await IptvStore.save(verified);
@@ -887,7 +949,9 @@ class IptvController extends ChangeNotifier {
             }
           },
           onProgress: (c, t, a) {
-            if (_channelScanToken != token || activeHardcoded?.id != ch.id) return;
+            if (_channelScanToken != token || activeHardcoded?.id != ch.id) {
+              return;
+            }
             channelStatus = l10nCurrent().tvStatusVerifyingProgress(c, t, a);
             notifyListeners();
           },
@@ -895,7 +959,9 @@ class IptvController extends ChangeNotifier {
       }
     }
 
-    if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) {
+    if (_channelCancel ||
+        _channelScanToken != token ||
+        activeHardcoded?.id != ch.id) {
       if (_channelScanToken == token) {
         channelIsRunning = false;
         channelStatus = l10nCurrent().tvStatusStopped;
@@ -910,7 +976,9 @@ class IptvController extends ChangeNotifier {
     // portal-less early return: a user with no verified portals must still get a
     // line-up. An empty list leaves the portal path byte-identical.
     final externalCandidates = await ExternalSources.candidatesFor(ch);
-    if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) {
+    if (_channelCancel ||
+        _channelScanToken != token ||
+        activeHardcoded?.id != ch.id) {
       return;
     }
 
@@ -918,8 +986,8 @@ class IptvController extends ChangeNotifier {
       if (_channelScanToken == token && activeHardcoded?.id == ch.id) {
         channelIsRunning = false;
         channelStatus = channelResults.isEmpty
-            ? 'No working portals available. Tap Scan More.'
-            : '${channelResults.length} streams alive.';
+            ? l10nCurrent().tvStatusNoWorkingPortals
+            : l10nCurrent().tvStatusStreamsAlive(channelResults.length);
         notifyListeners();
       }
       return;
@@ -936,40 +1004,55 @@ class IptvController extends ChangeNotifier {
     pool.removeWhere((p) => attempted.contains(p.key));
 
     final verifiedByKey = {for (final v in verified) v.key: v};
-    final candidatesByPortal =
-        await Future.wait(toScan.map((p) async {
-      if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) {
-        return <_Candidate>[];
-      }
-      final vp = verifiedByKey[p.key] ??
-          VerifiedPortal(
-            portal: p,
-            name: p.url,
-            expiry: '',
-            maxConnections: '1',
-            activeConnections: '0',
-          );
-      try {
-        final streams =
-            await IptvClient.streams(vp.portal, IptvSection.live, '');
-        if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) {
+    final candidatesByPortal = await Future.wait(
+      toScan.map((p) async {
+        if (_channelCancel ||
+            _channelScanToken != token ||
+            activeHardcoded?.id != ch.id) {
           return <_Candidate>[];
         }
-        return streams
-            .where((s) =>
-                HardcodedChannels.matches(s.name, ch.keywords, ch.exclude))
-            .map((s) => _Candidate(
+        final vp =
+            verifiedByKey[p.key] ??
+            VerifiedPortal(
+              portal: p,
+              name: p.url,
+              expiry: '',
+              maxConnections: '1',
+              activeConnections: '0',
+            );
+        try {
+          final streams = await IptvClient.streams(
+            vp.portal,
+            IptvSection.live,
+            '',
+          );
+          if (_channelCancel ||
+              _channelScanToken != token ||
+              activeHardcoded?.id != ch.id) {
+            return <_Candidate>[];
+          }
+          return streams
+              .where(
+                (s) =>
+                    HardcodedChannels.matches(s.name, ch.keywords, ch.exclude),
+              )
+              .map(
+                (s) => _Candidate(
                   portal: vp,
                   stream: s,
                   url: IptvClient.streamUrl(vp.portal, s),
-                ))
-            .toList();
-      } catch (_) {
-        return <_Candidate>[];
-      }
-    }));
+                ),
+              )
+              .toList();
+        } catch (_) {
+          return <_Candidate>[];
+        }
+      }),
+    );
 
-    if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) {
+    if (_channelCancel ||
+        _channelScanToken != token ||
+        activeHardcoded?.id != ch.id) {
       return;
     }
 
@@ -1007,19 +1090,24 @@ class IptvController extends ChangeNotifier {
     for (final ext in externalCandidates) {
       if (have.contains(ext.url)) continue;
       if (!seen.add(ext.url)) continue;
-      newCandidates.add(_Candidate(
-        portal: _externalPortal(ext),
-        stream: _externalStream(ext),
-        url: ext.url,
-      ));
+      newCandidates.add(
+        _Candidate(
+          portal: _externalPortal(ext),
+          stream: _externalStream(ext),
+          url: ext.url,
+        ),
+      );
     }
 
-    if (newCandidates.isEmpty || _channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) {
+    if (newCandidates.isEmpty ||
+        _channelCancel ||
+        _channelScanToken != token ||
+        activeHardcoded?.id != ch.id) {
       if (_channelScanToken == token && activeHardcoded?.id == ch.id) {
         channelIsRunning = false;
         channelStatus = channelResults.isEmpty
-            ? 'No matching channels found. Try Scan More.'
-            : '${channelResults.length} alive · no new matches.';
+            ? l10nCurrent().tvStatusNoMatches
+            : l10nCurrent().tvStatusAliveNoNew(channelResults.length);
         notifyListeners();
       }
       return;
@@ -1031,21 +1119,38 @@ class IptvController extends ChangeNotifier {
 
     await IptvAliveChecker.launchCheck(
       streams: newCandidates.map((c) => MapEntry(c.url, c.url)).toList(),
-      isCancelled: () => _channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id,
+      isCancelled: () =>
+          _channelCancel ||
+          _channelScanToken != token ||
+          activeHardcoded?.id != ch.id,
       onResult: (id, alive) async {
         if (!alive) return;
-        if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) return;
+        if (_channelCancel ||
+            _channelScanToken != token ||
+            activeHardcoded?.id != ch.id) {
+          return;
+        }
         final c = byUrl[id];
         if (c == null) return;
         if (channelResults.any((h) => h.streamUrl == c.url)) return;
-        final hit = ChannelHit(portal: c.portal, stream: c.stream, streamUrl: c.url);
-        channelResults =
-            _sortHitsFavoritesFirst(ch.id, [...channelResults, hit]);
+        final hit = ChannelHit(
+          portal: c.portal,
+          stream: c.stream,
+          streamUrl: c.url,
+        );
+        channelResults = _sortHitsFavoritesFirst(ch.id, [
+          ...channelResults,
+          hit,
+        ]);
         await _saveChannelHits(ch.id, channelResults);
         notifyListeners();
       },
       onProgress: (p) async {
-        if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) return;
+        if (_channelCancel ||
+            _channelScanToken != token ||
+            activeHardcoded?.id != ch.id) {
+          return;
+        }
         channelStatus = l10nCurrent().tvStatusSniffing(
           p.checked,
           p.total,
@@ -1054,12 +1159,15 @@ class IptvController extends ChangeNotifier {
         notifyListeners();
       },
       onDone: () async {
-        if (_channelCancel || _channelScanToken != token || activeHardcoded?.id != ch.id) return;
+        if (_channelCancel ||
+            _channelScanToken != token ||
+            activeHardcoded?.id != ch.id) {
+          return;
+        }
         channelIsRunning = false;
         channelStatus = channelResults.isEmpty
-            ? 'No alive streams found for ${ch.name}.'
-            : '${channelResults.length} live stream'
-                '${channelResults.length == 1 ? '' : 's'} ready.';
+            ? l10nCurrent().tvStatusNoAliveFor(ch.name)
+            : l10nCurrent().tvStatusStreamsReady(channelResults.length);
         notifyListeners();
       },
     );
@@ -1075,45 +1183,42 @@ class IptvController extends ChangeNotifier {
   /// directly — and it is only ever used for grouping, labelling and the
   /// favourites/dead-URL keys that are already URL-based.
   static VerifiedPortal _externalPortal(ExternalStream s) => VerifiedPortal(
-        portal: IptvPortal(
-          url: s.url,
-          username: '',
-          password: '',
-          source: 'M3U',
-        ),
-        name: s.label,
-        expiry: '',
-        maxConnections: '1',
-        activeConnections: '0',
-      );
+    portal: IptvPortal(url: s.url, username: '', password: '', source: 'M3U'),
+    name: s.label,
+    expiry: '',
+    maxConnections: '1',
+    activeConnections: '0',
+  );
 
   /// The stream behind an [ExternalStream]: its playable URL is both the id and
   /// the URL, since a playlist entry has no numeric stream id to ask a panel
   /// for. `kind` stays 'live' because these are live channels.
   static IptvStream _externalStream(ExternalStream s) => IptvStream(
-        streamId: s.url,
-        name: s.name,
-        icon: s.icon ?? '',
-        categoryId: '',
-        containerExt: 'm3u8',
-        kind: 'live',
-      );
+    streamId: s.url,
+    name: s.name,
+    icon: s.icon ?? '',
+    categoryId: '',
+    containerExt: 'm3u8',
+    kind: 'live',
+  );
 
   Future<void> _saveChannelHits(String channelId, List<ChannelHit> hits) async {
     final stored = hits
-        .map((h) => StoredHit(
-              portalUrl: h.portal.portal.url,
-              portalUser: h.portal.portal.username,
-              portalPass: h.portal.portal.password,
-              portalName: h.portal.name,
-              streamId: h.stream.streamId,
-              streamName: h.stream.name,
-              streamIcon: h.stream.icon,
-              streamCategoryId: h.stream.categoryId,
-              streamContainerExt: h.stream.containerExt,
-              streamKind: h.stream.kind,
-              streamUrl: h.streamUrl,
-            ))
+        .map(
+          (h) => StoredHit(
+            portalUrl: h.portal.portal.url,
+            portalUser: h.portal.portal.username,
+            portalPass: h.portal.portal.password,
+            portalName: h.portal.name,
+            streamId: h.stream.streamId,
+            streamName: h.stream.name,
+            streamIcon: h.stream.icon,
+            streamCategoryId: h.stream.categoryId,
+            streamContainerExt: h.stream.containerExt,
+            streamKind: h.stream.kind,
+            streamUrl: h.streamUrl,
+          ),
+        )
         .toList();
     await IptvChannelResultsStore.save(channelId, stored);
   }
@@ -1216,10 +1321,7 @@ class IptvController extends ChangeNotifier {
         aliveCheckedAt = DateTime.now().millisecondsSinceEpoch;
         await IptvAliveStore.save(
           pkey,
-          AliveSnapshot(
-            checkedAt: aliveCheckedAt!,
-            aliveIds: aliveSet,
-          ),
+          AliveSnapshot(checkedAt: aliveCheckedAt!, aliveIds: aliveSet),
         );
         isVerifyingAlive = false;
         notifyListeners();
@@ -1284,15 +1386,26 @@ class IptvController extends ChangeNotifier {
     final groups = <PortalChannelGroup>[];
     for (final portal in verified) {
       try {
-        final categories = await IptvClient.categories(portal.portal, IptvSection.live);
+        final categories = await IptvClient.categories(
+          portal.portal,
+          IptvSection.live,
+        );
         final liveStreams = <IptvStream>[];
         for (final cat in categories) {
-          final streams = await IptvClient.streams(portal.portal, IptvSection.live, cat.id);
-          liveStreams.addAll(streams);
+          final streams = await IptvClient.streams(
+            portal.portal,
+            IptvSection.live,
+            cat.id,
+          );
+          // Category headings are listed as streams but are not channels.
+          liveStreams.addAll(
+            streams.where((s) => !StreamSeparator.isSeparator(s.name)),
+          );
         }
         if (liveStreams.isNotEmpty) {
           final hits = liveStreams.map((stream) {
-            final url = '${portal.portal.url}/live/${portal.portal.username}/${portal.portal.password}/${stream.streamId}.${stream.containerExt}';
+            final url =
+                '${portal.portal.url}/live/${portal.portal.username}/${portal.portal.password}/${stream.streamId}.${stream.containerExt}';
             return ChannelHit(portal: portal, stream: stream, streamUrl: url);
           }).toList();
           groups.add(PortalChannelGroup(portal: portal, hits: hits));
@@ -1313,7 +1426,9 @@ class IptvController extends ChangeNotifier {
     final groups = <M3uChannelGroup>[];
     for (final playlist in m3uPlaylists) {
       if (playlist.channels.isNotEmpty) {
-        groups.add(M3uChannelGroup(playlist: playlist, channels: playlist.channels));
+        groups.add(
+          M3uChannelGroup(playlist: playlist, channels: playlist.channels),
+        );
       }
     }
     return groups;

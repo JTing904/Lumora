@@ -1,5 +1,6 @@
 import '../../models/iptv/iptv_models.dart';
 import 'iptv_storage.dart';
+import 'stream_separator.dart';
 
 /// Health-first ranking for one curated channel's portal hits.
 ///
@@ -10,8 +11,9 @@ import 'iptv_storage.dart';
 /// trial-and-error the Live page was reported for: open, watch it die, open the
 /// sources drawer, guess again, during a live event that will not wait.
 ///
-/// Order: fresh-alive, then unknown, then known-dead, stable inside each group
-/// so the controller's favourites-first arrangement survives the regroup.
+/// Order: fresh-alive, then unknown, then known-dead, then portal category
+/// headings (never a channel), stable inside each group so the controller's
+/// favourites-first arrangement survives the regroup.
 class IptvHealthOrdering {
   /// Returns the same [ChannelHit] instances, regrouped and never dropped: the
   /// player keeps one index into this list and the sources drawer draws it, so
@@ -21,7 +23,13 @@ class IptvHealthOrdering {
     final alive = <ChannelHit>[];
     final unknown = <ChannelHit>[];
     final dead = <ChannelHit>[];
+    final headings = <ChannelHit>[];
     for (final hit in hits) {
+      // A portal's category heading is not a channel; see [StreamSeparator].
+      if (StreamSeparator.isSeparator(hit.stream.name)) {
+        headings.add(hit);
+        continue;
+      }
       // Dead before alive: a probe is one HTTP request that answered, while a
       // recorded failure is playback that did not happen. When they disagree,
       // the failure is the later and stronger evidence.
@@ -33,7 +41,7 @@ class IptvHealthOrdering {
         unknown.add(hit);
       }
     }
-    return <ChannelHit>[...alive, ...unknown, ...dead];
+    return <ChannelHit>[...alive, ...unknown, ...dead, ...headings];
   }
 
   /// Index of the next source to try after [from] failed, or null when there is
@@ -59,14 +67,18 @@ class IptvHealthOrdering {
       if (url.isEmpty || url == currentUrl) continue;
       if (tried.contains(url)) continue;
       if (IptvDeadUrlStore.instance.isDead(url)) continue;
+      // A heading plays a static slide that never fails, so landing on one
+      // would end the failover on something that is not the channel.
+      if (StreamSeparator.isSeparator(hits[index].stream.name)) continue;
       return index;
     }
     return null;
   }
 
   static bool _isFreshAlive(ChannelHit hit) {
-    final snapshot =
-        IptvAliveStore.cached(IptvAliveStore.portalKey(hit.portal.portal));
+    final snapshot = IptvAliveStore.cached(
+      IptvAliveStore.portalKey(hit.portal.portal),
+    );
     if (!IptvAliveStore.isFresh(snapshot)) return false;
     return snapshot!.aliveIds.contains(hit.stream.streamId);
   }

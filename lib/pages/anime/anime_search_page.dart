@@ -21,10 +21,7 @@ import '../anime_arabic/anime_arabic_details_page.dart';
 class AnimeSearchPage extends StatefulWidget {
   final bool initialArabicMode;
 
-  const AnimeSearchPage({
-    super.key,
-    this.initialArabicMode = false,
-  });
+  const AnimeSearchPage({super.key, this.initialArabicMode = false});
 
   @override
   State<AnimeSearchPage> createState() => _AnimeSearchPageState();
@@ -71,15 +68,44 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
   bool _loadingInitial = true;
 
   static const _genres = [
-    'Action', 'Adventure', 'Comedy', 'Drama', 'Ecchi', 'Fantasy',
-    'Hentai', 'Horror', 'Mahou Shoujo', 'Mecha', 'Music', 'Mystery',
-    'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life',
-    'Sports', 'Supernatural', 'Thriller',
+    'Action',
+    'Adventure',
+    'Comedy',
+    'Drama',
+    'Ecchi',
+    'Fantasy',
+    'Hentai',
+    'Horror',
+    'Mahou Shoujo',
+    'Mecha',
+    'Music',
+    'Mystery',
+    'Psychological',
+    'Romance',
+    'Sci-Fi',
+    'Slice of Life',
+    'Sports',
+    'Supernatural',
+    'Thriller',
   ];
 
   static const _seasons = ['WINTER', 'SPRING', 'SUMMER', 'FALL'];
-  static const _formats = ['TV', 'TV_SHORT', 'MOVIE', 'OVA', 'ONA', 'SPECIAL', 'MUSIC'];
-  static const _statuses = ['RELEASING', 'FINISHED', 'NOT_YET_RELEASED', 'CANCELLED', 'HIATUS'];
+  static const _formats = [
+    'TV',
+    'TV_SHORT',
+    'MOVIE',
+    'OVA',
+    'ONA',
+    'SPECIAL',
+    'MUSIC',
+  ];
+  static const _statuses = [
+    'RELEASING',
+    'FINISHED',
+    'NOT_YET_RELEASED',
+    'CANCELLED',
+    'HIATUS',
+  ];
   static Map<String, String> get _sorts => <String, String>{
     'TRENDING_DESC': l10nCurrent().animeSortTrending,
     'POPULARITY_DESC': l10nCurrent().animeSortPopular,
@@ -93,6 +119,8 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
   @override
   void initState() {
     super.initState();
+    // The Arabic anime tab is gone and nothing opens this page in it; the
+    // flag stays only for a caller that still passes it.
     _isArabicMode = widget.initialArabicMode;
     _scrollController.addListener(_syncBand);
     _loadInitialSliders();
@@ -136,21 +164,26 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
         final feed = await AnimeArabicService.instance.getHome();
         if (mounted) {
           setState(() {
-            _trendingList = (feed.trending.isNotEmpty ? feed.trending : feed.spotlight)
-                .map((c) {
-                  _arabicCardsMap[c.slug.hashCode.abs()] = c;
-                  return c.toAnimeMedia();
-                }).toList();
-            _popularSeasonList = feed.recentEpisodes
-                .map((c) {
-                  _arabicCardsMap[c.slug.hashCode.abs()] = c;
-                  return c.toAnimeMedia();
-                }).toList();
-            _topRatedList = (feed.topSeasonal.isNotEmpty ? feed.topSeasonal : feed.legendary)
-                .map((c) {
-                  _arabicCardsMap[c.slug.hashCode.abs()] = c;
-                  return c.toAnimeMedia();
-                }).toList();
+            _trendingList =
+                (feed.trending.isNotEmpty ? feed.trending : feed.spotlight).map(
+                  (c) {
+                    _arabicCardsMap[c.slug.hashCode.abs()] = c;
+                    return c.toAnimeMedia();
+                  },
+                ).toList();
+            _popularSeasonList = feed.recentEpisodes.map((c) {
+              _arabicCardsMap[c.slug.hashCode.abs()] = c;
+              return c.toAnimeMedia();
+            }).toList();
+            _topRatedList =
+                (feed.topSeasonal.isNotEmpty
+                        ? feed.topSeasonal
+                        : feed.legendary)
+                    .map((c) {
+                      _arabicCardsMap[c.slug.hashCode.abs()] = c;
+                      return c.toAnimeMedia();
+                    })
+                    .toList();
             _loadingInitial = false;
           });
         }
@@ -453,10 +486,7 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
   /// remote or D-pad event could reach it, and it painted Material's own focus
   /// overlay. The language and adult pills were already [FocusableCard]s; the
   /// filter buttons now are too, so the whole row is one focus language.
-  Widget _chip({
-    required VoidCallback onTap,
-    required Widget child,
-  }) {
+  Widget _chip({required VoidCallback onTap, required Widget child}) {
     return FocusableCard(
       onTap: onTap,
       builder: (context, state) => CardFocusRing(
@@ -483,12 +513,8 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
             Text(
               label,
               style: ZplayType.label
-                  .copyWith(
-                    weight: active ? FontWeight.w700 : FontWeight.w600,
-                  )
-                  .toStyle(
-                    color: active ? tokens.accent : tokens.textEmphasis,
-                  ),
+                  .copyWith(weight: active ? FontWeight.w700 : FontWeight.w600)
+                  .toStyle(color: active ? tokens.accent : tokens.textEmphasis),
             ),
             const SizedBox(width: ZplaySpacing.s4),
             Icon(
@@ -503,8 +529,11 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
   }
 
   void _openDetails(AnimeMedia anime) {
-    if (_isArabicMode || anime.isArabic || _arabicCardsMap.containsKey(anime.id)) {
-      final card = _arabicCardsMap[anime.id] ??
+    if (_isArabicMode ||
+        anime.isArabic ||
+        _arabicCardsMap.containsKey(anime.id)) {
+      final card =
+          _arabicCardsMap[anime.id] ??
           ArabicAnimeCard(
             slug: (anime.slug != null && anime.slug!.isNotEmpty)
                 ? anime.slug!
@@ -514,38 +543,41 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
           );
       Navigator.push(
         context,
-        CinematicSlideRoute(
-          page: AnimeArabicDetailsPage(anime: card),
-        ),
+        CinematicSlideRoute(page: AnimeArabicDetailsPage(anime: card)),
       );
       return;
     }
 
     Navigator.push(
       context,
-      CinematicSlideRoute(
-        page: AnimeDetailsPage(anime: anime),
-      ),
+      CinematicSlideRoute(page: AnimeDetailsPage(anime: anime)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
-    final isSearching = _searchController.text.trim().isNotEmpty || _hasActiveFilters;
+    final isSearching =
+        _searchController.text.trim().isNotEmpty || _hasActiveFilters;
 
     // Split search results into format sliders
     final tvSeries = _allResults
-        .where((a) => a.format.toUpperCase() == 'TV' || a.format.toUpperCase() == 'TV_SHORT')
+        .where(
+          (a) =>
+              a.format.toUpperCase() == 'TV' ||
+              a.format.toUpperCase() == 'TV_SHORT',
+        )
         .toList();
     final movies = _allResults
         .where((a) => a.format.toUpperCase() == 'MOVIE')
         .toList();
     final ovasAndOthers = _allResults
-        .where((a) =>
-            a.format.toUpperCase() != 'TV' &&
-            a.format.toUpperCase() != 'TV_SHORT' &&
-            a.format.toUpperCase() != 'MOVIE')
+        .where(
+          (a) =>
+              a.format.toUpperCase() != 'TV' &&
+              a.format.toUpperCase() != 'TV_SHORT' &&
+              a.format.toUpperCase() != 'MOVIE',
+        )
         .toList();
 
     final tokens = context.tokens;
@@ -588,175 +620,152 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
           child: Padding(
             padding: EdgeInsets.only(top: topPadding + 4, bottom: 8),
             child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Row 1: Back Button + Search Bar + 18+ Toggle
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: ZplaySpacing.s8,
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
-                          color: tokens.textPrimary,
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: ZplaySpacing.s8),
-                            child: Container(
-                              height: 42,
-                              decoration: BoxDecoration(
-                                // An input keeps a fill and its hairline; what
-                                // is gone is the opaque band that used to wrap
-                                // the whole bar.
-                                color: tokens.surface,
-                                borderRadius: ZplayRadius.smAll,
-                                border: Border.fromBorderSide(tokens.hairline),
-                              ),
-                              child: TextField(
-                                controller: _searchController,
-                                focusNode: _focusNode,
-                                autofocus: true,
-                                style: ZplayType.subtitle.toStyle(
-                                  color: tokens.textPrimary,
-                                ),
-                                textInputAction: TextInputAction.search,
-                                onChanged: _onSearchChanged,
-                                onSubmitted: _performSearch,
-                                decoration: InputDecoration(
-                                  hintText: l10nCurrent().animeSearchHint,
-                                  hintStyle: ZplayType.body.toStyle(
-                                    color: tokens.textMuted,
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: ZplaySpacing.s16,
-                                    vertical: ZplaySpacing.s12,
-                                  ),
-                                  suffixIcon: _searchController.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.close_rounded, size: 18),
-                                          color: tokens.textEmphasis,
-                                          onPressed: () {
-                                            _searchController.clear();
-                                            _onSearchChanged('');
-                                          },
-                                        )
-                                      : Icon(
-                                          Icons.search_rounded,
-                                          size: 20,
-                                          color: tokens.textSecondary,
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Language Switcher Pill (General vs Arabic Anime)
-                        Padding(
-                          padding: const EdgeInsets.only(right: ZplaySpacing.s8),
-                          child: _chip(
-                            onTap: () {
-                              setState(() {
-                                _isArabicMode = !_isArabicMode;
-                                _allResults.clear();
-                              });
-                              if (_searchController.text.trim().isNotEmpty) {
-                                _performSearch(_searchController.text.trim());
-                              } else {
-                                _loadInitialSliders();
-                              }
-                            },
-                            // State is label brightness and weight, not a fill
-                            // or a coloured border: the accent marks the mode
-                            // the page is in, the fill stays constant.
-                            child: Text(
-                              _isArabicMode ? l10nCurrent().aniArabicToggle : l10nCurrent().aniAnimeToggle,
-                              style: ZplayType.label
-                                  .copyWith(
-                                    weight: _isArabicMode
-                                        ? FontWeight.w700
-                                        : FontWeight.w600,
-                                  )
-                                  .toStyle(
-                                    color: _isArabicMode
-                                        ? tokens.accent
-                                        : tokens.textEmphasis,
-                                  ),
-                            ),
-                          ),
-                        ),
-
-                        // 18+ Adult Toggle Pill (general mode, and only
-                        // while the admin-only Adult Content switch is on -
-                        // AniList ignores it otherwise)
-                        if (!_isArabicMode && ContentSettings.adultEnabled.value)
-                          Padding(
-                            padding: const EdgeInsets.only(right: ZplaySpacing.s8),
-                            child: _chip(
-                              onTap: () => _toggleAdult(!_allowAdult),
-                              // The checkbox glyph already carries the state;
-                              // the accent and weight agree with it, and the
-                              // fill and box never change.
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _allowAdult
-                                        ? Icons.check_box_rounded
-                                        : Icons.check_box_outline_blank_rounded,
-                                    size: 16,
-                                    color: _allowAdult
-                                        ? tokens.accent
-                                        : tokens.textSecondary,
-                                  ),
-                                  const SizedBox(width: ZplaySpacing.s4),
-                                  Text(
-                                    '18+',
-                                    style: ZplayType.label
-                                        .copyWith(
-                                          weight: _allowAdult
-                                              ? FontWeight.w700
-                                              : FontWeight.w600,
-                                        )
-                                        .toStyle(
-                                          color: _allowAdult
-                                              ? tokens.accent
-                                              : tokens.textEmphasis,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Row 1: Back Button + Search Bar + 18+ Toggle
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ZplaySpacing.s8,
                   ),
-
-                  const SizedBox(height: 8),
-
-                  // Row 2: Custom Dropdown Menu Buttons
-                  SizedBox(
-                    height: 38,
-                    // The row overflows on a narrow or TV-sized canvas, so it
-                    // signals that the same way every other horizontal row in
-                    // the app does.
-                    child: HorizontalEdgeFade(
-                      scrollController: _filterScrollController,
-                      child: ListView(
-                        controller: _filterScrollController,
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: ZplaySpacing.s16,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios_rounded,
+                          size: 20,
                         ),
-                        children: [
+                        color: tokens.textPrimary,
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            right: ZplaySpacing.s8,
+                          ),
+                          child: Container(
+                            height: 42,
+                            decoration: BoxDecoration(
+                              // An input keeps a fill and its hairline; what
+                              // is gone is the opaque band that used to wrap
+                              // the whole bar.
+                              color: tokens.surface,
+                              borderRadius: ZplayRadius.smAll,
+                              border: Border.fromBorderSide(tokens.hairline),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _focusNode,
+                              autofocus: true,
+                              style: ZplayType.subtitle.toStyle(
+                                color: tokens.textPrimary,
+                              ),
+                              textInputAction: TextInputAction.search,
+                              onChanged: _onSearchChanged,
+                              onSubmitted: _performSearch,
+                              decoration: InputDecoration(
+                                hintText: l10nCurrent().animeSearchHint,
+                                hintStyle: ZplayType.body.toStyle(
+                                  color: tokens.textMuted,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: ZplaySpacing.s16,
+                                  vertical: ZplaySpacing.s12,
+                                ),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(
+                                          Icons.close_rounded,
+                                          size: 18,
+                                        ),
+                                        color: tokens.textEmphasis,
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          _onSearchChanged('');
+                                        },
+                                      )
+                                    : Icon(
+                                        Icons.search_rounded,
+                                        size: 20,
+                                        color: tokens.textSecondary,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // 18+ Adult Toggle Pill (general mode, and only
+                      // while the admin-only Adult Content switch is on -
+                      // AniList ignores it otherwise)
+                      if (!_isArabicMode && ContentSettings.adultEnabled.value)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            right: ZplaySpacing.s8,
+                          ),
+                          child: _chip(
+                            onTap: () => _toggleAdult(!_allowAdult),
+                            // The checkbox glyph already carries the state;
+                            // the accent and weight agree with it, and the
+                            // fill and box never change.
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _allowAdult
+                                      ? Icons.check_box_rounded
+                                      : Icons.check_box_outline_blank_rounded,
+                                  size: 16,
+                                  color: _allowAdult
+                                      ? tokens.accent
+                                      : tokens.textSecondary,
+                                ),
+                                const SizedBox(width: ZplaySpacing.s4),
+                                Text(
+                                  '18+',
+                                  style: ZplayType.label
+                                      .copyWith(
+                                        weight: _allowAdult
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                      )
+                                      .toStyle(
+                                        color: _allowAdult
+                                            ? tokens.accent
+                                            : tokens.textEmphasis,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Row 2: Custom Dropdown Menu Buttons
+                SizedBox(
+                  height: 38,
+                  // The row overflows on a narrow or TV-sized canvas, so it
+                  // signals that the same way every other horizontal row in
+                  // the app does.
+                  child: HorizontalEdgeFade(
+                    scrollController: _filterScrollController,
+                    child: ListView(
+                      controller: _filterScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: ZplaySpacing.s16,
+                      ),
+                      children: [
                         // Sort Dropdown
                         _buildFilterDropdownButton(
-                          label: l10nCurrent().ani2SortLabel(_sorts[_sort] ?? l10nCurrent().animeSortTrending),
+                          label: l10nCurrent().ani2SortLabel(
+                            _sorts[_sort] ?? l10nCurrent().animeSortTrending,
+                          ),
                           active: _sort != 'TRENDING_DESC',
                           onTap: () => _pickFromList<String>(
                             title: l10nCurrent().animeSortBy,
@@ -787,14 +796,18 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
 
                         // Year Dropdown
                         _buildFilterDropdownButton(
-                          label: _year != null ? '$_year' : l10nCurrent().animeYear,
+                          label: _year != null
+                              ? '$_year'
+                              : l10nCurrent().animeYear,
                           active: _year != null,
                           onTap: _pickYear,
                         ),
 
                         // Season Dropdown
                         _buildFilterDropdownButton(
-                          label: _season != null ? _capitalize(_season!) : l10nCurrent().animeSeason,
+                          label: _season != null
+                              ? _capitalize(_season!)
+                              : l10nCurrent().animeSeason,
                           active: _season != null,
                           onTap: () => _pickFromList<String>(
                             title: l10nCurrent().animeSeason,
@@ -820,7 +833,9 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
 
                         // Status Dropdown
                         _buildFilterDropdownButton(
-                          label: _status != null ? _capitalize(_status!.replaceAll('_', ' ')) : l10nCurrent().animeStatus,
+                          label: _status != null
+                              ? _capitalize(_status!.replaceAll('_', ' '))
+                              : l10nCurrent().animeStatus,
                           active: _status != null,
                           onTap: () => _pickFromList<String>(
                             title: l10nCurrent().animeStatus,
@@ -834,7 +849,9 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
                         // Reset Button
                         if (_hasActiveFilters)
                           Padding(
-                            padding: const EdgeInsets.only(right: ZplaySpacing.s8),
+                            padding: const EdgeInsets.only(
+                              right: ZplaySpacing.s8,
+                            ),
                             child: _chip(
                               onTap: _resetFilters,
                               child: Row(
@@ -860,7 +877,7 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
                     ),
                   ),
                 ),
-                ],
+              ],
             ),
           ),
         ),
@@ -869,7 +886,10 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
         child: Stack(
           children: [
             // Content Area
-            if (_isLoading || (_loadingInitial && _allResults.isEmpty && _trendingList.isEmpty))
+            if (_isLoading ||
+                (_loadingInitial &&
+                    _allResults.isEmpty &&
+                    _trendingList.isEmpty))
               // The page's real shape while the rails are in flight: the shared
               // rail placeholders, at the same offset the results themselves
               // start at, rather than a bare spinner that says nothing about
@@ -928,7 +948,9 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
                   if (tvSeries.isNotEmpty)
                     AnimeSliderSection(
                       title: l10nCurrent().animeTvSeries,
-                      subtitle: l10nCurrent().ani2TvSeriesResults(tvSeries.length),
+                      subtitle: l10nCurrent().ani2TvSeriesResults(
+                        tvSeries.length,
+                      ),
                       animeList: tvSeries,
                       onAnimeTap: _openDetails,
                     ),
@@ -942,7 +964,9 @@ class _AnimeSearchPageState extends State<AnimeSearchPage> {
                   if (ovasAndOthers.isNotEmpty)
                     AnimeSliderSection(
                       title: l10nCurrent().aniOvasOnasSpecials,
-                      subtitle: l10nCurrent().ani2OvasResults(ovasAndOthers.length),
+                      subtitle: l10nCurrent().ani2OvasResults(
+                        ovasAndOthers.length,
+                      ),
                       animeList: ovasAndOthers,
                       onAnimeTap: _openDetails,
                     ),

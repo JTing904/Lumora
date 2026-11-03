@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import '../../account/account_scope.dart';
 import '../../storage/secret_keys.dart';
 import '../../storage/secure_store.dart';
 import '../models/debrid_error.dart';
@@ -11,14 +12,18 @@ import '../utils/debrid_media_matcher.dart';
 import '../../config/env_service.dart';
 
 class AllDebridService {
-  Future<String?> getKey() => SecureStore.read(SecretKeys.allDebridApiKey);
+  Future<String?> getKey() =>
+      SecureStore.read(AccountScope.key(SecretKeys.allDebridApiKey));
 
   Future<void> saveKey(String key) async {
     final trimmed = key.trim();
     if (trimmed.isEmpty) {
-      await SecureStore.delete(SecretKeys.allDebridApiKey);
+      await SecureStore.delete(AccountScope.key(SecretKeys.allDebridApiKey));
     } else {
-      await SecureStore.write(SecretKeys.allDebridApiKey, trimmed);
+      await SecureStore.write(
+        AccountScope.key(SecretKeys.allDebridApiKey),
+        trimmed,
+      );
     }
   }
 

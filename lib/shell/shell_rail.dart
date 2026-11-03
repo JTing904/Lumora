@@ -44,10 +44,16 @@ class ShellRail extends StatelessWidget {
     this.liveTvSelected = false,
     this.autofocus = false,
     this.blend = 0,
+    this.categorySlot = ShellSlot.series,
   });
 
   final ShellSlot current;
   final ValueChanged<ShellSlot> onSelect;
+
+  /// The category the phone's 分类 row opens: the one the viewer was last on,
+  /// so leaving 电影 for Home and coming back lands on 电影 again. The shell
+  /// tracks it; only the bottom bar reads it.
+  final ShellSlot categorySlot;
 
   /// Whether the Live TV row - not Browse's - is the destination the user
   /// chose.
@@ -131,12 +137,27 @@ class ShellRail extends StatelessWidget {
     ShellSlot.myList,
   ];
 
-  /// The phone's five tabs, as in the phone mockup.
+  /// The four kinds of thing to watch, which the phone groups under one 分类
+  /// row and a tab header above them ([ShellCategoryTabs]).
+  static const List<ShellSlot> categorySlots = [
+    ShellSlot.series,
+    ShellSlot.movies,
+    ShellSlot.anime,
+    ShellSlot.live,
+  ];
+
+  /// The phone's five tabs.
+  ///
+  /// [ShellSlot.series] stands for the whole of [categorySlots] here: its row
+  /// reads 分类, is marked on any of the four, and opens [categorySlot]. The
+  /// four used to have no row at all on a phone, so 电视剧, 电影, 动漫 and 直播
+  /// could not be reached from one. 下载 gave its place up for it: it is the
+  /// second tab of 收藏 already.
   static const List<ShellSlot> bottomSlots = [
     ShellSlot.home,
+    ShellSlot.series,
     ShellSlot.search,
     ShellSlot.myList,
-    ShellSlot.downloads,
     ShellSlot.settings,
   ];
 
@@ -181,6 +202,7 @@ class ShellRail extends StatelessWidget {
                   child: _row(
                     context,
                     slot,
+                    categoryGroup: categorySlots.contains(slot),
                     television: false,
                     height: ZplaySpacing.s48,
                     // Glyph over name, as in the phone mockup: five glyphs
@@ -272,7 +294,7 @@ class ShellRail extends StatelessWidget {
             // television canvas). Sharing the width lets each row take at
             // most its share and ellipsise its name instead. On a real
             // television canvas every name fits, so nothing is cut there; the
-            // tooltip and the semantics label carry the full name either way.
+            // semantics label carries the full name either way.
             Expanded(
               child: Row(
                 children: <Widget>[
@@ -303,8 +325,8 @@ class ShellRail extends StatelessWidget {
                   // the edge of a 600 dp `medium` window. Each name takes at
                   // most its share and ellipsises instead. On a real
                   // television canvas every name fits, so nothing is cut
-                  // there; the tooltip and the semantics label carry the full
-                  // name either way.
+                  // there; the semantics label carries the full name either
+                  // way.
                   Flexible(
                     fit: FlexFit.loose,
                     child: IntrinsicWidth(
@@ -444,9 +466,17 @@ class ShellRail extends StatelessWidget {
     bool stacked = false,
     bool liveTvRowDrawn = true,
     bool circle = false,
+    bool categoryGroup = false,
   }) {
-    final chrome = _slotChrome(context, slot);
-    final marked = _marksSlot(slot, liveTvRowDrawn: liveTvRowDrawn);
+    final chrome = categoryGroup
+        ? (
+            label: l10nOf(context).navCategories,
+            icon: Icons.video_library_rounded,
+          )
+        : _slotChrome(context, slot);
+    final marked = categoryGroup
+        ? categorySlots.contains(current)
+        : _marksSlot(slot, liveTvRowDrawn: liveTvRowDrawn);
     // 我的 shows the account's letter on its chosen colour (gold unless the
     // viewer picked another in their profile).
     final initial = slot == ShellSlot.settings && AccountService.signedIn
@@ -468,7 +498,7 @@ class ShellRail extends StatelessWidget {
       // Only the selected row claims the starting focus, so the shell's
       // autofocus cannot land on two rows at once when the bar is rebuilt.
       autofocus: autofocus && marked,
-      onTap: () => onSelect(slot),
+      onTap: () => onSelect(categoryGroup ? categorySlot : slot),
     );
   }
 
@@ -524,6 +554,85 @@ class ShellRail extends StatelessWidget {
         blend: blend,
         onTap: window.toggleFullscreen,
       ),
+    );
+  }
+}
+
+/// The phone's tab header over 电视剧 / 电影 / 动漫 / 直播: their four names
+/// across the top of the page, the one showing underlined.
+///
+/// The phone's bottom bar has one 分类 row for all four, so this is how a
+/// viewer moves between them. It is drawn like the top bar it stands in for:
+/// names only, painted over the page and resting on its art while the page
+/// sits at its top ([blend]), and the shell charges the pages its
+/// [rowHeight] as extra top padding, as it does the top bar's height.
+class ShellCategoryTabs extends StatelessWidget {
+  const ShellCategoryTabs({
+    super.key,
+    required this.current,
+    required this.onSelect,
+    this.blend = 0,
+  });
+
+  final ShellSlot current;
+  final ValueChanged<ShellSlot> onSelect;
+
+  /// As [ShellRail.blend]: 1 over the page's art, 0 the opaque bar.
+  final double blend;
+
+  /// The row under the status bar strip; the pages are padded by this much.
+  static const double rowHeight = ZplaySpacing.s48;
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.paddingOf(context);
+    final chrome = DecoratedBox(
+      decoration: BoxDecoration(
+        color: LuColors.bg.withValues(alpha: 0.96 * (1 - blend)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          ZplaySpacing.s4 + inset.left,
+          inset.top,
+          ZplaySpacing.s4 + inset.right,
+          0,
+        ),
+        child: SizedBox(
+          height: rowHeight,
+          child: Row(
+            children: [
+              for (final slot in ShellRail.categorySlots)
+                Flexible(
+                  child: _RailRow(
+                    label: _slotChrome(context, slot).label,
+                    icon: _slotChrome(context, slot).icon,
+                    selected: slot == current,
+                    television: false,
+                    height: rowHeight,
+                    showLabel: true,
+                    blend: blend,
+                    onTap: () => onSelect(slot),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    // The top bar's scrim, so the names stay legible over a bright poster.
+    // Always in the tree, so the rows keep their state as the page scrolls.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            Colors.black.withValues(alpha: 0.38 * blend),
+            Colors.black.withValues(alpha: 0.0),
+          ],
+        ),
+      ),
+      child: chrome,
     );
   }
 }
@@ -702,56 +811,67 @@ class _RailRow extends StatelessWidget {
             // rather than the form factor.
             //
             // Either way the name survives for a screen reader (the `Semantics`
-            // above) and for a pointer (the tooltip).
-            child: Tooltip(
-              message: tooltipMessage,
-              // The accent bar is anchored to the *name's* box rather than to
-              // the row's, so it needs a parent with a box of its own: a `Stack`
-              // around the name alone, whose `Positioned` children cannot alter
-              // it. The name carries the bar, not the row, so the row keeps the
-              // width it had and the bar cannot widen it, crowd the name or move
-              // the glyph.
-              child: showLabel
-                  ? Center(
-                      child: Stack(
-                        alignment: Alignment.bottomLeft,
-                        children: <Widget>[
-                          // Text only: the icon repeated the name it sat beside,
-                          // and two marks for one destination is the busiest
-                          // the bar ever looked. The glyph is still the compact
-                          // bar's whole row, where there is no name to read.
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: ZplaySpacing.s4,
-                            ),
-                            child: Text(
-                              label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: LuText.body.copyWith(
-                                fontSize: 16,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: _labelColor(tokens, state),
-                                shadows: shadows,
-                              ),
-                            ),
-                          ),
-                          _underline(tokens, duration),
-                        ],
-                      ),
-                    )
-                  : stacked
-                  ? _stackedContent(tokens, state)
-                  : circle
-                  ? _disc(state)
-                  : _icon(icon, tokens, state, shadows),
-            ),
+            // above). A tooltip names the row only where its name is not
+            // already on screen - the discs and a bare glyph; over a visible
+            // name it just repeated the word under the pointer.
+            child: showLabel || stacked
+                ? _content(tokens, state, shadows, duration)
+                : Tooltip(
+                    message: tooltipMessage,
+                    child: _content(tokens, state, shadows, duration),
+                  ),
           ),
         ),
       ),
     );
+  }
+
+  /// The row's face: the name and its accent bar, the glyph over its name,
+  /// the disc, or the glyph alone.
+  Widget _content(
+    ZplayTokens tokens,
+    CardInteraction state,
+    List<Shadow>? shadows,
+    Duration duration,
+  ) {
+    // The accent bar is anchored to the *name's* box rather than to
+    // the row's, so it needs a parent with a box of its own: a `Stack`
+    // around the name alone, whose `Positioned` children cannot alter
+    // it. The name carries the bar, not the row, so the row keeps the
+    // width it had and the bar cannot widen it, crowd the name or move
+    // the glyph.
+    return showLabel
+        ? Center(
+            child: Stack(
+              alignment: Alignment.bottomLeft,
+              children: <Widget>[
+                // Text only: the icon repeated the name it sat beside,
+                // and two marks for one destination is the busiest
+                // the bar ever looked. The glyph is still the compact
+                // bar's whole row, where there is no name to read.
+                Padding(
+                  padding: const EdgeInsets.only(bottom: ZplaySpacing.s4),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: LuText.body.copyWith(
+                      fontSize: 16,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: _labelColor(tokens, state),
+                      shadows: shadows,
+                    ),
+                  ),
+                ),
+                _underline(tokens, duration),
+              ],
+            ),
+          )
+        : stacked
+        ? _stackedContent(tokens, state)
+        : circle
+        ? _disc(state)
+        : _icon(icon, tokens, state, shadows);
   }
 
   /// Search and 我的 in the top bar: a glass disc with the glyph, or the

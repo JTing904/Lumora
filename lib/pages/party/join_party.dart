@@ -13,6 +13,7 @@ import '../../ui/lu_theme.dart';
 import '../../utils/navigation/route_transitions.dart';
 import '../../widgets/player/official_youtube_player.dart';
 import '../player/player_screen.dart';
+import '../player/watch_screen.dart';
 
 /// 加入一起看: asks for a room code, joins, and opens what the host is
 /// watching at the host's position.
@@ -190,28 +191,52 @@ Future<void> openPartyPlayer(
   }
 
   if (!context.mounted) return;
-  final at = WatchPartyService.instance.lastPlayback?.positionNow;
-  // An official upload plays in YouTube's embedded player, as it does when
-  // opened from the details page.
-  final officialId = OfficialSourceLoader.videoIdOf(media.source);
-  final Widget page = officialId != null
-      ? OfficialYouTubePlayer(
-          videoId: officialId,
-          title: media.source.displayTitle,
-          channelName: media.source.providerName,
-          detail: detail,
-          episode: episode,
-          source: media.source,
-          initialPosition: at,
-        )
-      : PlayerScreen(
-          source: media.source,
-          title: media.title,
-          backdropUrl: media.backdrop ?? detail.background,
-          detail: detail,
-          episode: episode,
-          initialPosition: at,
-        );
+  // Only a position heard for this episode: the last one may belong to the
+  // episode the host has just left.
+  final last = WatchPartyService.instance.lastPlayback;
+  final at =
+      last == null || (last.mediaKey != null && last.mediaKey != media.key)
+      ? null
+      : last.positionNow;
+  final source = media.source;
+  final Widget page;
+  if (source == null) {
+    // The host's source only plays on the host's device (a proxy on its own
+    // computer): this guest finds a source of its own for the same episode,
+    // the way 播放 does, and the room keeps it in step from there.
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(l10nCurrent().partyFindOwnSource)));
+    page = WatchScreen(
+      detail: detail,
+      selectedEpisode: episode,
+      type: media.type,
+      initialPosition: at,
+      autoPick: true,
+    );
+  } else {
+    // An official upload plays in YouTube's embedded player, as it does when
+    // opened from the details page.
+    final officialId = OfficialSourceLoader.videoIdOf(source);
+    page = officialId != null
+        ? OfficialYouTubePlayer(
+            videoId: officialId,
+            title: source.displayTitle,
+            channelName: source.providerName,
+            detail: detail,
+            episode: episode,
+            source: source,
+            initialPosition: at,
+          )
+        : PlayerScreen(
+            source: source,
+            title: media.title,
+            backdropUrl: media.backdrop ?? detail.background,
+            detail: detail,
+            episode: episode,
+            initialPosition: at,
+          );
+  }
   final route = CinematicSlideRoute(page: page);
   if (replace) {
     await Navigator.of(context).pushReplacement(route);

@@ -82,6 +82,9 @@ class TmdbQuery {
   }
 }
 
+/// One page of a TMDb list: its titles, and whether no page follows.
+typedef TmdbPage = ({List<Movie> movies, bool last});
+
 /// TMDb lists as rows the app can play: names, posters and synopses in the
 /// viewer's language, and the IMDb id every title is played by.
 ///
@@ -90,13 +93,14 @@ class TmdbQuery {
 abstract final class TmdbCatalog {
   static const String _cinemeta = 'https://v3-cinemeta.strem.io';
   static final Map<String, String?> _imdbIds = {};
-  static final Map<String, (DateTime, List<Movie>)> _rows = {};
+  static final Map<String, (DateTime, List<Movie>, bool)> _rows = {};
 
   static String get _language =>
       l10nCurrent().localeName == 'zh' ? 'zh-CN' : 'en-US';
 
   /// The titles of [query], up to [limit], skipping any without an IMDb id
-  /// and any in [exclude].
+  /// and any in [exclude]. Empty when the list could not be read; [page]
+  /// tells that apart from an empty list.
   ///
   /// With [resolveImdb] false the titles keep a `tmdb:tv:123` id and cost no
   /// request each; [resolve] turns one into its IMDb id when it is opened.
@@ -107,14 +111,39 @@ abstract final class TmdbCatalog {
     int limit = 20,
     Set<String> exclude = const {},
     bool resolveImdb = true,
+    bool refresh = false,
+  }) async =>
+      (await page(
+        query,
+        limit: limit,
+        exclude: exclude,
+        resolveImdb: resolveImdb,
+        refresh: refresh,
+      ))?.movies ??
+      const [];
+
+  /// [row], and whether this page of [query] (its `page` parameter, else
+  /// the first) is the list's last; null when TMDb could not be read, so a
+  /// caller can offer Retry for a failure and call an empty list the end.
+  /// [refresh] reads past the ten-minute cache.
+  static Future<TmdbPage?> page(
+    TmdbQuery query, {
+    int limit = 20,
+    Set<String> exclude = const {},
+    bool resolveImdb = true,
+    bool refresh = false,
   }) async {
-    if (!TmdbService.hasScraperKey) return const [];
+    if (!TmdbService.hasScraperKey) return null;
     final key =
         '${query.cacheKey}|${query.liveActionOnly}|$_language|$limit|$resolveImdb';
     final cached = _rows[key];
-    if (cached != null &&
+    if (!refresh &&
+        cached != null &&
         DateTime.now().difference(cached.$1) < const Duration(minutes: 10)) {
-      return cached.$2.where((m) => !exclude.contains(m.id)).toList();
+      return (
+        movies: cached.$2.where((m) => !exclude.contains(m.id)).toList(),
+        last: cached.$3,
+      );
     }
     try {
       final body = await TmdbService.getScraperJson(query.path, {
@@ -124,9 +153,15 @@ abstract final class TmdbCatalog {
       });
       // A failed read is not cached, so the next ask (Home's Retry) reads
       // again instead of serving the empty row for ten minutes.
-      if (body == null) return const [];
+      if (body == null) return null;
+      final raw = body['results'] as List? ?? const [];
+      final last = isLastPage(
+        page: int.tryParse(query.params['page'] ?? '') ?? 1,
+        totalPages: (body['total_pages'] as num?)?.toInt(),
+        results: raw.length,
+      );
       final results = [
-        for (final r in body['results'] as List? ?? const [])
+        for (final r in raw)
           if (r is Map &&
               _isTitle(r) &&
               (AdultGuard.allowed ||
@@ -149,16 +184,31 @@ abstract final class TmdbCatalog {
         for (final m in movies)
           if (m != null) m,
       ].take(limit).toList();
-      // Titles listed but none resolved means the id lookups failed: leave
-      // that uncached too.
-      if (row.isNotEmpty || results.isEmpty) {
-        _rows[key] = (DateTime.now(), row);
-      }
-      return row.where((m) => !exclude.contains(m.id)).toList();
+      // Titles listed but none resolved means the id lookups failed: a
+      // failure, left uncached too.
+      if (row.isEmpty && results.isNotEmpty) return null;
+      _rows[key] = (DateTime.now(), row, last);
+      return (
+        movies: row.where((m) => !exclude.contains(m.id)).toList(),
+        last: last,
+      );
     } catch (e) {
       debugPrint('[TmdbCatalog] ${query.path}: $e');
-      return const [];
+      return null;
     }
+  }
+
+  /// Whether page [page] of a TMDb list is its last: by the `total_pages`
+  /// TMDb answers with, or, without one, by a page short of TMDb's twenty.
+  @visibleForTesting
+  static bool isLastPage({
+    required int page,
+    required int? totalPages,
+    required int results,
+  }) {
+    if (results == 0) return true;
+    if (totalPages != null) return page >= totalPages;
+    return results < 20;
   }
 
   /// Whether a result is a film or a series: /search/multi and
@@ -271,6 +321,18 @@ abstract final class TmdbCatalog {
     return null;
   }
 
+  /// The seasons of a series whose episodes [detailFromTmdb] reads: the
+  /// regular ones, at most [cap], the newest kept. Specials (season 0) are
+  /// not episodes of the show; counted in, and cut from the front of the
+  /// list, they cost a long show its latest seasons.
+  @visibleForTesting
+  static List<int> seasonsToRead(List<int> seasons, {int cap = 12}) {
+    final regular = seasons.where((n) => n > 0).toSet().toList()..sort();
+    return regular.length > cap
+        ? regular.sublist(regular.length - cap)
+        : regular;
+  }
+
   /// Details for a `tmdb:kind:id` title straight from TMDb, in the viewer's
   /// language: for a title TMDb lists no IMDb id for (new donghua and short
   /// dramas often have none), which the addons cannot describe. Series come
@@ -288,12 +350,12 @@ abstract final class TmdbCatalog {
     final series = kind == 'tv';
     final videos = <Video>[];
     if (series) {
-      final seasons = [
+      final seasons = seasonsToRead([
         for (final s in body['seasons'] as List? ?? const [])
           if (s is Map && s['season_number'] is int) s['season_number'] as int,
-      ];
+      ]);
       final pages = await Future.wait([
-        for (final n in seasons.take(12))
+        for (final n in seasons)
           TmdbService.getScraperJson('/tv/$tmdbId/season/$n', {
             'language': _language,
           }),
@@ -309,7 +371,9 @@ abstract final class TmdbCatalog {
           videos.add(
             Video(
               id: '$rowId:$s:$n',
-              title: name.isEmpty ? 'Episode $n' : name,
+              title: name.isEmpty
+                  ? l10nCurrent().wgPlyEpisodeFallback(n)
+                  : name,
               season: s,
               episode: n,
               released: e['air_date']?.toString(),

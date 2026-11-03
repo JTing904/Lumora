@@ -44,6 +44,32 @@ abstract final class SecretKeys {
     iptvVerifiedPortals,
   };
 
+  /// The credentials that sign in to somebody's own account at a service
+  /// (a Trakt or Simkl pairing, a debrid subscription), kept per Lumora
+  /// account (see `AccountScope.key`): on a shared device a second account
+  /// does not stream through, or sync into, the first one's subscription.
+  /// The rest are keys for the app itself and stay with the device.
+  static const Set<String> perAccount = <String>{
+    traktAccessToken,
+    traktRefreshToken,
+    simklAccessToken,
+    realDebridToken,
+    allDebridApiKey,
+    premiumizeApiKey,
+    debridLinkApiKey,
+    torboxApiKey,
+  };
+
+  /// The debrid subscriptions in [perAccount], split by account after the
+  /// pairings were.
+  static const Set<String> debridTokens = <String>{
+    realDebridToken,
+    allDebridApiKey,
+    premiumizeApiKey,
+    debridLinkApiKey,
+    torboxApiKey,
+  };
+
   /// Whether [prefKey] names a credential rather than ordinary settings,
   /// including a per-account copy (`trakt_access_token@<user id>`, see
   /// `AccountScope.key`).

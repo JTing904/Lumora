@@ -65,10 +65,37 @@ class _PlayerSeekBarState extends State<PlayerSeekBar> {
     super.dispose();
   }
 
+  /// Where the last arrow press aimed, and when. See [_stepBy].
+  Duration? _lastStepTarget;
+  DateTime? _lastStepAt;
+
+  /// How long an arrow press's target stands in for the position, while the
+  /// player has not yet reported the seek it asked for.
+  static const Duration _stepSettle = Duration(seconds: 1);
+
   /// Seeks relative to the current position, clamped to the media.
+  ///
+  /// The current position is the live one from [PlayerSeekBar.positionListenable].
+  /// [PlayerSeekBar.position] is only as new as this widget's last rebuild,
+  /// and on mpv the position moves without one, so stepping from it jumped
+  /// back to wherever the bar was last built. A press that follows another
+  /// within [_stepSettle] steps on from where that one aimed instead, so two
+  /// quick presses move twenty seconds rather than ten twice from one place.
   void _stepBy(Duration delta) {
     if (widget.duration.inMilliseconds <= 0) return;
-    widget.onSeek(_clamp(widget.position + delta));
+    final DateTime now = DateTime.now();
+    final Duration? pending = _lastStepTarget;
+    final DateTime? pendingAt = _lastStepAt;
+    final Duration from =
+        (pending != null &&
+            pendingAt != null &&
+            now.difference(pendingAt) < _stepSettle)
+        ? pending
+        : (widget.positionListenable?.value ?? widget.position);
+    final Duration target = _clamp(from + delta);
+    _lastStepTarget = target;
+    _lastStepAt = now;
+    widget.onSeek(target);
   }
 
   /// [value] held inside the media's bounds.

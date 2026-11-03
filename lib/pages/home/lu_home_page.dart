@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/generated/app_localizations.dart';
@@ -9,6 +10,8 @@ import '../../models/movie/movie.dart';
 import '../../services/continue_watching/continue_watching_service.dart';
 import '../../services/content/adult_guard.dart';
 import '../../services/content/content_settings.dart';
+import '../../services/home/home_page_settings.dart';
+import '../../services/home/row_refresh.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/metadata/tmdb_catalog.dart';
 import '../../services/my_list/my_list_service.dart';
@@ -16,6 +19,7 @@ import '../../services/my_list/new_episode_service.dart';
 import '../../services/playback/play_launcher.dart';
 import '../../services/recommend/recommender.dart';
 import '../../services/settings/locale_settings.dart';
+import '../../shell/app_shell_scope.dart';
 import '../../ui/lu_button.dart';
 import '../../ui/lu_cards.dart';
 import '../../ui/lu_hero.dart';
@@ -49,11 +53,48 @@ class LuHomePage extends StatefulWidget {
   State<LuHomePage> createState() => _LuHomePageState();
 }
 
-class _LuHomePageState extends State<LuHomePage> {
+/// Home's rows by kind: their titles and their TMDb lists, built afresh on
+/// every read because 最近更新 is dated from today.
+List<(String Function(AppLocalizations), TmdbQuery)> _homeSpecs() => [
+  ((l) => l.catTrendingSeries, const TmdbQuery('/trending/tv/week', {}, true)),
+  (
+    (l) => l.catRecentlyUpdated,
+    TmdbQuery.recentlyUpdated(series: true, animated: false),
+  ),
+  (
+    (l) => l.catTrendingMovies,
+    const TmdbQuery('/trending/movie/week', {}, true),
+  ),
+  (
+    (l) => l.catTrendingAnime,
+    TmdbQuery.discover(series: true, region: 'CN|JP|KR', animated: true),
+  ),
+  (
+    (l) => l.catChineseMovies,
+    TmdbQuery.discover(series: false, language: 'zh', animated: false),
+  ),
+];
+
+class _LuHomePageState extends State<LuHomePage> with WidgetsBindingObserver {
   List<Movie> _hero = const [];
   List<Movie> _top = const [];
-  List<_Row> _rows = const [];
+
+  /// 为你推荐, shown while [HomePageSettings.enableSimilar] is on.
+  List<_Row> _taste = const [];
+
+  /// Each row by kind ([_homeSpecs]), null until a read of it has worked.
+  final List<_Row?> _kinds = List.filled(_homeSpecs().length, null);
   bool _loading = true;
+
+  /// The parts of the page whose last read failed - 'hero', 'top', 'taste'
+  /// or a row by kind's index - asked again quietly by [_refresh].
+  final Set<Object> _failed = {};
+  final RowRefresh _refresh = RowRefresh();
+
+  /// A read is running: a quiet retry waits for it rather than cut it off.
+  bool _busy = false;
+
+  ValueListenable<ShellSlot>? _slot;
 
   /// Bumped on every load, so one overtaken by a newer (a new language,
   /// Retry) is dropped.
@@ -62,7 +103,10 @@ class _LuHomePageState extends State<LuHomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     LocaleSettings.locale.addListener(_onLocaleChanged);
+    HomePageSettings.enableSpotlight.addListener(_onSettingsChanged);
+    HomePageSettings.enableSimilar.addListener(_onSettingsChanged);
     // 有新集: checks My List's series in the background.
     NewEpisodeService.ensureStarted();
     // After the first frame: loading reads the page's language, which
@@ -74,9 +118,51 @@ class _LuHomePageState extends State<LuHomePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final slot = AppShellScope.of(context)?.current;
+    if (identical(slot, _slot)) return;
+    _slot?.removeListener(_onSlotChanged);
+    _slot = slot?..addListener(_onSlotChanged);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _slot?.removeListener(_onSlotChanged);
+    _refresh.dispose();
     LocaleSettings.locale.removeListener(_onLocaleChanged);
+    HomePageSettings.enableSpotlight.removeListener(_onSettingsChanged);
+    HomePageSettings.enableSimilar.removeListener(_onSettingsChanged);
     super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// The window or the app is back in front.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        (_slot == null || _slot!.value == ShellSlot.home)) {
+      _revisit();
+    }
+  }
+
+  void _onSlotChanged() {
+    if (_slot?.value == ShellSlot.home) _revisit();
+  }
+
+  /// The viewer is back on Home: rows older than six hours are read again
+  /// (staying on screen until the new ones land), and failed ones at once.
+  void _revisit() {
+    if (!mounted || _loading) return;
+    if (_refresh.isStale) {
+      _load(fresh: true);
+    } else if (_failed.isNotEmpty && !_busy) {
+      _load(onlyFailed: true);
+    }
   }
 
   /// TMDb and the recommender answer in the viewer's language, so a new one
@@ -85,70 +171,114 @@ class _LuHomePageState extends State<LuHomePage> {
     if (mounted) _load();
   }
 
-  Future<List<Movie>> _list(TmdbQuery q, {int limit = 20}) async {
+  /// A list's titles, or null when TMDb could not be read.
+  Future<List<Movie>?> _list(
+    TmdbQuery q, {
+    int limit = 20,
+    bool fresh = false,
+  }) async {
     try {
-      return AdultGuard.filter(
-        await TmdbCatalog.row(q, limit: limit, resolveImdb: false),
+      final page = await TmdbCatalog.page(
+        q,
+        limit: limit,
+        resolveImdb: false,
+        refresh: fresh,
       );
+      return page == null ? null : AdultGuard.filter(page.movies);
     } catch (_) {
-      return const [];
+      return null;
     }
   }
 
-  Future<void> _load() async {
+  /// Reads the page: every part, or with [onlyFailed] those whose last read
+  /// failed. A part that fails keeps what it showed and is asked again
+  /// quietly; nothing that loaded is cleared. [fresh] reads past
+  /// [TmdbCatalog]'s ten-minute cache (a revisit after six hours, a pull).
+  Future<void> _load({bool onlyFailed = false, bool fresh = false}) async {
+    if (onlyFailed && _busy) return;
     final generation = ++_generation;
-    final hero = await _list(const TmdbQuery('/trending/all/day'), limit: 8);
-    if (!mounted || generation != _generation) return;
-    setState(
-      () => _hero = hero.where((m) => m.backdrop != null).take(6).toList(),
-    );
+    _busy = true;
+    bool wanted(Object part) => !onlyFailed || _failed.contains(part);
+    final failed = <Object>{};
 
-    final specs = <(String Function(AppLocalizations), TmdbQuery)>[
-      (
-        (l) => l.catTrendingSeries,
-        const TmdbQuery('/trending/tv/week', {}, true),
-      ),
-      (
-        (l) => l.catRecentlyUpdated,
-        TmdbQuery.recentlyUpdated(series: true, animated: false),
-      ),
-      (
-        (l) => l.catTrendingMovies,
-        const TmdbQuery('/trending/movie/week', {}, true),
-      ),
-      (
-        (l) => l.catTrendingAnime,
-        TmdbQuery.discover(series: true, region: 'CN|JP|KR', animated: true),
-      ),
-      (
-        (l) => l.catChineseMovies,
-        TmdbQuery.discover(series: false, language: 'zh', animated: false),
-      ),
+    if (wanted('hero')) {
+      final hero = await _list(
+        const TmdbQuery('/trending/all/day'),
+        limit: 8,
+        fresh: fresh,
+      );
+      if (!mounted || generation != _generation) return;
+      if (hero == null) {
+        failed.add('hero');
+      } else {
+        setState(
+          () => _hero = hero.where((m) => m.backdrop != null).take(6).toList(),
+        );
+      }
+    }
+
+    final specs = _homeSpecs();
+    // Started together, awaited in turn.
+    final top = wanted('top')
+        ? _list(const TmdbQuery('/trending/all/week'), limit: 10, fresh: fresh)
+        : null;
+    final kinds = [
+      for (var i = 0; i < specs.length; i++)
+        wanted(i) ? _list(specs[i].$2, fresh: fresh) : null,
     ];
-    final results = await Future.wait([
-      _list(const TmdbQuery('/trending/all/week'), limit: 10),
-      for (final s in specs) _list(s.$2),
-    ]);
-    List<_Row> taste = const [];
+    final taste = wanted('taste') ? _tasteRows() : null;
+    final topResult = await top;
+    final kindResults = [for (final k in kinds) await k];
+    final tasteResult = await taste;
+    if (!mounted || generation != _generation) return;
+    if (top != null && topResult == null) failed.add('top');
+    for (var i = 0; i < kinds.length; i++) {
+      if (kinds[i] != null && kindResults[i] == null) failed.add(i);
+    }
+    if (taste != null && tasteResult == null) failed.add('taste');
+    setState(() {
+      if (topResult != null) _top = topResult;
+      for (var i = 0; i < kindResults.length; i++) {
+        if (kindResults[i] case final movies?) {
+          _kinds[i] = _Row(specs[i].$1, movies);
+        }
+      }
+      if (tasteResult != null) _taste = tasteResult;
+      _loading = false;
+    });
+    _busy = false;
+    _failed
+      ..clear()
+      ..addAll(failed);
+    if (!onlyFailed) _refresh.loaded();
+    if (failed.isEmpty) {
+      _refresh.succeeded();
+    } else {
+      _refresh.scheduleRetry(() {
+        if (mounted) _load(onlyFailed: true);
+      });
+    }
+  }
+
+  /// 为你推荐's rows, or null when the recommender failed.
+  Future<List<_Row>?> _tasteRows() async {
     try {
       // The recommender names its rows in the language of the moment; a
       // switch reloads the page, which names them again.
-      taste = [
+      return [
         for (final s in await Recommender.sections())
           _Row((_) => s.title, AdultGuard.filter(s.movies)),
-      ];
-    } catch (_) {}
-    if (!mounted || generation != _generation) return;
-    setState(() {
-      _top = results.first;
-      _rows = [
-        ...taste,
-        for (var i = 0; i < specs.length; i++)
-          _Row(specs[i].$1, results[i + 1]),
       ].where((r) => r.movies.length >= 4).toList();
-      _loading = false;
-    });
+    } catch (_) {
+      return null;
+    }
   }
+
+  /// The rows by kind with enough titles to show.
+  List<_Row> get _rows => [
+    for (final r in _kinds)
+      if (r != null && r.movies.length >= 4) r,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -167,217 +297,239 @@ class _LuHomePageState extends State<LuHomePage> {
     final rankW = compactRank ? 92.0 : 150.0;
     final scaler = MediaQuery.textScalerOf(context);
 
+    // 我的 → 外观 → 首页 turns the carousel and 为你推荐 off and on.
+    final showHero = HomePageSettings.enableSpotlight.value;
+    final rows = [
+      if (HomePageSettings.enableSimilar.value) ..._taste,
+      ..._rows,
+    ];
+
     return Theme(
       data: luTheme(),
       child: ColoredBox(
         color: LuColors.bg,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: _hero.isEmpty
-                  ? SizedBox(height: MediaQuery.paddingOf(context).top + 24)
-                  : LuHeroCarousel(
-                      movies: _hero,
-                      phone: phone,
-                      pad: pad,
-                      badge: (i) => l10n.homeTodayTop(i + 1),
-                    ),
-            ),
-            SliverToBoxAdapter(
-              child: ValueListenableBuilder<List<ContinueWatchingItem>>(
-                valueListenable: ContinueWatchingService.activeItems,
-                builder: (context, sessions, _) {
-                  final items = sessions
-                      .where(
-                        (s) =>
-                            !s.isCompleted &&
-                            (AdultGuard.allowed || !s.isAdult),
-                      )
-                      .toList();
-                  if (items.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 36),
-                    child: LuRail(
-                      title: l10n.homeContinueWatching,
-                      padding: pad,
-                      height: LuContinueCard.heightFor(continueW, scaler) + 8,
-                      itemCount: items.length,
-                      itemBuilder: (context, i) {
-                        final s = items[i];
-                        return LuContinueCard(
-                          width: continueW,
-                          title: LocalTitleText(
-                            id: s.id,
-                            fallback: s.title,
-                            series: s.type != 'movie',
-                          ),
-                          image: s.backdropUrl ?? s.posterUrl,
-                          progress: s.progressPercent,
-                          caption: continueWatchingCaption(context, s),
-                          removeLabel: l10n.cwRemove,
-                          onRemove: () => ContinueWatchingService.removeItem(s),
-                          onTap: () => ContinueWatchingService.resumePlayback(
-                            context,
-                            s,
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: AnimatedBuilder(
-                animation: Listenable.merge([
-                  NewEpisodeService.info,
-                  MyListService.items,
-                  ContentSettings.adultEnabled,
-                ]),
-                builder: (context, _) {
-                  final shows = NewEpisodeService.newEpisodes();
-                  if (shows.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 36),
-                    child: LuRail(
-                      title: l10n.newEpRail,
-                      padding: pad,
-                      height: LuPosterCard.heightFor(posterW, scaler) + 8,
-                      itemCount: shows.length,
-                      itemBuilder: (context, i) {
-                        final show = shows[i];
-                        return LuPosterCard(
-                          width: posterW,
-                          title: show.title,
-                          poster: show.poster,
-                          badge: l10n.newEpBadge,
-                          subtitle: show.latestCode(l10n),
-                          onTap: () => PlayLauncher.openDetails(
-                            context,
-                            Movie(
-                              id: show.detailsId,
-                              name: show.title,
-                              poster: show.poster,
-                              year: show.year?.toString(),
-                              type: 'series',
-                              addonBaseUrl: 'https://v3-cinemeta.strem.io',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (_top.length >= 5)
+        child: _pullToRefresh(
+          phone,
+          CustomScrollView(
+            // Scrollable however short, so a pull always reaches the indicator.
+            physics: phone ? const AlwaysScrollableScrollPhysics() : null,
+            slivers: [
               SliverToBoxAdapter(
-                child: ValueListenableBuilder<Map<String, NewEpisodeInfo>>(
-                  valueListenable: NewEpisodeService.info,
-                  builder: (context, _, _) => Padding(
-                    padding: const EdgeInsets.only(bottom: 36),
-                    child: LuRail(
-                      title: l10n.homeTop10,
-                      padding: pad,
-                      spacing: compactRank ? 12 : 28,
-                      height: LuRankCard.heightFor(rankW) + 16,
-                      itemCount: _top.length,
-                      itemBuilder: (context, i) {
-                        final m = _top[i];
-                        return LuRankCard(
-                          rank: i + 1,
-                          title: m.name,
-                          poster: m.poster,
-                          posterWidth: rankW,
-                          numeralScale: compactRank ? 0.62 : 1,
-                          badge: _hasNew(m) ? l10n.newEpBadge : _kind(m),
-                          onTap: () => PlayLauncher.openDetails(context, m),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            for (final row in _rows)
-              SliverToBoxAdapter(
-                child: ValueListenableBuilder<Map<String, NewEpisodeInfo>>(
-                  valueListenable: NewEpisodeService.info,
-                  builder: (context, _, _) => Padding(
-                    padding: const EdgeInsets.only(bottom: 36),
-                    child: LuRail(
-                      title: row.title(l10n),
-                      padding: pad,
-                      height: LuPosterCard.heightFor(posterW, scaler) + 8,
-                      itemCount: row.movies.length,
-                      itemBuilder: (context, i) {
-                        final m = row.movies[i];
-                        final fresh = _newInfo(m);
-                        return LuPosterCard(
-                          width: posterW,
-                          title: m.name,
-                          titleId: m.id,
-                          series: m.type == 'series',
-                          poster: m.poster,
-                          rating: m.imdbRating,
-                          badge: fresh == null ? null : l10n.newEpBadge,
-                          subtitle: [
-                            if (fresh?.latestCode(l10n) case final code?)
-                              code
-                            else if (m.year != null)
-                              m.year!,
-                            _kind(m),
-                          ].join(' · '),
-                          onTap: () => PlayLauncher.openDetails(context, m),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            if (_loading)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(48),
-                  child: Center(
-                    child: CircularProgressIndicator(color: LuColors.gold),
-                  ),
-                ),
-              )
-            else if (_hero.isEmpty && _rows.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(48),
-                  child: Column(
-                    children: [
-                      Text(
-                        l10n.catEmpty,
-                        textAlign: TextAlign.center,
-                        style: LuText.bodySoft,
+                child: _hero.isEmpty || !showHero
+                    ? SizedBox(height: MediaQuery.paddingOf(context).top + 24)
+                    : LuHeroCarousel(
+                        movies: _hero,
+                        phone: phone,
+                        pad: pad,
+                        badge: (i) => l10n.homeTodayTop(i + 1),
                       ),
-                      const SizedBox(height: 20),
-                      LuButton(
-                        label: l10n.actionRetry,
-                        icon: Icons.refresh_rounded,
-                        kind: LuButtonKind.secondary,
-                        onPressed: () {
-                          setState(() => _loading = true);
-                          _load();
+              ),
+              SliverToBoxAdapter(
+                child: ValueListenableBuilder<List<ContinueWatchingItem>>(
+                  valueListenable: ContinueWatchingService.activeItems,
+                  builder: (context, sessions, _) {
+                    final items = sessions
+                        .where(
+                          (s) =>
+                              !s.isCompleted &&
+                              (AdultGuard.allowed || !s.isAdult),
+                        )
+                        .toList();
+                    if (items.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 36),
+                      child: LuRail(
+                        title: l10n.homeContinueWatching,
+                        padding: pad,
+                        height: LuContinueCard.heightFor(continueW, scaler) + 8,
+                        itemCount: items.length,
+                        itemBuilder: (context, i) {
+                          final s = items[i];
+                          return LuContinueCard(
+                            width: continueW,
+                            title: LocalTitleText(
+                              id: s.id,
+                              fallback: s.title,
+                              series: s.type != 'movie',
+                            ),
+                            image: s.backdropUrl ?? s.posterUrl,
+                            progress: s.progressPercent,
+                            caption: continueWatchingCaption(context, s),
+                            removeLabel: l10n.cwRemove,
+                            onRemove: () =>
+                                ContinueWatchingService.removeItem(s),
+                            onTap: () => ContinueWatchingService.resumePlayback(
+                              context,
+                              s,
+                            ),
+                          );
                         },
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 48 + MediaQuery.paddingOf(context).bottom,
+              SliverToBoxAdapter(
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([
+                    NewEpisodeService.info,
+                    MyListService.items,
+                    ContentSettings.adultEnabled,
+                  ]),
+                  builder: (context, _) {
+                    final shows = NewEpisodeService.newEpisodes();
+                    if (shows.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 36),
+                      child: LuRail(
+                        title: l10n.newEpRail,
+                        padding: pad,
+                        height: LuPosterCard.heightFor(posterW, scaler) + 8,
+                        itemCount: shows.length,
+                        itemBuilder: (context, i) {
+                          final show = shows[i];
+                          return LuPosterCard(
+                            width: posterW,
+                            title: show.title,
+                            poster: show.poster,
+                            badge: l10n.newEpBadge,
+                            subtitle: show.latestCode(l10n),
+                            onTap: () => PlayLauncher.openDetails(
+                              context,
+                              Movie(
+                                id: show.detailsId,
+                                name: show.title,
+                                poster: show.poster,
+                                year: show.year?.toString(),
+                                type: 'series',
+                                addonBaseUrl: 'https://v3-cinemeta.strem.io',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+              if (_top.length >= 5)
+                SliverToBoxAdapter(
+                  child: ValueListenableBuilder<Map<String, NewEpisodeInfo>>(
+                    valueListenable: NewEpisodeService.info,
+                    builder: (context, _, _) => Padding(
+                      padding: const EdgeInsets.only(bottom: 36),
+                      child: LuRail(
+                        title: l10n.homeTop10,
+                        padding: pad,
+                        spacing: compactRank ? 12 : 28,
+                        height: LuRankCard.heightFor(rankW) + 16,
+                        itemCount: _top.length,
+                        itemBuilder: (context, i) {
+                          final m = _top[i];
+                          return LuRankCard(
+                            rank: i + 1,
+                            title: m.name,
+                            poster: m.poster,
+                            posterWidth: rankW,
+                            numeralScale: compactRank ? 0.62 : 1,
+                            badge: _hasNew(m) ? l10n.newEpBadge : _kind(m),
+                            onTap: () => PlayLauncher.openDetails(context, m),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              for (final row in rows)
+                SliverToBoxAdapter(
+                  child: ValueListenableBuilder<Map<String, NewEpisodeInfo>>(
+                    valueListenable: NewEpisodeService.info,
+                    builder: (context, _, _) => Padding(
+                      padding: const EdgeInsets.only(bottom: 36),
+                      child: LuRail(
+                        title: row.title(l10n),
+                        padding: pad,
+                        height: LuPosterCard.heightFor(posterW, scaler) + 8,
+                        itemCount: row.movies.length,
+                        itemBuilder: (context, i) {
+                          final m = row.movies[i];
+                          final fresh = _newInfo(m);
+                          return LuPosterCard(
+                            width: posterW,
+                            title: m.name,
+                            titleId: m.id,
+                            series: m.type == 'series',
+                            poster: m.poster,
+                            rating: m.imdbRating,
+                            badge: fresh == null ? null : l10n.newEpBadge,
+                            subtitle: [
+                              if (fresh?.latestCode(l10n) case final code?)
+                                code
+                              else if (m.year != null)
+                                m.year!,
+                              _kind(m),
+                            ].join(' · '),
+                            onTap: () => PlayLauncher.openDetails(context, m),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              if (_loading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(48),
+                    child: Center(
+                      child: CircularProgressIndicator(color: LuColors.gold),
+                    ),
+                  ),
+                )
+              else if (_hero.isEmpty && _rows.isEmpty && _taste.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Column(
+                      children: [
+                        Text(
+                          l10n.catEmpty,
+                          textAlign: TextAlign.center,
+                          style: LuText.bodySoft,
+                        ),
+                        const SizedBox(height: 20),
+                        LuButton(
+                          label: l10n.actionRetry,
+                          icon: Icons.refresh_rounded,
+                          kind: LuButtonKind.secondary,
+                          onPressed: () {
+                            setState(() => _loading = true);
+                            _load();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 48 + MediaQuery.paddingOf(context).bottom,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  /// On a phone, a pull at the top reads every row again.
+  Widget _pullToRefresh(bool phone, Widget scroll) => phone
+      ? RefreshIndicator(
+          color: LuColors.gold,
+          onRefresh: () => _load(fresh: true),
+          child: scroll,
+        )
+      : scroll;
 
   /// The My List entry for [m] when it has a new episode (有新集).
   NewEpisodeInfo? _newInfo(Movie m) {

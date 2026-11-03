@@ -62,6 +62,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
   bool _hasMore = true;
   String? _error;
 
+  /// Bumped whenever the grid starts over (another catalogue, its filters, a
+  /// search), so a page that lands late for the previous one is dropped
+  /// instead of appended to the new one.
+  int _itemsGeneration = 0;
+
   String _searchQuery = '';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -380,6 +385,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     if (!_areRequiredExtrasSatisfied) {
       // Gating: DO NOT fire network requests until required extras are selected!
+      _itemsGeneration++;
       setState(() {
         _items.clear();
         _isLoading = false;
@@ -410,20 +416,26 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final entry = _selectedCatalogEntry!;
 
     if (refresh) {
+      _itemsGeneration++;
       setState(() {
         _items.clear();
         _hasMore = true;
         _error = null;
+        // A page still loading for the previous grid no longer blocks this
+        // one: its answer is dropped by the generation check.
+        _isLoading = false;
       });
     }
 
     if (!_hasMore) return;
     if (!_areRequiredExtrasSatisfied) return;
 
+    final generation = _itemsGeneration;
     setState(() => _isLoading = true);
 
     try {
       List<Movie> newItems = [];
+      var more = _hasMore;
 
       final params = Map<String, String>.from(_selectedExtras);
       if (_searchQuery.isNotEmpty) {
@@ -439,7 +451,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           catalogId: entry.catalog.id,
           query: _searchQuery,
         );
-        _hasMore = false;
+        more = false;
       } else {
         newItems = await MetadataService.fetchCatalog(
           baseUrl: entry.addon.baseUrl,
@@ -450,13 +462,15 @@ class _DiscoverPageState extends State<DiscoverPage> {
         );
 
         if (!entry.catalog.supportsSkip) {
-          _hasMore = false;
+          more = false;
         }
       }
 
-      if (!mounted) return;
+      // Another catalogue (or filter, or search) took the grid meanwhile.
+      if (!mounted || generation != _itemsGeneration) return;
 
       setState(() {
+        _hasMore = more;
         if (newItems.isEmpty) {
           _hasMore = false;
         } else {
@@ -472,15 +486,18 @@ class _DiscoverPageState extends State<DiscoverPage> {
       if (_hasMore && !_isLoading) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !_scrollController.hasClients) return;
+          if (generation != _itemsGeneration) return;
           if (_scrollController.position.maxScrollExtent <= 0) {
             _loadItems();
           }
         });
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _itemsGeneration) return;
+      debugPrint('[Discover] ${entry.catalog.id}: $e');
       setState(() {
-        _error = e.toString();
+        // Never the raw exception: a sentence the viewer can act on (Retry).
+        _error = l10nCurrent().filterLoadFailed;
         _isLoading = false;
       });
     }

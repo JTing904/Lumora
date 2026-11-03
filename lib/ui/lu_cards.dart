@@ -88,6 +88,7 @@ class LuPosterCard extends StatelessWidget {
     this.onLongPress,
     this.titleId,
     this.series = false,
+    this.year,
   });
 
   final String title;
@@ -99,6 +100,10 @@ class LuPosterCard extends StatelessWidget {
 
   /// Whether [titleId] is a series, for the TMDb lookup.
   final bool series;
+
+  /// The release year, for the lookup of a title with no IMDb id. Without
+  /// one [subtitle] is taken, which is the year on most rows.
+  final String? year;
   final String? poster;
   final String? subtitle;
   final String? badge;
@@ -179,7 +184,7 @@ class LuPosterCard extends StatelessWidget {
                 id: id,
                 fallback: title,
                 series: series,
-                year: subtitle,
+                year: year ?? subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: _titleStyle,

@@ -689,7 +689,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsCalendarOnSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Calendar buttons active on Home top bar and section headers'**
+  /// **'Airing calendar shown in More'**
   String get settingsCalendarOnSubtitle;
 
   /// No description provided for @settingsCalendarOffSubtitle.
@@ -707,7 +707,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAiQuizOnSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'AI Taste Profile Quiz active on Home and Search bars'**
+  /// **'AI picks shown in More and Search'**
   String get settingsAiQuizOnSubtitle;
 
   /// No description provided for @settingsAiQuizOffSubtitle.
@@ -853,6 +853,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose a Lumora profile'**
   String get settingsChooseProfile;
+
+  /// No description provided for @backupRestoredFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored the full profile: {count} settings, plus credentials and portals.'**
+  String backupRestoredFull(int count);
+
+  /// No description provided for @backupRestoredRedacted.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile restored: {count} settings. Credentials, portals and addons stay on this device.'**
+  String backupRestoredRedacted(int count);
+
+  /// No description provided for @backupRestoredLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile restored: {count} settings, with addons and portals.'**
+  String backupRestoredLegacy(int count);
+
+  /// No description provided for @backupNothingReadable.
+  ///
+  /// In en, this message translates to:
+  /// **'No readable profile file. Looked in:\n{paths}\nWithout a storage permission Lumora can only read its own app directory, so put the profile there, or choose it with \"From File\".'**
+  String backupNothingReadable(String paths);
+
+  /// No description provided for @backupChosenUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The chosen file could not be read. Choose it again with \"From File\".'**
+  String get backupChosenUnreadable;
+
+  /// No description provided for @backupChosenEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The chosen profile file is empty.'**
+  String get backupChosenEmpty;
 
   /// No description provided for @settingsClearCacheTitle.
   ///
@@ -2795,7 +2831,7 @@ abstract class AppLocalizations {
   /// No description provided for @syncTextSync.
   ///
   /// In en, this message translates to:
-  /// **'Text Sync'**
+  /// **'Align a line'**
   String get syncTextSync;
 
   /// No description provided for @syncDiscard.
@@ -3079,6 +3115,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown error'**
   String get dlUnknownError;
+
+  /// No description provided for @dlErrInvalidPath.
+  ///
+  /// In en, this message translates to:
+  /// **'The download folder is no longer allowed'**
+  String get dlErrInvalidPath;
+
+  /// No description provided for @dlErrFileMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The file was moved or deleted'**
+  String get dlErrFileMissing;
+
+  /// No description provided for @dlErrTorrentUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Torrent downloads are not supported'**
+  String get dlErrTorrentUnsupported;
+
+  /// No description provided for @dlErrNoDebridLink.
+  ///
+  /// In en, this message translates to:
+  /// **'The cloud service gave no download link'**
+  String get dlErrNoDebridLink;
+
+  /// No description provided for @dlErrEmptyUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'This source has no download link'**
+  String get dlErrEmptyUrl;
+
+  /// No description provided for @dlErrHttpStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused the download (HTTP {status})'**
+  String dlErrHttpStatus(int status);
+
+  /// No description provided for @dlErrNotEnoughSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough free disk space'**
+  String get dlErrNotEnoughSpace;
+
+  /// No description provided for @dlErrReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting (attempt {attempt})…'**
+  String dlErrReconnecting(int attempt);
+
+  /// No description provided for @dlErrSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the finished file'**
+  String get dlErrSaveFailed;
+
+  /// No description provided for @dlErrBadPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'This stream cannot be downloaded'**
+  String get dlErrBadPlaylist;
+
+  /// No description provided for @dlErrNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection was lost'**
+  String get dlErrNetwork;
 
   /// No description provided for @dlResume.
   ///
@@ -3662,6 +3764,42 @@ abstract class AppLocalizations {
   /// **'In Default mode all providers run at once and results are sorted by resolution (4K, 1080p, 720p) and file size.'**
   String get provDefaultActiveBody;
 
+  /// No description provided for @provAllActive.
+  ///
+  /// In en, this message translates to:
+  /// **'All {count} built-in providers are active and scraped concurrently.'**
+  String provAllActive(int count);
+
+  /// No description provided for @addonTypeMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get addonTypeMovie;
+
+  /// No description provided for @addonTypeSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get addonTypeSeries;
+
+  /// No description provided for @addonTypeAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Anime'**
+  String get addonTypeAnime;
+
+  /// No description provided for @addonTypeTv.
+  ///
+  /// In en, this message translates to:
+  /// **'TV channels'**
+  String get addonTypeTv;
+
+  /// No description provided for @addonTypeEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Events'**
+  String get addonTypeEvents;
+
   /// No description provided for @provSwitchCustom.
   ///
   /// In en, this message translates to:
@@ -3769,6 +3907,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More'**
   String get navMore;
+
+  /// No description provided for @navCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get navCategories;
 
   /// No description provided for @catTrendingSeries.
   ///
@@ -3923,7 +4067,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsMoreSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Manga, books, audiobooks, music and collections'**
+  /// **'Movies & TV, collections, live TV, manga and music'**
   String get settingsMoreSubtitle;
 
   /// No description provided for @homeResume.
@@ -9611,7 +9755,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgbSmartRecsCaps.
   ///
   /// In en, this message translates to:
-  /// **'SMART RECOMMENDATIONS (\"BECAUSE YOU HAVE ON YOUR LIST\")'**
+  /// **'RECOMMENDED FOR YOU'**
   String get stgbSmartRecsCaps;
 
   /// No description provided for @stgbCuratedCollections.
@@ -9623,7 +9767,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgbHeroBannerSpotlight.
   ///
   /// In en, this message translates to:
-  /// **'HERO BANNER & SPOTLIGHT'**
+  /// **'TOP CAROUSEL'**
   String get stgbHeroBannerSpotlight;
 
   /// No description provided for @stgbPosterCardsDensity.
@@ -9635,7 +9779,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgbHeaderShortcuts.
   ///
   /// In en, this message translates to:
-  /// **'HEADER SHORTCUTS & BUTTONS'**
+  /// **'SHORTCUTS IN MORE'**
   String get stgbHeaderShortcuts;
 
   /// No description provided for @stgbLiveLightingPreview.
@@ -9839,7 +9983,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgbTvAiringCalendarDesc.
   ///
   /// In en, this message translates to:
-  /// **'Show TV Calendar buttons on Home bar & sliders'**
+  /// **'Show the airing calendar button in More'**
   String get stgbTvAiringCalendarDesc;
 
   /// No description provided for @stgbAiRecQuiz.
@@ -9851,7 +9995,7 @@ abstract class AppLocalizations {
   /// No description provided for @stgbAiRecQuizDesc.
   ///
   /// In en, this message translates to:
-  /// **'Show AI Quiz button on Home & Search bars'**
+  /// **'Show the AI picks button in More and Search'**
   String get stgbAiRecQuizDesc;
 
   /// No description provided for @stgbReset.
@@ -15984,6 +16128,432 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Can\'t reach the watch-together service right now. Try again later.'**
   String get partyServiceDown;
+
+  /// No description provided for @partyHostAway.
+  ///
+  /// In en, this message translates to:
+  /// **'The host lost the connection. Waiting…'**
+  String get partyHostAway;
+
+  /// No description provided for @partyHostBack.
+  ///
+  /// In en, this message translates to:
+  /// **'The host is back'**
+  String get partyHostBack;
+
+  /// No description provided for @partyHostGone.
+  ///
+  /// In en, this message translates to:
+  /// **'The host didn\'t come back. The room has ended.'**
+  String get partyHostGone;
+
+  /// No description provided for @partyReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost the room\'s connection. Reconnecting…'**
+  String get partyReconnecting;
+
+  /// No description provided for @partyReconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Back in the room'**
+  String get partyReconnected;
+
+  /// No description provided for @partyDropped.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost the room and couldn\'t get back in'**
+  String get partyDropped;
+
+  /// No description provided for @partyLocalSource.
+  ///
+  /// In en, this message translates to:
+  /// **'This source only plays on this device. Guests will find their own source.'**
+  String get partyLocalSource;
+
+  /// No description provided for @partyFindOwnSource.
+  ///
+  /// In en, this message translates to:
+  /// **'The host\'s source only plays on their device. Finding one for you…'**
+  String get partyFindOwnSource;
+
+  /// No description provided for @partyPausedAway.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} paused (left the app)'**
+  String partyPausedAway(String name);
+
+  /// No description provided for @partySpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} set the speed to {rate}x'**
+  String partySpeed(String name, String rate);
+
+  /// No description provided for @subAlignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which line is being spoken now?'**
+  String get subAlignTitle;
+
+  /// No description provided for @subAlignBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused at {time}. Tap the line being spoken and the subtitles move to match.'**
+  String subAlignBody(String time);
+
+  /// No description provided for @subAlignBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back 5 s and listen again'**
+  String get subAlignBack;
+
+  /// No description provided for @subAlignDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles set to {offset} s, remembered for this title'**
+  String subAlignDone(String offset);
+
+  /// No description provided for @subOffsetRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the subtitle timing you set for this title: {offset} s'**
+  String subOffsetRestored(String offset);
+
+  /// No description provided for @subAiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Chinese · in sync with the picture'**
+  String get subAiTitle;
+
+  /// No description provided for @subAiBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Translates the English subtitle line by line and keeps its timing'**
+  String get subAiBody;
+
+  /// No description provided for @subAiProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Translated {done} of {total} lines'**
+  String subAiProgress(int done, int total);
+
+  /// No description provided for @subAiStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating into Chinese. Lines appear as they are ready.'**
+  String get subAiStarted;
+
+  /// No description provided for @subAiDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All {total} lines are in Chinese'**
+  String subAiDone(int total);
+
+  /// No description provided for @subAiSignedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to your Lumora account to use AI subtitles'**
+  String get subAiSignedOut;
+
+  /// No description provided for @subAiNotInvited.
+  ///
+  /// In en, this message translates to:
+  /// **'AI subtitles need an account that used an invite code'**
+  String get subAiNotInvited;
+
+  /// No description provided for @subAiUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI is busy right now. Try again in a moment.'**
+  String get subAiUnavailable;
+
+  /// No description provided for @subAiNoEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'No English subtitle to translate'**
+  String get subAiNoEnglish;
+
+  /// No description provided for @authSignUpWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up with {provider}'**
+  String authSignUpWith(String provider);
+
+  /// No description provided for @authInviteFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'That account is not registered yet. Enter your invite code, then sign up with it.'**
+  String get authInviteFirst;
+
+  /// No description provided for @tvStatusFindingPortals.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding live portals…'**
+  String get tvStatusFindingPortals;
+
+  /// No description provided for @tvStatusSearchingMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching for more…'**
+  String get tvStatusSearchingMore;
+
+  /// No description provided for @tvStatusVerifyingNeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying {count} portals · need {need} more'**
+  String tvStatusVerifyingNeed(int count, int need);
+
+  /// No description provided for @tvStatusVerifyingAlive.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying {done} / {total} · alive {alive} / {target}'**
+  String tvStatusVerifyingAlive(int done, int total, int alive, int target);
+
+  /// No description provided for @tvStatusSourceEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No live portals found in this source.'**
+  String get tvStatusSourceEmpty;
+
+  /// No description provided for @tvStatusNoNewTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'No new live portals. Try Generate Portals again.'**
+  String get tvStatusNoNewTryAgain;
+
+  /// No description provided for @tvStatusNoNew.
+  ///
+  /// In en, this message translates to:
+  /// **'No new live portals.'**
+  String get tvStatusNoNew;
+
+  /// No description provided for @tvStatusFoundPortals.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} live portals.'**
+  String tvStatusFoundPortals(int count);
+
+  /// No description provided for @tvStatusFoundPortalsExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} live portals (source exhausted).'**
+  String tvStatusFoundPortalsExhausted(int count);
+
+  /// No description provided for @tvStatusFoundPortalsStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} live portals (stopped early).'**
+  String tvStatusFoundPortalsStopped(int count);
+
+  /// No description provided for @tvStatusMoreQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more waiting to be checked.'**
+  String tvStatusMoreQueued(int count);
+
+  /// No description provided for @tvStatusScrapeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not get portals. Check your connection and try again.'**
+  String get tvStatusScrapeFailed;
+
+  /// No description provided for @tvStatusRecheckingSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-checking saved portals…'**
+  String get tvStatusRecheckingSaved;
+
+  /// No description provided for @tvStatusStillAlive.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} portals still alive.'**
+  String tvStatusStillAlive(int count);
+
+  /// No description provided for @tvAddAllFieldsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'All fields are required'**
+  String get tvAddAllFieldsRequired;
+
+  /// No description provided for @tvAddAlreadyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'This portal is already added (same login)'**
+  String get tvAddAlreadyAdded;
+
+  /// No description provided for @tvAddLoginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Login failed: wrong login or the portal is down.'**
+  String get tvAddLoginFailed;
+
+  /// No description provided for @tvImportBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Already importing.'**
+  String get tvImportBusy;
+
+  /// No description provided for @tvImportNoPortalsArray.
+  ///
+  /// In en, this message translates to:
+  /// **'The JSON has no \"portals\" list.'**
+  String get tvImportNoPortalsArray;
+
+  /// No description provided for @tvImportBadShape.
+  ///
+  /// In en, this message translates to:
+  /// **'This JSON is not a portal list.'**
+  String get tvImportBadShape;
+
+  /// No description provided for @tvImportInvalidJson.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is not valid JSON.'**
+  String get tvImportInvalidJson;
+
+  /// No description provided for @tvImportNoEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'No portal entries found.'**
+  String get tvImportNoEntries;
+
+  /// No description provided for @tvImportProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing {done} / {total}…'**
+  String tvImportProgress(int done, int total);
+
+  /// No description provided for @tvImportSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {added} · skipped {skipped} · failed {failed}'**
+  String tvImportSummary(int added, int skipped, int failed);
+
+  /// No description provided for @tvStatusNoWorkingPortals.
+  ///
+  /// In en, this message translates to:
+  /// **'No working portals available. Tap Scan More.'**
+  String get tvStatusNoWorkingPortals;
+
+  /// No description provided for @tvStatusStreamsAlive.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} streams alive.'**
+  String tvStatusStreamsAlive(int count);
+
+  /// No description provided for @tvStatusNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching channels found. Try Scan More.'**
+  String get tvStatusNoMatches;
+
+  /// No description provided for @tvStatusAliveNoNew.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} alive · no new matches.'**
+  String tvStatusAliveNoNew(int count);
+
+  /// No description provided for @tvStatusNoAliveFor.
+  ///
+  /// In en, this message translates to:
+  /// **'No live streams found for {name}.'**
+  String tvStatusNoAliveFor(String name);
+
+  /// No description provided for @tvStatusStreamsReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 live stream ready.} other{{count} live streams ready.}}'**
+  String tvStatusStreamsReady(int count);
+
+  /// No description provided for @tvDescUsLeagues.
+  ///
+  /// In en, this message translates to:
+  /// **'NBA TV, NFL Network, RedZone, MLB, NHL, Fox Sports & CBS Sports'**
+  String get tvDescUsLeagues;
+
+  /// No description provided for @tvDescSoccer.
+  ///
+  /// In en, this message translates to:
+  /// **'UEFA Champions League, Premier League, beIN Sports, La Liga & Serie A'**
+  String get tvDescSoccer;
+
+  /// No description provided for @tvDescRacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Formula 1, MotoGP, NASCAR Cup, IndyCar & Rally WRC'**
+  String get tvDescRacing;
+
+  /// No description provided for @tvDescMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'HBO, Showtime, Starz, Cinemax, Paramount & AMC'**
+  String get tvDescMovies;
+
+  /// No description provided for @tvDescNews.
+  ///
+  /// In en, this message translates to:
+  /// **'CNN, BBC World, Fox News, Sky News, Al Jazeera & Bloomberg'**
+  String get tvDescNews;
+
+  /// No description provided for @tvDescArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'MBC, Rotana, OSN, Abu Dhabi TV, Dubai TV & Al Arabiya'**
+  String get tvDescArabic;
+
+  /// No description provided for @tvDescDiscovery.
+  ///
+  /// In en, this message translates to:
+  /// **'National Geographic, Discovery Channel, History & Animal Planet'**
+  String get tvDescDiscovery;
+
+  /// No description provided for @tvDescKids.
+  ///
+  /// In en, this message translates to:
+  /// **'Cartoon Network, Disney Channel, Nickelodeon & Spacetoon'**
+  String get tvDescKids;
+
+  /// No description provided for @tvDescCanada.
+  ///
+  /// In en, this message translates to:
+  /// **'CBC News, CTV News, TSN Sportsnet, Crave & Global News'**
+  String get tvDescCanada;
+
+  /// No description provided for @tvDescBayArea.
+  ///
+  /// In en, this message translates to:
+  /// **'KTVU Fox 2, KPIX 5 CBS, KGO 7 ABC, KRON 4 & NBC Bay Area'**
+  String get tvDescBayArea;
+
+  /// No description provided for @filterNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No titles match these filters.'**
+  String get filterNoMatches;
+
+  /// No description provided for @filterLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the list.'**
+  String get filterLoadFailed;
+
+  /// No description provided for @homeUiForYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended for you'**
+  String get homeUiForYou;
+
+  /// No description provided for @homeUiForYouDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows on Home of the kinds you watch most'**
+  String get homeUiForYouDesc;
+
+  /// No description provided for @cal2EpisodesOnNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} on {network}'**
+  String cal2EpisodesOnNetwork(int count, String network);
 }
 
 class _AppLocalizationsDelegate

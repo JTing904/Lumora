@@ -107,6 +107,63 @@ void main() {
     );
   });
 
+  testWidgets('a GitHub account is made only with an invite code', (
+    tester,
+  ) async {
+    String? sent;
+    await pumpLogin(
+      tester,
+      LoginPage(
+        figure: LuFigure.plaid,
+        providers: ValueNotifier({'github'}),
+        socialSignUp: (provider, code) async => sent = '${provider.name}/$code',
+      ),
+    );
+    // Under 登录 it is for accounts that exist.
+    expect(find.text('Continue with GitHub'), findsOneWidget);
+
+    await tester.tap(find.text('Sign up with an invite code'));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    await tester.tap(find.text('Sign up with GitHub'));
+    await tester.pump();
+    expect(find.text('Enter your invite code.'), findsOneWidget);
+    expect(sent, isNull, reason: 'no browser sign-in without a code');
+
+    await tester.enterText(find.byType(TextField).at(2), 'LUMO-7K3P');
+    await tester.tap(find.text('Sign up with GitHub'));
+    await tester.pump();
+    expect(sent, 'github/LUMO-7K3P');
+  });
+
+  test('an account without a code spends one, or is removed if new', () {
+    final now = DateTime.utc(2026, 11, 3, 12);
+    expect(
+      AccountService.uninvitedAction(
+        pendingCode: 'LUMO7K3P',
+        createdAt: now,
+        now: now,
+      ),
+      UninvitedAccount.redeem,
+    );
+    expect(
+      AccountService.uninvitedAction(
+        pendingCode: null,
+        createdAt: now.subtract(const Duration(minutes: 2)),
+        now: now,
+      ),
+      UninvitedAccount.discard,
+    );
+    expect(
+      AccountService.uninvitedAction(
+        pendingCode: null,
+        createdAt: now.subtract(const Duration(days: 3)),
+        now: now,
+      ),
+      UninvitedAccount.ask,
+    );
+  });
+
   testWidgets('the admin page lists codes and makes new ones', (tester) async {
     final made = <int>[];
     await tester.pumpWidget(

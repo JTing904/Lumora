@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
 import '../../services/content/content_settings.dart';
+import '../../services/home/home_page_settings.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../shell/app_shell_scope.dart';
@@ -116,6 +117,27 @@ extension BrowseVerticalX on BrowseVertical {
   }
 }
 
+/// Verticals kept in the code but no longer offered: 动漫 in the main
+/// navigation covers anime (this one was the old AniList browser, in
+/// English), the books source no longer answers, and audiobooks have no
+/// catalogue in this build. Dropped from the list rather than from the enum,
+/// so every other vertical keeps its place.
+const Set<BrowseVertical> retiredVerticals = {
+  BrowseVertical.anime,
+  BrowseVertical.books,
+  BrowseVertical.audiobooks,
+};
+
+/// The verticals 更多内容 offers, in switcher order: all but
+/// [retiredVerticals], and [BrowseVertical.adult] only while the global
+/// Adult Content switch is on.
+List<BrowseVertical> offeredVerticals({required bool adultEnabled}) => [
+  for (final vertical in BrowseVertical.values)
+    if (!retiredVerticals.contains(vertical) &&
+        (vertical != BrowseVertical.adult || adultEnabled))
+      vertical,
+];
+
 /// The switcher's pills, the stack's children, and the verticals behind them,
 /// derived together from one list.
 ///
@@ -134,14 +156,11 @@ extension BrowseVerticalX on BrowseVertical {
   List<Widget> pages,
 })
 _buildVerticals(AppLocalizations l10n, {required bool adultEnabled}) {
-  // `BrowseVertical.values` minus the verticals the current settings do not
-  // offer. Only [BrowseVertical.adult] is conditional today; the filter is
-  // written as a per-vertical rule so adding another gated vertical does not
-  // mean re-deriving which list is authoritative.
-  final visible = <BrowseVertical>[
-    for (final vertical in BrowseVertical.values)
-      if (vertical != BrowseVertical.adult || adultEnabled) vertical,
-  ];
+  // `BrowseVertical.values` minus the verticals not offered at all and those
+  // the current settings do not offer. Only [BrowseVertical.adult] is
+  // conditional today; the filter is one rule so adding another gated
+  // vertical does not mean re-deriving which list is authoritative.
+  final visible = offeredVerticals(adultEnabled: adultEnabled);
 
   return (
     verticals: visible,
@@ -182,6 +201,11 @@ class BrowsePage extends StatefulWidget {
 class _BrowsePageState extends State<BrowsePage> {
   BrowseVertical _vertical = BrowseVertical.moviesAndTv;
 
+  /// The verticals shown so far. The stack builds a vertical the first time
+  /// it is chosen, as the shell does its slots, so opening 更多内容 does not
+  /// start every vertical loading behind the one on screen.
+  final Set<BrowseVertical> _shown = {};
+
   /// The shell's request channel for a specific vertical, or null outside a
   /// shell.
   ///
@@ -204,9 +228,14 @@ class _BrowsePageState extends State<BrowsePage> {
     super.didChangeDependencies();
     final next = AppShellScope.of(context)?.browseVertical;
     if (identical(next, _verticalRequest)) return;
+    final first = _verticalRequest == null;
     _verticalRequest?.removeListener(_onVerticalRequest);
     _verticalRequest = next;
     _verticalRequest?.addListener(_onVerticalRequest);
+    // The shell builds a slot the first time it is shown, so the request that
+    // opens Browse is made before this page exists; it is taken up here
+    // rather than missed.
+    if (first && next != null) _vertical = next.value;
   }
 
   void _onVerticalRequest() {
@@ -261,6 +290,7 @@ class _BrowsePageState extends State<BrowsePage> {
         .indexOf(_vertical)
         .clamp(0, verticals.pages.length - 1);
     final selected = verticals.verticals[selectedIndex];
+    _shown.add(selected);
     // Ten-foot pills are sized like the shell rail's TV rows and the band grows
     // with them, per the prototype's TV variant; the pointer height matches the
     // rail's own pointer row so the two read as one chrome.
@@ -313,95 +343,15 @@ class _BrowsePageState extends State<BrowsePage> {
             right: gutter + inset.right,
             bottom: television ? ZplaySpacing.s16 : ZplaySpacing.s12,
           ),
-          // The verticals, then the two pages that left Home: AI 选片 and
-          // 追剧日历 open over the shell with their own back.
-          // A phone puts the two pages under the verticals in equal halves;
-          // wider screens keep everything on one wrapping line.
-          child: phone
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TabStrip<BrowseVertical>(
-                      options: verticals.options,
-                      selected: selected,
-                      onSelected: (vertical) =>
-                          setState(() => _vertical = vertical),
-                      semanticsLabel: 'Browse verticals',
-                      height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
-                    ),
-                    const SizedBox(height: ZplaySpacing.s12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: LuButton(
-                            label: l10nOf(context).moreAiPicks,
-                            icon: Icons.auto_awesome_rounded,
-                            kind: LuButtonKind.secondary,
-                            compact: true,
-                            expand: true,
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const WeWatchQuizPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: ZplaySpacing.s12),
-                        Expanded(
-                          child: LuButton(
-                            label: l10nOf(context).moreCalendar,
-                            icon: Icons.calendar_month_rounded,
-                            kind: LuButtonKind.secondary,
-                            compact: true,
-                            expand: true,
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const TvCalendarPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-              : Wrap(
-                  spacing: ZplaySpacing.s12,
-                  runSpacing: ZplaySpacing.s12,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    TabStrip<BrowseVertical>(
-                      options: verticals.options,
-                      selected: selected,
-                      onSelected: (vertical) =>
-                          setState(() => _vertical = vertical),
-                      semanticsLabel: 'Browse verticals',
-                      height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
-                    ),
-                    LuButton(
-                      label: l10nOf(context).moreAiPicks,
-                      icon: Icons.auto_awesome_rounded,
-                      kind: LuButtonKind.secondary,
-                      compact: true,
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const WeWatchQuizPage(),
-                        ),
-                      ),
-                    ),
-                    LuButton(
-                      label: l10nOf(context).moreCalendar,
-                      icon: Icons.calendar_month_rounded,
-                      kind: LuButtonKind.secondary,
-                      compact: true,
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const TvCalendarPage(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          // Rebuilt when 我的 → 内容 turns AI 选片 or 追剧日历 off or on.
+          child: AnimatedBuilder(
+            animation: Listenable.merge([
+              HomePageSettings.enableAiQuiz,
+              HomePageSettings.enableCalendar,
+            ]),
+            builder: (context, _) =>
+                _switcher(verticals, selected, television, phone),
+          ),
         ),
         Expanded(
           // Clipped, and this is the boundary the shell's own clip cannot
@@ -427,13 +377,95 @@ class _BrowsePageState extends State<BrowsePage> {
                 padding: EdgeInsets.symmetric(horizontal: verticalInset),
                 child: IndexedStack(
                   index: selectedIndex,
-                  children: verticals.pages,
+                  children: [
+                    for (var i = 0; i < verticals.pages.length; i++)
+                      _shown.contains(verticals.verticals[i])
+                          ? verticals.pages[i]
+                          : const SizedBox.shrink(),
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  /// The vertical pills and, as 我的 → 内容 allows, AI 选片 and 追剧日历.
+  Widget _switcher(
+    ({
+      List<BrowseVertical> verticals,
+      List<TabStripOption<BrowseVertical>> options,
+      List<Widget> pages,
+    })
+    verticals,
+    BrowseVertical selected,
+    bool television,
+    bool phone,
+  ) {
+    final l10n = l10nOf(context);
+    final strip = TabStrip<BrowseVertical>(
+      options: verticals.options,
+      selected: selected,
+      onSelected: (vertical) => setState(() => _vertical = vertical),
+      semanticsLabel: 'Browse verticals',
+      height: television ? ZplaySpacing.s64 : ZplaySpacing.s48,
+    );
+    final pages = <({String label, IconData icon, WidgetBuilder page})>[
+      if (HomePageSettings.enableAiQuiz.value)
+        (
+          label: l10n.moreAiPicks,
+          icon: Icons.auto_awesome_rounded,
+          page: (_) => const WeWatchQuizPage(),
+        ),
+      if (HomePageSettings.enableCalendar.value)
+        (
+          label: l10n.moreCalendar,
+          icon: Icons.calendar_month_rounded,
+          page: (_) => const TvCalendarPage(),
+        ),
+    ];
+    LuButton button(
+      ({String label, IconData icon, WidgetBuilder page}) p, {
+      bool expand = false,
+    }) => LuButton(
+      label: p.label,
+      icon: p.icon,
+      kind: LuButtonKind.secondary,
+      compact: true,
+      expand: expand,
+      onPressed: () =>
+          Navigator.of(context).push(MaterialPageRoute<void>(builder: p.page)),
+    );
+    // The verticals, then the two pages that left Home: AI 选片 and 追剧日历
+    // open over the shell with their own back. A phone puts them under the
+    // verticals in equal halves; wider screens keep everything on one
+    // wrapping line.
+    if (phone) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          strip,
+          if (pages.isNotEmpty) ...[
+            const SizedBox(height: ZplaySpacing.s12),
+            Row(
+              children: [
+                for (var i = 0; i < pages.length; i++) ...[
+                  if (i > 0) const SizedBox(width: ZplaySpacing.s12),
+                  Expanded(child: button(pages[i], expand: true)),
+                ],
+              ],
+            ),
+          ],
+        ],
+      );
+    }
+    return Wrap(
+      spacing: ZplaySpacing.s12,
+      runSpacing: ZplaySpacing.s12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [strip, for (final p in pages) button(p)],
     );
   }
 }

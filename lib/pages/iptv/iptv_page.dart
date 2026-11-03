@@ -347,48 +347,21 @@ class _IptvPageState extends State<IptvPage> {
     final Map<String, (String, List<HardcodedChannel>)> categoryMap = {
       'Premier Live Broadcasts': (l10n.tvDescPremier, _featured),
       'ESPN & College Basketball (NCAA)': (l10n.tvDescEspn, _espnAndCollege),
-      'US Major Leagues & Sports': (
-        'NBA TV, NFL Network, RedZone, MLB, NHL, Fox Sports & CBS Sports',
-        _usSports,
-      ),
-      'Global Football & Soccer': (
-        'UEFA Champions League, Premier League, beIN Sports, La Liga & Serie A',
-        _soccer,
-      ),
+      'US Major Leagues & Sports': (l10n.tvDescUsLeagues, _usSports),
+      'Global Football & Soccer': (l10n.tvDescSoccer, _soccer),
       'Boxing': (l10n.tvDescBoxing, _boxing),
       'Combat & Martial Arts': (l10n.tvDescCombat, _combat),
-      'Motorsport & Racing': (
-        'Formula 1, MotoGP, NASCAR Cup, IndyCar & Rally WRC',
-        _racing,
-      ),
-      'Movies & Premium Networks': (
-        'HBO, Showtime, Starz, Cinemax, Paramount & AMC',
-        _movies,
-      ),
-      '24/7 Global News Networks': (
-        'CNN, BBC World, Fox News, Sky News, Al Jazeera & Bloomberg',
-        _news,
-      ),
-      'Arabic & Regional Hub': (
-        'MBC, Rotana, OSN, Abu Dhabi TV, Dubai TV & Al Arabiya',
-        _arabic,
-      ),
-      'Discovery & Documentaries': (
-        'National Geographic, Discovery Channel, History & Animal Planet',
-        _discovery,
-      ),
-      'Kids & Family': (
-        'Cartoon Network, Disney Channel, Nickelodeon & Spacetoon',
-        _kids,
-      ),
+      'Motorsport & Racing': (l10n.tvDescRacing, _racing),
+      'Movies & Premium Networks': (l10n.tvDescMovies, _movies),
+      '24/7 Global News Networks': (l10n.tvDescNews, _news),
+      'Arabic & Regional Hub': (l10n.tvDescArabic, _arabic),
+      'Discovery & Documentaries': (l10n.tvDescDiscovery, _discovery),
+      'Kids & Family': (l10n.tvDescKids, _kids),
       'US Region': (l10n.tvDescUs, HardcodedChannels.byCategory('US')),
       'UK Region': (l10n.tvDescUk, HardcodedChannels.byCategory('UK')),
-      'Canada Region': (
-        'CBC News, CTV News, TSN Sportsnet, Crave & Global News',
-        HardcodedChannels.byCategory('CA'),
-      ),
+      'Canada Region': (l10n.tvDescCanada, HardcodedChannels.byCategory('CA')),
       'Bay Area': (
-        'KTVU Fox 2, KPIX 5 CBS, KGO 7 ABC, KRON 4 & NBC Bay Area',
+        l10n.tvDescBayArea,
         HardcodedChannels.byCategory('Bay Area'),
       ),
       'International Sports': (

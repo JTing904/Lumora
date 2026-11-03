@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:media_kit/media_kit.dart';
 
@@ -49,6 +48,7 @@ import './services/config/env_service.dart';
 import './services/config/service_credentials.dart';
 import './services/window/window_service.dart';
 import './services/profiles/windows_state_migration.dart';
+import './services/storage/windows_prefs_guard.dart';
 import './services/discord/discord_rpc_service.dart';
 import './services/diagnostics/crash_breadcrumbs.dart';
 import './services/diagnostics/crash_reporter.dart';
@@ -73,7 +73,7 @@ void main() async {
   CrashReporter.install();
   MediaKit.ensureInitialized();
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    await windowManager.ensureInitialized();
+    await _startupStep('WindowManager', windowManager.ensureInitialized);
     await WindowService.instance.initialize();
   }
 
@@ -82,8 +82,11 @@ void main() async {
   // would leave the pointer-device layout on a television with no rebuild to
   // correct it. One round trip, and only on Android.
   if (kDebugMode) FocusDebug.install();
-  await DeviceProfile.resolve();
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  await _startupStep('DeviceProfile', DeviceProfile.resolve);
+  // After the form factor is known: a phone shows its system bars edge to
+  // edge and a television stays immersive. Players hide the bars while open
+  // and put this mode back when they close.
+  unawaited(WindowService.instance.applyNormalSystemUi());
 
   // Only what the first frame reads synchronously is awaited here: the theme
   // decides the MaterialApp palette at build time, and EnvService supplies the
@@ -101,42 +104,56 @@ void main() async {
   } catch (e) {
     debugPrint('[Startup] Windows state migration failed: $e');
   }
+  // After the migration (which may have just copied the file in) and before
+  // the first read: the Windows plugin throws on a damaged file, and that
+  // would stop main before runApp, leaving a process with no window.
+  final prefsCheck = guardWindowsPreferencesFile();
+  if (prefsCheck != PreferencesFileCheck.valid &&
+      prefsCheck != PreferencesFileCheck.notApplicable) {
+    debugPrint('[Startup] preferences file: ${prefsCheck.name}');
+  }
   // Before anything saves: an install with saved state is an update.
   try {
     WhatsNew.hadPrefs = (await SharedPreferences.getInstance())
         .getKeys()
         .isNotEmpty;
   } catch (_) {}
-  await EnvService.initialize();
+  // Each step below is guarded on its own: the window only appears on the
+  // first frame, so one initialiser throwing here would leave the app running
+  // with no window at all. A service that failed to load starts with its
+  // defaults instead.
+  await _startupStep('EnvService', EnvService.initialize);
   // Before the first frame: the frame shows the sign-in page or the app.
-  await AccountService.initialize();
+  await _startupStep('AccountService', AccountService.initialize);
   // Before the library services read: an updated install's library becomes
-  // the signed-in account's.
-  await AccountScope.adoptUnscopedLibrary();
+  // the signed-in account's. The account they load for is noted, so a
+  // session that changes while they load is caught up by the sync.
+  final libraryAccount = AccountScope.userId;
+  await _startupStep('AccountScope', AccountScope.adoptUnscopedLibrary);
   unawaited(UrlScheme.register());
-  await PlayerSettings.initialize();
-  await LocaleSettings.initialize();
-  await SourcePickSettings.initialize();
-  await IntroOutroStore.load();
-  await WatchedEpisodes.initialize();
-  await NetworkSpeed.initialize();
-  await TasteStore.initialize();
+  await _startupStep('PlayerSettings', PlayerSettings.initialize);
+  await _startupStep('LocaleSettings', LocaleSettings.initialize);
+  await _startupStep('SourcePickSettings', SourcePickSettings.initialize);
+  await _startupStep('IntroOutroStore', IntroOutroStore.load);
+  await _startupStep('WatchedEpisodes', WatchedEpisodes.initialize);
+  await _startupStep('NetworkSpeed', NetworkSpeed.initialize);
+  await _startupStep('TasteStore', TasteStore.initialize);
   await Future.wait([
-    AppThemeService.initialize(),
+    _startupStep('AppThemeService', AppThemeService.initialize),
     // The first frame mounts the shell, which mounts HomePage, and HomePage
     // listens to these.
-    HomePageSettings.initialize(),
-    MyListService.initialize(),
-    ContinueWatchingService.initialize(),
-    CustomBackgroundService.initialize(),
-    GlassSettings.initialize(),
-    ContentSettings.initialize(),
+    _startupStep('HomePageSettings', HomePageSettings.initialize),
+    _startupStep('MyListService', MyListService.initialize),
+    _startupStep('ContinueWatchingService', ContinueWatchingService.initialize),
+    _startupStep('CustomBackgroundService', CustomBackgroundService.initialize),
+    _startupStep('GlassSettings', GlassSettings.initialize),
+    _startupStep('ContentSettings', ContentSettings.initialize),
     // The Home rails' visibility switch is read on the first frame.
-    CollectionsService.initialize(),
-    RendererBackendSettings.initialize(),
+    _startupStep('CollectionsService', CollectionsService.initialize),
+    _startupStep('RendererBackendSettings', RendererBackendSettings.initialize),
   ]);
   runApp(const ZPlayApp());
-  LibrarySync.start();
+  LibrarySync.start(loadedFor: libraryAccount);
   if (kDebugMode) PerfMonitor.start();
   unawaited(CrashBreadcrumbs.initialize());
   CrashBreadcrumbs.lifecycle('start');
@@ -147,18 +164,23 @@ void main() async {
   );
 }
 
+/// Runs one startup initialiser and logs a failure instead of letting it
+/// propagate, so it cannot stop the app from launching.
+Future<void> _startupStep(String label, FutureOr<void> Function() init) async {
+  try {
+    await init();
+  } catch (e, stack) {
+    debugPrint('[Startup] $label failed to initialize: $e');
+    CrashReporter.record(e, stack, kind: 'startup');
+  }
+}
+
 /// Service warm-up that the UI can render without: catalogs, downloads, the
 /// torrent engine and integrations the user has to navigate to first. Failures
 /// are logged and swallowed — a broken optional integration must not stop the
 /// app from launching.
 Future<void> _initializeDeferredServices() async {
-  Future<void> guard(String label, Future<void> Function() init) async {
-    try {
-      await init();
-    } catch (e) {
-      debugPrint('[Startup] $label failed to initialize: $e');
-    }
-  }
+  const guard = _startupStep;
 
   await Future.wait([
     guard('AddonManager', AddonManager.instance.initialize),
@@ -236,7 +258,11 @@ class _ZPlayAppState extends State<ZPlayApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     CrashBreadcrumbs.lifecycle(state.name);
     // Back from another device, maybe: pick up the account's library.
-    if (state == AppLifecycleState.resumed) unawaited(LibrarySync.pull());
+    // An invite check that failed offline is asked again too.
+    if (state == AppLifecycleState.resumed) {
+      unawaited(LibrarySync.pull());
+      AccountService.recheckIfOffline();
+    }
     if (state == AppLifecycleState.detached) {
       CrashBreadcrumbs.memory('app.detached');
     }

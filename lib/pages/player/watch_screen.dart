@@ -11,6 +11,7 @@ import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/common/page_back_keys.dart';
 import '../../widgets/common/zplay_logo.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
@@ -82,15 +83,20 @@ class WatchScreen extends StatelessWidget {
   @visibleForTesting
   static Future<bool> Function(StreamSource source)? debugProbeForTesting;
 
+  // Esc and the mouse's back button close the source list too: it is where
+  // leaving the player lands, and it was the one page on the way back that
+  // ignored them.
   @override
   Widget build(BuildContext context) => SignInRequired(
-    child: _WatchScreenBody(
-      detail: detail,
-      selectedEpisode: selectedEpisode,
-      type: type,
-      initialPosition: initialPosition,
-      isCollection: isCollection,
-      autoPick: autoPick,
+    child: PageBackKeys(
+      child: _WatchScreenBody(
+        detail: detail,
+        selectedEpisode: selectedEpisode,
+        type: type,
+        initialPosition: initialPosition,
+        isCollection: isCollection,
+        autoPick: autoPick,
+      ),
     ),
   );
 }

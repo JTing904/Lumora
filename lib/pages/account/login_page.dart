@@ -72,7 +72,14 @@ class _AccountGateState extends State<AccountGate> {
 /// a figure turning on the left and a glass card on the right, over a wall of
 /// this week's posters. On a phone the figure sits above the form.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.signUp, this.signIn, this.figure});
+  const LoginPage({
+    super.key,
+    this.signUp,
+    this.signIn,
+    this.socialSignUp,
+    this.providers,
+    this.figure,
+  });
 
   /// Stand-ins for [AccountService] in tests.
   final Future<SignUpResult> Function(
@@ -82,6 +89,12 @@ class LoginPage extends StatefulWidget {
   )?
   signUp;
   final Future<void> Function(String email, String password)? signIn;
+  final Future<void> Function(OAuthProvider provider, String code)?
+  socialSignUp;
+
+  /// The one-tap sign-ins to offer; [AccountService.socialProviders] when
+  /// null.
+  final ValueListenable<Set<String>>? providers;
 
   /// The figure to show first; random when null.
   final LuFigure? figure;
@@ -116,10 +129,24 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     unawaited(AccountService.ensureSocialProviders());
+    AccountService.inviteFirst.addListener(_onInviteFirst);
+    if (AccountService.inviteFirst.value) _registering = true;
+  }
+
+  /// An account made through 登录 without a code was just removed: open 注册,
+  /// where the code comes first.
+  void _onInviteFirst() {
+    if (!AccountService.inviteFirst.value || !mounted) return;
+    setState(() {
+      _registering = true;
+      _notice = null;
+      _error = null;
+    });
   }
 
   @override
   void dispose() {
+    AccountService.inviteFirst.removeListener(_onInviteFirst);
     _email.dispose();
     _password.dispose();
     _invite.dispose();
@@ -139,27 +166,55 @@ class _LoginPageState extends State<LoginPage> {
     AccountError.unknown => l10n.authErrUnknown,
   };
 
-  void _toggleMode() => setState(() {
-    _registering = !_registering;
-    _error = null;
-    _notice = null;
-  });
+  void _toggleMode() {
+    AccountService.inviteFirst.value = false;
+    setState(() {
+      _registering = !_registering;
+      _error = null;
+      _notice = null;
+    });
+  }
 
   /// GitHub, Discord (or Google, Facebook) in the browser; the session comes
-  /// back by itself.
+  /// back by itself. Under 注册 the invite code is checked first and spent
+  /// when the account comes back; under 登录 it is for accounts that exist.
   Future<void> _social(OAuthProvider provider) async {
     // One browser sign-in at a time: a second tap would replace the first
     // one's PKCE verifier and fail it.
     if (_busy) return;
+    final l10n = l10nOf(context);
+    final code = _invite.text.trim();
+    if (_registering && normalizeInviteCode(code).isEmpty) {
+      setState(() {
+        _notice = null;
+        _error = l10n.authErrInviteMissing;
+      });
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
       _notice = null;
     });
     try {
-      await AccountService.signInWith(provider);
+      if (_registering) {
+        await (widget.socialSignUp ?? AccountService.signUpWith)(
+          provider,
+          code,
+        );
+      } else {
+        await AccountService.signInWith(provider);
+      }
+    } on AccountException catch (e) {
+      if (mounted) {
+        setState(
+          () => _error = e.error == AccountError.invalidInvite
+              ? _message(l10n, e.error)
+              : l10n.authOAuthFailed,
+        );
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = l10nOf(context).authOAuthFailed);
+      if (mounted) setState(() => _error = l10n.authOAuthFailed);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -626,6 +681,22 @@ class _LoginPageState extends State<LoginPage> {
                   )
                 : const SizedBox(width: double.infinity),
           ),
+          if (_error == null && _notice == null)
+            ValueListenableBuilder<bool>(
+              valueListenable: AccountService.inviteFirst,
+              builder: (context, on, _) => on && _registering
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: LuSpace.m),
+                      child: Text(
+                        l10n.authInviteFirst,
+                        style: LuText.body.copyWith(
+                          fontSize: 14,
+                          color: LuColors.danger,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           if (_error != null || _notice != null) ...[
             const SizedBox(height: LuSpace.m),
             Text(
@@ -643,34 +714,37 @@ class _LoginPageState extends State<LoginPage> {
             busy: _busy,
             onPressed: _submit,
           ),
-          // One tap with an account the viewer already has. A first sign-in
-          // this way asks for an invite code once (see [RedeemInvitePage]).
-          if (!_registering && widget.signIn == null)
+          // Under 登录, one tap with an account the viewer already has; under
+          // 注册, a new account through the provider, the code above first.
+          if (widget.signIn == null || widget.socialSignUp != null)
             ValueListenableBuilder<Set<String>>(
-              valueListenable: AccountService.socialProviders,
+              valueListenable:
+                  widget.providers ?? AccountService.socialProviders,
               builder: (context, on, _) {
+                String label(String name, String signIn) =>
+                    _registering ? l10n.authSignUpWith(name) : signIn;
                 final buttons = [
                   if (on.contains('github'))
                     (
-                      l10n.authWithGithub,
+                      label('GitHub', l10n.authWithGithub),
                       Icons.code_rounded,
                       OAuthProvider.github,
                     ),
                   if (on.contains('discord'))
                     (
-                      l10n.authWithDiscord,
+                      label('Discord', l10n.authWithDiscord),
                       Icons.discord,
                       OAuthProvider.discord,
                     ),
                   if (on.contains('google'))
                     (
-                      l10n.authWithGoogle,
+                      label('Google', l10n.authWithGoogle),
                       Icons.g_mobiledata_rounded,
                       OAuthProvider.google,
                     ),
                   if (on.contains('facebook'))
                     (
-                      l10n.authWithFacebook,
+                      label('Facebook', l10n.authWithFacebook),
                       Icons.facebook_rounded,
                       OAuthProvider.facebook,
                     ),

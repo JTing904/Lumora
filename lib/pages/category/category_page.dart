@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../l10n/l10n.dart';
 import '../../models/movie/movie.dart';
+import '../../services/home/row_refresh.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/settings/locale_settings.dart';
 import '../../services/metadata/tmdb_catalog.dart';
@@ -195,7 +196,8 @@ class CategoryPage extends StatefulWidget {
   State<CategoryPage> createState() => _CategoryPageState();
 }
 
-class _CategoryPageState extends State<CategoryPage> {
+class _CategoryPageState extends State<CategoryPage>
+    with WidgetsBindingObserver {
   late final List<_RowSpec> _specs = _rowsFor(widget.kind);
 
   /// Each row's titles once loaded; null while loading.
@@ -204,6 +206,13 @@ class _CategoryPageState extends State<CategoryPage> {
   bool _started = false;
   ValueListenable<ShellSlot>? _current;
 
+  /// The rows whose last read failed, asked again quietly by [_refresh].
+  final Set<int> _failed = {};
+  final RowRefresh _refresh = RowRefresh();
+
+  /// A read is running: a quiet retry waits for it rather than cut it off.
+  bool _busy = false;
+
   /// Bumped on every reload (a new language, Retry), so a row that lands for
   /// an older one is dropped.
   int _generation = 0;
@@ -211,7 +220,30 @@ class _CategoryPageState extends State<CategoryPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     LocaleSettings.locale.addListener(_onLocaleChanged);
+  }
+
+  /// The window or the app is back in front, with this page showing.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        (_current == null || _current!.value == widget.slot)) {
+      _revisit();
+    }
+  }
+
+  /// The viewer is back on this page: rows older than six hours are read
+  /// again (staying on screen until the new ones land), and failed ones at
+  /// once.
+  void _revisit() {
+    if (!_started || !mounted) return;
+    if (_refresh.isStale) {
+      _generation++;
+      _load(fresh: true);
+    } else if (_failed.isNotEmpty && !_busy) {
+      _load(onlyFailed: true);
+    }
   }
 
   /// TMDb answers in the viewer's language, so a new one reads the rows
@@ -257,44 +289,91 @@ class _CategoryPageState extends State<CategoryPage> {
     }
   }
 
+  /// The first visit loads the page; later ones refresh it ([_revisit]).
   void _onSlotChanged() {
-    if (_current?.value == widget.slot) _start();
+    if (_current?.value != widget.slot) return;
+    if (_started) {
+      _revisit();
+    } else {
+      _start();
+    }
   }
 
   void _start() {
     if (_started) return;
     _started = true;
-    _current?.removeListener(_onSlotChanged);
     _load();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refresh.dispose();
     LocaleSettings.locale.removeListener(_onLocaleChanged);
     _current?.removeListener(_onSlotChanged);
     super.dispose();
   }
 
-  /// Every row, or with [onlyMissing] those not loaded. The rows already on
-  /// screen stay until their new titles land, so a reload does not blank the
-  /// page.
-  Future<void> _load({bool onlyMissing = false}) async {
+  /// Every row, or with [onlyMissing] those not loaded, or with
+  /// [onlyFailed] those whose last read failed. The rows already on screen
+  /// stay until their new titles land, so a reload does not blank the page;
+  /// a row that fails keeps what it showed and is asked again quietly.
+  /// [fresh] reads past [TmdbCatalog]'s ten-minute cache.
+  Future<void> _load({
+    bool onlyMissing = false,
+    bool onlyFailed = false,
+    bool fresh = false,
+  }) async {
+    if (onlyFailed && _busy) return;
     final generation = _generation;
-    bool wanted(int i) => !onlyMissing || _rows[i] == null;
+    _busy = true;
+    final asked = {
+      for (var i = 0; i < _specs.length; i++)
+        if ((!onlyMissing || _rows[i] == null) &&
+            (!onlyFailed || _failed.contains(i)))
+          i,
+    };
+    bool wanted(int i) => asked.contains(i);
+    final failed = <int>{};
     // The first row first, so the featured title arrives as early as it can,
     // then the rest together.
-    if (wanted(0)) await _loadRow(0, generation);
+    if (wanted(0) && !await _loadRow(0, generation, fresh)) failed.add(0);
     if (!mounted || generation != _generation) return;
-    await Future.wait([
+    final rest = await Future.wait([
       for (var i = 1; i < _specs.length; i++)
-        if (wanted(i)) _loadRow(i, generation),
+        if (wanted(i))
+          _loadRow(i, generation, fresh).then((ok) => ok ? null : i),
     ]);
+    if (!mounted || generation != _generation) return;
+    failed.addAll(rest.whereType<int>());
+    _busy = false;
+    // Only the rows asked about this time can have changed their state.
+    _failed
+      ..removeAll(asked)
+      ..addAll(failed);
+    if (!onlyFailed && !onlyMissing) _refresh.loaded();
+    if (_failed.isEmpty) {
+      _refresh.succeeded();
+    } else {
+      _refresh.scheduleRetry(() {
+        if (mounted) _load(onlyFailed: true);
+      });
+    }
   }
 
-  Future<void> _loadRow(int i, int generation) async {
-    final movies = await TmdbCatalog.row(_specs[i].query, resolveImdb: false);
-    if (!mounted || generation != _generation) return;
-    setState(() => _rows[i] = movies);
+  /// Reads row [i]; false when TMDb could not be read. A failed row keeps
+  /// its titles, or shows nothing when it had none.
+  Future<bool> _loadRow(int i, int generation, bool fresh) async {
+    final page = await TmdbCatalog.page(
+      _specs[i].query,
+      resolveImdb: false,
+      refresh: fresh,
+    );
+    if (!mounted || generation != _generation) return true;
+    if (page != null || _rows[i] == null) {
+      setState(() => _rows[i] = page?.movies ?? const []);
+    }
+    return page != null;
   }
 
   @override
@@ -319,86 +398,103 @@ class _CategoryPageState extends State<CategoryPage> {
       data: luTheme(),
       child: ColoredBox(
         color: LuColors.bg,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              // A filter's results take the page: the carousel is only for
-              // browsing the rows.
-              child: featured.isEmpty || !_filter.isDefault
-                  ? SizedBox(height: MediaQuery.paddingOf(context).top + 24)
-                  : LuHeroCarousel(movies: featured, phone: phone, pad: pad),
-            ),
-            SliverToBoxAdapter(child: _filterBar(context, pad)),
-            if (!_filter.isDefault)
+        child: _pullToRefresh(
+          phone,
+          CustomScrollView(
+            // Scrollable however short, so a pull always reaches the indicator.
+            physics: phone ? const AlwaysScrollableScrollPhysics() : null,
+            slivers: [
               SliverToBoxAdapter(
-                child: CategoryFilterResults(
-                  kind: widget.kind,
-                  filter: _filter,
-                  padding: pad,
-                ),
+                // A filter's results take the page: the carousel is only for
+                // browsing the rows.
+                child: featured.isEmpty || !_filter.isDefault
+                    ? SizedBox(height: MediaQuery.paddingOf(context).top + 24)
+                    : LuHeroCarousel(movies: featured, phone: phone, pad: pad),
               ),
-            if (_filter.isDefault && empty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(48),
-                  child: Column(
-                    children: [
-                      Text(
-                        l10n.catEmpty,
-                        textAlign: TextAlign.center,
-                        style: LuText.bodySoft,
-                      ),
-                      const SizedBox(height: 20),
-                      LuButton(
-                        label: l10n.actionRetry,
-                        icon: Icons.refresh_rounded,
-                        kind: LuButtonKind.secondary,
-                        onPressed: _retry,
-                      ),
-                    ],
+              SliverToBoxAdapter(child: _filterBar(context, pad)),
+              if (!_filter.isDefault)
+                SliverToBoxAdapter(
+                  child: CategoryFilterResults(
+                    kind: widget.kind,
+                    filter: _filter,
+                    padding: pad,
                   ),
                 ),
-              ),
-            for (var i = 0; i < _specs.length && _filter.isDefault; i++)
-              SliverToBoxAdapter(
-                child: switch (_rows[i]) {
-                  null => SizedBox(height: railH + 52),
-                  final movies when movies.length < 4 =>
-                    const SizedBox.shrink(),
-                  final movies => Padding(
-                    padding: const EdgeInsets.only(bottom: 36),
-                    child: LuRail(
-                      title: _specs[i].title(l10n),
-                      padding: pad,
-                      height: railH,
-                      itemCount: movies.length,
-                      itemBuilder: (context, j) {
-                        final m = movies[j];
-                        return LuPosterCard(
-                          width: posterW,
-                          title: m.name,
-                          titleId: m.id,
-                          series: m.type == 'series',
-                          poster: m.poster,
-                          subtitle: m.year,
-                          rating: m.imdbRating,
-                          onTap: () => PlayLauncher.openDetails(context, m),
-                        );
-                      },
+              if (_filter.isDefault && empty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Column(
+                      children: [
+                        Text(
+                          l10n.catEmpty,
+                          textAlign: TextAlign.center,
+                          style: LuText.bodySoft,
+                        ),
+                        const SizedBox(height: 20),
+                        LuButton(
+                          label: l10n.actionRetry,
+                          icon: Icons.refresh_rounded,
+                          kind: LuButtonKind.secondary,
+                          onPressed: _retry,
+                        ),
+                      ],
                     ),
                   ),
-                },
+                ),
+              for (var i = 0; i < _specs.length && _filter.isDefault; i++)
+                SliverToBoxAdapter(
+                  child: switch (_rows[i]) {
+                    null => SizedBox(height: railH + 52),
+                    final movies when movies.length < 4 =>
+                      const SizedBox.shrink(),
+                    final movies => Padding(
+                      padding: const EdgeInsets.only(bottom: 36),
+                      child: LuRail(
+                        title: _specs[i].title(l10n),
+                        padding: pad,
+                        height: railH,
+                        itemCount: movies.length,
+                        itemBuilder: (context, j) {
+                          final m = movies[j];
+                          return LuPosterCard(
+                            width: posterW,
+                            title: m.name,
+                            titleId: m.id,
+                            series: m.type == 'series',
+                            poster: m.poster,
+                            subtitle: m.year,
+                            rating: m.imdbRating,
+                            onTap: () => PlayLauncher.openDetails(context, m),
+                          );
+                        },
+                      ),
+                    ),
+                  },
+                ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 48 + MediaQuery.paddingOf(context).bottom,
+                ),
               ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 48 + MediaQuery.paddingOf(context).bottom,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  /// On a phone, a pull at the top reads every row again.
+  Widget _pullToRefresh(bool phone, Widget scroll) => phone
+      ? RefreshIndicator(
+          color: LuColors.gold,
+          onRefresh: () {
+            _generation++;
+            return _load(fresh: true);
+          },
+          child: scroll,
+        )
+      : scroll;
 
   /// 筛选 and, once something is picked, 清除; the panel opens under them.
   Widget _filterBar(BuildContext context, double pad) {

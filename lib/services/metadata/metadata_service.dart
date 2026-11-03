@@ -1,6 +1,8 @@
 import 'localized_meta.dart';
 import 'dart:convert';
 
+import '../../l10n/l10n.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -35,8 +37,23 @@ class MetadataService {
   static DateTime Function() clock = DateTime.now;
 
   static final Map<String, ({List<Movie> movies, DateTime fetchedAt})>
-      _catalogCache = {};
-  static final Map<String, MovieDetail> _metaCache = {};
+  _catalogCache = {};
+  static final Map<String, ({MovieDetail detail, DateTime fetchedAt})>
+  _metaCache = {};
+
+  /// How long a title's details stay fresh: an hour for a series, whose
+  /// episode list grows while it airs, a day for anything else. Without one
+  /// an airing show kept the episodes of the first time it was opened until
+  /// the app was restarted.
+  static Duration metaCacheTtl(MovieDetail detail) =>
+      detail.type == 'series' || detail.type == 'tv'
+      ? const Duration(hours: 1)
+      : const Duration(hours: 24);
+
+  /// [url] in the app's language: the details carry the viewer's-language
+  /// title and synopsis, so a switch of language must not be served the
+  /// other one's.
+  static String _metaKey(String url) => '${l10nCurrent().localeName}|$url';
 
   /// Raw IMDb suggestion bodies, keyed by request URL. Type and limit filters
   /// are applied when mapping, so one fetch serves every variant of a query.
@@ -97,9 +114,7 @@ class MetadataService {
     }
 
     if (response.statusCode != 200) {
-      throw Exception(
-        'Failed to fetch manifest (${response.statusCode})',
-      );
+      throw Exception('Failed to fetch manifest (${response.statusCode})');
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -117,9 +132,12 @@ class MetadataService {
     required String catalogId,
     Map<String, String>? extraParams,
   }) {
-    final effectiveBaseUrl = (baseUrl.trim().isEmpty || !baseUrl.startsWith('http'))
+    final effectiveBaseUrl =
+        (baseUrl.trim().isEmpty || !baseUrl.startsWith('http'))
         ? 'https://v3-cinemeta.strem.io'
-        : (baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl);
+        : (baseUrl.endsWith('/')
+              ? baseUrl.substring(0, baseUrl.length - 1)
+              : baseUrl);
 
     final cleanType = Uri.encodeComponent(type);
     final cleanId = Uri.encodeComponent(catalogId);
@@ -151,9 +169,12 @@ class MetadataService {
     Map<String, String>? extraParams,
   }) async {
     final resolvedBaseUrl = await AddonUrlResolver.resolve(baseUrl);
-    final effectiveBaseUrl = (resolvedBaseUrl.trim().isEmpty || !resolvedBaseUrl.startsWith('http'))
+    final effectiveBaseUrl =
+        (resolvedBaseUrl.trim().isEmpty || !resolvedBaseUrl.startsWith('http'))
         ? 'https://v3-cinemeta.strem.io'
-        : (resolvedBaseUrl.endsWith('/') ? resolvedBaseUrl.substring(0, resolvedBaseUrl.length - 1) : resolvedBaseUrl);
+        : (resolvedBaseUrl.endsWith('/')
+              ? resolvedBaseUrl.substring(0, resolvedBaseUrl.length - 1)
+              : resolvedBaseUrl);
 
     final mergedExtras = <String, String>{};
     if (extraParams != null) {
@@ -209,7 +230,10 @@ class MetadataService {
     final metas = decoded['metas'] as List<dynamic>? ?? [];
 
     final result = metas
-        .map((item) => Movie.fromJson(item as Map<String, dynamic>, effectiveBaseUrl))
+        .map(
+          (item) =>
+              Movie.fromJson(item as Map<String, dynamic>, effectiveBaseUrl),
+        )
         .where((movie) => movie.id.isNotEmpty && movie.name.isNotEmpty)
         .toList();
 
@@ -229,9 +253,12 @@ class MetadataService {
     Map<String, String>? extraParams,
   }) async {
     final resolvedBaseUrl = await AddonUrlResolver.resolve(baseUrl);
-    final effectiveBaseUrl = (resolvedBaseUrl.trim().isEmpty || !resolvedBaseUrl.startsWith('http'))
+    final effectiveBaseUrl =
+        (resolvedBaseUrl.trim().isEmpty || !resolvedBaseUrl.startsWith('http'))
         ? 'https://v3-cinemeta.strem.io'
-        : (resolvedBaseUrl.endsWith('/') ? resolvedBaseUrl.substring(0, resolvedBaseUrl.length - 1) : resolvedBaseUrl);
+        : (resolvedBaseUrl.endsWith('/')
+              ? resolvedBaseUrl.substring(0, resolvedBaseUrl.length - 1)
+              : resolvedBaseUrl);
 
     final mergedExtras = <String, String>{'search': query.trim()};
     if (extraParams != null) {
@@ -278,19 +305,22 @@ class MetadataService {
     }
 
     if (response.statusCode != 200) return [];
-    
+
     final bodyStr = response.body.trim();
     if (bodyStr.isEmpty) return [];
 
     try {
       final decoded = jsonDecode(bodyStr) as Map<String, dynamic>;
       final metas = decoded['metas'] as List<dynamic>? ?? [];
-      
+
       final result = metas
-          .map((item) => Movie.fromJson(item as Map<String, dynamic>, effectiveBaseUrl))
+          .map(
+            (item) =>
+                Movie.fromJson(item as Map<String, dynamic>, effectiveBaseUrl),
+          )
           .where((movie) => movie.id.isNotEmpty && movie.name.isNotEmpty)
           .toList();
-          
+
       _catalogCache[url] = (movies: result, fetchedAt: clock());
       return List.from(result);
     } catch (e) {
@@ -316,19 +346,29 @@ class MetadataService {
     required String imdbId,
   }) async {
     final resolvedBaseUrl = await AddonUrlResolver.resolve(baseUrl);
-    final effectiveBaseUrl = (resolvedBaseUrl.trim().isEmpty || !resolvedBaseUrl.startsWith('http'))
+    final effectiveBaseUrl =
+        (resolvedBaseUrl.trim().isEmpty || !resolvedBaseUrl.startsWith('http'))
         ? 'https://v3-cinemeta.strem.io'
-        : (resolvedBaseUrl.endsWith('/') ? resolvedBaseUrl.substring(0, resolvedBaseUrl.length - 1) : resolvedBaseUrl);
+        : (resolvedBaseUrl.endsWith('/')
+              ? resolvedBaseUrl.substring(0, resolvedBaseUrl.length - 1)
+              : resolvedBaseUrl);
 
     final encodedId = Uri.encodeComponent(imdbId);
     final url = '$effectiveBaseUrl/meta/$type/$encodedId.json';
 
-    if (_metaCache.containsKey(url)) {
-      final cached = _metaCache[url];
+    final key = _metaKey(url);
+    final entry = _metaCache[key];
+    if (entry != null &&
+        clock().difference(entry.fetchedAt) < metaCacheTtl(entry.detail)) {
+      final cached = entry.detail;
       // A detail cached before its Chinese text arrived picks it up now.
-      if (cached == null || cached.localName != null) return cached;
-      return _metaCache[url] = await LocalizedMeta.apply(cached);
+      if (cached.localName != null) return cached;
+      final localized = await LocalizedMeta.apply(cached);
+      _metaCache[key] = (detail: localized, fetchedAt: entry.fetchedAt);
+      return localized;
     }
+    // Expired: dropped, and read again below.
+    _metaCache.remove(key);
 
     http.Response? response;
     try {
@@ -341,7 +381,9 @@ class MetadataService {
         !effectiveBaseUrl.contains('/{}')) {
       try {
         final configUrl = '$effectiveBaseUrl/%7B%7D/meta/$type/$encodedId.json';
-        final configResp = await client.get(Uri.parse(configUrl)).timeout(_metaTimeout);
+        final configResp = await client
+            .get(Uri.parse(configUrl))
+            .timeout(_metaTimeout);
         if (configResp.statusCode == 200) {
           response = configResp;
         }
@@ -353,12 +395,17 @@ class MetadataService {
         (type == 'collections' || type == 'collection')) {
       try {
         final movieUrl = '$effectiveBaseUrl/meta/movie/$encodedId.json';
-        var movieResp = await client.get(Uri.parse(movieUrl)).timeout(_metaTimeout);
+        var movieResp = await client
+            .get(Uri.parse(movieUrl))
+            .timeout(_metaTimeout);
         if (movieResp.statusCode == 404 &&
             !effectiveBaseUrl.contains('/%7B') &&
             !effectiveBaseUrl.contains('/{}')) {
-          final configMovieUrl = '$effectiveBaseUrl/%7B%7D/meta/movie/$encodedId.json';
-          movieResp = await client.get(Uri.parse(configMovieUrl)).timeout(_metaTimeout);
+          final configMovieUrl =
+              '$effectiveBaseUrl/%7B%7D/meta/movie/$encodedId.json';
+          movieResp = await client
+              .get(Uri.parse(configMovieUrl))
+              .timeout(_metaTimeout);
         }
         if (movieResp.statusCode == 200) {
           response = movieResp;
@@ -372,12 +419,17 @@ class MetadataService {
         imdbId.startsWith('ctmdb.')) {
       try {
         final collUrl = '$effectiveBaseUrl/meta/collections/$encodedId.json';
-        var collResp = await client.get(Uri.parse(collUrl)).timeout(_metaTimeout);
+        var collResp = await client
+            .get(Uri.parse(collUrl))
+            .timeout(_metaTimeout);
         if (collResp.statusCode == 404 &&
             !effectiveBaseUrl.contains('/%7B') &&
             !effectiveBaseUrl.contains('/{}')) {
-          final configCollUrl = '$effectiveBaseUrl/%7B%7D/meta/collections/$encodedId.json';
-          collResp = await client.get(Uri.parse(configCollUrl)).timeout(_metaTimeout);
+          final configCollUrl =
+              '$effectiveBaseUrl/%7B%7D/meta/collections/$encodedId.json';
+          collResp = await client
+              .get(Uri.parse(configCollUrl))
+              .timeout(_metaTimeout);
         }
         if (collResp.statusCode == 200) {
           response = collResp;
@@ -386,7 +438,7 @@ class MetadataService {
     }
 
     if (response == null || response.statusCode != 200) return null;
-    
+
     final bodyStr = response.body.trim();
     if (bodyStr.isEmpty) return null;
 
@@ -395,10 +447,10 @@ class MetadataService {
       final meta = decoded['meta'] as Map<String, dynamic>?;
 
       if (meta == null) return null;
-      
+
       // The viewer's-language title and synopsis, on display-only fields.
       final result = await LocalizedMeta.apply(MovieDetail.fromJson(meta));
-      _metaCache[url] = result;
+      _metaCache[key] = (detail: result, fetchedAt: clock());
       return result;
     } catch (e) {
       return null;
@@ -430,7 +482,8 @@ class MetadataService {
     if (trimmed.isEmpty) return [];
 
     final encoded = Uri.encodeComponent(trimmed);
-    final url = 'https://v3.sg.media-imdb.com/suggestion/x/$encoded'
+    final url =
+        'https://v3.sg.media-imdb.com/suggestion/x/$encoded'
         '.json?includeVideos=0';
 
     final cached = _suggestionCache[url];
@@ -442,13 +495,15 @@ class MetadataService {
 
     String body;
     try {
-      final response = await client.get(
-        Uri.parse(url),
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': _browserUserAgent,
-        },
-      ).timeout(const Duration(seconds: 8));
+      final response = await client
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': _browserUserAgent,
+            },
+          )
+          .timeout(const Duration(seconds: 8));
       // Off the network and on a 503 is the same situation to the user, and
       // both used to be indistinguishable from "no such title".
       if (response.statusCode != 200) {
@@ -506,13 +561,15 @@ class MetadataService {
       if (type != null && resolvedType != type) continue;
 
       final year = entry['y']?.toString().trim();
-      result.add(Movie(
-        id: id,
-        name: name,
-        year: (year == null || year.isEmpty) ? null : year,
-        type: resolvedType ?? 'movie',
-        addonBaseUrl: _suggestionBaseUrl,
-      ));
+      result.add(
+        Movie(
+          id: id,
+          name: name,
+          year: (year == null || year.isEmpty) ? null : year,
+          type: resolvedType ?? 'movie',
+          addonBaseUrl: _suggestionBaseUrl,
+        ),
+      );
 
       if (result.length >= limit) break;
     }
@@ -548,7 +605,8 @@ class MetadataService {
 
     // The resolved title is served from the addon the caller came from, except
     // for the bestsimilar scraper, which serves no meta.
-    final targetBaseUrl = (preferredBaseUrl != null &&
+    final targetBaseUrl =
+        (preferredBaseUrl != null &&
             preferredBaseUrl.startsWith('http') &&
             !preferredBaseUrl.contains('bestsimilar'))
         ? preferredBaseUrl
@@ -560,8 +618,16 @@ class MetadataService {
 
     // Query both types to compare candidates across series and movie suggestions
     final results = await Future.wait([
-      suggestionSearch(query: query, type: firstType, onSourceError: onSourceError),
-      suggestionSearch(query: query, type: secondType, onSourceError: onSourceError),
+      suggestionSearch(
+        query: query,
+        type: firstType,
+        onSourceError: onSourceError,
+      ),
+      suggestionSearch(
+        query: query,
+        type: secondType,
+        onSourceError: onSourceError,
+      ),
     ]);
 
     final allCandidates = <Movie>[...results[0], ...results[1]];
@@ -595,7 +661,8 @@ class MetadataService {
       }
 
       if (type != null) {
-        final isCTv = (c.type == 'series' || c.type == 'tv' || c.type == 'anime');
+        final isCTv =
+            (c.type == 'series' || c.type == 'tv' || c.type == 'anime');
         if (isCTv == isPreferredTv) {
           score += 20;
         }

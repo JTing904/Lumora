@@ -997,14 +997,15 @@ class _AddonCard extends StatelessWidget {
   }
 
   /// A manifest content type ("movie", "series"...) as the app names it.
+  /// A type the app does not know is shown as the addon wrote it.
   static String _typeLabel(String type) {
-    if (l10nCurrent().localeName != 'zh') return type;
+    final l10n = l10nCurrent();
     return switch (type.toLowerCase()) {
-      'movie' => '电影',
-      'series' => '剧集',
-      'anime' => '动漫',
-      'tv' || 'channel' => '电视频道',
-      'events' => '赛事',
+      'movie' => l10n.addonTypeMovie,
+      'series' => l10n.addonTypeSeries,
+      'anime' => l10n.addonTypeAnime,
+      'tv' || 'channel' => l10n.addonTypeTv,
+      'events' => l10n.addonTypeEvents,
       _ => type,
     };
   }

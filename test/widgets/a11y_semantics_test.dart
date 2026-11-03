@@ -374,9 +374,13 @@ void main() {
 
       seeks.clear();
       tester.semantics.decrease(find.semantics.byLabel('Playback position'));
-      expect(seeks, [
-        const Duration(minutes: 12, seconds: 24),
-      ], reason: 'decrease is the ten seconds the left arrow seeks');
+      expect(
+        seeks,
+        [const Duration(minutes: 12, seconds: 34)],
+        reason:
+            'decrease is the ten seconds the left arrow seeks, from where '
+            'the step just before it aimed',
+      );
 
       handle.dispose();
     });

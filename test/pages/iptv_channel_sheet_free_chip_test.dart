@@ -24,36 +24,38 @@ final _channel = HardcodedChannels.byId('boxing_fight_sports')!;
 
 /// A stored hit carrying [sourceLabel] as its portal name, the way the scan
 /// persists a hit that did not come from an Xtream panel (no username).
-StoredHit _storedFreeHit(String sourceLabel, {String url = 'http://free.example/fightbox.m3u8'}) =>
-    StoredHit(
-      portalUrl: url,
-      portalUser: '',
-      portalPass: '',
-      portalName: sourceLabel,
-      streamId: url,
-      streamName: 'Fight Sports HD',
-      streamIcon: '',
-      streamCategoryId: '',
-      streamContainerExt: 'm3u8',
-      streamKind: 'live',
-      streamUrl: url,
-    );
+StoredHit _storedFreeHit(
+  String sourceLabel, {
+  String url = 'http://free.example/fightbox.m3u8',
+}) => StoredHit(
+  portalUrl: url,
+  portalUser: '',
+  portalPass: '',
+  portalName: sourceLabel,
+  streamId: url,
+  streamName: 'Fight Sports HD',
+  streamIcon: '',
+  streamCategoryId: '',
+  streamContainerExt: 'm3u8',
+  streamKind: 'live',
+  streamUrl: url,
+);
 
-/// A stored hit from a real panel: a username to show, so it is not mistaken
+/// A stored hit from a real panel: it has a username, so it is not mistaken
 /// for a playlist label.
 StoredHit _storedPortalHit() => const StoredHit(
-      portalUrl: 'http://panel.example:8080',
-      portalUser: 'john',
-      portalPass: 'secret',
-      portalName: 'Test panel',
-      streamId: '4242',
-      streamName: 'Fight Sports HD',
-      streamIcon: '',
-      streamCategoryId: '',
-      streamContainerExt: 'ts',
-      streamKind: 'live',
-      streamUrl: 'http://panel.example:8080/live/john/secret/4242.ts',
-    );
+  portalUrl: 'http://panel.example:8080',
+  portalUser: 'john',
+  portalPass: 'secret',
+  portalName: 'Test panel',
+  streamId: '4242',
+  streamName: 'Fight Sports HD',
+  streamIcon: '',
+  streamCategoryId: '',
+  streamContainerExt: 'ts',
+  streamKind: 'live',
+  streamUrl: 'http://panel.example:8080/live/john/secret/4242.ts',
+);
 
 /// Pumps the sheet and waits - bounded, never settled - for [text] to appear.
 ///
@@ -67,7 +69,9 @@ Future<void> _pumpSheet(WidgetTester tester, String text) async {
   addTearDown(tester.view.resetDevicePixelRatio);
 
   await tester.pumpWidget(
-    MaterialApp(home: Scaffold(body: IptvChannelSheet(channel: _channel))),
+    MaterialApp(
+      home: Scaffold(body: IptvChannelSheet(channel: _channel)),
+    ),
   );
 
   for (var frame = 0; frame < 60; frame++) {
@@ -113,7 +117,10 @@ void main() {
     tester,
   ) async {
     await IptvChannelResultsStore.save(_channel.id, [
-      _storedFreeHit('Your playlist: My Boxing', url: 'http://mine.example/box.m3u8'),
+      _storedFreeHit(
+        'Your playlist: My Boxing',
+        url: 'http://mine.example/box.m3u8',
+      ),
     ]);
 
     await _pumpSheet(tester, 'Your playlist: My Boxing');
@@ -129,17 +136,23 @@ void main() {
   testWidgets('a paid portal hit wears no FREE chip', (tester) async {
     await IptvChannelResultsStore.save(_channel.id, [_storedPortalHit()]);
 
-    await _pumpSheet(tester, 'john');
+    await _pumpSheet(tester, 'panel.example');
 
     expect(
-      find.text('john'),
+      find.text('panel.example'),
       findsOneWidget,
-      reason: 'a panel hit still names the panel account, as it always did',
+      reason: 'a panel hit is named by its server host',
+    );
+    expect(
+      find.text('john'),
+      findsNothing,
+      reason: 'the panel account login is never shown as a source label',
     );
     expect(
       find.text('FREE'),
       findsNothing,
-      reason: 'nothing about a paid panel is free, and the label does not say so',
+      reason:
+          'nothing about a paid panel is free, and the label does not say so',
     );
   });
 }

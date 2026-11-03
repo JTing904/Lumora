@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zplay/services/storage/secret_keys.dart';
@@ -15,6 +17,29 @@ class _MissingKeystore implements SecureKeyValueStore {
 
   @override
   Future<void> delete(String key) async => throw StateError('no keystore');
+}
+
+/// A keystore that is there but slow, like the first Android Keystore call
+/// on a slow phone. [delay] null means it never answers.
+class _SlowKeystore extends InMemorySecureKeyValueStore {
+  _SlowKeystore(this.delay);
+
+  final Duration? delay;
+
+  Future<void> _wait() =>
+      delay == null ? Completer<void>().future : Future<void>.delayed(delay!);
+
+  @override
+  Future<String?> read(String key) async {
+    await _wait();
+    return values[key];
+  }
+
+  @override
+  Future<void> write(String key, String value) async {
+    await _wait();
+    values[key] = value;
+  }
 }
 
 void main() {
@@ -106,6 +131,41 @@ void main() {
 
       await SecureStore.delete(SecretKeys.premiumizeApiKey);
       expect(await SecureStore.read(SecretKeys.premiumizeApiKey), isNull);
+    });
+  });
+
+  group('with a slow keystore', () {
+    setUp(() {
+      SecureStore.platformTimeout = const Duration(milliseconds: 20);
+      SecureStore.slowKeystoreGrace = const Duration(milliseconds: 200);
+    });
+
+    test('a read waits for a secret that is only in the keystore', () async {
+      final slow = _SlowKeystore(const Duration(milliseconds: 60))
+        ..values[SecretKeys.tmdbApiKey] = 'in-keystore';
+      SecureStore.storeOverride = slow;
+
+      expect(await SecureStore.read(SecretKeys.tmdbApiKey), 'in-keystore');
+    });
+
+    test('a slow write lands in the keystore, never in preferences', () async {
+      final slow = _SlowKeystore(const Duration(milliseconds: 60));
+      SecureStore.storeOverride = slow;
+
+      await SecureStore.write(SecretKeys.torboxApiKey, 'secret');
+
+      expect(slow.values[SecretKeys.torboxApiKey], 'secret');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey(SecretKeys.torboxApiKey), isFalse);
+    });
+
+    test('a write that never answers is not put in plaintext', () async {
+      SecureStore.storeOverride = _SlowKeystore(null);
+
+      await SecureStore.write(SecretKeys.torboxApiKey, 'secret');
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey(SecretKeys.torboxApiKey), isFalse);
     });
   });
 

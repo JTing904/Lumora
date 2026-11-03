@@ -1,3 +1,5 @@
+import '../../services/account/server_clock.dart';
+
 enum MyListSource { local, trakt, simkl }
 
 class MyListItem {
@@ -130,7 +132,7 @@ class MyListItem {
           ? int.tryParse(year.replaceAll(RegExp(r'[^0-9]'), ''))
           : null,
       type: type == 'series' || type == 'anime' ? 'series' : 'movie',
-      addedAt: DateTime.now(),
+      addedAt: ServerClock.now(),
       source: MyListSource.local,
     );
   }
@@ -161,7 +163,7 @@ class MyListItem {
           ? int.tryParse(year.replaceAll(RegExp(r'[^0-9]'), ''))
           : null,
       type: type == 'series' || type == 'anime' ? 'series' : 'movie',
-      addedAt: DateTime.now(),
+      addedAt: ServerClock.now(),
       source: MyListSource.local,
     );
   }

@@ -11,6 +11,7 @@ import '../../services/layout/form_factor.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/iptv/iptv_network.dart';
 import '../../services/iptv/iptv_settings.dart';
+import '../../services/iptv/iptv_source_label.dart';
 import '../../services/iptv/iptv_storage.dart';
 import '../../services/discord/discord_rpc_service.dart';
 import '../../utils/navigation/route_transitions.dart';
@@ -948,8 +949,9 @@ class _IptvPortalBrowserPageState extends State<IptvPortalBrowserPage> {
   @override
   Widget build(BuildContext context) {
     const tokens = luTokens;
-    final title = widget.portal?.name.isNotEmpty == true
-        ? widget.portal!.name
+    // A portal's name is its account login, so the title names its host.
+    final title = widget.portal != null
+        ? IptvSourceLabel.of(widget.portal!, position: 1)
         : (widget.m3uPlaylist?.name ?? l10nCurrent().tvIptvPortal);
 
     final isDesktop = _isDesktop(context);

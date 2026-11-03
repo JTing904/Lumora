@@ -16,8 +16,9 @@ import '../layout/device_profile.dart';
 /// * Release builds only, and only for a signed-in account: the table's
 ///   policy takes rows from invited accounts and nobody else.
 /// * Private: messages and stacks go through [scrub] (URLs cut to their
-///   origin, emails, bearer tokens, JWTs, keys and home-folder names
-///   removed) and are cut to the column limits the table's policy enforces.
+///   scheme, emails, bearer tokens, JWTs, keys, local file paths and hex
+///   hashes removed) and are cut to the column limits the table's policy
+///   enforces.
 ///   No user id is sent; the database fills it in from the session.
 /// * Quiet: a network failure is not a crash, and the same error (message
 ///   plus top frames) is sent once per session, at most
@@ -213,13 +214,45 @@ abstract final class CrashReporter {
   static final RegExp _query = RegExp(
     r'''\?[^\s"'<>()\[\]{}]*=[^\s"'<>()\[\]{}]*''',
   );
-  static final RegExp _windowsHome = RegExp(
-    // A Windows user name may hold spaces: up to the next separator.
-    r'''([A-Za-z]:[\\/]+(?:Users|Documents and Settings)[\\/]+)'''
-    r'''(?:[^\\/"'<>\r\n]+(?=[\\/])|[^\\/\s"'<>]+)''',
+
+  /// A local path inside quotes, as `FileSystemException` prints it: the
+  /// whole quoted text, because a file name may hold spaces.
+  static final RegExp _quotedPath = RegExp(
+    r'''(['"])((?:[A-Za-z]:[\\/]|\\\\|/)[^'"\r\n]*)\1''',
+  );
+
+  /// A Windows path on any drive (`D:\Movies\…`, `C:/…`) or share
+  /// (`\\server\…`). A folder name may hold spaces, so a segment runs to the
+  /// next separator, but never ends in one (Windows does not allow it), so
+  /// two paths in one sentence stay two; the last segment stops at
+  /// whitespace. The drive letter must stand alone, so `https://` is not a
+  /// drive.
+  static final RegExp _windowsPath = RegExp(
+    r'''(?<![A-Za-z0-9+.\-])(?:[A-Za-z]:[\\/]+|\\\\)'''
+    r'''(?:[^\\/\r\n"'<>|*?:]*[^\\/\s"'<>|*?:][\\/]+)*[^\\/\s"'<>|*?:]*''',
+  );
+
+  /// An absolute Unix path of two or more segments (`/home/…`,
+  /// `/storage/emulated/0/Download/…`), starting where a path can start, so
+  /// the `/[redacted]` an earlier step leaves after a URL is not one.
+  static final RegExp _unixPath = RegExp(
+    r'''(?<![^\s'"(=,\[])/(?:[^/\s'"<>()]+/)+[^/\s'"<>()]*''',
+  );
+
+  /// File names that come from the app itself rather than from the user's
+  /// media, so they are worth keeping when the folder is dropped.
+  static final RegExp _appFileName = RegExp(
+    r'^[A-Za-z0-9_\-.]+\.(?:dll|exe|so|dylib|dart)$',
     caseSensitive: false,
   );
-  static final RegExp _unixHome = RegExp(r'''(/(?:home|Users)/)[^/\s"'<>]+''');
+
+  /// 32 to 64 hex digits in any case: a torrent infohash (40), an MD5 (32) or
+  /// a SHA-256 (64) can name exactly what someone was watching. The engine's
+  /// `build_id` is kept: it is the same for every copy of a release and is
+  /// what an obfuscated stack is symbolicated with.
+  static final RegExp _hexToken = RegExp(
+    r'''(?<![A-Za-z0-9_])(?<!build_id: ')[0-9a-fA-F]{32,64}(?![A-Za-z0-9_])''',
+  );
   static final RegExp _uuid = RegExp(
     r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
     r'[0-9a-fA-F]{12}\b',
@@ -233,10 +266,11 @@ abstract final class CrashReporter {
   );
 
   /// Removes what could identify the viewer or unlock something: URLs are
-  /// cut to their origin (path and query are where tokens live; a `file:`
-  /// URL keeps only the file name), then emails, auth headers, JWTs, known
-  /// key formats, `key=value` secrets, stray query strings, home-folder
-  /// names, UUIDs and long random tokens.
+  /// cut to their scheme (the host says which server or addon someone uses,
+  /// path and query are where tokens live; a `file:` URL keeps only the file
+  /// name), then emails, auth headers, JWTs, known key formats, `key=value`
+  /// secrets, stray query strings, local file paths, UUIDs, hex hashes and
+  /// long random tokens.
   @visibleForTesting
   static String scrub(String text) {
     var out = text.replaceAllMapped(_url, (m) => _originOf(m[0]!));
@@ -246,11 +280,25 @@ abstract final class CrashReporter {
     out = out.replaceAll(_knownKey, '[key]');
     out = out.replaceAllMapped(_secretPair, (m) => '${m[1]}${m[2]}[redacted]');
     out = out.replaceAll(_query, '?[redacted]');
-    out = out.replaceAllMapped(_windowsHome, (m) => '${m[1]}[user]');
-    out = out.replaceAllMapped(_unixHome, (m) => '${m[1]}[user]');
+    out = out.replaceAllMapped(
+      _quotedPath,
+      (m) => '${m[1]}${_pathPlaceholder(m[2]!)}${m[1]}',
+    );
+    out = out.replaceAllMapped(_windowsPath, (m) => _pathPlaceholder(m[0]!));
+    out = out.replaceAllMapped(_unixPath, (m) => _pathPlaceholder(m[0]!));
     out = out.replaceAll(_uuid, '[uuid]');
+    out = out.replaceAll(_hexToken, '[hash]');
     out = out.replaceAll(_longToken, '[redacted]');
     return out;
+  }
+
+  /// `[path]`, plus the file's extension so the kind of file survives, or the
+  /// whole name when it is one of the app's own binaries or sources.
+  static String _pathPlaceholder(String path) {
+    final name = path.split(RegExp(r'[\\/]')).last.trim();
+    if (_appFileName.hasMatch(name)) return '[path]/$name';
+    final ext = RegExp(r'\.([A-Za-z0-9]{1,8})$').firstMatch(name);
+    return ext == null ? '[path]' : '[path].${ext[1]}';
   }
 
   static String _originOf(String raw) {
@@ -262,9 +310,20 @@ abstract final class CrashReporter {
       return 'file:///[path]/${name.split('#').first}';
     }
     if (uri.host.isEmpty) return '[url]';
-    final port = uri.hasPort ? ':${uri.port}' : '';
-    return '${uri.scheme}://${uri.host}$port/[redacted]';
+    // This machine's own servers say nothing about the viewer and tell a
+    // local engine's failure apart from a remote one.
+    if (_isLoopback(uri.host)) {
+      final port = uri.hasPort ? ':${uri.port}' : '';
+      return '${uri.scheme}://${uri.host}$port/[redacted]';
+    }
+    return '${uri.scheme}://[host]/[redacted]';
   }
+
+  static bool _isLoopback(String host) =>
+      host == 'localhost' ||
+      host == '::1' ||
+      host == '[::1]' ||
+      host.startsWith('127.');
 
   @visibleForTesting
   static void debugReset() {

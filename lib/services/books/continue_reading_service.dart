@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../models/book/reading_progress.dart';
+import '../account/account_scope.dart';
 import '../storage/json_document_store.dart';
 
 class ContinueReadingService {
   static const _storageKey = 'continue_reading_sessions_v1';
 
-  static final JsonDocumentStore<List<ReadingProgress>> _store =
+  /// Per account (see [AccountScope]), so another viewer on this device does
+  /// not see what this one is reading.
+  static JsonDocumentStore<List<ReadingProgress>> get _store =>
       JsonDocumentStore<List<ReadingProgress>>(
-        key: _storageKey,
+        key: AccountScope.key(_storageKey),
         version: 1,
         decode: (value) => (value as List)
             .whereType<Map<String, dynamic>>()
@@ -23,11 +26,14 @@ class ContinueReadingService {
   static Future<void> initialize() => reload();
 
   /// Re-reads the stored reading list into [activeItems], replacing the
-  /// in-memory copy. Used after a profile import.
+  /// in-memory copy. Used after a profile import and an account change, so
+  /// an account with no list shows none rather than the last one's.
   static Future<void> reload() async {
     try {
       final stored = await _store.read();
-      if (stored != null) {
+      if (stored == null) {
+        activeItems.value = [];
+      } else {
         final rawItems = stored.where((item) => item.md5.isNotEmpty).toList();
 
         rawItems.sort((a, b) => b.lastReadAt.compareTo(a.lastReadAt));

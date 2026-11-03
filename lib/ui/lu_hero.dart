@@ -8,6 +8,7 @@ import '../models/continue_watching/continue_watching_item.dart';
 import '../models/movie/movie.dart';
 import '../models/my_list/my_list_item.dart';
 import '../services/continue_watching/continue_watching_service.dart';
+import '../services/home/home_page_settings.dart';
 import '../services/metadata/tmdb_catalog.dart';
 import '../services/my_list/my_list_service.dart';
 import '../services/playback/play_launcher.dart';
@@ -15,7 +16,8 @@ import 'lu_button.dart';
 import 'lu_cards.dart';
 import 'lu_theme.dart';
 
-/// A full-bleed carousel of titles, one every eight seconds, each with 播放,
+/// A full-bleed carousel of titles, one every few seconds (eight unless
+/// [HomePageSettings.heroRotateSeconds] says otherwise), each with 播放,
 /// 加入收藏 and 详情; a remote or a pointer pauses it while on its controls.
 ///
 /// A remote pages it from its buttons: Left on the first button shows the
@@ -54,8 +56,18 @@ class _LuHeroCarouselState extends State<LuHeroCarousel> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 8), (_) {
-      if (_paused || !mounted || widget.movies.length < 2) return;
+    // Ticks each second and moves on after the seconds 我的 → 外观 → 首页
+    // sets, so a change there applies to a carousel already on screen.
+    var elapsed = 0;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_paused ||
+          !mounted ||
+          widget.movies.length < 2 ||
+          !HomePageSettings.heroAutoRotate.value) {
+        return;
+      }
+      if (++elapsed < HomePageSettings.heroRotateSeconds.value) return;
+      elapsed = 0;
       _go(_index + 1);
     });
   }
@@ -257,10 +269,29 @@ class _HeroSlideState extends State<_HeroSlide> {
   @override
   void initState() {
     super.initState();
+    _resolve();
+  }
+
+  /// A rebuilt carousel (the rows reloading, a new language) can hand this
+  /// slide another title. Without starting over, 加入收藏 acted on the one
+  /// the slide used to show.
+  @override
+  void didUpdateWidget(_HeroSlide oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.movie.id == widget.movie.id) return;
+    _resolved = null;
+    _settled = false;
+    _pendingToggle = false;
+    _resolve();
+  }
+
+  void _resolve() {
+    final movie = widget.movie;
     TmdbCatalog.resolve(
-      widget.movie,
+      movie,
     ).then<Movie?>((m) => m).catchError((_) => null).then((m) {
-      if (!mounted) return;
+      // An answer for a title the slide no longer shows is dropped.
+      if (!mounted || movie.id != widget.movie.id) return;
       final run = _pendingToggle && m != null;
       setState(() {
         _resolved = m;
@@ -305,6 +336,23 @@ class _HeroSlideState extends State<_HeroSlide> {
     );
   }
 
+  /// 播放, or 继续 where the viewer stopped; busy while [PlayLauncher] looks
+  /// the title up, which can take seconds before the player opens.
+  Widget _playButton(Movie m, {required bool phone}) => ListenableBuilder(
+    listenable: Listenable.merge([
+      ContinueWatchingService.activeItems,
+      PlayLauncher.launching,
+    ]),
+    builder: (context, _) => LuButton(
+      label: _playLabel(ContinueWatchingService.activeItems.value),
+      icon: Icons.play_arrow_rounded,
+      compact: phone,
+      expand: phone,
+      busy: identical(PlayLauncher.launching.value, m),
+      onPressed: () => PlayLauncher.play(context, m),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final l10n = l10nOf(context);
@@ -314,7 +362,7 @@ class _HeroSlideState extends State<_HeroSlide> {
       m.type == 'series' ? l10n.homeKindSeries : l10n.homeKindMovie,
       if (m.year != null) m.year!,
     ];
-    return Stack(
+    final slide = Stack(
       fit: StackFit.expand,
       children: [
         LuImage(url: m.backdrop, cacheWidth: 1920),
@@ -418,20 +466,7 @@ class _HeroSlideState extends State<_HeroSlide> {
                 if (phone)
                   Row(
                     children: [
-                      Expanded(
-                        child:
-                            ValueListenableBuilder<List<ContinueWatchingItem>>(
-                              valueListenable:
-                                  ContinueWatchingService.activeItems,
-                              builder: (context, sessions, _) => LuButton(
-                                label: _playLabel(sessions),
-                                icon: Icons.play_arrow_rounded,
-                                compact: phone,
-                                expand: phone,
-                                onPressed: () => PlayLauncher.play(context, m),
-                              ),
-                            ),
-                      ),
+                      Expanded(child: _playButton(m, phone: phone)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: ValueListenableBuilder<List<MyListItem>>(
@@ -463,16 +498,7 @@ class _HeroSlideState extends State<_HeroSlide> {
                     spacing: 14,
                     runSpacing: 10,
                     children: [
-                      ValueListenableBuilder<List<ContinueWatchingItem>>(
-                        valueListenable: ContinueWatchingService.activeItems,
-                        builder: (context, sessions, _) => LuButton(
-                          label: _playLabel(sessions),
-                          icon: Icons.play_arrow_rounded,
-                          compact: phone,
-                          expand: phone,
-                          onPressed: () => PlayLauncher.play(context, m),
-                        ),
-                      ),
+                      _playButton(m, phone: phone),
                       ValueListenableBuilder<List<MyListItem>>(
                         valueListenable: MyListService.items,
                         builder: (context, items, _) {
@@ -508,6 +534,14 @@ class _HeroSlideState extends State<_HeroSlide> {
           ),
         ),
       ],
+    );
+    if (!phone) return slide;
+    // A phone has no room for 详情 beside the two buttons, so the slide
+    // itself opens the details; the buttons on it still take their own taps.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => PlayLauncher.openDetails(context, m),
+      child: slide,
     );
   }
 }

@@ -588,8 +588,22 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
 
   void _onPartyRoom() {
     if (!mounted) return;
-    final room = WatchPartyService.instance.room.value;
-    if (room == null && _partyWasGuest) _notice(l10nCurrent().partyEnded);
+    final service = WatchPartyService.instance;
+    final room = service.room.value;
+    if (room == null && _partyWasGuest) {
+      final l10n = l10nCurrent();
+      switch (service.endReason) {
+        case PartyEndReason.ended:
+          _notice(l10n.partyEnded);
+        case PartyEndReason.hostGone:
+          _notice(l10n.partyHostGone);
+        case PartyEndReason.dropped:
+          _notice(l10n.partyDropped);
+        case PartyEndReason.left:
+        case null:
+          break;
+      }
+    }
     _partyWasGuest = room?.isHost == false;
     setState(() {
       if (room == null) _showPartyChat = false;
@@ -617,9 +631,9 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
     final current = service.media.value;
     if (m != null &&
         (current == null ||
-            current.source.url != m.source.url ||
-            current.episodeId != m.episodeId)) {
-      unawaited(service.setMedia(m));
+            current.source?.url != m.source?.url ||
+            current.key != m.key)) {
+      unawaited(service.setMedia(m, startAt: _positionNow));
     } else {
       unawaited(service.sendState());
     }
@@ -692,6 +706,11 @@ class _OfficialYouTubePlayerState extends State<OfficialYouTubePlayer> {
   /// Applies the room's play, pause or seek here; see the library comment.
   void _onPartyPlayback(PartyPlayback pb) {
     if (!mounted || !_partyIsHere || _ytTime == null) return;
+    // A position heard for another episode means nothing here.
+    final key = pb.mediaKey;
+    if (key != null && key != WatchPartyService.instance.media.value?.key) {
+      return;
+    }
     final settling =
         _lastPartySeek != null &&
         DateTime.now().difference(_lastPartySeek!) < const Duration(seconds: 4);

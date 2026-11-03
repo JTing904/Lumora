@@ -53,6 +53,15 @@ class ExoPlayerEngine implements VideoEngine {
 
   EngineState _state = const EngineState();
   StreamSubscription<dynamic>? _eventSub;
+
+  /// Whether playback is meant to run: the last play or pause asked for.
+  ///
+  /// [EngineState.playing] is Media3's `isPlaying`, which is false while the
+  /// player buffers, so a toggle that read it paused a stream that was only
+  /// waiting for data and played one the viewer had paused. This is what the
+  /// native `playWhenReady` holds, kept here because no event reports it.
+  bool get playWhenReady => _playWhenReady;
+  bool _playWhenReady = true;
   bool _disposed = false;
 
   @override
@@ -231,6 +240,7 @@ class ExoPlayerEngine implements VideoEngine {
       throw const EngineUnsupported('Torrents are played by the mpv engine');
     }
     _emit(const EngineState());
+    _playWhenReady = true;
     start();
     await _invoke('load', <String, dynamic>{
       'url': request.url,
@@ -241,13 +251,22 @@ class ExoPlayerEngine implements VideoEngine {
   }
 
   @override
-  Future<void> play() => _invoke('play');
+  Future<void> play() {
+    _playWhenReady = true;
+    return _invoke('play');
+  }
 
   @override
-  Future<void> pause() => _invoke('pause');
+  Future<void> pause() {
+    _playWhenReady = false;
+    return _invoke('pause');
+  }
 
   @override
-  Future<void> playOrPause() => _invoke('playOrPause');
+  Future<void> playOrPause() {
+    _playWhenReady = !_playWhenReady;
+    return _invoke('playOrPause');
+  }
 
   @override
   Future<void> stop() => _invoke('stop');
@@ -256,9 +275,13 @@ class ExoPlayerEngine implements VideoEngine {
   Future<void> seek(Duration position) =>
       _invoke('seek', <String, dynamic>{'positionMs': position.inMilliseconds});
 
+  /// Media3 sends no event for its speed, so the state carries the last rate
+  /// asked for. Without it [EngineState.rate] stayed 1.0 whatever was playing.
   @override
-  Future<void> setRate(double rate) =>
-      _invoke('setRate', <String, dynamic>{'rate': rate});
+  Future<void> setRate(double rate) {
+    _emit(_state.copyWith(rate: rate));
+    return _invoke('setRate', <String, dynamic>{'rate': rate});
+  }
 
   @override
   Future<void> setVolume(double volume) =>

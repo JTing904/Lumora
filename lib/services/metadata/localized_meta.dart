@@ -184,6 +184,29 @@ abstract final class LocalizedMeta {
 
   static final Map<String, Future<LocalText?>> _byTitle = {};
 
+  /// The names [textForTitle] has found, by the same key, for [knownName].
+  static final Map<String, String> _titleNames = {};
+
+  static String _titleKey(String title, String? year, bool series) =>
+      '${series ? 'tv' : 'movie'}|${title.toLowerCase()}|$year';
+
+  /// The viewer's-language name of a title when it has already been looked
+  /// up ([forImdbId] for an IMDb id, [forTitle] by [title] and [year]
+  /// otherwise), without asking TMDb: for a search box that filters as the
+  /// viewer types and cannot wait on a request per keystroke. Null in
+  /// English or when nothing has been found yet.
+  static String? knownName(
+    String id, {
+    String? title,
+    String? year,
+    required bool series,
+  }) {
+    if (!_wantsChinese) return null;
+    if (id.startsWith('tt')) return _cache[id]?.name;
+    if (title == null) return null;
+    return _titleNames[_titleKey(title, year, series)];
+  }
+
   /// The viewer's-language name of a title known only by its English
   /// [title] and [year] (the similar-titles rail has no IMDb id): TMDb's
   /// search in zh-CN, kept only when the hit's original or English name is
@@ -204,7 +227,7 @@ abstract final class LocalizedMeta {
     required bool series,
   }) {
     if (!_wantsChinese) return Future.value(null);
-    final key = '${series ? 'tv' : 'movie'}|${title.toLowerCase()}|$year';
+    final key = _titleKey(title, year, series);
     final known = _byTitle[key];
     if (known != null) return known;
     final lookup = () async {
@@ -286,11 +309,14 @@ abstract final class LocalizedMeta {
       final want = _bare(ask.base);
       final path = '/${hit.tv ? 'tv' : 'movie'}/${hit.id}';
 
-      String? nameOf(Map? r) {
+      String? nameOf(Map? r, {bool sameIsName = false}) {
         final n = (r?['name'] ?? r?['title'])?.toString().trim() ?? '';
         // TMDb answers the English or the original (Japanese, 薬屋のひとりごと)
-        // name when it has no Chinese one; neither is a translation.
-        return _han.hasMatch(n) && !_kana.hasMatch(n) && _bare(n) != want
+        // name when it has no Chinese one; neither is a translation - unless
+        // [sameIsName] says the title is Chinese to begin with.
+        return _han.hasMatch(n) &&
+                !_kana.hasMatch(n) &&
+                (sameIsName || _bare(n) != want)
             ? n
             : null;
       }
@@ -301,7 +327,13 @@ abstract final class LocalizedMeta {
       }
 
       final cn = await TmdbService.getScraperJson(path, {'language': 'zh-CN'});
-      var name = nameOf(cn);
+      // A Chinese title asked by its own name (a category grid's 庆余年, which
+      // TMDb's list already gave in zh-CN) gets that name back. Taking it as
+      // "no translation" went on to zh-TW and put 慶餘年 on the card while the
+      // details page, reading zh-CN, said 庆余年. TMDb tags Mandarin `zh` and
+      // Cantonese `cn`.
+      final chinese = const {'zh', 'cn'}.contains(cn?['original_language']);
+      var name = nameOf(cn, sameIsName: chinese);
       var overview = overviewOf(cn);
       if (name == null || overview == null) {
         final tw = await TmdbService.getScraperJson(path, {
@@ -328,6 +360,7 @@ abstract final class LocalizedMeta {
     lookup.then(
       (text) {
         if (text == null) _byTitle.remove(key);
+        if (text?.name case final name?) _titleNames[key] = name;
       },
       onError: (Object _) {
         _byTitle.remove(key);
@@ -424,6 +457,8 @@ abstract final class LocalizedMeta {
   static void clearCache() {
     _cast.clear();
     _cache.clear();
+    _byTitle.clear();
+    _titleNames.clear();
     _genreNames.clear();
   }
 }

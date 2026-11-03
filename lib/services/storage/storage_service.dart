@@ -13,6 +13,13 @@ class StorageService {
   static const _kTraktUsername = 'trakt_username';
   static const _kSimklUsername = 'simkl_username';
 
+  /// The pairing's plain preferences, kept per account like its tokens.
+  static const List<String> pairingPrefKeys = [
+    _kTraktTokenExpiry,
+    _kTraktUsername,
+    _kSimklUsername,
+  ];
+
   static final ValueNotifier<int> movieFinishedRevision = ValueNotifier<int>(0);
 
   static String _key(String base) => AccountScope.key(base);
@@ -86,25 +93,13 @@ class StorageService {
   /// made before pairings were split by account belongs to the account
   /// [userId], unless that account already has its own.
   static Future<void> adoptUnscopedPairing(String userId) async {
-    for (final base in const [
+    await adoptUnscopedSecrets(userId, const [
       SecretKeys.traktAccessToken,
       SecretKeys.traktRefreshToken,
       SecretKeys.simklAccessToken,
-    ]) {
-      final value = await SecureStore.read(base);
-      if (value == null) continue;
-      final scoped = '$base@$userId';
-      if (await SecureStore.read(scoped) == null) {
-        await SecureStore.write(scoped, value);
-      }
-      await SecureStore.delete(base);
-    }
+    ]);
     final prefs = await SharedPreferences.getInstance();
-    for (final base in const [
-      _kTraktTokenExpiry,
-      _kTraktUsername,
-      _kSimklUsername,
-    ]) {
+    for (final base in pairingPrefKeys) {
       final value = prefs.get(base);
       if (value == null) continue;
       final scoped = '$base@$userId';
@@ -113,6 +108,23 @@ class StorageService {
         if (value is String) await prefs.setString(scoped, value);
       }
       await prefs.remove(base);
+    }
+  }
+
+  /// Moves each credential in [bases] saved for the whole device to the
+  /// account [userId], unless that account already has its own.
+  static Future<void> adoptUnscopedSecrets(
+    String userId,
+    Iterable<String> bases,
+  ) async {
+    for (final base in bases) {
+      final value = await SecureStore.read(base);
+      if (value == null) continue;
+      final scoped = '$base@$userId';
+      if (await SecureStore.read(scoped) == null) {
+        await SecureStore.write(scoped, value);
+      }
+      await SecureStore.delete(base);
     }
   }
 }

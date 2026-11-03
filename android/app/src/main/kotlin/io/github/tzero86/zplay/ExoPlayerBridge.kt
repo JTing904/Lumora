@@ -75,6 +75,13 @@ class ExoPlayerBridge(private val context: Context) {
 
     private var eventSink: EventChannel.EventSink? = null
     private var volume: Float = 1f
+
+    /**
+     * Kept across loads like [volume]: every load builds a new player, and a
+     * speed held only on the old one was lost on each change of source.
+     */
+    private var speed: Float = 1f
+
     private var playWhenReady: Boolean = true
     private var subtitlesVisible: Boolean = true
     private var lastError: String? = null
@@ -131,8 +138,8 @@ class ExoPlayerBridge(private val context: Context) {
                         result.success(true)
                     }
                     "setRate" -> {
-                        val rate = call.argument<Number>("rate")?.toFloat() ?: 1f
-                        player?.setPlaybackSpeed(rate)
+                        speed = call.argument<Number>("rate")?.toFloat() ?: 1f
+                        player?.setPlaybackSpeed(speed)
                         result.success(true)
                     }
                     "setVolume" -> {
@@ -145,16 +152,12 @@ class ExoPlayerBridge(private val context: Context) {
                         result.success(true)
                     }
                     "selectSubtitleTrack" -> {
-                        val id = call.argument<Number>("trackId")
-                        // A null id means "no subtitles". Media3 expresses that as
-                        // the text track type being disabled rather than as a
-                        // sentinel track, which is why this is a parameter change
-                        // and not a setTrack call.
-                        applyTrackParameters(
-                            player?.trackSelectionParameters?.buildUpon()
-                                ?.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, id == null)
-                                ?.build()
-                        )
+                        // A null id means "no subtitles", which Media3 expresses
+                        // as the text track type being disabled. Any other id is
+                        // the track the viewer picked: this used to only switch
+                        // text back on, so Media3 kept showing its own default
+                        // whatever was chosen in the menu.
+                        selectTrack(C.TRACK_TYPE_TEXT, call.argument<Number>("trackId"))
                         result.success(true)
                     }
                     "setSubtitlesVisible" -> {
@@ -302,6 +305,7 @@ class ExoPlayerBridge(private val context: Context) {
             /* handleAudioFocus = */ false
         )
         exo.volume = volume
+        exo.setPlaybackSpeed(speed)
 
         val itemBuilder = MediaItem.Builder().setUri(Uri.parse(url))
         if (isLive) {
@@ -365,6 +369,11 @@ class ExoPlayerBridge(private val context: Context) {
      * type when [id] is null. Ids are hashed on the way out of Kotlin, so the
      * match is by identity against the groups currently on offer rather than by
      * a format id Dart never sees.
+     *
+     * The type is switched back on with the override: a text type that "off"
+     * disabled would otherwise ignore the choice. When the id matches nothing
+     * on offer (the tracks changed under the menu) the type is still switched
+     * on, so the viewer gets Media3's default rather than no change at all.
      */
     private fun selectTrack(type: Int, id: Number?) {
         val p = player ?: return
@@ -384,6 +393,7 @@ class ExoPlayerBridge(private val context: Context) {
                 if (group.getTrackFormat(trackIndex).id.hashCode() != target) continue
                 applyTrackParameters(
                     p.trackSelectionParameters.buildUpon()
+                        .setTrackTypeDisabled(type, false)
                         .setOverrideForType(
                             TrackSelectionOverride(
                                 group.mediaTrackGroup,
@@ -395,6 +405,11 @@ class ExoPlayerBridge(private val context: Context) {
                 return
             }
         }
+        applyTrackParameters(
+            p.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(type, false)
+                .build()
+        )
     }
 
     private fun emitTracks(tracks: Tracks) {

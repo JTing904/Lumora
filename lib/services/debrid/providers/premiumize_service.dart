@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../account/account_scope.dart';
 import '../../storage/secret_keys.dart';
 import '../../storage/secure_store.dart';
 import '../models/debrid_error.dart';
@@ -11,14 +12,18 @@ import '../utils/debrid_failure_mapper.dart';
 import '../utils/debrid_media_matcher.dart';
 
 class PremiumizeService {
-  Future<String?> getKey() => SecureStore.read(SecretKeys.premiumizeApiKey);
+  Future<String?> getKey() =>
+      SecureStore.read(AccountScope.key(SecretKeys.premiumizeApiKey));
 
   Future<void> saveKey(String key) async {
     final trimmed = key.trim();
     if (trimmed.isEmpty) {
-      await SecureStore.delete(SecretKeys.premiumizeApiKey);
+      await SecureStore.delete(AccountScope.key(SecretKeys.premiumizeApiKey));
     } else {
-      await SecureStore.write(SecretKeys.premiumizeApiKey, trimmed);
+      await SecureStore.write(
+        AccountScope.key(SecretKeys.premiumizeApiKey),
+        trimmed,
+      );
     }
   }
 

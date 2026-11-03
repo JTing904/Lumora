@@ -116,6 +116,32 @@ void main() {
     expect((seek.arguments as Map<Object?, Object?>)['positionMs'], 45000);
   });
 
+  test('the intent to play follows play and pause, not buffering', () async {
+    final ExoPlayerEngine engine = ExoPlayerEngine();
+    addTearDown(engine.dispose);
+
+    await engine.open(const EngineRequest(url: 'https://cdn.example/a.mp4'));
+    expect(engine.playWhenReady, isTrue);
+    await engine.pause();
+    expect(engine.playWhenReady, isFalse);
+    await engine.playOrPause();
+    expect(engine.playWhenReady, isTrue);
+    // Still buffering, so `playing` says false; the viewer's intent stands.
+    expect(engine.state.playing, isFalse);
+    await engine.play();
+    expect(engine.playWhenReady, isTrue);
+  });
+
+  test('the state carries the speed last asked for', () async {
+    final ExoPlayerEngine engine = ExoPlayerEngine();
+    addTearDown(engine.dispose);
+
+    // Media3 sends no speed event, so a 2x hold used to read 1.0 back and
+    // restore the viewer's 1.5x to 1x when the finger lifted.
+    await engine.setRate(1.5);
+    expect(engine.state.rate, 1.5);
+  });
+
   test(
     'a missing native bridge is an unsupported engine, not a crash',
     () async {

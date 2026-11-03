@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'stream_separator.dart';
+
 class HardcodedChannel {
   final String id;
   final String name;
@@ -25,7 +27,14 @@ class HardcodedChannel {
 }
 
 class HardcodedChannels {
-  static bool matches(String streamName, List<String> keywords, [List<String>? exclude]) {
+  static bool matches(
+    String streamName,
+    List<String> keywords, [
+    List<String>? exclude,
+  ]) {
+    // A portal's category heading carries the channel's name but plays a
+    // static provider slide, so it is never a match.
+    if (StreamSeparator.isSeparator(streamName)) return false;
     final lower = streamName.toLowerCase();
     if (exclude != null && exclude.isNotEmpty) {
       for (final ex in exclude) {
@@ -36,7 +45,11 @@ class HardcodedChannels {
       final kwLower = kw.toLowerCase().trim();
       if (kwLower.isEmpty) continue;
       if (kwLower.length <= 3) {
-        final regex = RegExp(r'(?:^|[^a-zA-Z0-9])' + RegExp.escape(kwLower) + r'(?:$|[^a-zA-Z0-9])');
+        final regex = RegExp(
+          r'(?:^|[^a-zA-Z0-9])' +
+              RegExp.escape(kwLower) +
+              r'(?:$|[^a-zA-Z0-9])',
+        );
         if (regex.hasMatch(lower)) return true;
       } else {
         if (lower.contains(kwLower)) return true;
@@ -54,7 +67,9 @@ class HardcodedChannels {
   }
 
   static List<HardcodedChannel> byCategory(String category) {
-    return all.where((c) => c.category.toLowerCase() == category.toLowerCase()).toList();
+    return all
+        .where((c) => c.category.toLowerCase() == category.toLowerCase())
+        .toList();
   }
 
   static const List<HardcodedChannel> all = [
@@ -66,8 +81,10 @@ class HardcodedChannels {
       category: 'Combat',
       keywords: ['ufc', 'fight pass', 'mma', 'ultimate fighting'],
       gradient: [Color(0xFFD20A0A), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/UFC_Fight_Pass_Logo.svg/960px-UFC_Fight_Pass_Logo.svg.png',
-      backdropUrl: 'https://cdn.dribbble.com/userupload/44509326/file/1146907b6c2959c0a12c65d7259a58b6.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/UFC_Fight_Pass_Logo.svg/960px-UFC_Fight_Pass_Logo.svg.png',
+      backdropUrl:
+          'https://cdn.dribbble.com/userupload/44509326/file/1146907b6c2959c0a12c65d7259a58b6.png',
     ),
     HardcodedChannel(
       id: 'wwe',
@@ -76,7 +93,8 @@ class HardcodedChannels {
       category: 'Combat',
       keywords: ['wwe', 'raw', 'smackdown', 'nxt', 'wrestlemania', 'wrestling'],
       gradient: [Color(0xFFCC0000), Color(0xFF000000)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/WWE_Network_logo.svg/500px-WWE_Network_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/WWE_Network_logo.svg/500px-WWE_Network_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'aew',
@@ -92,7 +110,14 @@ class HardcodedChannels {
       name: 'World Boxing TV',
       short: 'BOX',
       category: 'Combat',
-      keywords: ['boxing', 'boxnation', 'top rank', 'matchroom', 'pbc', 'golden boy'],
+      keywords: [
+        'boxing',
+        'boxnation',
+        'top rank',
+        'matchroom',
+        'pbc',
+        'golden boy',
+      ],
       gradient: [Color(0xFFB8860B), Color(0xFF2F4F4F)],
       iconUrl: 'https://i.imgur.com/XCIBf7u.png',
     ),
@@ -110,10 +135,18 @@ class HardcodedChannels {
       name: 'PPV Main Event',
       short: 'PPV',
       category: 'Combat',
-      keywords: ['ppv', 'pay per view', 'box office', 'ppv event', 'ppv live', 'main event ppv'],
+      keywords: [
+        'ppv',
+        'pay per view',
+        'box office',
+        'ppv event',
+        'ppv live',
+        'main event ppv',
+      ],
       exclude: ['sky sports', 'sky sport', 'bt sport', 'tnt sports'],
       gradient: [Color(0xFF9C27B0), Color(0xFF1A237E)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/en/e/e4/Main-event-au_logo.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/en/e/e4/Main-event-au_logo.png',
     ),
     HardcodedChannel(
       id: 'one_championship',
@@ -122,8 +155,10 @@ class HardcodedChannels {
       category: 'Combat',
       keywords: ['one championship', 'one fc', 'muay thai', 'kickboxing'],
       gradient: [Color(0xFF00ACC1), Color(0xFF263238)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/singapore/one-championship-sg.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/singapore/one-championship-sg.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/singapore/one-championship-sg.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/singapore/one-championship-sg.png',
     ),
 
     // ── BOXING ──
@@ -139,53 +174,98 @@ class HardcodedChannels {
       name: 'Sky Sports Box Office',
       short: 'SSBO',
       category: 'Boxing',
-      keywords: ['sky sports box office', 'sky box office', 'sky sports action'],
+      keywords: [
+        'sky sports box office',
+        'sky box office',
+        'sky sports action',
+      ],
       // BOX OFFICE is also what panels call their movie pay-per-view, and Sky
       // Sports Action shares the name with the news channel.
       exclude: ['cinema', 'movie', 'sky sports news', 'sky news'],
       gradient: [Color(0xFF001965), Color(0xFFE60000)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Sky_Sports_Box_Office_-_Logo_2025.svg/500px-Sky_Sports_Box_Office_-_Logo_2025.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Sky_Sports_Box_Office_-_Logo_2025.svg/500px-Sky_Sports_Box_Office_-_Logo_2025.svg.png',
     ),
     HardcodedChannel(
       id: 'boxing_dazn',
       name: 'DAZN Boxing & PPV',
       short: 'DAZN',
       category: 'Boxing',
-      keywords: ['dazn boxing', 'dazn combat', 'dazn ppv', 'dazn fight', 'dazn 1', 'dazn 2'],
+      keywords: [
+        'dazn boxing',
+        'dazn combat',
+        'dazn ppv',
+        'dazn fight',
+        'dazn 1',
+        'dazn 2',
+      ],
       // DAZN's own feed numbers carry every sport it holds, so the brand's other
       // rights are excluded by name rather than hoped away.
-      exclude: ['f1', 'formula', 'motogp', 'moto gp', 'nfl', 'nba', 'football', 'soccer', 'laliga', 'liga'],
+      exclude: [
+        'f1',
+        'formula',
+        'motogp',
+        'moto gp',
+        'nfl',
+        'nba',
+        'football',
+        'soccer',
+        'laliga',
+        'liga',
+      ],
       gradient: [Color(0xFF1A1A1A), Color(0xFFC2F542)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/DAZN_1.svg/500px-DAZN_1.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/DAZN_1.svg/500px-DAZN_1.svg.png',
     ),
     HardcodedChannel(
       id: 'boxing_tnt_box_office',
       name: 'TNT Sports Box Office',
       short: 'TNTBO',
       category: 'Boxing',
-      keywords: ['tnt sports box office', 'tnt box office', 'bt sport box office', 'bt box office'],
+      keywords: [
+        'tnt sports box office',
+        'tnt box office',
+        'bt sport box office',
+        'bt box office',
+      ],
       gradient: [Color(0xFFE50000), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/TNT_Sports_2021_logo.svg/960px-TNT_Sports_2021_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/TNT_Sports_2021_logo.svg/960px-TNT_Sports_2021_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'boxing_espn',
       name: 'ESPN Boxing & PPV',
       short: 'ESPN+',
       category: 'Boxing',
-      keywords: ['espn boxing', 'espn ppv', 'espn+ boxing', 'espn plus boxing', 'espn pay per view'],
+      keywords: [
+        'espn boxing',
+        'espn ppv',
+        'espn+ boxing',
+        'espn plus boxing',
+        'espn pay per view',
+      ],
       gradient: [Color(0xFFCC0000), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/ESPN_wordmark.svg/960px-ESPN_wordmark.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/ESPN_wordmark.svg/960px-ESPN_wordmark.svg.png',
     ),
     HardcodedChannel(
       id: 'boxing_ppv_events',
       name: 'PPV Fight Events',
       short: 'PPV',
       category: 'Boxing',
-      keywords: ['ppv boxing', 'boxing ppv', 'fight ppv', 'ppv fight', 'boxing pay per view', 'ppv main event'],
+      keywords: [
+        'ppv boxing',
+        'boxing ppv',
+        'fight ppv',
+        'ppv fight',
+        'boxing pay per view',
+        'ppv main event',
+      ],
       // Numbered PPV feeds are shared with movie and adult pay-per-view.
       exclude: ['movie', 'cinema', 'adult', 'xxx'],
       gradient: [Color(0xFF4A148C), Color(0xFFB8860B)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/en/e/e4/Main-event-au_logo.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/en/e/e4/Main-event-au_logo.png',
     ),
     HardcodedChannel(
       id: 'boxing_premier_sports',
@@ -196,7 +276,8 @@ class HardcodedChannels {
       // The channel's football competitions are named after it.
       exclude: ['sports cup'],
       gradient: [Color(0xFF0B2C6B), Color(0xFF1B9DE0)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Premier_sports_logo_2018.svg/500px-Premier_sports_logo_2018.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Premier_sports_logo_2018.svg/500px-Premier_sports_logo_2018.svg.png',
     ),
     HardcodedChannel(
       id: 'boxing_fight_sports',
@@ -235,7 +316,8 @@ class HardcodedChannels {
       // PBC is also the Palestinian Broadcasting Corporation.
       exclude: ['palestine', 'palestinian', 'news', 'radio'],
       gradient: [Color(0xFF0D0D0D), Color(0xFFC8102E)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Logo_of_Premier_Boxing_Champions.svg/500px-Logo_of_Premier_Boxing_Champions.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Logo_of_Premier_Boxing_Champions.svg/500px-Logo_of_Premier_Boxing_Champions.svg.png',
     ),
     HardcodedChannel(
       id: 'boxing_golden_boy',
@@ -262,7 +344,8 @@ class HardcodedChannels {
       category: 'Boxing',
       keywords: ['boxnation', 'box nation', 'boxing nation'],
       gradient: [Color(0xFF000000), Color(0xFFC62828)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/BoxNation_logo.jpg/500px-BoxNation_logo.jpg',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/BoxNation_logo.jpg/500px-BoxNation_logo.jpg',
     ),
     HardcodedChannel(
       id: 'boxing_world_boxing',
@@ -273,7 +356,8 @@ class HardcodedChannels {
       // WORLD BOXING is also the name of the trade magazines.
       exclude: ['news', 'magazine'],
       gradient: [Color(0xFF0A3A6B), Color(0xFF00A3E0)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/World_Boxing_logo_2023.svg/500px-World_Boxing_logo_2023.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/World_Boxing_logo_2023.svg/500px-World_Boxing_logo_2023.svg.png',
     ),
     // Free combat channels, appended so the premium rows above keep their
     // place at the head of the bucket. Unlike those rows, which look for a
@@ -385,10 +469,20 @@ class HardcodedChannels {
       name: 'Formula 1 TV',
       short: 'F1',
       category: 'Racing',
-      keywords: ['f1', 'formula 1', 'formula one', 'f1 tv', 'grand prix', 'sky f1', 'fia'],
+      keywords: [
+        'f1',
+        'formula 1',
+        'formula one',
+        'f1 tv',
+        'grand prix',
+        'sky f1',
+        'fia',
+      ],
       gradient: [Color(0xFFE10600), Color(0xFF15151E)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Sky_Sport_F1_-_Logo_2020.svg/960px-Sky_Sport_F1_-_Logo_2020.svg.png',
-      backdropUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSSVqWT4V4T7Fup-rDDuJE80yKhdI4UJ8pvY7G-ACH-ihehjdkziDI03GA&s=10',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Sky_Sport_F1_-_Logo_2020.svg/960px-Sky_Sport_F1_-_Logo_2020.svg.png',
+      backdropUrl:
+          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSSVqWT4V4T7Fup-rDDuJE80yKhdI4UJ8pvY7G-ACH-ihehjdkziDI03GA&s=10',
     ),
     HardcodedChannel(
       id: 'motogp',
@@ -397,8 +491,10 @@ class HardcodedChannels {
       category: 'Racing',
       keywords: ['motogp', 'moto gp', 'moto2', 'moto3', 'motorcycle racing'],
       gradient: [Color(0xFF006699), Color(0xFF1C1C1C)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/motogp.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/motogp.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/motogp.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/motogp.png',
     ),
     HardcodedChannel(
       id: 'nascar',
@@ -407,8 +503,10 @@ class HardcodedChannels {
       category: 'Racing',
       keywords: ['nascar', 'cup series', 'xfinity', 'daytona', 'stock car'],
       gradient: [Color(0xFFFFD700), Color(0xFF002B49)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nascar-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nascar-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nascar-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nascar-us.png',
     ),
     HardcodedChannel(
       id: 'indycar',
@@ -417,8 +515,10 @@ class HardcodedChannels {
       category: 'Racing',
       keywords: ['indycar', 'indy 500', 'indianapolis', 'open wheel'],
       gradient: [Color(0xFFD32F2F), Color(0xFF1A237E)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/indycar-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/indycar-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/indycar-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/indycar-us.png',
     ),
     HardcodedChannel(
       id: 'wrc',
@@ -429,15 +529,17 @@ class HardcodedChannels {
       gradient: [Color(0xFFFF6D00), Color(0xFF37474F)],
       iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/9c/WRC.svg',
     ),
-HardcodedChannel(
+    HardcodedChannel(
       id: 'wsbk',
       name: 'World Superbike (WSBK)',
       short: 'WSBK',
       category: 'Racing',
       keywords: ['wsbk', 'world superbike', 'superbike', 'fim'],
       gradient: [Color(0xFFC2185B), Color(0xFF212121)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/wsbk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/wsbk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/wsbk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/wsbk.png',
     ),
 
     // ── FOOTBALL & SOCCER ──
@@ -446,10 +548,17 @@ HardcodedChannel(
       name: 'UEFA Champions League',
       short: 'UCL',
       category: 'Soccer',
-      keywords: ['champions league', 'ucl', 'uefa', 'europa league', 'conference league'],
+      keywords: [
+        'champions league',
+        'ucl',
+        'uefa',
+        'europa league',
+        'conference league',
+      ],
       gradient: [Color(0xFF001489), Color(0xFF00083A)],
       iconUrl: 'https://i.imgur.com/BzQphbw.png',
-      backdropUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKIVxbksY0xMHuE2bdQlwr_8QgHstejx_mlCCF-m3VIR5m3EAKXHdQbek&s=10',
+      backdropUrl:
+          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKIVxbksY0xMHuE2bdQlwr_8QgHstejx_mlCCF-m3VIR5m3EAKXHdQbek&s=10',
     ),
     HardcodedChannel(
       id: 'premier_league',
@@ -458,42 +567,73 @@ HardcodedChannel(
       category: 'Soccer',
       keywords: ['premier league', 'epl', 'english premier', 'pl tv'],
       gradient: [Color(0xFF38003C), Color(0xFF00FF87)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f2/Premier_League_Logo.svg/1024px-Premier_League_Logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/en/thumb/f/f2/Premier_League_Logo.svg/1024px-Premier_League_Logo.svg.png',
     ),
     HardcodedChannel(
       id: 'bein_sports',
       name: 'beIN Sports HD',
       short: 'beIN',
       category: 'Soccer',
-      keywords: ['bein', 'bein sports', 'bein 1', 'bein 2', 'bein 3', 'bein 4', 'bein sport'],
+      keywords: [
+        'bein',
+        'bein sports',
+        'bein 1',
+        'bein 2',
+        'bein 3',
+        'bein 4',
+        'bein sport',
+      ],
       gradient: [Color(0xFF5C2D91), Color(0xFF1E1035)],
       iconUrl: 'https://i.imgur.com/RLrMBlm.png',
-      backdropUrl: 'https://www.venclikovi.com/wp-content/uploads/2025/10/bein-sports-logo-global-streaming.webp',
+      backdropUrl:
+          'https://www.venclikovi.com/wp-content/uploads/2025/10/bein-sports-logo-global-streaming.webp',
     ),
     HardcodedChannel(
       id: 'sky_sports',
       name: 'Sky Sports Main Event',
       short: 'SKY',
       category: 'Soccer',
-      keywords: ['sky sports', 'sky sports football', 'sky sports premier', 'sky sports main', 'sky sports news'],
+      keywords: [
+        'sky sports',
+        'sky sports football',
+        'sky sports premier',
+        'sky sports main',
+        'sky sports news',
+      ],
       gradient: [Color(0xFF001965), Color(0xFFE60000)],
-      iconUrl: 'https://cdn.skymedia.ie/wp-content/uploads/sites/4/2020/11/Sky-Sports-ME-2020-logo-250.png',
+      iconUrl:
+          'https://cdn.skymedia.ie/wp-content/uploads/sites/4/2020/11/Sky-Sports-ME-2020-logo-250.png',
     ),
     HardcodedChannel(
       id: 'tnt_sports',
       name: 'TNT Sports HD',
       short: 'TNT',
       category: 'Soccer',
-      keywords: ['tnt sports', 'tnt sport', 'bt sport', 'tnt 1', 'tnt 2', 'tnt 3'],
+      keywords: [
+        'tnt sports',
+        'tnt sport',
+        'bt sport',
+        'tnt 1',
+        'tnt 2',
+        'tnt 3',
+      ],
       gradient: [Color(0xFFE50000), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/TNT_Sports_2021_logo.svg/960px-TNT_Sports_2021_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/TNT_Sports_2021_logo.svg/960px-TNT_Sports_2021_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'la_liga',
       name: 'LaLiga TV HD',
       short: 'LALIGA',
       category: 'Soccer',
-      keywords: ['laliga', 'la liga', 'laliga tv', 'spanish league', 'el clasico'],
+      keywords: [
+        'laliga',
+        'la liga',
+        'laliga tv',
+        'spanish league',
+        'el clasico',
+      ],
       gradient: [Color(0xFF101820), Color(0xFFFF4B44)],
       iconUrl: 'https://i.imgur.com/ilay5Jr.png',
     ),
@@ -504,7 +644,8 @@ HardcodedChannel(
       category: 'Soccer',
       keywords: ['serie a', 'calcio', 'italian league', 'serie a pass'],
       gradient: [Color(0xFF003366), Color(0xFF0066CC)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Serie_A_logo_2019.svg/1024px-Serie_A_logo_2019.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Serie_A_logo_2019.svg/1024px-Serie_A_logo_2019.svg.png',
     ),
     HardcodedChannel(
       id: 'bundesliga',
@@ -513,14 +654,20 @@ HardcodedChannel(
       category: 'Soccer',
       keywords: ['bundesliga', 'german league', 'bundesliga 1', 'bundesliga 2'],
       gradient: [Color(0xFFD3010C), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/df/Bundesliga_logo_%282017%29.svg/1024px-Bundesliga_logo_%282017%29.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/en/thumb/d/df/Bundesliga_logo_%282017%29.svg/1024px-Bundesliga_logo_%282017%29.svg.png',
     ),
     HardcodedChannel(
       id: 'ligue_1',
       name: 'Ligue 1 Pass',
       short: 'L1',
       category: 'Soccer',
-      keywords: ['ligue 1', 'french league', 'ligue 1 mcdonald', 'ligue 1 uber'],
+      keywords: [
+        'ligue 1',
+        'french league',
+        'ligue 1 mcdonald',
+        'ligue 1 uber',
+      ],
       gradient: [Color(0xFF091C3E), Color(0xFF5EE8B7)],
       iconUrl: 'https://i.imgur.com/PtzoOQL.png',
     ),
@@ -540,23 +687,36 @@ HardcodedChannel(
       category: 'Soccer',
       keywords: ['fifa', 'world cup', 'fifa plus', 'fifa+'],
       gradient: [Color(0xFF005696), Color(0xFF00A3E0)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/FIFA%2B_(2025).svg/960px-FIFA%2B_(2025).svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/FIFA%2B_(2025).svg/960px-FIFA%2B_(2025).svg.png',
     ),
     HardcodedChannel(
       id: 'copa_libertadores',
       name: 'Copa Libertadores',
       short: 'LIB',
       category: 'Soccer',
-      keywords: ['libertadores', 'copa libertadores', 'conmebol', 'copa sudamericana'],
+      keywords: [
+        'libertadores',
+        'copa libertadores',
+        'conmebol',
+        'copa sudamericana',
+      ],
       gradient: [Color(0xFFD4AF37), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/CONMEBOL_Libertadores_logo.svg/1024px-CONMEBOL_Libertadores_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/CONMEBOL_Libertadores_logo.svg/1024px-CONMEBOL_Libertadores_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'beout_q',
       name: 'SuperSport HD',
       short: 'SUPER',
       category: 'Soccer',
-      keywords: ['supersport', 'super sport', 'dstv', 'supersport premier', 'supersport football'],
+      keywords: [
+        'supersport',
+        'super sport',
+        'dstv',
+        'supersport premier',
+        'supersport football',
+      ],
       gradient: [Color(0xFF005BA6), Color(0xFFD31145)],
       iconUrl: 'https://i.imgur.com/KXdVDis.png',
     ),
@@ -568,11 +728,35 @@ HardcodedChannel(
       name: 'ESPN HD',
       short: 'ESPN',
       category: 'Sports',
-      keywords: ['espn hd', 'espn 1', 'espn live', 'espn usa', 'espn us', 'espn main', 'espn east', 'espn west', 'espn 1080'],
-      exclude: ['espn2', 'espn 2', 'espnu', 'espn u', 'espn+', 'espn plus', 'espn news', 'espnews', 'espn deportes', 'sec', 'acc'],
+      keywords: [
+        'espn hd',
+        'espn 1',
+        'espn live',
+        'espn usa',
+        'espn us',
+        'espn main',
+        'espn east',
+        'espn west',
+        'espn 1080',
+      ],
+      exclude: [
+        'espn2',
+        'espn 2',
+        'espnu',
+        'espn u',
+        'espn+',
+        'espn plus',
+        'espn news',
+        'espnews',
+        'espn deportes',
+        'sec',
+        'acc',
+      ],
       gradient: [Color(0xFFCC0000), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/ESPN_wordmark.svg/960px-ESPN_wordmark.svg.png',
-      backdropUrl: 'https://disney.images.edge.bamgrid.com/ripcut-delivery/v2/variant/espn/0EED69F98BADBE7F760C4F96CED05B20C7992B56AF98DD17A1E9BD18F128FD8E/compose?format=webp&width=2560',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/ESPN_wordmark.svg/960px-ESPN_wordmark.svg.png',
+      backdropUrl:
+          'https://disney.images.edge.bamgrid.com/ripcut-delivery/v2/variant/espn/0EED69F98BADBE7F760C4F96CED05B20C7992B56AF98DD17A1E9BD18F128FD8E/compose?format=webp&width=2560',
     ),
     HardcodedChannel(
       id: 'espn_plus',
@@ -605,26 +789,44 @@ HardcodedChannel(
         'espn+ stream',
       ],
       gradient: [Color(0xFF003087), Color(0xFFCC0000)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/ESPN%2B_logo.svg/1024px-ESPN%2B_logo.svg.png',
-      backdropUrl: 'https://cdn.dribbble.com/userupload/10398604/file/original-d1c95ee13c1c9c7f1a30ff76b2f7dd4e.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/ESPN%2B_logo.svg/1024px-ESPN%2B_logo.svg.png',
+      backdropUrl:
+          'https://cdn.dribbble.com/userupload/10398604/file/original-d1c95ee13c1c9c7f1a30ff76b2f7dd4e.png',
     ),
     HardcodedChannel(
       id: 'espn2',
       name: 'ESPN2 HD',
       short: 'ESPN2',
       category: 'Sports',
-      keywords: ['espn 2', 'espn2', 'espn 2 hd', 'espn2 hd', 'espn 2 usa', 'espn 2 live'],
+      keywords: [
+        'espn 2',
+        'espn2',
+        'espn 2 hd',
+        'espn2 hd',
+        'espn 2 usa',
+        'espn 2 live',
+      ],
       gradient: [Color(0xFFCC0000), Color(0xFF003087)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/ESPN2_wordmark.svg/1024px-ESPN2_wordmark.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/ESPN2_wordmark.svg/1024px-ESPN2_wordmark.svg.png',
     ),
     HardcodedChannel(
       id: 'espnu',
       name: 'ESPNU (College Sports)',
       short: 'ESPNU',
       category: 'Sports',
-      keywords: ['espnu', 'espn u', 'espnu hd', 'espn u hd', 'espn university', 'espn college'],
+      keywords: [
+        'espnu',
+        'espn u',
+        'espnu hd',
+        'espn u hd',
+        'espn university',
+        'espn college',
+      ],
       gradient: [Color(0xFFCC0000), Color(0xFF000000)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/ESPNU_logo.svg/1024px-ESPNU_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/ESPNU_logo.svg/1024px-ESPNU_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'espnews',
@@ -633,7 +835,8 @@ HardcodedChannel(
       category: 'Sports',
       keywords: ['espnews', 'espn news', 'espnews hd', 'espn news hd'],
       gradient: [Color(0xFF8B0000), Color(0xFF1C1C1C)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/ESPNews_logo.svg/1024px-ESPNews_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/ESPNews_logo.svg/1024px-ESPNews_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'espn_deportes',
@@ -642,25 +845,46 @@ HardcodedChannel(
       category: 'Sports',
       keywords: ['espn deportes', 'espndeportes', 'espn deportes hd'],
       gradient: [Color(0xFFCC0000), Color(0xFFD4AF37)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/ESPN_Deportes_logo.svg/1024px-ESPN_Deportes_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/ESPN_Deportes_logo.svg/1024px-ESPN_Deportes_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'sec_network',
       name: 'SEC Network & SEC+',
       short: 'SEC',
       category: 'Sports',
-      keywords: ['sec network', 'secn', 'sec network+', 'sec network +', 'sec network plus', 'sec alt', 'sec alternate', 'sec hd'],
+      keywords: [
+        'sec network',
+        'secn',
+        'sec network+',
+        'sec network +',
+        'sec network plus',
+        'sec alt',
+        'sec alternate',
+        'sec hd',
+      ],
       gradient: [Color(0xFF002D62), Color(0xFFFFD100)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/SEC_Network_logo.svg/1024px-SEC_Network_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/SEC_Network_logo.svg/1024px-SEC_Network_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'acc_network',
       name: 'ACC Network & ACCNX',
       short: 'ACC',
       category: 'Sports',
-      keywords: ['acc network', 'accn', 'acc network+', 'acc network +', 'acc network plus', 'acc extra', 'accx', 'acc hd'],
+      keywords: [
+        'acc network',
+        'accn',
+        'acc network+',
+        'acc network +',
+        'acc network plus',
+        'acc extra',
+        'accx',
+        'acc hd',
+      ],
       gradient: [Color(0xFF013CA6), Color(0xFF9FA1A4)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/ACC_Network_logo.svg/1024px-ACC_Network_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/ACC_Network_logo.svg/1024px-ACC_Network_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'longhorn_network',
@@ -669,7 +893,8 @@ HardcodedChannel(
       category: 'Sports',
       keywords: ['longhorn network', 'longhorn', 'lhn', 'texas longhorns'],
       gradient: [Color(0xFFBF5700), Color(0xFF333F48)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Longhorn_Network_logo.svg/1024px-Longhorn_Network_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Longhorn_Network_logo.svg/1024px-Longhorn_Network_logo.svg.png',
     ),
 
     // ── COLLEGE BASKETBALL & CONFERENCES ──
@@ -695,8 +920,10 @@ HardcodedChannel(
         'college hoops',
       ],
       gradient: [Color(0xFF005696), Color(0xFFFF6600)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/1024px-NCAA_logo.svg.png',
-      backdropUrl: 'https://images.axios.com/7bC4iF4p6321gqE76uW_wV5w06M=/0x0:1920x1080/1920x1080/2024/03/18/1710777558778.jpg',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/1024px-NCAA_logo.svg.png',
+      backdropUrl:
+          'https://images.axios.com/7bC4iF4p6321gqE76uW_wV5w06M=/0x0:1920x1080/1920x1080/2024/03/18/1710777558778.jpg',
     ),
     HardcodedChannel(
       id: 'ncaa_mens_cbb',
@@ -717,7 +944,8 @@ HardcodedChannel(
         'ncaam basketball',
       ],
       gradient: [Color(0xFF003366), Color(0xFFC9082A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/1024px-NCAA_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/1024px-NCAA_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'ncaa_womens_cbb',
@@ -739,16 +967,27 @@ HardcodedChannel(
         'ncaaw basketball',
       ],
       gradient: [Color(0xFF6B1D78), Color(0xFF008080)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/1024px-NCAA_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/1024px-NCAA_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'big_ten_network',
       name: 'Big Ten Network (BTN & BTN+)',
       short: 'BTN',
       category: 'Sports',
-      keywords: ['big ten network', 'btn', 'big 10 network', 'big ten', 'btn+', 'btn plus', 'big 10', 'btn hd'],
+      keywords: [
+        'big ten network',
+        'btn',
+        'big 10 network',
+        'big ten',
+        'btn+',
+        'btn plus',
+        'big 10',
+        'btn hd',
+      ],
       gradient: [Color(0xFF003087), Color(0xFF000000)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Big_Ten_Network_2020_Logo.svg/1024px-Big_Ten_Network_2020_Logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Big_Ten_Network_2020_Logo.svg/1024px-Big_Ten_Network_2020_Logo.svg.png',
     ),
     HardcodedChannel(
       id: 'pac_12_network',
@@ -769,7 +1008,8 @@ HardcodedChannel(
         'pac 12 national',
       ],
       gradient: [Color(0xFF004B87), Color(0xFF002244)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Pac-12_Network_Logo.svg/1024px-Pac-12_Network_Logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Pac-12_Network_Logo.svg/1024px-Pac-12_Network_Logo.svg.png',
     ),
     HardcodedChannel(
       id: 'bally_sports',
@@ -794,16 +1034,25 @@ HardcodedChannel(
         'bally sports indiana',
       ],
       gradient: [Color(0xFF0D1B2A), Color(0xFF1B4965)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/FanDuel_Sports_Network_logo.svg/1024px-FanDuel_Sports_Network_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/FanDuel_Sports_Network_logo.svg/1024px-FanDuel_Sports_Network_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'fox_sports',
       name: 'FOX Sports 1 (FS1)',
       short: 'FOX',
       category: 'Sports',
-      keywords: ['fox sports', 'fs1', 'fs2', 'fox sports 1', 'fox sports 2', 'fox soccer'],
+      keywords: [
+        'fox sports',
+        'fs1',
+        'fs2',
+        'fox sports 1',
+        'fox sports 2',
+        'fox soccer',
+      ],
       gradient: [Color(0xFF003366), Color(0xFF0066CC)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/FOX_Deportes_logo.png/960px-FOX_Deportes_logo.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/FOX_Deportes_logo.png/960px-FOX_Deportes_logo.png',
     ),
     HardcodedChannel(
       id: 'nbc_sports',
@@ -812,14 +1061,20 @@ HardcodedChannel(
       category: 'Sports',
       keywords: ['nbc sports', 'nbcsn', 'peacock sports', 'nbc golf'],
       gradient: [Color(0xFF0078D7), Color(0xFF2C3E50)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/NBCSN_logo_%28flat%29.svg/960px-NBCSN_logo_%28flat%29.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/NBCSN_logo_%28flat%29.svg/960px-NBCSN_logo_%28flat%29.svg.png',
     ),
     HardcodedChannel(
       id: 'cbs_sports',
       name: 'CBS Sports Network',
       short: 'CBS',
       category: 'Sports',
-      keywords: ['cbs sports', 'cbssn', 'cbs sports network', 'paramount sports'],
+      keywords: [
+        'cbs sports',
+        'cbssn',
+        'cbs sports network',
+        'paramount sports',
+      ],
       gradient: [Color(0xFF002244), Color(0xFF005596)],
       iconUrl: 'https://i.imgur.com/q8BENJg.png',
     ),
@@ -831,16 +1086,24 @@ HardcodedChannel(
       keywords: ['nba tv', 'nba league pass', 'nba hd', 'basketball'],
       gradient: [Color(0xFF17408B), Color(0xFFC9082A)],
       iconUrl: 'https://i.imgur.com/Bwv5KgE.png',
-      backdropUrl: 'https://m.media-amazon.com/images/S/sonata-images-prod/US_CHANNELS_NBATV_SeasonKickoff_1019/497224e7-8ed5-4063-b9c4-33ec7a46fa20._UR1920,1080_.jpeg',
+      backdropUrl:
+          'https://m.media-amazon.com/images/S/sonata-images-prod/US_CHANNELS_NBATV_SeasonKickoff_1019/497224e7-8ed5-4063-b9c4-33ec7a46fa20._UR1920,1080_.jpeg',
     ),
     HardcodedChannel(
       id: 'nfl',
       name: 'NFL Network',
       short: 'NFL',
       category: 'Sports',
-      keywords: ['nfl network', 'nfl game pass', 'nfl sunday ticket', 'nfl hd', 'american football'],
+      keywords: [
+        'nfl network',
+        'nfl game pass',
+        'nfl sunday ticket',
+        'nfl hd',
+        'american football',
+      ],
       gradient: [Color(0xFF013369), Color(0xFFD50A0A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/8f/NFL_Network_logo.svg/960px-NFL_Network_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/en/thumb/8/8f/NFL_Network_logo.svg/960px-NFL_Network_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'nfl_redzone',
@@ -856,7 +1119,13 @@ HardcodedChannel(
       name: 'NHL Network',
       short: 'NHL',
       category: 'Sports',
-      keywords: ['nhl network', 'nhl center ice', 'nhl hd', 'ice hockey', 'stanley cup'],
+      keywords: [
+        'nhl network',
+        'nhl center ice',
+        'nhl hd',
+        'ice hockey',
+        'stanley cup',
+      ],
       gradient: [Color(0xFF000000), Color(0xFF003366)],
       iconUrl: 'https://i.imgur.com/UNZ8bef.png',
     ),
@@ -865,7 +1134,13 @@ HardcodedChannel(
       name: 'MLB Network',
       short: 'MLB',
       category: 'Sports',
-      keywords: ['mlb network', 'mlb extra innings', 'mlb hd', 'baseball', 'world series'],
+      keywords: [
+        'mlb network',
+        'mlb extra innings',
+        'mlb hd',
+        'baseball',
+        'world series',
+      ],
       gradient: [Color(0xFF002D62), Color(0xFFBA0C2F)],
       iconUrl: 'https://i.imgur.com/ym3su2J.png',
     ),
@@ -876,7 +1151,8 @@ HardcodedChannel(
       category: 'Sports',
       keywords: ['dazn', 'dazn 1', 'dazn 2', 'dazn combat', 'dazn boxing'],
       gradient: [Color(0xFFF8F8F8), Color(0xFF1E1E1E)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/DAZN_1.svg/500px-DAZN_1.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/DAZN_1.svg/500px-DAZN_1.svg.png',
     ),
     HardcodedChannel(
       id: 'eurosport',
@@ -894,17 +1170,33 @@ HardcodedChannel(
       name: 'HBO HD',
       short: 'HBO',
       category: 'Movies',
-      keywords: ['hbo', 'hbo 2', 'hbo signature', 'hbo comedy', 'hbo zone', 'hbo family', 'hbo max'],
+      keywords: [
+        'hbo',
+        'hbo 2',
+        'hbo signature',
+        'hbo comedy',
+        'hbo zone',
+        'hbo family',
+        'hbo max',
+      ],
       gradient: [Color(0xFF5C2D91), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/HBO_logo.svg/960px-HBO_logo.svg.png',
-      backdropUrl: 'https://wallpapercat.com/w/full/8/2/d/1263212-1920x1080-desktop-1080p-hbo-background-image.jpg',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/HBO_logo.svg/960px-HBO_logo.svg.png',
+      backdropUrl:
+          'https://wallpapercat.com/w/full/8/2/d/1263212-1920x1080-desktop-1080p-hbo-background-image.jpg',
     ),
     HardcodedChannel(
       id: 'showtime',
       name: 'Showtime HD',
       short: 'SHO',
       category: 'Movies',
-      keywords: ['showtime', 'sho 2', 'sho showcase', 'sho extreme', 'paramount with showtime'],
+      keywords: [
+        'showtime',
+        'sho 2',
+        'sho showcase',
+        'sho extreme',
+        'paramount with showtime',
+      ],
       gradient: [Color(0xFFCC0000), Color(0xFF1A1A1A)],
       iconUrl: 'https://i.imgur.com/Or0LKsu.png',
     ),
@@ -913,7 +1205,13 @@ HardcodedChannel(
       name: 'Starz HD',
       short: 'STARZ',
       category: 'Movies',
-      keywords: ['starz', 'starz edge', 'starz inblack', 'starz cinema', 'starz comedy'],
+      keywords: [
+        'starz',
+        'starz edge',
+        'starz inblack',
+        'starz cinema',
+        'starz comedy',
+      ],
       gradient: [Color(0xFF000000), Color(0xFF2C3E50)],
       iconUrl: 'https://i.imgur.com/N7oSm4d.png',
     ),
@@ -933,7 +1231,8 @@ HardcodedChannel(
       category: 'Movies',
       keywords: ['paramount', 'paramount network', 'paramount channel'],
       gradient: [Color(0xFF006699), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Paramount_Network.svg/960px-Paramount_Network.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Paramount_Network.svg/960px-Paramount_Network.svg.png',
     ),
     HardcodedChannel(
       id: 'amc',
@@ -951,27 +1250,45 @@ HardcodedChannel(
       category: 'Movies',
       keywords: ['fx', 'fxx', 'fxm', 'fx movie channel'],
       gradient: [Color(0xFF212121), Color(0xFF424242)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fx-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fx-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fx-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fx-us.png',
     ),
     HardcodedChannel(
       id: 'sky_cinema',
       name: 'Sky Cinema Premiere',
       short: 'SKY C',
       category: 'Movies',
-      keywords: ['sky cinema', 'sky movies', 'sky premiere', 'sky action', 'sky comedy', 'sky scifi'],
+      keywords: [
+        'sky cinema',
+        'sky movies',
+        'sky premiere',
+        'sky action',
+        'sky comedy',
+        'sky scifi',
+      ],
       gradient: [Color(0xFF800020), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/18/Sky_Cinema_Premiere_2024_logo.svg/960px-Sky_Cinema_Premiere_2024_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/en/thumb/1/18/Sky_Cinema_Premiere_2024_logo.svg/960px-Sky_Cinema_Premiere_2024_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'osn_movies',
       name: 'OSN Movies Premiere',
       short: 'OSN M',
       category: 'Movies',
-      keywords: ['osn movies', 'osn premiere', 'osn action', 'osn comedy', 'osn cinema'],
+      keywords: [
+        'osn movies',
+        'osn premiere',
+        'osn action',
+        'osn comedy',
+        'osn cinema',
+      ],
       gradient: [Color(0xFF9C27B0), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/osn-movies-ae.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/osn-movies-ae.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/osn-movies-ae.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/osn-movies-ae.png',
     ),
 
     // ── 24/7 GLOBAL NEWS ──
@@ -982,7 +1299,8 @@ HardcodedChannel(
       category: 'News',
       keywords: ['cnn', 'cnn international', 'cnn news', 'cnn hd'],
       gradient: [Color(0xFFCC0000), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/CNN.svg/960px-CNN.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/CNN.svg/960px-CNN.svg.png',
     ),
     HardcodedChannel(
       id: 'bbc_news',
@@ -991,7 +1309,8 @@ HardcodedChannel(
       category: 'News',
       keywords: ['bbc news', 'bbc world news', 'bbc world', 'bbc hd'],
       gradient: [Color(0xFFBB1919), Color(0xFF1A1A1A)],
-      iconUrl: 'https://ltsk-cdn.s3.eu-west-1.amazonaws.com/jumpstart/Temp_Live/cdn/HLS/Channel/transparentImages/BBC-logo_2000_X_1125_Transparent.png',
+      iconUrl:
+          'https://ltsk-cdn.s3.eu-west-1.amazonaws.com/jumpstart/Temp_Live/cdn/HLS/Channel/transparentImages/BBC-logo_2000_X_1125_Transparent.png',
     ),
     HardcodedChannel(
       id: 'fox_news',
@@ -1000,7 +1319,8 @@ HardcodedChannel(
       category: 'News',
       keywords: ['fox news', 'fox business', 'fnc', 'fox news hd'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Fox_News_Channel_logo.svg/960px-Fox_News_Channel_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Fox_News_Channel_logo.svg/960px-Fox_News_Channel_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'msnbc',
@@ -1009,25 +1329,38 @@ HardcodedChannel(
       category: 'News',
       keywords: ['msnbc', 'msnbc news', 'msnbc hd'],
       gradient: [Color(0xFF005696), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/7/7f/MSNBC_2023.svg',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/7/7f/MSNBC_2023.svg',
     ),
     HardcodedChannel(
       id: 'sky_news',
       name: 'Sky News HD',
       short: 'SKY N',
       category: 'News',
-      keywords: ['sky news', 'sky news uk', 'sky news arabia', 'sky news international'],
+      keywords: [
+        'sky news',
+        'sky news uk',
+        'sky news arabia',
+        'sky news international',
+      ],
       gradient: [Color(0xFFCC0000), Color(0xFF001965)],
-      iconUrl: 'https://d2n0069hmnqmmx.cloudfront.net/epgdata/1.0/newchanlogos/512/512/skychb1404.png',
+      iconUrl:
+          'https://d2n0069hmnqmmx.cloudfront.net/epgdata/1.0/newchanlogos/512/512/skychb1404.png',
     ),
     HardcodedChannel(
       id: 'al_jazeera',
       name: 'Al Jazeera English',
       short: 'AJE',
       category: 'News',
-      keywords: ['al jazeera', 'al jazeera english', 'al jazeera news', 'aljazeera'],
+      keywords: [
+        'al jazeera',
+        'al jazeera english',
+        'al jazeera news',
+        'aljazeera',
+      ],
       gradient: [Color(0xFFD4AF37), Color(0xFF1A1A1A)],
-      iconUrl: 'https://dtil.tmsimg.com/assets/s159135_ld_h15_aa.png?lock=720x540',
+      iconUrl:
+          'https://dtil.tmsimg.com/assets/s159135_ld_h15_aa.png?lock=720x540',
     ),
     HardcodedChannel(
       id: 'cnbc',
@@ -1036,14 +1369,20 @@ HardcodedChannel(
       category: 'News',
       keywords: ['cnbc', 'cnbc news', 'cnbc international', 'cnbc us'],
       gradient: [Color(0xFF002B49), Color(0xFF005696)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/CNBC_2025.svg/960px-CNBC_2025.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/CNBC_2025.svg/960px-CNBC_2025.svg.png',
     ),
     HardcodedChannel(
       id: 'bloomberg',
       name: 'Bloomberg TV',
       short: 'BLOOM',
       category: 'News',
-      keywords: ['bloomberg', 'bloomberg tv', 'bloomberg news', 'bloomberg financial'],
+      keywords: [
+        'bloomberg',
+        'bloomberg tv',
+        'bloomberg news',
+        'bloomberg financial',
+      ],
       gradient: [Color(0xFF000000), Color(0xFF333333)],
       iconUrl: 'https://i.imgur.com/R7FCaB5.png',
     ),
@@ -1054,7 +1393,8 @@ HardcodedChannel(
       category: 'News',
       keywords: ['france 24', 'france 24 english', 'france 24 news'],
       gradient: [Color(0xFF002B49), Color(0xFF005696)],
-      iconUrl: 'https://ltsk-cdn.s3.eu-west-1.amazonaws.com/jumpstart/Temp_Live/cdn/HLS/Channel/transparentImages/France%2024.png',
+      iconUrl:
+          'https://ltsk-cdn.s3.eu-west-1.amazonaws.com/jumpstart/Temp_Live/cdn/HLS/Channel/transparentImages/France%2024.png',
     ),
 
     // ── ARABIC & REGIONAL ──
@@ -1063,7 +1403,15 @@ HardcodedChannel(
       name: 'MBC 1 HD',
       short: 'MBC1',
       category: 'Arabic',
-      keywords: ['mbc', 'mbc 1', 'mbc masr', 'mbc drama', 'mbc action', 'mbc 2', 'mbc 4'],
+      keywords: [
+        'mbc',
+        'mbc 1',
+        'mbc masr',
+        'mbc drama',
+        'mbc action',
+        'mbc 2',
+        'mbc 4',
+      ],
       gradient: [Color(0xFF8E24AA), Color(0xFF1A1A1A)],
       iconUrl: 'https://i.imgur.com/CiA3plN.png',
     ),
@@ -1072,7 +1420,13 @@ HardcodedChannel(
       name: 'Rotana Cinema HD',
       short: 'ROT',
       category: 'Arabic',
-      keywords: ['rotana', 'rotana cinema', 'rotana classic', 'rotana drama', 'rotana khaleejiya'],
+      keywords: [
+        'rotana',
+        'rotana cinema',
+        'rotana classic',
+        'rotana drama',
+        'rotana khaleejiya',
+      ],
       gradient: [Color(0xFFE65100), Color(0xFF1A1A1A)],
       iconUrl: 'https://i.imgur.com/2zFQbQi.png',
     ),
@@ -1083,14 +1437,21 @@ HardcodedChannel(
       category: 'Arabic',
       keywords: ['osn', 'osn ya hala', 'osn series', 'osn news', 'osn pop up'],
       gradient: [Color(0xFFD500F9), Color(0xFF1A1A1A)],
-      iconUrl: 'https://www.osn.com/osn/media/OSNMedia/osntv/images/common/osntv-purple-logo-hub.png',
+      iconUrl:
+          'https://www.osn.com/osn/media/OSNMedia/osntv/images/common/osntv-purple-logo-hub.png',
     ),
     HardcodedChannel(
       id: 'abu_dhabi',
       name: 'Abu Dhabi Sports HD',
       short: 'AD SP',
       category: 'Arabic',
-      keywords: ['abu dhabi', 'abu dhabi sports', 'ad sports', 'ad sports 1', 'ad sports 2'],
+      keywords: [
+        'abu dhabi',
+        'abu dhabi sports',
+        'ad sports',
+        'ad sports 1',
+        'ad sports 2',
+      ],
       gradient: [Color(0xFF00897B), Color(0xFF1A1A1A)],
       iconUrl: 'https://i.imgur.com/8DAriPs.png',
     ),
@@ -1099,7 +1460,13 @@ HardcodedChannel(
       name: 'Dubai Sports HD',
       short: 'DXB SP',
       category: 'Arabic',
-      keywords: ['dubai sports', 'dubai tv', 'dubai one', 'dubai sports 1', 'dubai sports 2'],
+      keywords: [
+        'dubai sports',
+        'dubai tv',
+        'dubai one',
+        'dubai sports 1',
+        'dubai sports 2',
+      ],
       gradient: [Color(0xFF039BE5), Color(0xFF1A1A1A)],
       iconUrl: 'https://i.imgur.com/Dj16oKL.png',
     ),
@@ -1108,9 +1475,16 @@ HardcodedChannel(
       name: 'Al Arabiya News',
       short: 'ARAB',
       category: 'Arabic',
-      keywords: ['al arabiya', 'alarabiya', 'alhadath', 'al hadath', 'arabiya news'],
+      keywords: [
+        'al arabiya',
+        'alarabiya',
+        'alhadath',
+        'al hadath',
+        'arabiya news',
+      ],
       gradient: [Color(0xFF5E35B1), Color(0xFF1A1A1A)],
-      iconUrl: 'https://shahid.mbc.net/mediaObject/a4c125db-ede8-4970-9eed-963948c78651?height=auto&width=512&croppingPoint=&version=1&type=png',
+      iconUrl:
+          'https://shahid.mbc.net/mediaObject/a4c125db-ede8-4970-9eed-963948c78651?height=auto&width=512&croppingPoint=&version=1&type=png',
     ),
 
     // ── DISCOVERY & DOCUMENTARIES ──
@@ -1119,19 +1493,32 @@ HardcodedChannel(
       name: 'Discovery Channel HD',
       short: 'DISC',
       category: 'Discovery',
-      keywords: ['discovery', 'discovery channel', 'discovery science', 'discovery turbo'],
+      keywords: [
+        'discovery',
+        'discovery channel',
+        'discovery science',
+        'discovery turbo',
+      ],
       gradient: [Color(0xFF006699), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/discovery-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/discovery-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/discovery-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/discovery-us.png',
     ),
     HardcodedChannel(
       id: 'nat_geo',
       name: 'National Geographic HD',
       short: 'NATGEO',
       category: 'Discovery',
-      keywords: ['national geographic', 'nat geo', 'nat geo wild', 'nat geo people'],
+      keywords: [
+        'national geographic',
+        'nat geo',
+        'nat geo wild',
+        'nat geo people',
+      ],
       gradient: [Color(0xFFFFD700), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Natgeologo.svg/960px-Natgeologo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Natgeologo.svg/960px-Natgeologo.svg.png',
     ),
     HardcodedChannel(
       id: 'history',
@@ -1140,8 +1527,10 @@ HardcodedChannel(
       category: 'Discovery',
       keywords: ['history', 'history channel', 'history 2', 'h2'],
       gradient: [Color(0xFFC59B27), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/history-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/history-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/history-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/history-us.png',
     ),
     HardcodedChannel(
       id: 'animal_planet',
@@ -1150,7 +1539,8 @@ HardcodedChannel(
       category: 'Discovery',
       keywords: ['animal planet', 'animal planet hd'],
       gradient: [Color(0xFF43A047), Color(0xFF1A1A1A)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/2018_Animal_Planet_logo.svg/960px-2018_Animal_Planet_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/2018_Animal_Planet_logo.svg/960px-2018_Animal_Planet_logo.svg.png',
     ),
 
     // ── KIDS & FAMILY ──
@@ -1161,7 +1551,8 @@ HardcodedChannel(
       category: 'Kids',
       keywords: ['cartoon network', 'cn', 'boomerang'],
       gradient: [Color(0xFF000000), Color(0xFF00AEEF)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Cartoon_Network_2010_logo.svg/960px-Cartoon_Network_2010_logo.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Cartoon_Network_2010_logo.svg/960px-Cartoon_Network_2010_logo.svg.png',
     ),
     HardcodedChannel(
       id: 'disney',
@@ -1170,7 +1561,8 @@ HardcodedChannel(
       category: 'Kids',
       keywords: ['disney', 'disney channel', 'disney xd', 'disney junior'],
       gradient: [Color(0xFF005696), Color(0xFF00A3E0)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/bb/Disney_Channel_2014_HD.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/b/bb/Disney_Channel_2014_HD.png',
     ),
     HardcodedChannel(
       id: 'nickelodeon',
@@ -1188,8 +1580,10 @@ HardcodedChannel(
       category: 'Kids',
       keywords: ['spacetoon', 'space toon', 'spacetoon go'],
       gradient: [Color(0xFF00ACC1), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/spacetoon-ae.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/spacetoon-ae.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/spacetoon-ae.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/spacetoon-ae.png',
     ),
 
     // ── QUICK CHANNELS — US REGION ──
@@ -1200,7 +1594,8 @@ HardcodedChannel(
       category: 'US',
       keywords: ['abc news', 'abc news live', 'abc us news'],
       gradient: [Color(0xFF000000), Color(0xFF002D62)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/ABCNewsLive.svg/960px-ABCNewsLive.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/ABCNewsLive.svg/960px-ABCNewsLive.svg.png',
     ),
     HardcodedChannel(
       id: 'cbs_us',
@@ -1209,7 +1604,8 @@ HardcodedChannel(
       category: 'US',
       keywords: ['cbs news', 'cbs news 24/7', 'cbs us'],
       gradient: [Color(0xFF000000), Color(0xFF7F2B9B)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/CBS_News_2017.svg/960px-CBS_News_2017.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/CBS_News_2017.svg/960px-CBS_News_2017.svg.png',
     ),
     HardcodedChannel(
       id: 'nbc_us',
@@ -1218,7 +1614,8 @@ HardcodedChannel(
       category: 'US',
       keywords: ['nbc news', 'nbc news now', 'nbc us'],
       gradient: [Color(0xFF0078D7), Color(0xFF000000)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/NBC_Universal_logo_2022.svg/960px-NBC_Universal_logo_2022.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/NBC_Universal_logo_2022.svg/960px-NBC_Universal_logo_2022.svg.png',
     ),
     HardcodedChannel(
       id: 'weather_channel',
@@ -1236,8 +1633,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['fox weather', 'weather fox'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-weather-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-weather-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-weather-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-weather-us.png',
     ),
     HardcodedChannel(
       id: 'cnbc_us',
@@ -1246,7 +1645,8 @@ HardcodedChannel(
       category: 'US',
       keywords: ['cnbc', 'cnbc news', 'cnbc us'],
       gradient: [Color(0xFF002B49), Color(0xFF005696)],
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/CNBC_2025.svg/960px-CNBC_2025.svg.png',
+      iconUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/CNBC_2025.svg/960px-CNBC_2025.svg.png',
     ),
     HardcodedChannel(
       id: 'foxbusiness',
@@ -1264,8 +1664,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['court tv', 'court'],
       gradient: [Color(0xFF1A1A1A), Color(0xFFD4AF37)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/court-tv-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/court-tv-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/court-tv-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/court-tv-us.png',
     ),
     HardcodedChannel(
       id: 'newsmax',
@@ -1274,8 +1676,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['newsmax', 'newsmax tv'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsmax-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsmax-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsmax-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsmax-us.png',
     ),
     HardcodedChannel(
       id: 'newsnation',
@@ -1284,8 +1688,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['newsnation', 'news nation'],
       gradient: [Color(0xFF003366), Color(0xFF0066CC)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsnation-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsnation-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsnation-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsnation-us.png',
     ),
     HardcodedChannel(
       id: 'oan',
@@ -1294,8 +1700,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['one america news', 'oan'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/oan-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/oan-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/oan-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/oan-us.png',
     ),
     HardcodedChannel(
       id: 'real_americas_voice',
@@ -1304,8 +1712,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['real americas voice', 'rav', 'truth'],
       gradient: [Color(0xFF8B0000), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/real-americas-voice-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/real-americas-voice-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/real-americas-voice-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/real-americas-voice-us.png',
     ),
     HardcodedChannel(
       id: 'newsy',
@@ -1314,8 +1724,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['newsy', 'newsy news'],
       gradient: [Color(0xFF0066CC), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsy-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsy-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsy-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/newsy-us.png',
     ),
     HardcodedChannel(
       id: 'cheddar',
@@ -1324,8 +1736,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['cheddar', 'cheddar news'],
       gradient: [Color(0xFFE65100), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cheddar-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cheddar-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cheddar-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cheddar-us.png',
     ),
     HardcodedChannel(
       id: 'cbn_news',
@@ -1334,8 +1748,10 @@ HardcodedChannel(
       category: 'US',
       keywords: ['cbn news', 'christian broadcasting'],
       gradient: [Color(0xFF005696), Color(0xFFD4AF37)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cbn-news-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cbn-news-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cbn-news-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/cbn-news-us.png',
     ),
 
     // ── QUICK CHANNELS — UK REGION ──
@@ -1346,8 +1762,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['bbc one uk', 'bbc1', 'bbc news uk'],
       gradient: [Color(0xFFBB1919), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/bbc-one-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/bbc-one-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/bbc-one-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/bbc-one-uk.png',
     ),
     HardcodedChannel(
       id: 'itv_uk',
@@ -1356,8 +1774,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['itv news', 'itv', 'itv channel'],
       gradient: [Color(0xFF00AEEF), Color(0xFF005696)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/itv-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/itv-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/itv-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/itv-uk.png',
     ),
     HardcodedChannel(
       id: 'sky_news_uk',
@@ -1366,8 +1786,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['sky news uk', 'sky news', 'gb news'],
       gradient: [Color(0xFFCC0000), Color(0xFF001965)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/sky-news-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/sky-news-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/sky-news-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/sky-news-uk.png',
     ),
     HardcodedChannel(
       id: 'channel4_uk',
@@ -1376,8 +1798,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['channel 4', 'channel four', 'c4 news'],
       gradient: [Color(0xFFFF0066), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/channel-4-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/channel-4-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/channel-4-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/channel-4-uk.png',
     ),
     HardcodedChannel(
       id: 'talktv',
@@ -1386,8 +1810,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['talktv', 'talk tv'],
       gradient: [Color(0xFF00AEEF), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/talktv-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/talktv-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/talktv-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/talktv-uk.png',
     ),
     HardcodedChannel(
       id: 'lbc',
@@ -1396,8 +1822,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['lbc', 'lbc news'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/lbc-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/lbc-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/lbc-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/lbc-uk.png',
     ),
     HardcodedChannel(
       id: 'stv_news',
@@ -1406,8 +1834,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['stv news', 'scottish tv'],
       gradient: [Color(0xFF0066CC), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/stv-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/stv-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/stv-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/stv-uk.png',
     ),
     HardcodedChannel(
       id: 'gb_news',
@@ -1416,8 +1846,10 @@ HardcodedChannel(
       category: 'UK',
       keywords: ['gb news', 'great britain news'],
       gradient: [Color(0xFF003366), Color(0xFFFFD700)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/gb-news-uk.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/gb-news-uk.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/gb-news-uk.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-kingdom/gb-news-uk.png',
     ),
 
     // ── QUICK CHANNELS — CANADA REGION ──
@@ -1428,8 +1860,10 @@ HardcodedChannel(
       category: 'CA',
       keywords: ['cbc news', 'cbc', 'canadian broadcasting'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/cbc-news-ca.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/cbc-news-ca.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/cbc-news-ca.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/cbc-news-ca.png',
     ),
     HardcodedChannel(
       id: 'ctv_news',
@@ -1438,8 +1872,10 @@ HardcodedChannel(
       category: 'CA',
       keywords: ['ctv news', 'ctv news channel'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/ctv-news-ca.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/ctv-news-ca.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/ctv-news-ca.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/ctv-news-ca.png',
     ),
     HardcodedChannel(
       id: 'tsn',
@@ -1448,8 +1884,10 @@ HardcodedChannel(
       category: 'CA',
       keywords: ['tsn', 'tsn sports', 'sportsnet', 'sportsnet world'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/tsn-ca.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/tsn-ca.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/tsn-ca.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/tsn-ca.png',
     ),
     HardcodedChannel(
       id: 'crave',
@@ -1458,8 +1896,10 @@ HardcodedChannel(
       category: 'CA',
       keywords: ['crave', 'crave tv'],
       gradient: [Color(0xFF1A1A1A), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/crave-ca.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/crave-ca.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/crave-ca.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/crave-ca.png',
     ),
     HardcodedChannel(
       id: 'global_ca',
@@ -1468,8 +1908,10 @@ HardcodedChannel(
       category: 'CA',
       keywords: ['global news', 'global tv canada'],
       gradient: [Color(0xFF003366), Color(0xFFD4AF37)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/global-news-ca.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/global-news-ca.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/global-news-ca.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/global-news-ca.png',
     ),
     HardcodedChannel(
       id: 'canadian_news',
@@ -1478,8 +1920,10 @@ HardcodedChannel(
       category: 'CA',
       keywords: ['canadian news', 'canada news'],
       gradient: [Color(0xFFCC0000), Color(0xFFFFFFFF)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/canadian-news-ca.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/canadian-news-ca.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/canadian-news-ca.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/canadian-news-ca.png',
     ),
 
     // ── QUICK CHANNELS — BAY AREA ──
@@ -1490,8 +1934,10 @@ HardcodedChannel(
       category: 'Bay Area',
       keywords: ['ktvu', 'fox 2 bay area'],
       gradient: [Color(0xFF003366), Color(0xFFFFD700)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/ktvu-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/ktvu-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/ktvu-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/ktvu-us.png',
     ),
     HardcodedChannel(
       id: 'kpix',
@@ -1500,8 +1946,10 @@ HardcodedChannel(
       category: 'Bay Area',
       keywords: ['kpix', 'cbs bay area'],
       gradient: [Color(0xFF7F2B9B), Color(0xFF000000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kpix-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kpix-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kpix-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kpix-us.png',
     ),
     HardcodedChannel(
       id: 'kgov',
@@ -1510,8 +1958,10 @@ HardcodedChannel(
       category: 'Bay Area',
       keywords: ['kgov', 'abc bay area'],
       gradient: [Color(0xFF000000), Color(0xFF002D62)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kgov-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kgov-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kgov-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kgov-us.png',
     ),
     HardcodedChannel(
       id: 'kron',
@@ -1520,8 +1970,10 @@ HardcodedChannel(
       category: 'Bay Area',
       keywords: ['kron', 'kron 4'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kron-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kron-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kron-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/kron-us.png',
     ),
     HardcodedChannel(
       id: 'nbc_bay_area',
@@ -1530,8 +1982,10 @@ HardcodedChannel(
       category: 'Bay Area',
       keywords: ['nbc bay area', 'kcra', 'bay area news'],
       gradient: [Color(0xFF0078D7), Color(0xFF000000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nbc-bay-area-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nbc-bay-area-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nbc-bay-area-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/nbc-bay-area-us.png',
     ),
 
     // ── QUICK CHANNELS — INTERNATIONAL SPORTS ──
@@ -1542,8 +1996,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['willow', 'willow cricket', 'cricket'],
       gradient: [Color(0xFF0066CC), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/willow-cricket-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/willow-cricket-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/willow-cricket-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/willow-cricket-us.png',
     ),
     HardcodedChannel(
       id: 'fox_soccer_plus',
@@ -1552,8 +2008,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['fox soccer plus', 'fsplus', 'fox sports soccer'],
       gradient: [Color(0xFF003366), Color(0xFF0066CC)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-soccer-plus-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-soccer-plus-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-soccer-plus-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fox-soccer-plus-us.png',
     ),
     HardcodedChannel(
       id: 'goltv',
@@ -1562,8 +2020,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['goltv', 'gol tv'],
       gradient: [Color(0xFF0066CC), Color(0xFF00AA00)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/goltv-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/goltv-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/goltv-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/goltv-us.png',
     ),
     HardcodedChannel(
       id: 'tvg',
@@ -1572,8 +2032,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['tvg', 'tvg network'],
       gradient: [Color(0xFFD4AF37), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tvg-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tvg-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tvg-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tvg-us.png',
     ),
     HardcodedChannel(
       id: 'stadium',
@@ -1582,8 +2044,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['stadium', 'stadium sports'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/stadium-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/stadium-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/stadium-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/stadium-us.png',
     ),
     HardcodedChannel(
       id: 'fight_network',
@@ -1592,8 +2056,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['fight network', 'combat sports'],
       gradient: [Color(0xFFD20A0A), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fight-network-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fight-network-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fight-network-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fight-network-us.png',
     ),
     HardcodedChannel(
       id: 'espn_caribbean',
@@ -1602,8 +2068,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['espn caribbean', 'espn caribe'],
       gradient: [Color(0xFFCC0000), Color(0xFF003087)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/espn-caribbean.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/espn-caribbean.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/espn-caribbean.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/espn-caribbean.png',
     ),
     HardcodedChannel(
       id: 'tudn',
@@ -1612,8 +2080,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['tudn', 'televisa univision'],
       gradient: [Color(0xFF003087), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/mexico/tudn-mx.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/mexico/tudn-mx.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/mexico/tudn-mx.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/mexico/tudn-mx.png',
     ),
     HardcodedChannel(
       id: 'viaplay_sports',
@@ -1622,8 +2092,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['viaplay', 'viaplay sports', 'viaplay football'],
       gradient: [Color(0xFFFF6D00), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/sweden/viaplay-sports-se.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/sweden/viaplay-sports-se.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/sweden/viaplay-sports-se.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/sweden/viaplay-sports-se.png',
     ),
     HardcodedChannel(
       id: 'eleven_sports',
@@ -1632,8 +2104,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['eleven sports', 'eleven'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/belgium/eleven-sports-be.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/belgium/eleven-sports-be.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/belgium/eleven-sports-be.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/belgium/eleven-sports-be.png',
     ),
     HardcodedChannel(
       id: 'setanta_sports',
@@ -1642,8 +2116,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['setanta', 'setanta sports'],
       gradient: [Color(0xFF0066CC), Color(0xFF00AA00)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/ireland/setanta-sports-ie.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/ireland/setanta-sports-ie.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/ireland/setanta-sports-ie.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/ireland/setanta-sports-ie.png',
     ),
     HardcodedChannel(
       id: 'sport_klub',
@@ -1652,8 +2128,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['sport klub', 'sportklub'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/serbia/sport-klub-rs.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/serbia/sport-klub-rs.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/serbia/sport-klub-rs.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/serbia/sport-klub-rs.png',
     ),
     HardcodedChannel(
       id: 'sky_sport_italia',
@@ -1662,8 +2140,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['sky sport italia', 'sky sport italy'],
       gradient: [Color(0xFF001965), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/sky-sport-italia-it.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/sky-sport-italia-it.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/sky-sport-italia-it.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/sky-sport-italia-it.png',
     ),
     HardcodedChannel(
       id: 'sky_sport_de',
@@ -1672,8 +2152,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['sky sport germany', 'sky sport de', 'sky sport deutschland'],
       gradient: [Color(0xFF001965), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/germany/sky-sport-de.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/germany/sky-sport-de.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/germany/sky-sport-de.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/germany/sky-sport-de.png',
     ),
     HardcodedChannel(
       id: 'rai_sport',
@@ -1682,8 +2164,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['rai sport', 'rai sports'],
       gradient: [Color(0xFF0066CC), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/rai-sport-it.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/rai-sport-it.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/rai-sport-it.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/italy/rai-sport-it.png',
     ),
     HardcodedChannel(
       id: 'rmc_sport',
@@ -1692,8 +2176,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['rmc sport', 'rmc'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/rmc-sport-fr.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/rmc-sport-fr.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/rmc-sport-fr.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/rmc-sport-fr.png',
     ),
     HardcodedChannel(
       id: 'canal_plus_sport',
@@ -1702,8 +2188,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['canal plus sport', 'canal+ sport', 'c+ sport'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/canal-plus-sport-fr.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/canal-plus-sport-fr.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/canal-plus-sport-fr.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/canal-plus-sport-fr.png',
     ),
     HardcodedChannel(
       id: 'nova_sports',
@@ -1712,18 +2200,27 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['nova sports', 'nova sport'],
       gradient: [Color(0xFF00AEEF), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/greece/nova-sports-gr.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/greece/nova-sports-gr.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/greece/nova-sports-gr.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/greece/nova-sports-gr.png',
     ),
     HardcodedChannel(
       id: 'star_sports_in',
       name: 'Star Sports India',
       short: 'SSI',
       category: 'Int. Sports',
-      keywords: ['star sports india', 'star sports', 'star sports 1', 'star sports 2'],
+      keywords: [
+        'star sports india',
+        'star sports',
+        'star sports 1',
+        'star sports 2',
+      ],
       gradient: [Color(0xFF003366), Color(0xFFFFD700)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/star-sports-in.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/star-sports-in.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/star-sports-in.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/star-sports-in.png',
     ),
     HardcodedChannel(
       id: 'sony_sports_in',
@@ -1732,8 +2229,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['sony sports', 'sony six', 'sony sports six'],
       gradient: [Color(0xFF005696), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/sony-sports-in.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/sony-sports-in.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/sony-sports-in.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/sony-sports-in.png',
     ),
     HardcodedChannel(
       id: 'match_tv',
@@ -1742,8 +2241,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['match tv', 'match!', 'russian sports'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/russia/match-tv-ru.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/russia/match-tv-ru.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/russia/match-tv-ru.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/russia/match-tv-ru.png',
     ),
     HardcodedChannel(
       id: 'eurosport_eu',
@@ -1752,8 +2253,10 @@ HardcodedChannel(
       category: 'Int. Sports',
       keywords: ['eurosport europe', 'eurosport fr', 'eurosport de'],
       gradient: [Color(0xFF002B49), Color(0xFF005696)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/eurosport.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/eurosport.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/eurosport.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/international/eurosport.png',
     ),
 
     // ── QUICK CHANNELS — GLOBAL NEWS EXTENDED ──
@@ -1764,8 +2267,10 @@ HardcodedChannel(
       category: 'News',
       keywords: ['i24 news', 'i24news'],
       gradient: [Color(0xFF005696), Color(0xFF00AAEE)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/israel/i24-news-il.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/israel/i24-news-il.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/israel/i24-news-il.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/israel/i24-news-il.png',
     ),
     HardcodedChannel(
       id: 'cgtn',
@@ -1774,8 +2279,10 @@ HardcodedChannel(
       category: 'News',
       keywords: ['cgtn', 'china global television'],
       gradient: [Color(0xFFCC0000), Color(0xFFFFD700)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/china/cgtn-cn.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/china/cgtn-cn.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/china/cgtn-cn.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/china/cgtn-cn.png',
     ),
     HardcodedChannel(
       id: 'nhk_world',
@@ -1784,8 +2291,10 @@ HardcodedChannel(
       category: 'News',
       keywords: ['nhk world', 'nhk japan', 'nhk world japan'],
       gradient: [Color(0xFF0066CC), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/japan/nhk-world-jp.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/japan/nhk-world-jp.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/japan/nhk-world-jp.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/japan/nhk-world-jp.png',
     ),
     HardcodedChannel(
       id: 'dubai_one',
@@ -1794,8 +2303,10 @@ HardcodedChannel(
       category: 'News',
       keywords: ['dubai one', 'dubai tv'],
       gradient: [Color(0xFF039BE5), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/dubai-one-ae.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/dubai-one-ae.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/dubai-one-ae.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/dubai-one-ae.png',
     ),
     HardcodedChannel(
       id: 'sky_news_au',
@@ -1804,8 +2315,10 @@ HardcodedChannel(
       category: 'News',
       keywords: ['sky news australia', 'sky news au'],
       gradient: [Color(0xFFCC0000), Color(0xFF001965)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/sky-news-au.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/sky-news-au.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/sky-news-au.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/sky-news-au.png',
     ),
     HardcodedChannel(
       id: 'fox_news_au',
@@ -1814,8 +2327,10 @@ HardcodedChannel(
       category: 'News',
       keywords: ['fox news australia', 'fox au'],
       gradient: [Color(0xFF003366), Color(0xFFCC0000)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/fox-news-au.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/fox-news-au.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/fox-news-au.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/fox-news-au.png',
     ),
     HardcodedChannel(
       id: 'abc_news_au',
@@ -1824,8 +2339,10 @@ HardcodedChannel(
       category: 'News',
       keywords: ['abc news australia', 'abc au'],
       gradient: [Color(0xFF000000), Color(0xFF0066CC)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/abc-news-au.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/abc-news-au.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/abc-news-au.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/australia/abc-news-au.png',
     ),
 
     // ── QUICK CHANNELS — PREMIUM MOVIES EXTENDED ──
@@ -1836,8 +2353,10 @@ HardcodedChannel(
       category: 'Movies',
       keywords: ['mgm plus', 'mgm+', 'mgm premium'],
       gradient: [Color(0xFFD4AF37), Color(0xFF1A1A1A)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/mgm-plus-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/mgm-plus-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/mgm-plus-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/mgm-plus-us.png',
     ),
     HardcodedChannel(
       id: 'tmc',
@@ -1846,8 +2365,10 @@ HardcodedChannel(
       category: 'Movies',
       keywords: ['tmc', 'the movie channel', 'movie channel'],
       gradient: [Color(0xFF003366), Color(0xFFD4AF37)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tmc-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tmc-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tmc-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/tmc-us.png',
     ),
     HardcodedChannel(
       id: 'fxm',
@@ -1856,8 +2377,10 @@ HardcodedChannel(
       category: 'Movies',
       keywords: ['fxm', 'fx movie channel'],
       gradient: [Color(0xFF212121), Color(0xFF424242)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fxm-us.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fxm-us.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fxm-us.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/usa/fxm-us.png',
     ),
     HardcodedChannel(
       id: 'canadian_premium',
@@ -1866,8 +2389,10 @@ HardcodedChannel(
       category: 'Movies',
       keywords: ['canadian premium', 'super channel', 'cinemax ca'],
       gradient: [Color(0xFFCC0000), Color(0xFF003366)],
-      iconUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/super-channel-ca.png',
-      backdropUrl: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/super-channel-ca.png',
+      iconUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/super-channel-ca.png',
+      backdropUrl:
+          'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/canada/super-channel-ca.png',
     ),
   ];
 }

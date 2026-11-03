@@ -84,7 +84,12 @@ abstract final class HomePageSettings {
   static const _keyEnableAiQuiz = 'app_enable_ai_quiz';
   static const _keyHideArtlessRails = 'home_hide_artless_rails';
 
+  /// Home's top carousel (今日热门).
   static final ValueNotifier<bool> enableSpotlight = ValueNotifier<bool>(true);
+
+  /// Home's 为你推荐 rows (`Recommender`), from the kinds the viewer
+  /// watches. The key is the old "because you have it on your list" rail's,
+  /// whose place on Home these rows took.
   static final ValueNotifier<bool> enableSimilar = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> enableWatchingSimilar = ValueNotifier<bool>(
     true,
@@ -109,8 +114,11 @@ abstract final class HomePageSettings {
   static final ValueNotifier<HeroStyle> heroStyle = ValueNotifier<HeroStyle>(
     HeroStyle.immersive,
   );
+
+  /// Whether the top carousel (Home's and the category pages') moves on by
+  /// itself, and after how many seconds; eight, as the carousel was built.
   static final ValueNotifier<bool> heroAutoRotate = ValueNotifier<bool>(true);
-  static final ValueNotifier<int> heroRotateSeconds = ValueNotifier<int>(6);
+  static final ValueNotifier<int> heroRotateSeconds = ValueNotifier<int>(8);
   static final ValueNotifier<CardDensity> cardDensity =
       ValueNotifier<CardDensity>(CardDensity.standard);
   static final ValueNotifier<bool> showRating = ValueNotifier<bool>(true);
@@ -178,7 +186,7 @@ abstract final class HomePageSettings {
     );
 
     heroAutoRotate.value = prefs.getBool(_keyHeroAutoRotate) ?? true;
-    heroRotateSeconds.value = prefs.getInt(_keyHeroRotateSeconds) ?? 6;
+    heroRotateSeconds.value = prefs.getInt(_keyHeroRotateSeconds) ?? 8;
 
     final densityStr = prefs.getString(_keyCardDensity);
     cardDensity.value = CardDensity.values.firstWhere(

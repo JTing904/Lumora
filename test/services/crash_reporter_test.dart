@@ -9,11 +9,18 @@ void main() {
   setUp(CrashReporter.debugReset);
 
   group('CrashReporter.scrub', () {
-    test('cuts URLs to their origin, dropping path and query', () {
+    test('cuts URLs to their scheme, dropping host, path and query', () {
       final out = CrashReporter.scrub(
         'GET https://api.example.com:8443/v1/items?api_key=abc123&q=x failed',
       );
-      expect(out, 'GET https://api.example.com:8443/[redacted] failed');
+      expect(out, 'GET https://[host]/[redacted] failed');
+    });
+
+    test('keeps a loopback host, which says nothing about the viewer', () {
+      expect(
+        CrashReporter.scrub('GET http://127.0.0.1:8090/stream/x failed'),
+        'GET http://127.0.0.1:8090/[redacted] failed',
+      );
     });
 
     test('keeps only the file name of file URLs in stack frames', () {
@@ -71,7 +78,7 @@ void main() {
       );
     });
 
-    test('removes user names from home folders', () {
+    test('removes local paths, home folders included', () {
       final out = CrashReporter.scrub(
         r"Cannot open file, path = 'C:\Users\Alice Smith\AppData\x.db' "
         '/home/bob/.config/y /Users/carol/Library/z',
@@ -79,8 +86,50 @@ void main() {
       expect(out, isNot(contains('Alice')));
       expect(out, isNot(contains('bob')));
       expect(out, isNot(contains('carol')));
-      expect(out, contains(r'C:\Users\[user]\AppData\x.db'));
-      expect(out, contains('/home/[user]/.config/y'));
+      expect(out, contains("path = '[path].db'"));
+      expect(out, isNot(contains('.config')));
+    });
+
+    test('removes paths on any drive, share or device folder', () {
+      final out = CrashReporter.scrub(
+        r'open D:\Movies\Secret Film (2020)\film.mkv failed; '
+        r'E:/Shows/Thing/s01e01.mp4 \\nas\media\x.avi '
+        "path = '/storage/emulated/0/Download/Lumora/My Movie.mkv'",
+      );
+      expect(out, isNot(contains('Movies')));
+      expect(out, isNot(contains('Secret')));
+      expect(out, isNot(contains('Shows')));
+      expect(out, isNot(contains('nas')));
+      expect(out, isNot(contains('My Movie')));
+      expect(out, contains('[path].mkv'));
+      expect(out, contains('[path].mp4'));
+      expect(out, contains("'[path].mkv'"));
+    });
+
+    test('keeps the name of the app\'s own binaries', () {
+      expect(
+        CrashReporter.scrub(
+          r'Failed to load C:\Program Files\Lumora\libmpv-2.dll',
+        ),
+        'Failed to load [path]/libmpv-2.dll',
+      );
+    });
+
+    test('leaves stack frames and fractions alone', () {
+      const frame = '#3 _Zone.run (dart:async/zone.dart:1525:12) 3/4';
+      expect(CrashReporter.scrub(frame), frame);
+    });
+
+    test('removes hex hashes in any case, keeping the engine build id', () {
+      final out = CrashReporter.scrub(
+        'torrent c12fe1c06bba254a9dc9f519b335aa7c1367a88a stalled; '
+        'md5 D41D8CD98F00B204E9800998ECF8427E; '
+        "build_id: '0123456789abcdef0123456789abcdef'",
+      );
+      expect(out, isNot(contains('c12fe1c06bba')));
+      expect(out, isNot(contains('D41D8CD9')));
+      expect(out, contains('torrent [hash] stalled'));
+      expect(out, contains("build_id: '0123456789abcdef0123456789abcdef'"));
     });
 
     test('removes UUIDs and long random tokens but keeps identifiers', () {

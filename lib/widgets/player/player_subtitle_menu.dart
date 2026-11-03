@@ -1,6 +1,7 @@
 import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:zplay/models/subtitle/subtitle_model.dart';
+import 'package:zplay/services/subtitles/subtitle_choice.dart';
 import 'package:zplay/services/subtitles/subtitle_service.dart';
 import '../../services/theme/design_tokens.dart';
 import 'player_glass.dart';
@@ -30,6 +31,15 @@ class PlayerSubtitleMenu extends StatefulWidget {
   final VoidCallback onOpenTextSync;
   final VoidCallback onClose;
 
+  /// Turns an English subtitle into Chinese with the AI. Null hides it.
+  final VoidCallback? onAiTranslate;
+
+  /// The AI's Chinese subtitle is the one showing.
+  final bool aiActive;
+
+  /// How far the AI has got, shown under its row while it works.
+  final String? aiStatus;
+
   const PlayerSubtitleMenu({
     super.key,
     required this.groups,
@@ -50,6 +60,9 @@ class PlayerSubtitleMenu extends StatefulWidget {
     required this.onOpenStyleBar,
     required this.onOpenTextSync,
     required this.onClose,
+    this.onAiTranslate,
+    this.aiActive = false,
+    this.aiStatus,
   });
 
   @override
@@ -89,17 +102,8 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
     _dynamicGroups = List.from(widget.groups);
     if (widget.selectedEmbeddedIndex != null) {
       _selectedLanguage = '__embedded__';
-    } else if (widget.selectedVariant != null) {
-      _selectedLanguage = widget.selectedVariant!.language;
     } else if (_dynamicGroups.isNotEmpty) {
-      final hasEn = _dynamicGroups
-          .where(
-            (g) =>
-                g.language.toLowerCase() == 'english' ||
-                g.language.toLowerCase() == 'en',
-          )
-          .firstOrNull;
-      _selectedLanguage = hasEn?.language ?? _dynamicGroups.first.language;
+      _selectedLanguage = _groupHolding(widget.selectedVariant);
     } else if (widget.embeddedSubtitles.isNotEmpty) {
       _selectedLanguage = '__embedded__';
     } else {
@@ -123,17 +127,25 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
             _selectedLanguage == '__all__' ||
             (_selectedLanguage == '__embedded__' &&
                 widget.selectedEmbeddedIndex == null)) {
-          final hasEn = _dynamicGroups
-              .where(
-                (g) =>
-                    g.language.toLowerCase() == 'english' ||
-                    g.language.toLowerCase() == 'en',
-              )
-              .firstOrNull;
-          _selectedLanguage = hasEn?.language ?? _dynamicGroups.first.language;
+          _selectedLanguage = _groupHolding(widget.selectedVariant);
         }
       });
     }
+  }
+
+  /// The group [variant] is listed under, else the first group.
+  ///
+  /// Groups are named 中文 and English while each subtitle keeps its
+  /// provider's own label ("Chinese (S)", "chi"), so match by file.
+  String _groupHolding(SubtitleVariant? variant) {
+    if (variant != null) {
+      for (final g in _dynamicGroups) {
+        if (g.variants.any((v) => v.downloadUrl == variant.downloadUrl)) {
+          return g.language;
+        }
+      }
+    }
+    return _dynamicGroups.first.language;
   }
 
   static List<SubtitleLanguageGroup> _mergeGroups(
@@ -152,7 +164,16 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
         }
       }
     }
-    final sortedKeys = map.keys.toList()..sort((a, b) => a.compareTo(b));
+    int rank(String label) {
+      final i = SubtitleLanguage.values.indexWhere((l) => l.label == label);
+      return i < 0 ? SubtitleLanguage.values.length : i;
+    }
+
+    final sortedKeys = map.keys.toList()
+      ..sort((a, b) {
+        final byRank = rank(a).compareTo(rank(b));
+        return byRank != 0 ? byRank : a.compareTo(b);
+      });
     return sortedKeys
         .map(
           (lang) => SubtitleLanguageGroup(language: lang, variants: map[lang]!),
@@ -203,21 +224,11 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
   }
 
   String _getLanguageEmoji(String lang) {
-    final l = lang.toLowerCase();
-    if (l.contains('en') || l.contains('eng')) return '🇺🇸';
-    if (l.contains('ar') || l.contains('ara')) return '🇸🇦';
-    if (l.contains('es') || l.contains('spa')) return '🇪🇸';
-    if (l.contains('fr') || l.contains('fre')) return '🇫🇷';
-    if (l.contains('de') || l.contains('ger')) return '🇩🇪';
-    if (l.contains('it') || l.contains('ita')) return '🇮🇹';
-    if (l.contains('pt') || l.contains('por')) return '🇧🇷';
-    if (l.contains('ru') || l.contains('rus')) return '🇷🇺';
-    if (l.contains('ja') || l.contains('jpn')) return '🇯🇵';
-    if (l.contains('ko') || l.contains('kor')) return '🇰🇷';
-    if (l.contains('zh') || l.contains('chi')) return '🇨🇳';
-    if (l.contains('hi') || l.contains('hin')) return '🇮🇳';
-    if (l.contains('tr') || l.contains('tur')) return '🇹🇷';
-    return '🌐';
+    return switch (SubtitleChoice.languageOf(lang)) {
+      SubtitleLanguage.chinese => '🇨🇳',
+      SubtitleLanguage.english => '🇺🇸',
+      null => '🌐',
+    };
   }
 
   List<SubtitleVariant> _getFilteredVariants() {
@@ -1130,6 +1141,94 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
   // External Subtitle Variants List
   // ───────────────────────────────────────────────────────────────────────────
 
+  /// The AI row shows wherever Chinese or English subtitles are listed, as
+  /// long as there is an English one to translate.
+  bool get _offersAi {
+    if (widget.onAiTranslate == null) return false;
+    final english = SubtitleLanguage.english.label;
+    if (!_dynamicGroups.any((g) => g.language == english)) return false;
+    return _selectedLanguage == '__all__' ||
+        _selectedLanguage == english ||
+        _selectedLanguage == SubtitleLanguage.chinese.label;
+  }
+
+  Widget _buildAiRow() {
+    const tokens = luTokens;
+    final active = widget.aiActive && widget.isSubtitleEnabled;
+    final l10n = l10nCurrent();
+    return FocusableInkWell(
+      borderRadius: LuRadius.field,
+      onTap: () {
+        widget.onAiTranslate!();
+        widget.onClose();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          color: active
+              ? LuPanel.selectedFill
+              : PlayerTheme.accent.withValues(alpha: 0.08),
+          borderRadius: LuRadius.field,
+          border: Border.all(
+            color: active
+                ? LuPanel.selectedEdge
+                : PlayerTheme.accent.withValues(alpha: 0.28),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: active ? PlayerTheme.accent : PlayerTheme.raised,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: active
+                  ? Icon(
+                      Icons.check_rounded,
+                      size: 10.5,
+                      color: tokens.onAccent,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 9),
+            Icon(
+              Icons.auto_awesome_rounded,
+              size: 15,
+              color: PlayerTheme.accent,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.subAiTitle,
+                    style: ZplayType.bodySmall
+                        .copyWith(size: 12.5, weight: FontWeight.w600)
+                        .toStyle(
+                          color: active ? PlayerTheme.accent : PlayerTheme.ink,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    (active ? widget.aiStatus : null) ?? l10n.subAiBody,
+                    style: ZplayType.caption
+                        .copyWith(size: 10.5)
+                        .toStyle(color: PlayerTheme.inkMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildVariantList(
     List<SubtitleVariant> filteredVariants, {
     required bool compact,
@@ -1200,14 +1299,17 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
     }
 
     final hasLoadingBanner = _isLoadingSearch;
-    final totalItemCount = filteredVariants.length + (hasLoadingBanner ? 1 : 0);
+    final hasAiRow = _offersAi;
+    final lead = (hasLoadingBanner ? 1 : 0) + (hasAiRow ? 1 : 0);
+    final totalItemCount = filteredVariants.length + lead;
 
     return ListView.builder(
       padding: const EdgeInsets.all(7),
       physics: const BouncingScrollPhysics(),
       itemCount: totalItemCount,
       itemBuilder: (context, i) {
-        if (hasLoadingBanner && i == 0) {
+        if (hasAiRow && i == 0) return _buildAiRow();
+        if (hasLoadingBanner && i == (hasAiRow ? 1 : 0)) {
           return Container(
             margin: const EdgeInsets.only(bottom: 6),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1238,7 +1340,7 @@ class _PlayerSubtitleMenuState extends State<PlayerSubtitleMenu> {
           );
         }
 
-        final variantIndex = hasLoadingBanner ? i - 1 : i;
+        final variantIndex = i - lead;
         final variant = filteredVariants[variantIndex];
         final isSelected =
             widget.isSubtitleEnabled &&

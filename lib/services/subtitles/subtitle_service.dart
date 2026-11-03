@@ -10,6 +10,7 @@ import './providers/opensubtitles_provider.dart';
 import './providers/stremio_subtitle_provider.dart';
 import './subtitle_provider.dart';
 import './subtitle_extractor.dart';
+import './subtitle_choice.dart';
 
 class SubtitleService {
   static final SubtitleService _instance = SubtitleService._internal();
@@ -70,25 +71,11 @@ class SubtitleService {
     return controller.stream;
   }
 
-  /// Groups variants by language and deduplicates identical download URLs.
+  /// Groups variants as 中文 and English, deduplicating identical download
+  /// URLs; other languages are dropped (see [SubtitleChoice]).
   static List<SubtitleLanguageGroup> groupVariantsByLanguage(
     List<SubtitleVariant> variants,
-  ) {
-    if (variants.isEmpty) return [];
-    final Map<String, List<SubtitleVariant>> grouped = {};
-    final Set<String> seenUrls = {};
-    for (final variant in variants) {
-      if (!seenUrls.add(variant.downloadUrl.toLowerCase())) continue;
-      grouped.putIfAbsent(variant.language, () => []).add(variant);
-    }
-    final sortedKeys = grouped.keys.toList()..sort((a, b) => a.compareTo(b));
-    return sortedKeys
-        .map(
-          (lang) =>
-              SubtitleLanguageGroup(language: lang, variants: grouped[lang]!),
-        )
-        .toList();
-  }
+  ) => SubtitleChoice.group(variants);
 
   /// Fetches subtitles from all registered providers concurrently.
   /// Groups the results by language.

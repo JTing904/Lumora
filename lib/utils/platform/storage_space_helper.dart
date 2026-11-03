@@ -1,14 +1,14 @@
+import 'dart:ffi';
 import 'dart:io';
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
+import 'package:win32/win32.dart' show GetDiskFreeSpaceEx;
 
 class StorageSpaceInfo {
   final int freeBytes;
   final int totalBytes;
 
-  const StorageSpaceInfo({
-    required this.freeBytes,
-    required this.totalBytes,
-  });
+  const StorageSpaceInfo({required this.freeBytes, required this.totalBytes});
 
   String get freeFormatted => _formatBytes(freeBytes);
   String get totalFormatted => _formatBytes(totalBytes);
@@ -30,7 +30,9 @@ class StorageSpaceInfo {
 class StorageSpaceHelper {
   /// Checks free space for the partition containing [directoryPath].
   /// Returns a [StorageSpaceInfo] or null if undetermined.
-  static Future<StorageSpaceInfo?> getAvailableSpace(String directoryPath) async {
+  static Future<StorageSpaceInfo?> getAvailableSpace(
+    String directoryPath,
+  ) async {
     try {
       final dir = Directory(directoryPath);
       if (!await dir.exists()) {
@@ -38,29 +40,13 @@ class StorageSpaceHelper {
       }
 
       if (!kIsWeb && Platform.isWindows) {
-        final driveLetter = directoryPath.length >= 2 && directoryPath[1] == ':'
-            ? directoryPath.substring(0, 2)
-            : 'C:';
-        final result = await Process.run('wmic', [
-          'logicaldisk',
-          'where',
-          'DeviceID="$driveLetter"',
-          'get',
-          'FreeSpace,Size',
-          '/value'
-        ]);
-
-        if (result.exitCode == 0) {
-          final output = result.stdout.toString();
-          final freeMatch = RegExp(r'FreeSpace=(\d+)').firstMatch(output);
-          final sizeMatch = RegExp(r'Size=(\d+)').firstMatch(output);
-          if (freeMatch != null) {
-            final free = int.tryParse(freeMatch.group(1) ?? '') ?? 0;
-            final size = int.tryParse(sizeMatch?.group(1) ?? '') ?? free;
-            return StorageSpaceInfo(freeBytes: free, totalBytes: size);
-          }
-        }
-      } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isAndroid)) {
+        // Asked of Windows directly. The old `wmic` call is gone from current
+        // Windows 11, so it silently answered "unknown" and downloads went
+        // ahead onto a full disk; any other command-line tool would also risk
+        // flashing a console window from this console-less app.
+        return _windowsFreeSpace(directoryPath);
+      } else if (!kIsWeb &&
+          (Platform.isLinux || Platform.isMacOS || Platform.isAndroid)) {
         final result = await Process.run('df', ['-k', directoryPath]);
         if (result.exitCode == 0) {
           final lines = result.stdout.toString().trim().split('\n');
@@ -88,12 +74,33 @@ class StorageSpaceHelper {
     return null;
   }
 
+  /// `GetDiskFreeSpaceEx` for the volume holding [directoryPath], which may be
+  /// any folder on it (a drive, a mount point or a network share). The free
+  /// figure is what this user may write, so a disk quota is respected.
+  static StorageSpaceInfo? _windowsFreeSpace(String directoryPath) {
+    return using((arena) {
+      final path = directoryPath.toNativeUtf16(allocator: arena);
+      final freeToCaller = arena<Uint64>();
+      final total = arena<Uint64>();
+      final ok = GetDiskFreeSpaceEx(path, freeToCaller, total, nullptr);
+      if (ok == 0) return null;
+      return StorageSpaceInfo(
+        freeBytes: freeToCaller.value,
+        totalBytes: total.value,
+      );
+    });
+  }
+
   /// Verifies if there is sufficient space for [requiredBytes] + 100MB margin.
-  static Future<bool> hasEnoughSpace(String directoryPath, int requiredBytes) async {
+  static Future<bool> hasEnoughSpace(
+    String directoryPath,
+    int requiredBytes,
+  ) async {
     if (requiredBytes <= 0) return true;
     final info = await getAvailableSpace(directoryPath);
     if (info == null) return true;
-    final requiredWithMargin = requiredBytes + (100 * 1024 * 1024); // 100MB safety margin
+    final requiredWithMargin =
+        requiredBytes + (100 * 1024 * 1024); // 100MB safety margin
     return info.freeBytes >= requiredWithMargin;
   }
 }

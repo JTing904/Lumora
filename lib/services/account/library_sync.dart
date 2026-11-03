@@ -7,14 +7,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/continue_watching/continue_watching_item.dart';
 import '../../models/my_list/my_list_item.dart';
+import '../anime/anime_library_service.dart';
+import '../books/continue_reading_service.dart';
 import '../continue_watching/continue_watching_service.dart';
 import '../continue_watching/watched_episodes.dart';
+import '../debrid/debrid_service.dart';
+import '../music/music_library_service.dart';
 import '../my_list/my_list_service.dart';
 import '../recommend/taste_store.dart';
 import '../simkl/simkl_service.dart';
 import '../trakt/trakt_service.dart';
 import 'account_scope.dart';
 import 'account_service.dart';
+import 'server_clock.dart';
 
 /// One library document: how to read it out of its service, put it back, and
 /// tell its entries apart when two copies are merged.
@@ -253,23 +258,56 @@ abstract final class LibrarySync {
   static LibraryRemote _remote = const _SupabaseRemote();
 
   /// The server's clock minus this device's, as last measured (see
-  /// [_noteServerTime]); kept across launches.
-  static Duration _clockOffset = Duration.zero;
+  /// [_noteServerTime]); kept across launches. Held by [ServerClock], which
+  /// the services stamp their entries with.
+  static Duration get _clockOffset => ServerClock.offset;
+  static set _clockOffset(Duration offset) => ServerClock.offset = offset;
   static const _clockKey = 'lumora_sync_clock_offset_ms';
 
   /// The time now on the server's clock, as well as this device can tell.
-  /// Removals are stamped with it; before the first write it is this
-  /// device's own clock.
-  static DateTime now() => DateTime.now().toUtc().add(_clockOffset);
+  /// Removals are stamped with it, entries with [ServerClock.now]; before
+  /// the first write it is this device's own clock.
+  static DateTime now() => ServerClock.now().toUtc();
 
   /// After the library services have loaded: follow account changes and
   /// bring the signed-in account's copy up to date.
-  static void start() {
+  ///
+  /// [loadedFor] is the account the services loaded for (null: signed out).
+  /// The session can change while they load (a refresh the server rejects
+  /// signs the viewer out), before anything here listens; that change is
+  /// caught up as an account change, so no service keeps showing, or
+  /// syncing into, the account it loaded for.
+  static void start({required String? loadedFor}) {
     if (_started || !AccountService.configured) return;
+    _begin(loadedFor);
+  }
+
+  static void _begin(String? loadedFor) {
     _started = true;
-    _userId = AccountScope.userId;
+    _userId = loadedFor;
     AccountService.session.addListener(_onSession);
-    unawaited(_loadClockOffset().whenComplete(() => pull(force: true)));
+    unawaited(
+      _loadClockOffset().whenComplete(() {
+        if (AccountScope.userId != _userId) {
+          _onSession();
+        } else {
+          unawaited(pull(force: true));
+        }
+      }),
+    );
+  }
+
+  /// [start] without a Supabase project behind it.
+  @visibleForTesting
+  static void startForTesting({required String? loadedFor}) {
+    if (!_started) _begin(loadedFor);
+  }
+
+  @visibleForTesting
+  static void stopForTesting() {
+    AccountService.session.removeListener(_onSession);
+    _started = false;
+    _userId = null;
   }
 
   static Future<void> _loadClockOffset() async {
@@ -311,11 +349,25 @@ abstract final class LibrarySync {
     unawaited(_switchAccount());
   }
 
+  /// What else is kept per account (see [AccountScope.personalKeys] and
+  /// `SecretKeys.perAccount`) but stays on this device: read again on an
+  /// account change, so nothing the last account had is left on screen or
+  /// streams through its debrid subscription.
+  static final List<Future<void> Function()> _localReloads = [
+    ContinueReadingService.reload,
+    AnimeLibraryService.instance.reloadLocal,
+    MusicLibraryService.instance.reload,
+    DebridService.refreshDebridReady,
+  ];
+
   static Future<void> _switchAccount() async {
     await AccountScope.adoptUnscopedLibrary();
-    for (final doc in _docs.values) {
+    for (final reload in [
+      for (final doc in _docs.values) doc.reload,
+      ..._localReloads,
+    ]) {
       try {
-        await doc.reload();
+        await reload();
       } catch (e) {
         debugPrint('[LibrarySync] reload: $e');
       }

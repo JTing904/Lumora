@@ -26,44 +26,52 @@ void main() {
   /// data and shader/font caches one level down).
   void writeLegacyProfile(String legacyPath) {
     Directory(legacyPath).createSync(recursive: true);
-    File('$legacyPath${Platform.pathSeparator}shared_preferences.json')
-        .writeAsStringSync('{"flutter.renderer_backend":"skia"}');
+    File(
+      '$legacyPath${Platform.pathSeparator}shared_preferences.json',
+    ).writeAsStringSync('{"flutter.renderer_backend":"skia"}');
     final torrserver = Directory(
       '$legacyPath${Platform.pathSeparator}torrserver_data',
     )..createSync(recursive: true);
-    File('${torrserver.path}${Platform.pathSeparator}config.db')
-        .writeAsStringSync('torrent-state');
+    File(
+      '${torrserver.path}${Platform.pathSeparator}config.db',
+    ).writeAsStringSync('torrent-state');
   }
 
   group('planWindowsStateMigration', () {
-    test('copies when the legacy profile exists and the destination is absent', () {
-      final legacyPath = pathIn('com.example', 'playtorrio');
-      writeLegacyProfile(legacyPath);
-      final destinationPath = pathIn('tzero86', 'zplay');
+    test(
+      'copies when the legacy profile exists and the destination is absent',
+      () {
+        final legacyPath = pathIn('com.example', 'playtorrio');
+        writeLegacyProfile(legacyPath);
+        final destinationPath = pathIn('tzero86', 'zplay');
 
-      expect(
-        planWindowsStateMigration(
-          legacyPath: legacyPath,
-          destinationPath: destinationPath,
-        ),
-        WindowsStateMigrationAction.copy,
-      );
-    });
+        expect(
+          planWindowsStateMigration(
+            legacyPath: legacyPath,
+            destinationPath: destinationPath,
+          ),
+          WindowsStateMigrationAction.copy,
+        );
+      },
+    );
 
-    test('skips when the destination already exists, even with a legacy profile', () {
-      final legacyPath = pathIn('com.example', 'playtorrio');
-      writeLegacyProfile(legacyPath);
-      final destinationPath = pathIn('tzero86', 'zplay');
-      Directory(destinationPath).createSync(recursive: true);
+    test(
+      'skips when the destination already exists, even with a legacy profile',
+      () {
+        final legacyPath = pathIn('com.example', 'playtorrio');
+        writeLegacyProfile(legacyPath);
+        final destinationPath = pathIn('tzero86', 'zplay');
+        Directory(destinationPath).createSync(recursive: true);
 
-      expect(
-        planWindowsStateMigration(
-          legacyPath: legacyPath,
-          destinationPath: destinationPath,
-        ),
-        WindowsStateMigrationAction.skipDestinationExists,
-      );
-    });
+        expect(
+          planWindowsStateMigration(
+            legacyPath: legacyPath,
+            destinationPath: destinationPath,
+          ),
+          WindowsStateMigrationAction.skipDestinationExists,
+        );
+      },
+    );
 
     test('no-ops when no legacy profile exists', () {
       expect(
@@ -117,8 +125,9 @@ void main() {
 
       expect(action, WindowsStateMigrationAction.copy);
       expect(
-        File('$destinationPath${Platform.pathSeparator}shared_preferences.json')
-            .readAsStringSync(),
+        File(
+          '$destinationPath${Platform.pathSeparator}shared_preferences.json',
+        ).readAsStringSync(),
         contains('renderer_backend'),
       );
       expect(
@@ -130,8 +139,9 @@ void main() {
       );
       // Requirement: the source survives as a fallback.
       expect(
-        File('$legacyPath${Platform.pathSeparator}shared_preferences.json')
-            .existsSync(),
+        File(
+          '$legacyPath${Platform.pathSeparator}shared_preferences.json',
+        ).existsSync(),
         isTrue,
       );
     });
@@ -153,7 +163,8 @@ void main() {
       final legacyPath = pathIn('com.example', 'playtorrio');
       writeLegacyProfile(legacyPath);
       final destinationPath = pathIn('tzero86', 'zplay');
-      final destination = Directory(destinationPath)..createSync(recursive: true);
+      final destination = Directory(destinationPath)
+        ..createSync(recursive: true);
       File(
         '${destination.path}${Platform.pathSeparator}shared_preferences.json',
       ).writeAsStringSync('{"flutter.theme":"dark"}');
@@ -224,5 +235,140 @@ void main() {
       expect(action, WindowsStateMigrationAction.noLegacyProfile);
       expect(Directory(destinationPath).existsSync(), isFalse);
     });
+
+    test('a successful copy leaves no pending marker or lock behind', () async {
+      final legacyPath = pathIn('com.example', 'playtorrio');
+      writeLegacyProfile(legacyPath);
+      final destinationPath = pathIn('tzero86', 'zplay');
+
+      await migrateWindowsProfile(
+        legacyPath: legacyPath,
+        destinationPath: destinationPath,
+      );
+
+      expect(File('$destinationPath.migration-pending').existsSync(), isFalse);
+      expect(File('$destinationPath.migration-lock').existsSync(), isFalse);
+    });
+  });
+
+  group('retry after a failed copy', () {
+    /// What a launch after a failed copy leaves: the pending marker from the
+    /// failed run, and an empty-start profile the app created afterwards.
+    String failedEarlierRun(String destinationPath, {int attempts = 1}) {
+      File('$destinationPath.migration-pending')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('$attempts');
+      Directory(destinationPath).createSync(recursive: true);
+      final prefs = File(
+        '$destinationPath${Platform.pathSeparator}shared_preferences.json',
+      )..writeAsStringSync('{"flutter.whats_new":"1.0.4"}');
+      return prefs.path;
+    }
+
+    test('copies again and moves the empty-start profile aside', () async {
+      final legacyPath = pathIn('com.example', 'playtorrio');
+      writeLegacyProfile(legacyPath);
+      final destinationPath = pathIn('tzero86', 'zplay');
+      failedEarlierRun(destinationPath);
+
+      final action = await migrateWindowsProfile(
+        legacyPath: legacyPath,
+        destinationPath: destinationPath,
+      );
+
+      expect(action, WindowsStateMigrationAction.retryAfterFailure);
+      expect(
+        File(
+          '$destinationPath${Platform.pathSeparator}shared_preferences.json',
+        ).readAsStringSync(),
+        contains('renderer_backend'),
+      );
+      final aside = Directory(pathIn('tzero86'))
+          .listSync()
+          .where((e) => e.path.contains('zplay.before-migration-'))
+          .toList();
+      expect(aside, hasLength(1), reason: 'moved aside, never deleted');
+      expect(File('$destinationPath.migration-pending').existsSync(), isFalse);
+
+      // Done now: the next launch leaves the destination alone.
+      expect(
+        await migrateWindowsProfile(
+          legacyPath: legacyPath,
+          destinationPath: destinationPath,
+        ),
+        WindowsStateMigrationAction.skipDestinationExists,
+      );
+    });
+
+    test('gives up after three attempts', () async {
+      final legacyPath = pathIn('com.example', 'playtorrio');
+      writeLegacyProfile(legacyPath);
+      final destinationPath = pathIn('tzero86', 'zplay');
+      final prefsPath = failedEarlierRun(destinationPath, attempts: 3);
+
+      expect(
+        await migrateWindowsProfile(
+          legacyPath: legacyPath,
+          destinationPath: destinationPath,
+        ),
+        WindowsStateMigrationAction.skipDestinationExists,
+      );
+      expect(File(prefsPath).readAsStringSync(), contains('whats_new'));
+    });
+
+    test('reclaims a staging directory a dead run left behind', () async {
+      final legacyPath = pathIn('com.example', 'playtorrio');
+      writeLegacyProfile(legacyPath);
+      final destinationPath = pathIn('tzero86', 'zplay');
+      final staging = Directory('$destinationPath.migrating')
+        ..createSync(recursive: true);
+      File(
+        '${staging.path}${Platform.pathSeparator}half-copied',
+      ).writeAsStringSync('x');
+
+      expect(
+        await migrateWindowsProfile(
+          legacyPath: legacyPath,
+          destinationPath: destinationPath,
+        ),
+        WindowsStateMigrationAction.copy,
+      );
+      expect(staging.existsSync(), isFalse);
+      expect(
+        File(
+          '$destinationPath${Platform.pathSeparator}half-copied',
+        ).existsSync(),
+        isFalse,
+      );
+    });
+
+    test(
+      'leaves another copy\'s migration alone while it holds the lock',
+      () async {
+        final legacyPath = pathIn('com.example', 'playtorrio');
+        writeLegacyProfile(legacyPath);
+        final destinationPath = pathIn('tzero86', 'zplay');
+        final staging = Directory('$destinationPath.migrating')
+          ..createSync(recursive: true);
+        final lockFile = File('$destinationPath.migration-lock')
+          ..createSync(recursive: true);
+        final held = lockFile.openSync(mode: FileMode.append)
+          ..lockSync(FileLock.exclusive);
+        addTearDown(() {
+          held.unlockSync();
+          held.closeSync();
+        });
+
+        final action = await migrateWindowsProfile(
+          legacyPath: legacyPath,
+          destinationPath: destinationPath,
+          lockWait: const Duration(milliseconds: 300),
+        );
+
+        expect(action, WindowsStateMigrationAction.lockedByAnotherCopy);
+        expect(staging.existsSync(), isTrue);
+        expect(Directory(destinationPath).existsSync(), isFalse);
+      },
+    );
   });
 }

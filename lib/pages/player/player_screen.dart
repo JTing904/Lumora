@@ -18,8 +18,11 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'package:zplay/models/movie/video.dart';
 import 'package:zplay/models/movie/movie_detail.dart';
 import 'package:zplay/models/subtitle/subtitle_model.dart';
+import 'package:zplay/services/subtitles/subtitle_choice.dart';
+import 'package:zplay/services/subtitles/subtitle_offset_store.dart';
 import 'package:zplay/services/subtitles/subtitle_service.dart';
 import 'package:zplay/services/subtitles/subtitle_parser.dart';
+import 'package:zplay/services/subtitles/subtitle_translator.dart';
 
 import '../../models/stream/stream_model.dart';
 import '../../services/continue_watching/continue_watching_service.dart';
@@ -49,7 +52,11 @@ import '../../services/discord/discord_rpc_service.dart';
 
 import '../../widgets/player/player_glass.dart';
 import '../../widgets/player/player_loading_overlay.dart';
+import '../../widgets/player/player_playback_rules.dart';
 import '../../widgets/player/player_remote_keys.dart';
+import '../../widgets/player/player_screen_tap.dart';
+import '../../widgets/player/subtitle_align_sheet.dart';
+import '../../widgets/player/subtitle_cue_overlay.dart';
 import '../../widgets/player/player_touch_gesture.dart';
 import '../../widgets/player/player_top_bar.dart';
 import '../../widgets/player/player_transport.dart';
@@ -70,7 +77,6 @@ import '../../widgets/player/player_sources_panel.dart';
 import 'watch_screen.dart';
 import '../../widgets/player/player_volume_control.dart';
 import '../../widgets/player/sub_sync_bar.dart';
-import '../../widgets/player/text_sync_overlay.dart';
 import '../../models/download/download_task_model.dart';
 import '../../services/download/download_service.dart';
 import '../../utils/download/download_path_helper.dart';
@@ -255,7 +261,16 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   Duration get _durationValue =>
       _engine?.state.duration ?? _player.state.duration;
   bool get _isPlayingValue => _engine?.state.playing ?? _player.state.playing;
-  double get _rateValue => _engine?.state.rate ?? _player.state.rate;
+
+  /// Whether playback is meant to be running, as opposed to whether frames
+  /// are moving. Media3's `playing` is false while it buffers; mpv's is its
+  /// pause flag and so already the intent. A play/pause decision reads this:
+  /// read off `playing`, a tap during buffering paused nothing and the next
+  /// one paused the stream the viewer had just asked to play.
+  bool get _intendsToPlay {
+    final ExoPlayerEngine? exo = _exoEngine;
+    return exo != null ? exo.playWhenReady : _player.state.playing;
+  }
 
   /// The *decoded* frame size, or null until a frame has arrived.
   ///
@@ -311,8 +326,6 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   void _requestPause() => _engine?.pause() ?? _player.pause();
 
-  void _requestPlayOrPause() => _engine?.playOrPause() ?? _player.playOrPause();
-
   Future<void> _requestStop() => _engine?.stop() ?? _player.stop();
 
   void _requestSeek(Duration position) =>
@@ -326,6 +339,19 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// the HUD's slider, while Media3's player volume is a plain 0-1 float.
   void _requestVolume(double fraction) =>
       _engine?.setVolume(fraction) ?? _player.setVolume(fraction * 100.0);
+
+  /// Puts the viewer's volume, mute and speed on the stream just opened.
+  ///
+  /// Called after every open on either engine. mpv starts at its own 100%
+  /// and Media3 builds a new native player per load, so without this a
+  /// network stream played at full volume whatever the slider said, and
+  /// Media3 forgot the speed on every source change. The engine is written
+  /// to directly rather than through [_applyVolume], which would also save a
+  /// mute as a volume of zero.
+  void _applyViewerLevels() {
+    _requestVolume(_isMuted ? 0.0 : _volume);
+    _requestSetRate(_playbackRate * _partyNudge);
+  }
 
   /// Picks an audio track by menu index.
   ///
@@ -389,22 +415,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// Media3 a sidecar file - so on that engine this says so rather than
   /// loading a file nothing would ever read.
   void _requestExternalSubtitle(String uri, {String? title}) {
-    final ve.VideoEngine? engine = _engine;
-    if (engine != null) {
-      debugPrint(
-        '[PlayerScreen] External subtitles are unavailable on ${engine.debugName}.',
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'External subtitle files need the mpv engine. '
-              'Pick an embedded track instead.',
-            ),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+    // Media3 cannot load a subtitle file; [SubtitleCueOverlay] draws the
+    // parsed cues instead.
+    if (_engine != null) {
+      if (mounted) setState(() {});
       return;
     }
     _player.setSubtitleTrack(SubtitleTrack.uri(uri, title: title));
@@ -584,6 +598,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// own texture, and a second frame of latency there buys nothing.
   void _attachEngine(ExoPlayerEngine engine) {
     _engine = engine;
+    _engineReadyEdge.reset();
     _engineSubscription = engine.events.listen(_onEngineState);
     if (!mounted) return;
     setState(() {});
@@ -660,9 +675,18 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _pushedSubtitleTracks = state.subtitleTracks;
       _updateMediaTracksFromEngine(state);
     }
-    if (state.ready == ve.EngineReadyState.ended) _savePlaybackProgress();
-    if (state.ready == ve.EngineReadyState.error) _onEngineError();
+    // Once per change: the same ready state comes back with every tick.
+    // The end is handled as mpv's `completed` is - saved once, then the next
+    // episode - where it used to be saved twice a second and never advanced.
+    if (_engineReadyEdge.entered(state.ready)) {
+      if (state.ready == ve.EngineReadyState.ended) _onStreamEnded();
+      if (state.ready == ve.EngineReadyState.error) _onEngineError();
+    }
   }
+
+  /// The last Media3 ready state acted on. See [StateEdge].
+  final StateEdge<ve.EngineReadyState> _engineReadyEdge =
+      StateEdge<ve.EngineReadyState>();
 
   /// The engine's track lists, in the shape the menus take.
   ///
@@ -681,11 +705,12 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     ];
     final List<PlayerEmbeddedSubtitle> subtitles = <PlayerEmbeddedSubtitle>[
       for (final ve.EngineTrack track in state.subtitleTracks)
-        PlayerEmbeddedSubtitle(
-          index: track.id,
-          title: track.title,
-          language: track.language,
-        ),
+        if (SubtitleChoice.offersEmbedded(track.language, track.title))
+          PlayerEmbeddedSubtitle(
+            index: track.id,
+            title: track.title,
+            language: track.language,
+          ),
     ];
     final int activeIdx =
         state.activeAudioTrack?.id ?? (audio.isEmpty ? 0 : audio.first.index);
@@ -906,6 +931,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// Worst case is now about eight auto-pick windows before the panel.
   static const int _resumeAdvanceMaxAttempts = 8;
 
+  /// Where the chain opens its next source: the play's resume offset until a
+  /// source has played, then where that source stopped.
+  Duration? _chainResumeAt;
+
   /// One notice for the whole chain: the user needs to know why the source
   /// changed, not a running commentary per attempt.
   bool _resumeAdvanceNoticeShown = false;
@@ -944,6 +973,22 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   /// Whether this device was in a room as a guest, to say so when it ends.
   bool _partyWasGuest = false;
+
+  StreamSubscription<PartyEvent>? _partyEventSub;
+
+  /// Whether the app is off the screen (the phone locked, another app in
+  /// front). The room's play and seek are not followed meanwhile: the
+  /// host's next heartbeat used to start a locked phone playing again
+  /// within two seconds. The room is caught up with on the way back.
+  bool _partyBackgrounded = false;
+
+  /// The source the "only plays on this device" notice was last shown for,
+  /// so a host hears it once per source rather than on every heartbeat.
+  String? _partyLocalNoticeFor;
+
+  /// The room message for a tap's play or pause, held back while a second
+  /// click could still make the pair a double-click.
+  Timer? _tapPartySend;
 
   // Active Menu / Popover
   String?
@@ -1051,9 +1096,14 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   bool _isSubtitleEnabled = false;
   String? _currentSubtitlePath;
   List<SubCue> _currentCues = [];
-  SubFormat _currentSubFormat = SubFormat.srt;
   double _subtitleDelayMs = 0;
   double _subtitleScale = 1.0;
+
+  /// Moves on with every source or episode change. A subtitle search or
+  /// download that was started for the previous one checks it after its
+  /// awaits and drops its result: the search keeps streaming batches long
+  /// after the switch, and the last episode's file used to land on this one.
+  final AttemptToken _subtitleEpisode = AttemptToken();
 
   // Skip Segments State (IntroDB)
   List<MediaSkipSegment> _skipSegments = [];
@@ -1117,7 +1167,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// loop and the user gets playback from the beginning at worst.
   bool _hasRetriedWithoutSeek = false;
 
+  /// Whether full screen was the viewer's own before the player opened, or
+  /// before the first screen of a next-episode chain did. See
+  /// [FullscreenCarry].
   bool _wasFullscreenBeforeEntering = false;
+  static final FullscreenCarry _fullscreenCarry = FullscreenCarry();
 
   @override
   void initState() {
@@ -1136,11 +1190,14 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       // loading, and the request is deferred until it is.
       _focusHudEntry();
     }
-    _wasFullscreenBeforeEntering = WindowService.instance.isFullscreen;
+    _wasFullscreenBeforeEntering = _fullscreenCarry.enter(
+      isFullscreen: WindowService.instance.isFullscreen,
+    );
     _currentSource = widget.source;
     _currentEpisode = widget.episode;
     _currentTitle = widget.title;
     _seekTarget = widget.initialPosition;
+    _chainResumeAt = widget.initialPosition;
     _loadMarks();
     _volume = PlayerSettings.savedVolume.value;
     _isMuted = _volume == 0;
@@ -1201,24 +1258,30 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         _onControllerError(error);
       }),
       _player.stream.completed.listen((completed) {
-        if (completed && mounted) {
-          _savePlaybackProgress();
-          final next = _nextEpisode;
-          if (next != null && !_upNextDismissed) _playEpisode(next);
-        }
+        if (completed) _onStreamEnded();
       }),
     ]);
 
     _initStream();
     _startParty();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Through WindowService, which owns the system bars: it hides them for
+    // the player and puts the app's normal bars back when the last player
+    // leaves.
+    unawaited(WindowService.instance.enterPlayerFullscreen(this));
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
   }
 
+  /// One ticket per open. An open that settles after the screen has moved on
+  /// - the watchdog gave its source up, or the viewer switched - finds its
+  /// ticket stale and stops, instead of clearing the new attempt's spinner or,
+  /// from a late throw, advancing the chain a second time.
+  final AttemptToken _openToken = AttemptToken();
+
   Future<void> _initStream() async {
+    final int ticket = _openToken.begin();
     _lengthChecked = false;
     _decoderRecoveryApplied = false;
     _notDeliveringNoticeShown = false;
@@ -1255,9 +1318,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         );
         _activeStreamUrl = rawUrl;
         await _openOnMpv(ve.EngineRequest(url: rawUrl));
+        if (!_openToken.isCurrent(ticket)) return;
         await PlayerSettings.applyPostOpenProperties(_player);
+        if (!_openToken.isCurrent(ticket)) return;
         _setSubtitleScale(_subtitleScale);
-        _applyVolume(_isMuted ? 0.0 : _volume);
+        _applyViewerLevels();
         _startFrameWatchdog();
         if (mounted) setState(() => _isLoading = false);
         return;
@@ -1352,6 +1417,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         isTorrent: isTorrentStream,
       );
       final bool usedMedia3 = await _openSource(request);
+      if (!_openToken.isCurrent(ticket)) return;
       CrashBreadcrumbs.stream('open.ok', title: _currentTitle);
       _cancelOpenWatchdog();
       _openSettled = true;
@@ -1366,8 +1432,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       // to apply and the engine's own `setSubtitleTrack` calls stand in for it.
       if (!usedMedia3) {
         await PlayerSettings.applyPostOpenProperties(_player);
+        if (!_openToken.isCurrent(ticket)) return;
         _setSubtitleScale(_subtitleScale);
       }
+      _applyViewerLevels();
 
       print(
         '[PlayerScreen SUCCESS] Player opened media successfully for ${redactUrl(streamUrl)}',
@@ -1440,6 +1508,13 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       });
       _startSpeedSampling();
     } catch (e, stackTrace) {
+      // A replaced attempt failing late is not news: the watchdog that gave
+      // it up has already moved on, and this attempt's watchdog and chain
+      // state now belong to its successor.
+      if (!_openToken.isCurrent(ticket)) {
+        debugPrint('[PlayerScreen] A replaced open failed late: ignored.');
+        return;
+      }
       _cancelOpenWatchdog();
       // The open is no longer in flight, so the auto-advance chain may judge
       // this attempt rather than leaving the user on its error.
@@ -1469,27 +1544,23 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
       if (_tryNextSource()) return;
 
-      // If we have an episode context (TV show), reopen the sources panel with error notice!
+      String displayMessage = l10nCurrent().ply2ErrorPrefix(redactedError);
+      if (e is PlatformException &&
+          (e.message?.contains('invalid or unsupported media') ?? false)) {
+        displayMessage = l10nCurrent().playerOpenError;
+      }
+      _showTerminalFailure(displayMessage);
+
+      // An episode has more than one source to pick from, so the panel opens
+      // over the failure; closing it leaves the failure and its actions.
       if (_currentEpisode != null && widget.detail?.videos.isNotEmpty == true) {
         setState(() {
-          _isLoading = false;
           _showSourcesPanel = true;
           _sourcesEpisode = _currentEpisode;
           _sourcesErrorMessage = l10nCurrent().playerSourceFailed;
         });
         _focusOverlayAfterFrame(_sourcesPanelKey);
-        return;
       }
-
-      String displayMessage = l10nCurrent().ply2ErrorPrefix(e);
-      if (e is PlatformException &&
-          (e.message?.contains('invalid or unsupported media') ?? false)) {
-        displayMessage = l10nCurrent().playerOpenError;
-      }
-
-      setState(() {
-        _statusMessage = displayMessage;
-      });
     }
   }
 
@@ -1528,7 +1599,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
     if (e.kind == DebridFailureKind.account) {
       _abandonResumeChain();
-      _showDebridFailure(e.message);
+      _showTerminalFailure(e.message);
       return;
     }
 
@@ -1547,12 +1618,19 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     );
     if (advanced) return;
 
-    _showDebridFailure(e.message);
+    _showTerminalFailure(e.message);
   }
 
-  /// Puts a terminal Debrid failure on the same overlay the stall detector uses,
-  /// so the message is readable and the source panel stays one tap away.
-  void _showDebridFailure(String message) {
+  /// Puts a failure nothing will recover from on the overlay the stall
+  /// detector uses, so the message is on screen with 换一个片源 (the in-player
+  /// source panel) and 返回 under it.
+  ///
+  /// Every terminal path goes through here. Two of them used to write the
+  /// message with the overlay down, and the message is drawn only inside it:
+  /// the viewer was left on a black screen, or on a spinner that never ended,
+  /// with no way to another source.
+  void _showTerminalFailure(String message) {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _streamStalled = true;
@@ -1658,7 +1736,12 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// The request the live Media3 attempt was opened with.
   ve.EngineRequest? _media3Request;
 
-  Future<void> _reopenOnMpv(ve.EngineRequest request) async {
+  /// Reopens the current attempt's [request] on mpv. True when it is still
+  /// the current attempt once the reopen has settled, so a caller knows its
+  /// follow-up still applies.
+  Future<bool> _reopenOnMpv(ve.EngineRequest request) async {
+    // The same attempt on another engine, so it keeps the attempt's ticket.
+    final int ticket = _openToken.current;
     _media3SilenceTimer?.cancel();
     _media3SilenceTimer = null;
     _media3Request = null;
@@ -1670,18 +1753,23 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     );
     _useExoPlayer = false;
     await _detachEngine();
-    if (!mounted) return;
+    if (!mounted || !_openToken.isCurrent(ticket)) return false;
     try {
       await _openOnMpv(request);
-      if (!mounted) return;
+      if (!mounted || !_openToken.isCurrent(ticket)) return false;
       await PlayerSettings.applyPostOpenProperties(_player);
+      if (!mounted || !_openToken.isCurrent(ticket)) return false;
       _setSubtitleScale(_subtitleScale);
+      _applyViewerLevels();
       _updateMediaTracks(_player.state.tracks);
       _requestPlay();
       _startFrameWatchdog();
+      return true;
     } catch (e) {
+      if (!_openToken.isCurrent(ticket)) return false;
       debugPrint('[PlayerScreen] mpv could not take the stream either: $e');
       _reportPlaybackFailure(l10nCurrent().ply2PlaybackErrorMsg('$e'));
+      return false;
     }
   }
 
@@ -1854,8 +1942,8 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     final request = _media3Request;
     if (_media3OwesMpvRetry && request != null) {
       unawaited(
-        _reopenOnMpv(request).then((_) {
-          if (mounted) _armResumeAdvanceWatchdog();
+        _reopenOnMpv(request).then((stillCurrent) {
+          if (mounted && stillCurrent) _armResumeAdvanceWatchdog();
         }),
       );
       return;
@@ -1919,11 +2007,18 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _restoreFocusFromStallOverlay();
     }
 
-    // The resume offset goes with every attempt, so a chain of dead sources
+    // The chain's place goes with every attempt, so a chain of dead sources
     // cannot move the user backwards: [_switchStream]'s own rule would read a
     // playhead that never moved, and for a movie a stand-in Video whose id never
-    // matches [_currentEpisode].
-    _switchStream(nextSource, target, resumeAt: widget.initialPosition);
+    // matches [_currentEpisode]. A source that had played moves the place to
+    // where it stopped; see [recoveryResumeAt].
+    _chainResumeAt = recoveryResumeAt(
+      carried: _chainResumeAt,
+      showedPicture: _hasReceivedFirstVideoFrame,
+      openedAt: _positionAtStreamOpen,
+      live: _position > Duration.zero ? _position : _positionValue,
+    );
+    _switchStream(nextSource, target, resumeAt: _chainResumeAt);
 
     // After _switchStream, which clears the notice slot during its teardown.
     if (!_resumeAdvanceNoticeShown) {
@@ -2309,10 +2404,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     // recovery did not work: do not race them with another source change.
     _abandonResumeChain();
     if (target != null) {
+      // The overlay stays under the panel. Closing the panel without a pick
+      // used to reveal a black screen; now it shows the failure again, and a
+      // stream that recovers clears it on its first frame as before.
       setState(() {
-        _isLoading = false;
-        _streamStalled = false;
-        _statusMessage = '';
         _sourcesEpisode = target;
         _sourcesErrorMessage = l10nCurrent().playerNotRespondingPick;
         _showSourcesPanel = true;
@@ -2393,6 +2488,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
               ? lang.toUpperCase()
               : l10nCurrent().ply2TrackNumber(i + 1));
       final idx = int.tryParse(t.id) ?? (i + 1);
+      if (!SubtitleChoice.offersEmbedded(lang, t.title)) continue;
       embeddedSubs.add(
         PlayerEmbeddedSubtitle(index: idx, title: title, language: lang),
       );
@@ -2432,6 +2528,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   }
 
   Future<void> _fetchInitialSubtitles() async {
+    final int ticket = _subtitleEpisode.current;
     try {
       int? searchYear;
       if (widget.detail?.year != null && widget.detail!.year!.isNotEmpty) {
@@ -2477,12 +2574,12 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         episode: targetEpisode,
         year: targetYear,
       )) {
-        if (!mounted || batch.isEmpty) continue;
+        if (!mounted || !_subtitleEpisode.isCurrent(ticket)) break;
+        if (batch.isEmpty) continue;
         final newGroups = SubtitleService.groupVariantsByLanguage(batch);
         setState(
-          () => _subtitleGroups = _mergeSubtitleGroups(
-            _subtitleGroups,
-            newGroups,
+          () => _subtitleGroups = _orderSubtitleGroups(
+            _mergeSubtitleGroups(_subtitleGroups, newGroups),
           ),
         );
 
@@ -2490,15 +2587,35 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         if (_isSubtitleEnabled &&
             _currentSubtitleVariant != null &&
             _currentSubtitlePath == null) {
-          final previousLang = _currentSubtitleVariant!.language.toLowerCase();
+          // The AI's Chinese before: translate this episode's English too.
+          if (_aiWanted) {
+            if (!_aiStarting &&
+                _aiSource == null &&
+                _subtitleGroups.any(
+                  (g) => g.language == SubtitleLanguage.english.label,
+                )) {
+              unawaited(_startAiSubtitle());
+            }
+            continue;
+          }
+          // The language chosen before, else 中文. A track inside the stream
+          // in that language wins over a download: it was cut for this video.
+          final wanted =
+              SubtitleChoice.languageOf(_currentSubtitleVariant!.language) ??
+              SubtitleLanguage.chinese;
+          final embedded = _embeddedSubtitles
+              .where(
+                (e) =>
+                    SubtitleChoice.languageOf(e.language ?? e.title) == wanted,
+              )
+              .firstOrNull;
+          if (embedded != null) {
+            _selectEmbeddedSubtitle(embedded);
+            continue;
+          }
           final matchingGroup = _subtitleGroups.firstWhere(
-            (g) => g.language.toLowerCase() == previousLang,
-            orElse: () => _subtitleGroups.firstWhere(
-              (g) =>
-                  g.language.toLowerCase().contains('english') ||
-                  g.language.toLowerCase() == 'en',
-              orElse: () => _subtitleGroups.first,
-            ),
+            (g) => g.language == wanted.label,
+            orElse: () => _subtitleGroups.first,
           );
           if (matchingGroup.variants.isNotEmpty) {
             _loadSubtitle(matchingGroup.variants.first);
@@ -2512,17 +2629,51 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   void _loadSourceSubtitles(List<SubtitleVariant> subs) {
     if (subs.isEmpty) return;
-    final Map<String, List<SubtitleVariant>> grouped = {};
-    for (final s in subs) {
-      grouped.putIfAbsent(s.language, () => []).add(s);
-    }
-    final sourceGroups = grouped.entries.map((e) {
-      return SubtitleLanguageGroup(language: e.key, variants: e.value);
-    }).toList();
-    _subtitleGroups = _mergeSubtitleGroups(_subtitleGroups, sourceGroups);
+    _streamSubtitleUrls.addAll(subs.map((s) => s.downloadUrl));
+    final sourceGroups = SubtitleChoice.group(subs);
+    _subtitleGroups = _orderSubtitleGroups(
+      _mergeSubtitleGroups(_subtitleGroups, sourceGroups),
+    );
     debugPrint(
       '[PlayerScreen] Loaded ${subs.length} direct stream subtitles across ${sourceGroups.length} language groups',
     );
+  }
+
+  /// Download URLs of the subtitles the stream itself came with: they were
+  /// cut for this video, so they come first.
+  final Set<String> _streamSubtitleUrls = <String>{};
+
+  /// What the stream calls itself, matched against subtitle release names.
+  String get _sourceReleaseText {
+    final s = _currentSource;
+    return [
+      s.name,
+      s.title,
+      s.description,
+      s.behaviorHints?['filename'],
+    ].whereType<Object>().join(' ');
+  }
+
+  /// 中文 then English; in each, the stream's own subtitles, then the rest by
+  /// how well their release name fits the stream's.
+  List<SubtitleLanguageGroup> _orderSubtitleGroups(
+    List<SubtitleLanguageGroup> groups,
+  ) {
+    final release = _sourceReleaseText;
+    bool own(SubtitleVariant v) => _streamSubtitleUrls.contains(v.downloadUrl);
+    return [
+      for (final g in groups)
+        SubtitleLanguageGroup(
+          language: g.language,
+          variants: [
+            ...g.variants.where(own),
+            ...SubtitleChoice.rank(
+              g.variants.where((v) => !own(v)).toList(),
+              release,
+            ),
+          ],
+        ),
+    ];
   }
 
   static List<SubtitleLanguageGroup> _mergeSubtitleGroups(
@@ -2541,7 +2692,14 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         }
       }
     }
-    final sortedKeys = map.keys.toList()..sort((a, b) => a.compareTo(b));
+    final order = [for (final l in SubtitleLanguage.values) l.label];
+    int rank(String key) {
+      final i = order.indexOf(key);
+      return i < 0 ? order.length : i;
+    }
+
+    final sortedKeys = map.keys.toList()
+      ..sort((a, b) => rank(a).compareTo(rank(b)));
     return sortedKeys
         .map(
           (lang) => SubtitleLanguageGroup(language: lang, variants: map[lang]!),
@@ -2576,7 +2734,14 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// and the arrow keys are the player's own; and a no-op while the HUD is
   /// hidden, because an invisible control must not take focus.
   void _focusHudEntry() {
-    if (!FormFactorService.hasRemoteInput || !_showControls) return;
+    if (!FormFactorService.hasRemoteInput) return;
+    // A failure has no transport on screen; its actions are the controls, and
+    // a remote closing the source panel over it lands back on them.
+    if (_isLoading && _streamStalled) {
+      _stallActionFocusNode.requestFocus();
+      return;
+    }
+    if (!_showControls) return;
     _hudEntryFocusNode.requestFocus();
   }
 
@@ -2828,6 +2993,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   }
 
   void _selectEmbeddedSubtitle(PlayerEmbeddedSubtitle embedded) {
+    _stopAiSubtitle(wanted: false);
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     setState(() {
       _selectedEmbeddedSubtitleIndex = embedded.index;
@@ -2850,6 +3016,8 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     );
     _setSubtitleScale(_subtitleScale);
     _applyMpvSubtitleStyling();
+    final variant = _currentSubtitleVariant;
+    if (variant != null) unawaited(_restoreSubtitleOffset(variant));
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2862,6 +3030,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   }
 
   void _disableSubtitles() {
+    _stopAiSubtitle(wanted: false);
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     setState(() {
       _isSubtitleEnabled = false;
@@ -2874,6 +3043,14 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   }
 
   Future<void> _loadSubtitle(SubtitleVariant variant) async {
+    final int ticket = _subtitleEpisode.current;
+    // Replaced by another choice, or by another source or episode, while the
+    // file was on its way.
+    bool stale() =>
+        !mounted ||
+        !_subtitleEpisode.isCurrent(ticket) ||
+        !identical(variant, _currentSubtitleVariant);
+    _stopAiSubtitle(wanted: false);
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     _currentSubtitleVariant = variant;
     _selectedEmbeddedSubtitleIndex = null;
@@ -2892,6 +3069,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     }
 
     final path = await SubtitleService().downloadSubtitle(variant);
+    if (stale()) {
+      SubtitleService().deleteSubtitleFile(path);
+      return;
+    }
     if (path == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2901,28 +3082,30 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       return;
     }
 
+    List<SubCue>? cues;
     try {
       final file = File(path);
       if (await file.exists()) {
         final bytes = await file.readAsBytes();
         final content = SubtitleParser.decodeBytesWithFallback(bytes);
         final parseResult = SubtitleParser.parse(content);
-        _currentCues = parseResult.cues;
-        _currentSubFormat = parseResult.format;
+        cues = parseResult.cues;
       }
     } catch (e) {
       print('[PlayerScreen] Subtitle cues parse error: $e');
     }
+    if (stale()) {
+      SubtitleService().deleteSubtitleFile(path);
+      return;
+    }
+    if (cues != null) _currentCues = cues;
 
     _currentSubtitlePath = path;
     final resolvedUri = _resolveSubtitleUri(path);
     _requestExternalSubtitle(resolvedUri, title: variant.language);
     _setSubtitleScale(_subtitleScale);
     _applyMpvSubtitleStyling();
-
-    if (_subtitleDelayMs != 0) {
-      await _applyLiveDelay(_subtitleDelayMs / 1000.0);
-    }
+    await _restoreSubtitleOffset(variant);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2992,7 +3175,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// cues instead, which is the only route that survives an engine change.
   Future<void> _applyLiveDelay(double delaySec) async {
     _subtitleDelayMs = delaySec * 1000.0;
-    if (_engine != null) return;
+    if (_engine != null) {
+      if (mounted) setState(() {});
+      return;
+    }
+    if (_aiSource != null && mounted) setState(() {});
     final np = _player.platform as dynamic;
     try {
       np.setProperty('sub-delay', delaySec.toString());
@@ -3001,39 +3188,235 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     }
   }
 
-  Future<void> _saveTextSyncedCues(
-    List<SubCue> syncedCues,
-    double offsetSec,
-  ) async {
-    _currentCues = syncedCues;
-    _subtitleDelayMs =
-        0.0; // Reset live delay since timestamps are now permanently baked into cues
-    if (_currentSubtitlePath != null) {
-      final content = _currentSubFormat == SubFormat.vtt
-          ? SubtitleParser.toVtt(syncedCues)
-          : SubtitleParser.toSrt(syncedCues);
-      final ext = _currentSubFormat == SubFormat.vtt ? 'vtt' : 'srt';
-      final cleanBase = _currentSubtitlePath!.replaceAll(
-        RegExp(r'(_delayed.*|_synced.*)?\.(srt|vtt)$', caseSensitive: false),
-        '',
+  /// The timing remembered for [variant] on this title, or none.
+  Future<void> _restoreSubtitleOffset(SubtitleVariant variant) async {
+    final titleId = widget.detail?.id;
+    final saved = titleId == null
+        ? null
+        : await SubtitleOffsetStore.load(
+            SubtitleOffsetStore.keyFor(titleId, variant),
+          );
+    if (!mounted || !identical(variant, _currentSubtitleVariant)) return;
+    await _applyLiveDelay(saved ?? 0);
+    if (saved != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10nCurrent().subOffsetRestored(_signed(saved))),
+          duration: const Duration(seconds: 3),
+        ),
       );
-      final newPath =
-          '${cleanBase}_synced_${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final oldPath = _currentSubtitlePath;
-      await File(newPath).writeAsString(content, flush: true);
-      _currentSubtitlePath = newPath;
-      _requestExternalSubtitle(_resolveSubtitleUri(newPath));
-      if (oldPath != null && oldPath != newPath) {
-        SubtitleService().deleteSubtitleFile(oldPath);
-      }
-      _setSubtitleScale(_subtitleScale);
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10nCurrent().playerSubSynced)));
-      }
     }
+  }
+
+  /// Applies [delaySec] and remembers it for this title and subtitle.
+  Future<void> _setSubtitleDelay(double delaySec) async {
+    await _applyLiveDelay(delaySec);
+    final titleId = widget.detail?.id;
+    final variant = _currentSubtitleVariant;
+    if (titleId != null && variant != null) {
+      await SubtitleOffsetStore.save(
+        SubtitleOffsetStore.keyFor(titleId, variant),
+        delaySec,
+      );
+    }
+  }
+
+  static String _signed(double sec) {
+    final v = (sec * 10).round() / 10;
+    return '${v > 0 ? '+' : ''}${v.toStringAsFixed(1)}';
+  }
+
+  /// Whether playback was running when the align sheet paused it.
+  bool _alignResumes = false;
+
+  /// The English subtitle the AI is turning into Chinese, while that
+  /// Chinese is the subtitle on screen. The app draws it on either engine.
+  SubtitleVariant? _aiSource;
+
+  /// The viewer picked the AI's Chinese: the next episode gets it too.
+  bool _aiWanted = false;
+
+  /// Between picking the AI and its first lines being set up.
+  bool _aiStarting = false;
+
+  /// Bumped to stop a translation nobody is watching any more.
+  int _aiRun = 0;
+
+  /// Lines translated so far, for the menu.
+  int _aiDone = 0;
+
+  void _stopAiSubtitle({bool? wanted}) {
+    _aiRun++;
+    _aiSource = null;
+    _aiStarting = false;
+    if (wanted != null) _aiWanted = wanted;
+  }
+
+  void _snack(String text, {int seconds = 3}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        duration: Duration(seconds: seconds),
+      ),
+    );
+  }
+
+  /// Shows the English subtitle's lines in Chinese, translated by the AI,
+  /// with the English timing. The English one on screen is used when there
+  /// is one: the viewer may already have put it in time.
+  Future<void> _startAiSubtitle() async {
+    final l10n = l10nCurrent();
+    final current = _currentSubtitleVariant;
+    final usingEnglish =
+        current != null &&
+        _aiSource == null &&
+        _selectedEmbeddedSubtitleIndex == null &&
+        _currentSubtitlePath != null &&
+        _currentCues.isNotEmpty &&
+        SubtitleChoice.languageOf(current.language) == SubtitleLanguage.english;
+    final source = usingEnglish
+        ? current
+        : _subtitleGroups
+              .where((g) => g.language == SubtitleLanguage.english.label)
+              .firstOrNull
+              ?.variants
+              .firstOrNull;
+    if (source == null) {
+      _snack(l10n.subAiNoEnglish);
+      return;
+    }
+
+    _stopAiSubtitle(wanted: true);
+    final run = _aiRun;
+    _aiStarting = true;
+    var cues = _currentCues;
+    var path = _currentSubtitlePath;
+    if (!usingEnglish) {
+      final downloaded = await SubtitleService().downloadSubtitle(source);
+      if (run != _aiRun || !mounted) return;
+      var parsed = const <SubCue>[];
+      if (downloaded != null) {
+        try {
+          final bytes = await File(downloaded).readAsBytes();
+          parsed = SubtitleParser.parse(
+            SubtitleParser.decodeBytesWithFallback(bytes),
+          ).cues;
+        } catch (e) {
+          debugPrint('[PlayerScreen] AI source parse error: $e');
+        }
+      }
+      if (run != _aiRun || !mounted) return;
+      if (parsed.isEmpty) {
+        _aiStarting = false;
+        _snack(l10n.playerSubDownloadFailed);
+        return;
+      }
+      SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
+      cues = parsed;
+      path = downloaded;
+    }
+
+    // Same provider and release name as the English file, so the timing
+    // remembered for it applies here and the other way round.
+    final variant = SubtitleVariant(
+      providerName: source.providerName,
+      language: SubtitleLanguage.chinese.label,
+      title: source.title,
+      downloadUrl: 'ai:${source.downloadUrl}',
+      format: source.format,
+    );
+    final english = List<SubCue>.unmodifiable(cues);
+    _requestNoSubtitle();
+    setState(() {
+      _aiSource = source;
+      _aiStarting = false;
+      _aiDone = 0;
+      _currentSubtitleVariant = variant;
+      _selectedEmbeddedSubtitleIndex = null;
+      _isSubtitleEnabled = true;
+      _currentSubtitlePath = path;
+      _currentCues = List.of(english);
+    });
+    await _restoreSubtitleOffset(variant);
+    if (run != _aiRun || !mounted) return;
+    _snack(l10n.subAiStarted, seconds: 2);
+
+    // The line on screen now; asked before each batch, so a seek is followed.
+    int focus() {
+      final now =
+          _positionValue.inMilliseconds / 1000.0 - _subtitleDelayMs / 1000.0;
+      final i = english.indexWhere((c) => c.end >= now);
+      return i < 0 ? english.length - 1 : i;
+    }
+
+    try {
+      await SubtitleTranslator().translate(
+        english,
+        cacheKey: SubtitleTranslator.cacheKeyFor(source.downloadUrl),
+        focus: focus,
+        cancelled: () => run != _aiRun || !mounted,
+        onLines: (lines) {
+          if (run != _aiRun || !mounted) return;
+          final next = List.of(_currentCues);
+          lines.forEach((i, text) {
+            if (i < next.length) next[i] = next[i].copyWith(text: text);
+          });
+          setState(() {
+            _currentCues = next;
+            _aiDone += lines.length;
+          });
+        },
+      );
+      if (run == _aiRun && mounted && _aiDone >= english.length) {
+        _snack(l10n.subAiDone(english.length), seconds: 2);
+      }
+    } on SubtitleTranslationError catch (e) {
+      if (run != _aiRun || !mounted) return;
+      _snack(switch (e.failure) {
+        SubtitleTranslationFailure.signedOut => l10n.subAiSignedOut,
+        SubtitleTranslationFailure.notInvited => l10n.subAiNotInvited,
+        SubtitleTranslationFailure.unavailable => l10n.subAiUnavailable,
+      });
+      // Nothing came back: show the English subtitle the normal way rather
+      // than an untranslated AI one.
+      if (_aiDone == 0) unawaited(_loadSubtitle(source));
+    }
+  }
+
+  void _openAlignSheet() {
+    if (_selectedEmbeddedSubtitleIndex != null ||
+        _currentSubtitlePath == null ||
+        _currentCues.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10nCurrent().playerSpeechSyncNeedsFile),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    // A host in a room keeps playing: its pause would pause the room, which
+    // has no part in this viewer's subtitles. A guest pauses on its own and
+    // stops following the room until the sheet closes.
+    final hostInRoom =
+        _inParty && WatchPartyService.instance.room.value?.isHost == true;
+    _alignResumes = _intendsToPlay && !hostInRoom;
+    if (_alignResumes) _requestPause();
+    setState(() {
+      _activeMenu = null;
+      _showSubSyncBar = false;
+      _showTextSyncOverlay = true;
+    });
+  }
+
+  void _closeAlignSheet({bool resume = true}) {
+    setState(() => _showTextSyncOverlay = false);
+    if (resume && _alignResumes) _requestPlay();
+    _alignResumes = false;
+    // A guest that paused for the sheet goes back to where the room is.
+    if (resume) _partyCatchUp();
+    _startHideControlsTimer();
   }
 
   void _onControllerError(dynamic err) {
@@ -3140,9 +3523,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _reportPlaybackFailure(l10nCurrent().ply2PlaybackErrorMsg(errorMsg));
   }
 
-  /// Puts a dead stream on the actionable failure state: the source panel on an
-  /// episode, because there is more than one source to pick from, and the
-  /// plain message otherwise.
+  /// Puts a dead stream on the actionable failure state: the failure overlay,
+  /// with the source panel open over it on an episode, because there is more
+  /// than one source to pick from.
   ///
   /// Both callers are terminal - the mpv error classifier and the Media3 ready
   /// state - and both used to write this out separately, which is how the two
@@ -3153,9 +3536,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     // as a stall is: an auto-picked source that failed outright used to stop
     // here on the source panel while working sources sat in the queue.
     if (_tryNextSource()) return;
+    _showTerminalFailure(message);
+    // On an episode the panel opens over the failure, as the open path does.
     if (_currentEpisode != null && widget.detail?.videos.isNotEmpty == true) {
       setState(() {
-        _isLoading = false;
         _showSourcesPanel = true;
         _sourcesEpisode = _currentEpisode;
         _sourcesErrorMessage = l10nCurrent().ply2SelectAnotherSourceBelow(
@@ -3163,13 +3547,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         );
       });
       _focusOverlayAfterFrame(_sourcesPanelKey);
-      return;
     }
-
-    setState(() {
-      _isLoading = false;
-      _statusMessage = message;
-    });
   }
 
   /// Reopens the current stream without a start position after mpv refused the
@@ -3198,6 +3576,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _hasRetriedWithoutSeek = true;
     // Never ask this stream for a position again, so the refusal cannot repeat.
     _seekTarget = Duration.zero;
+    // The same attempt reopened, so it keeps the attempt's ticket: a source
+    // change while this is in flight makes it stale.
+    final int ticket = _openToken.current;
 
     debugPrint(
       '[PlayerScreen] Reopening $_currentTitle without a start position so playback can begin',
@@ -3231,6 +3612,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         ),
         applyPreOpen: false,
       );
+      if (!mounted || !_openToken.isCurrent(ticket)) return;
       _cancelOpenWatchdog();
       // The attempt's stream is open again, so the auto-advance chain may judge
       // it: this reopen resets _positionAtStreamOpen to zero, which is exactly
@@ -3238,13 +3620,15 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _openSettled = true;
       if (_engine == null) {
         await PlayerSettings.applyPostOpenProperties(_player);
+        if (!mounted || !_openToken.isCurrent(ticket)) return;
         _setSubtitleScale(_subtitleScale);
       }
-      _applyVolume(_isMuted ? 0.0 : _volume);
+      _applyViewerLevels();
       _requestPlay();
       _startFrameWatchdog();
       _clearStallOverlay();
     } catch (e) {
+      if (!_openToken.isCurrent(ticket)) return;
       // A failed reopen means the source itself is gone. Leave the stall
       // detection armed (open watchdog plus frame watchdog) so the user gets the
       // recovery overlay with its escape actions instead of a silent spinner,
@@ -3338,15 +3722,35 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     }
   }
 
-  void _togglePlayPause() {
-    if (!_partyAllowsMe()) return;
-    final willPlay = !_isPlaying;
+  /// Plays or pauses. In a room the others follow, after [partyDelay] when
+  /// a double-click may still take the toggle back; a [silent] toggle is
+  /// that taking back, and the room never hears of it.
+  void _togglePlayPause({
+    Duration partyDelay = Duration.zero,
+    bool silent = false,
+  }) {
+    if (!silent && !_partyAllowsMe()) return;
+    final willPlay = !_intendsToPlay;
     // The auto-advance chain reads this: a stream the user paused is not a
     // stream that failed to deliver.
-    _pausedByUser = _isPlaying;
-    _requestPlayOrPause();
+    _pausedByUser = !willPlay;
+    // An explicit play or pause rather than a toggle, so the engine cannot
+    // flip a state this screen did not read.
+    if (willPlay) {
+      _requestPlay();
+    } else {
+      _requestPause();
+    }
     _startHideControlsTimer();
-    _partySend(playing: willPlay, position: _positionValue);
+    if (silent) return;
+    _tapPartySend?.cancel();
+    if (partyDelay == Duration.zero) {
+      _partySend(playing: willPlay, position: _positionValue);
+      return;
+    }
+    _tapPartySend = Timer(partyDelay, () {
+      if (mounted) _partySend(playing: willPlay, position: _positionValue);
+    });
   }
 
   void _seekRelative(Duration offset) {
@@ -3360,13 +3764,32 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _startHideControlsTimer();
   }
 
-  /// A seek the viewer asked for (the timeline, the skip buttons, a remote):
-  /// in a room it moves everyone, or nobody when only the host may.
-  void _userSeek(Duration position) {
-    if (!_partyAllowsMe()) return;
+  /// A seek the viewer asked for (the timeline, the skip buttons, a remote,
+  /// skip-intro, the align sheet's 往前 5 秒): in a room it moves everyone,
+  /// or nobody when only the host may. With [play] playback also starts.
+  /// False when the room did not allow it.
+  bool _userSeek(Duration position, {bool play = false}) {
+    if (!_partyAllowsMe()) return false;
     _requestSeek(position);
-    _partySend(playing: _isPlaying, position: position, seek: true);
+    if (play) {
+      _pausedByUser = false;
+      _requestPlay();
+    }
+    // The viewer's own jump settles like one the room made: a heartbeat the
+    // host sent before hearing of it would otherwise pull them back.
+    if (_partyIsHere) _lastPartySeek = DateTime.now();
+    _partySend(playing: play || _intendsToPlay, position: position, seek: true);
+    return true;
   }
+
+  /// Whether this screen is in a room on its own title and may not move it.
+  bool get _partyLocked {
+    final room = WatchPartyService.instance.room.value;
+    return room != null && !room.canControl && _partyIsHere;
+  }
+
+  /// Whether this screen is in a room on its own title.
+  bool get _inParty => WatchPartyService.instance.active && _partyIsHere;
 
   // -- 一起看 --
 
@@ -3405,6 +3828,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     service.room.addListener(_onPartyRoom);
     service.media.addListener(_onPartyMedia);
     _partyWasGuest = service.room.value?.isHost == false;
+    _partyEventSub = service.events.listen(_onPartyEvent);
     // Every 2 s: Syncplay's server sends its state every second; half that
     // rate is plenty for gentle drift correction and keeps the room's
     // Realtime message count low.
@@ -3412,17 +3836,52 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       const Duration(seconds: 2),
       (_) => _partyTick(),
     );
-    // A host's next episode or new source is the room's now.
+    // A host's next episode or new source is the room's now, starting where
+    // this screen opens it.
     if (service.room.value?.isHost == true) {
       final m = _partyMedia;
-      if (m != null) unawaited(service.setMedia(m));
+      if (m != null) {
+        unawaited(
+          service.setMedia(m, startAt: widget.initialPosition ?? Duration.zero),
+        );
+        _noticeIfSourceStaysHere(m);
+      }
+    }
+  }
+
+  /// Tells a host whose source only plays on this device that guests will
+  /// find their own.
+  void _noticeIfSourceStaysHere(PartyMedia m) {
+    if (m.sourceShared || _partyLocalNoticeFor == m.source?.url) return;
+    _partyLocalNoticeFor = m.source?.url;
+    // After the first frame: [_showNotice] sets state, and this can run
+    // from initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showNotice(l10nCurrent().partyLocalSource);
+    });
+  }
+
+  void _onPartyEvent(PartyEvent event) {
+    if (!mounted) return;
+    final l10n = l10nCurrent();
+    switch (event) {
+      case PartyEvent.hostAway:
+        _showNotice(l10n.partyHostAway);
+      case PartyEvent.hostBack:
+        _showNotice(l10n.partyHostBack);
+      case PartyEvent.reconnecting:
+        _showNotice(l10n.partyReconnecting);
+      case PartyEvent.reconnected:
+        _showNotice(l10n.partyReconnected);
     }
   }
 
   void _stopParty({required bool leaveRoom}) {
     final service = WatchPartyService.instance;
     _partySub?.cancel();
+    _partyEventSub?.cancel();
     _partyHeartbeat?.cancel();
+    _tapPartySend?.cancel();
     service.room.removeListener(_onPartyRoom);
     service.media.removeListener(_onPartyMedia);
     if (leaveRoom && service.active) unawaited(service.leave());
@@ -3430,9 +3889,25 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   void _onPartyRoom() {
     if (!mounted) return;
-    final room = WatchPartyService.instance.room.value;
+    final service = WatchPartyService.instance;
+    final room = service.room.value;
+    final l10n = l10nCurrent();
     if (room == null && _partyWasGuest) {
-      _showNotice(l10nCurrent().partyEnded);
+      switch (service.endReason) {
+        case PartyEndReason.ended:
+          _showNotice(l10n.partyEnded);
+        case PartyEndReason.hostGone:
+          _showNotice(l10n.partyHostGone);
+        case PartyEndReason.dropped:
+          _showNotice(l10n.partyDropped);
+        case PartyEndReason.left:
+        case null:
+          break;
+      }
+    } else if (room == null && service.endReason == PartyEndReason.dropped) {
+      // The host's room went down for good: the guests no longer see this
+      // screen's playback, and the host should know.
+      _showNotice(l10n.partyDropped);
     }
     _partyWasGuest = room?.isHost == false;
     if (room == null) _setPartyNudge(1.0);
@@ -3456,14 +3931,19 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   void _partyTick() {
     final service = WatchPartyService.instance;
     if (!mounted || service.room.value?.isHost != true) return;
-    service.reportHostPosition(playing: _isPlaying, position: _position);
+    service.reportHostPosition(
+      playing: _isPlaying,
+      position: _position,
+      rate: _playbackRate,
+    );
     final m = _partyMedia;
     final current = service.media.value;
     if (m != null &&
         (current == null ||
-            current.source.url != m.source.url ||
-            current.episodeId != m.episodeId)) {
-      unawaited(service.setMedia(m));
+            current.source?.url != m.source?.url ||
+            current.key != m.key)) {
+      unawaited(service.setMedia(m, startAt: _position));
+      _noticeIfSourceStaysHere(m);
     } else {
       unawaited(service.sendState());
     }
@@ -3483,7 +3963,48 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   void _setPartyNudge(double factor) {
     if (factor == _partyNudge) return;
     _partyNudge = factor;
+    if (_isFastForwarding) return;
     _requestSetRate(_playbackRate * factor);
+  }
+
+  /// Takes on the room's speed. Only the speed someone chose travels, never
+  /// a drift nudge, so the nudge here stays relative to the room's speed
+  /// instead of multiplying this viewer's own.
+  void _adoptPartyRate(PartyPlayback pb) {
+    final rate = pb.rate;
+    if (rate == null || (rate - _playbackRate).abs() < 0.001) return;
+    setState(() => _playbackRate = rate);
+    if (_isFastForwarding) {
+      _rateBeforeHold = rate;
+    } else {
+      _requestSetRate(rate * _partyNudge);
+    }
+    if (pb.heartbeat || pb.from.isEmpty) return;
+    _showNotice(l10nCurrent().partySpeed(pb.from, _rateLabel(rate)));
+  }
+
+  static String _rateLabel(double rate) =>
+      rate == rate.roundToDouble() ? rate.toStringAsFixed(0) : '$rate';
+
+  /// Back on screen: the room's speed, play or pause, and position now,
+  /// from what the service last heard while this screen was not following.
+  void _partyCatchUp() {
+    final service = WatchPartyService.instance;
+    final room = service.room.value;
+    final pb = service.lastPlayback;
+    if (room == null || room.isHost || pb == null) return;
+    if (!_partyIsHere || _isLoading) return;
+    final key = pb.mediaKey;
+    if (key != null && key != service.media.value?.key) return;
+    _adoptPartyRate(pb);
+    final at = pb.positionNow;
+    if ((_position - at).abs() > const Duration(milliseconds: 500)) {
+      _partySeekTo(at);
+    }
+    if (pb.playing != _intendsToPlay) {
+      _pausedByUser = !pb.playing;
+      pb.playing ? _requestPlay() : _requestPause();
+    }
   }
 
   /// Applies the room's play, pause or seek here.
@@ -3497,6 +4018,20 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   /// jump comes only past 3 s, when easing would take too long.
   void _onPartyPlayback(PartyPlayback pb) {
     if (!mounted || !_partyIsHere || _isLoading) return;
+    // A position heard for another episode means nothing here.
+    final key = pb.mediaKey;
+    if (key != null && key != WatchPartyService.instance.media.value?.key) {
+      return;
+    }
+    // Off the screen the room is not followed, nor by a guest paused over
+    // the subtitle align sheet; the service keeps its last word, and
+    // [_partyCatchUp] applies it on the way back.
+    final guest = WatchPartyService.instance.room.value?.isHost == false;
+    if (_partyBackgrounded || (guest && _showTextSyncOverlay)) return;
+    // A held 2x is the viewer's for as long as it is held: drift correction
+    // would only fight it. Its release tells the room.
+    if (_isFastForwarding && pb.heartbeat) return;
+    _adoptPartyRate(pb);
     // Until the first frame is up, a seek only restarts the decode: a guest
     // still opening was found behind on every heartbeat and sent back again,
     // and the picture stayed black for half a minute. Play and pause still
@@ -3526,14 +4061,16 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       final threshold = pb.seek ? 0.5 : (pb.playing ? 1.0 : 0.3);
       if (off > threshold && (pb.seek || !settling)) _partySeekTo(pb.position);
     }
-    final changed = pb.playing != _isPlaying;
+    final changed = pb.playing != _intendsToPlay;
     if (changed) {
       _pausedByUser = !pb.playing;
       pb.playing ? _requestPlay() : _requestPause();
     }
     if (pb.heartbeat || pb.from.isEmpty) return;
     final l10n = l10nCurrent();
-    if (pb.seek) {
+    if (!pb.playing && pb.reason == PartyPlayback.reasonBackground) {
+      _showNotice(l10n.partyPausedAway(pb.from));
+    } else if (pb.seek) {
       final t = pb.position;
       final mm = t.inMinutes.remainder(60).toString().padLeft(2, '0');
       final ss = t.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -3561,11 +4098,18 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     required bool playing,
     required Duration position,
     bool seek = false,
+    String? reason,
   }) {
     final service = WatchPartyService.instance;
     if (!service.active || !_partyIsHere) return;
     unawaited(
-      service.sendPlayback(playing: playing, position: position, seek: seek),
+      service.sendPlayback(
+        playing: playing,
+        position: position,
+        seek: seek,
+        rate: _playbackRate,
+        reason: reason,
+      ),
     );
   }
 
@@ -3670,6 +4214,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     Duration? resumeAt,
   }) async {
     CrashBreadcrumbs.stream('switch', title: newEpisode.title);
+    // The open in flight is stale from here, not only once the next one
+    // starts: the stop below is awaited, and an old open settling during it
+    // would otherwise clear the spinner for a stream that is going away.
+    _openToken.begin();
+    _subtitleEpisode.begin();
     // Continue from where the user actually is. Re-sending the original resume
     // offset would jump backwards, and it is the offset the rejected source may
     // have refused to seek to in the first place. A different episode starts
@@ -3707,6 +4256,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _currentEpisode = newEpisode;
       final showName = widget.detail?.name ?? widget.title;
       _isLoading = true;
+      _streamStalled = false;
       if (newEpisode.season == null && newEpisode.episode == null) {
         // A movie has no episode numbering to build a label from.
         _currentTitle = showName;
@@ -3740,6 +4290,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _currentCues = [];
       _currentSubtitleVariant = prevVariant;
       _isSubtitleEnabled = wasSubEnabled;
+      _stopAiSubtitle();
     });
 
     if (newSource.subtitles != null && newSource.subtitles!.isNotEmpty) {
@@ -3840,6 +4391,31 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     );
   }
 
+  /// Whether the open stream is too short to be the title: a trailer or a
+  /// host's placeholder. [_checkLength] says so as it opens; this keeps it
+  /// from counting as watched. See [streamIsTheTitle].
+  bool get _streamIsNotTheTitle =>
+      !streamIsTheTitle(_durationValue, widget.detail?.runtime);
+
+  /// The end of the stream, from either engine: the episode is finished and
+  /// the next one starts, as the countdown card would have started it.
+  ///
+  /// Not for a stream too short to be the title. Its end used to save the
+  /// episode as finished and move on to the next one, so a trailer served in
+  /// place of the episode skipped it; the failure overlay says what happened
+  /// and offers another source instead.
+  void _onStreamEnded() {
+    if (!mounted) return;
+    if (_streamIsNotTheTitle) {
+      final minutes = (_durationValue.inSeconds / 60).ceil();
+      _showTerminalFailure(l10nCurrent().playerTooShort(minutes));
+      return;
+    }
+    _savePlaybackProgress();
+    final next = _nextEpisode;
+    if (next != null && !_upNextDismissed) _playEpisode(next);
+  }
+
   /// The show the marks belong to: every episode shares the series' id.
   String? get _showId => widget.detail?.id;
 
@@ -3882,10 +4458,16 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         !_hasReceivedFirstVideoFrame) {
       return;
     }
+    // In a room only the host's auto-skip moves it, through the room, and
+    // the guests are taken past the opening with it. Every member skipping
+    // by their own marks would have the room jumping between them, and a
+    // guest's skip alone was pulled back by the next heartbeat.
+    final room = WatchPartyService.instance.room.value;
+    if (room != null && !room.isHost && _partyIsHere) return;
     _introAutoSkipped = true;
     if (pos >= end - const Duration(seconds: 1)) return;
     _dismissedSegmentKeys.add('intro_0_${end.inMilliseconds}');
-    _requestSeek(end);
+    _userSeek(end);
     if (mounted) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
@@ -3926,6 +4508,8 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   void _maybeShowUpNext(Duration pos) {
     if (_leavingForNext || _upNextDismissed || _nextEpisode == null) return;
+    // A clip's closing seconds are not the episode's.
+    if (_streamIsNotTheTitle) return;
     // Never in the opening minutes, whatever the marks say.
     if (pos < const Duration(minutes: 2)) return;
     final at = _upNextAt;
@@ -3993,12 +4577,14 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   }
 
   void _handleSkipSegment(MediaSkipSegment seg) {
-    _dismissedSegmentKeys.add(seg.uniqueKey);
     final target = seg.endMs != null
         ? Duration(milliseconds: seg.endMs!)
         : _durationValue;
 
-    _requestSeek(target + const Duration(milliseconds: 300));
+    // Through the room like any seek the viewer makes: a skip that moved
+    // only this device was pulled back by the next heartbeat.
+    if (!_userSeek(target + const Duration(milliseconds: 300))) return;
+    _dismissedSegmentKeys.add(seg.uniqueKey);
 
     setState(() {
       _showSkipButton = false;
@@ -4016,6 +4602,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   void _savePlaybackProgress() {
     if (widget.detail == null) return;
+    // A trailer's position is not the viewer's place in the title, and saved
+    // near its end it marked the episode finished.
+    if (_streamIsNotTheTitle) return;
 
     final pos = _positionValue.inSeconds;
     final dur = _durationValue.inSeconds;
@@ -4121,6 +4710,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   }
 
   Future<void> _stopPlaybackForPop() async {
+    // Saved before the stop, not left to dispose: mpv's stop resets the
+    // length to zero, and a save that finds no length saves nothing, so
+    // leaving with the back button lost up to 30 s of progress.
+    _savePlaybackProgress();
     _sendFinalScrobble();
     try {
       await _requestStop();
@@ -4146,22 +4739,43 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       onTimeout: () {},
     );
     if (!mounted) return;
-    if (!_wasFullscreenBeforeEntering && WindowService.instance.isFullscreen) {
-      WindowService.instance.exitFullscreen();
-    }
+    _leaveFullscreen();
     Navigator.pop(context);
   }
 
-  @override
   /// A film pauses when the app leaves the screen - the home button, another
   /// app, the phone locking - so it does not play on unseen, and waits where
   /// it was. Music and audiobooks keep playing in the background; this is the
   /// video player only.
+  ///
+  /// Progress is saved on the way out too: Android may kill a backgrounded
+  /// app without another word, and the last 30 s save could be most of half
+  /// a minute old by then.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _savePlaybackProgress();
+    }
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
-      if (_isPlaying) _requestPause();
+      if (_intendsToPlay) {
+        _requestPause();
+        // A host leaving the screen pauses the room, and says why: the
+        // heartbeat alone paused the guests without a word.
+        if (_inParty && WatchPartyService.instance.room.value?.isHost == true) {
+          _partySend(
+            playing: false,
+            position: _positionValue,
+            reason: PartyPlayback.reasonBackground,
+          );
+        }
+      }
+      _partyBackgrounded = true;
+    } else if (state == AppLifecycleState.resumed && _partyBackgrounded) {
+      _partyBackgrounded = false;
+      _partyCatchUp();
     }
   }
 
@@ -4188,6 +4802,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _audioHudTimer?.cancel();
     _aspectHudTimer?.cancel();
     _upscaleAdvisoryTimer?.cancel();
+    _tapFlashTimer?.cancel();
     _savePlaybackProgress();
     _sendFinalScrobble();
     WakelockPlus.disable();
@@ -4218,11 +4833,27 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _player.dispose();
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     _cachedSourcesByEpisode.clear();
-    if (!_wasFullscreenBeforeEntering && WindowService.instance.isFullscreen) {
-      WindowService.instance.exitFullscreen();
-    }
+    _leaveFullscreen();
     DiscordRpcService.instance.clearToIdle();
     super.dispose();
+  }
+
+  /// On the way out: a desktop window goes back to the size it had when the
+  /// player chain opened, unless this screen is handing over to the next
+  /// one ([FullscreenCarry]); a phone or television gets the app's normal
+  /// system bars back. Safe to run on pop and again on dispose.
+  void _leaveFullscreen() {
+    if (WindowService.instance.isDesktop) {
+      if (_fullscreenCarry.leave(
+        wasFullscreenBefore: _wasFullscreenBeforeEntering,
+        handingOver: _leavingForNext || _partyHandingOver,
+        isFullscreen: WindowService.instance.isFullscreen,
+      )) {
+        WindowService.instance.exitFullscreen();
+      }
+    } else {
+      unawaited(WindowService.instance.leavePlayerFullscreen(this));
+    }
   }
 
   void _onPlayerSettingsChanged() {
@@ -4268,9 +4899,16 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   void _handleLongPressStart(LongPressStartDetails details) {
     if (_isLocked || _isLoading) return;
     if (_activeMenu != null) return;
+    // Running ahead of a room only the host may move is moving it.
+    if (_partyLocked) {
+      _showNotice(l10nCurrent().partyNoControl);
+      return;
+    }
 
-    _rateBeforeHold = _rateValue > 0 ? _rateValue : 1.0;
-    _wasPausedBeforeHold = !_isPlayingValue;
+    // The viewer's own speed, not the engine's report of it: Media3 never
+    // reports a rate, so reading it back restored every hold to 1x.
+    _rateBeforeHold = _playbackRate;
+    _wasPausedBeforeHold = !_intendsToPlay;
     _isFastForwarding = true;
     _requestSetRate(2.0);
     if (_wasPausedBeforeHold) {
@@ -4283,21 +4921,35 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   void _handleLongPressEnd(LongPressEndDetails details) {
     if (!_isFastForwarding) return;
     _isFastForwarding = false;
-    _requestSetRate(_rateBeforeHold);
+    _requestSetRate(_rateBeforeHold * _partyNudge);
     if (_wasPausedBeforeHold) {
       _requestPause();
     }
+    _partyAfterHold();
     HapticFeedback.lightImpact();
     setState(() {});
+  }
+
+  /// A held 2x in a room ends where the viewer let go, and the room jumps
+  /// there with them: the hold is theirs, like a seek.
+  void _partyAfterHold() {
+    if (!_inParty) return;
+    _lastPartySeek = DateTime.now();
+    _partySend(
+      playing: !_wasPausedBeforeHold,
+      position: _positionValue,
+      seek: true,
+    );
   }
 
   void _handleLongPressCancel() {
     if (!_isFastForwarding) return;
     _isFastForwarding = false;
-    _requestSetRate(_rateBeforeHold);
+    _requestSetRate(_rateBeforeHold * _partyNudge);
     if (_wasPausedBeforeHold) {
       _requestPause();
     }
+    _partyAfterHold();
     setState(() {});
   }
 
@@ -4383,7 +5035,18 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     }
   }
 
-  DateTime? _lastScreenTapTime;
+  final PlayerScreenTap _screenTap = PlayerScreenTap();
+
+  /// Whether the last tap played or paused, so a double-click puts back only
+  /// a toggle that happened (a guest's click the room refused did not).
+  bool _tapToggled = false;
+
+  /// The play or pause a tap just made, shown for a moment in the middle of
+  /// the picture; null when nothing is shown. The serial restarts the
+  /// animation on every tap.
+  bool? _tapFlashPlaying;
+  int _tapFlashSerial = 0;
+  Timer? _tapFlashTimer;
 
   void _handleScreenTap() {
     if (_isLocked) {
@@ -4396,16 +5059,91 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       return;
     }
 
-    final now = DateTime.now();
-    if (_lastScreenTapTime != null &&
-        now.difference(_lastScreenTapTime!) <
-            const Duration(milliseconds: 280)) {
-      _lastScreenTapTime = null;
-      WindowService.instance.toggleFullscreen();
-    } else {
-      _lastScreenTapTime = now;
-      _toggleControls();
+    final doubleClickFullscreen =
+        !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+    final action = _screenTap.tap(
+      DateTime.now(),
+      canPlayPause:
+          !_isLoading &&
+          !_streamStalled &&
+          !_isResumeSearchActive &&
+          _activeMenu == null &&
+          !_showTextSyncOverlay,
+      doubleClickFullscreen: doubleClickFullscreen,
+    );
+    switch (action) {
+      case PlayerTapAction.controls:
+        _toggleControls();
+      case PlayerTapAction.playPause:
+        _tapToggled = false;
+        if (!_partyAllowsMe()) return;
+        final willPlay = !_intendsToPlay;
+        if (!_showControls) setState(() => _showControls = true);
+        // The room hears of the click only once it cannot turn out to be
+        // the first half of a double-click.
+        _togglePlayPause(
+          partyDelay: _screenTap.roomDelay(
+            doubleClickFullscreen: doubleClickFullscreen,
+          ),
+        );
+        _tapToggled = true;
+        _showTapFlash(willPlay);
+      case PlayerTapAction.fullscreen:
+        // The first click of the pair played or paused; put that back,
+        // quietly: the room never heard of it, and used to be paused and
+        // played again by every double-click.
+        if (_tapToggled) {
+          _tapPartySend?.cancel();
+          _togglePlayPause(silent: true);
+        }
+        _tapToggled = false;
+        _clearTapFlash();
+        WindowService.instance.toggleFullscreen();
     }
+  }
+
+  void _showTapFlash(bool playing) {
+    _tapFlashTimer?.cancel();
+    setState(() {
+      _tapFlashPlaying = playing;
+      _tapFlashSerial++;
+    });
+    _tapFlashTimer = Timer(const Duration(milliseconds: 700), _clearTapFlash);
+  }
+
+  void _clearTapFlash() {
+    _tapFlashTimer?.cancel();
+    if (mounted && _tapFlashPlaying != null) {
+      setState(() => _tapFlashPlaying = null);
+    }
+  }
+
+  Widget _buildTapFlash(bool playing) {
+    return Center(
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey(_tapFlashSerial),
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOut,
+        builder: (context, t, child) => Opacity(
+          opacity: t < 0.2 ? t / 0.2 : (1 - t) / 0.8,
+          child: Transform.scale(scale: 0.85 + t * 0.3, child: child),
+        ),
+        child: Container(
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            playing ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            size: 52,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -4445,10 +5183,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
           canPop: !_isLocked && !_overlayIsOpen,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) {
-              if (!_wasFullscreenBeforeEntering &&
-                  WindowService.instance.isFullscreen) {
-                WindowService.instance.exitFullscreen();
-              }
+              _leaveFullscreen();
             } else if (_overlayIsOpen) {
               _closeOverlaysAndRefocus();
             } else if (_isLocked) {
@@ -5198,13 +5933,17 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
                             ? () => setState(() => _showPartyChat = true)
                             : null,
                         onLock: _isMobile ? _lockPlayer : null,
+                        // Usable over a failure as well as over playback: a
+                        // failed stream is when another source is wanted.
                         onToggleEpisodes:
-                            (!_isLoading &&
+                            ((!_isLoading || _streamStalled) &&
                                 widget.detail?.videos.isNotEmpty == true)
                             ? _toggleEpisodesPanel
                             : null,
                         isEpisodesActive: _showEpisodesPanel,
-                        onShowSources: (!_isLoading && _sourcesTarget != null)
+                        onShowSources:
+                            ((!_isLoading || _streamStalled) &&
+                                _sourcesTarget != null)
                             ? _openSourcesPanel
                             : null,
                         isSourcesActive: _showSourcesPanel,
@@ -5429,25 +6168,15 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
                     setState(() => _activeMenu = 'style');
                     _focusOverlayAfterFrame(_activeMenuKey);
                   },
-                  onOpenTextSync: () {
-                    if (_selectedEmbeddedSubtitleIndex != null ||
-                        _currentSubtitlePath == null ||
-                        _currentCues.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            l10nCurrent().playerSpeechSyncNeedsFile,
-                          ),
-                          duration: const Duration(seconds: 2),
+                  onOpenTextSync: _openAlignSheet,
+                  onAiTranslate: () => unawaited(_startAiSubtitle()),
+                  aiActive: _aiSource != null,
+                  aiStatus: _aiSource == null
+                      ? null
+                      : l10nCurrent().subAiProgress(
+                          _aiDone.clamp(0, _currentCues.length),
+                          _currentCues.length,
                         ),
-                      );
-                      return;
-                    }
-                    setState(() {
-                      _activeMenu = null;
-                      _showTextSyncOverlay = true;
-                    });
-                  },
                   onClose: () => setState(() => _activeMenu = null),
                 ),
               ),
@@ -5535,8 +6264,12 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
               child: PlayerSpeedMenu(
                 currentRate: _playbackRate,
                 onRateSelected: (rate) {
+                  // The room's speed is everyone's: changed by whoever may
+                  // move the room, and sent to the others.
+                  if (!_partyAllowsMe()) return;
                   setState(() => _playbackRate = rate);
-                  _requestSetRate(rate);
+                  _requestSetRate(rate * _partyNudge);
+                  _partySend(playing: _intendsToPlay, position: _positionValue);
                 },
                 onClose: () => setState(() => _activeMenu = null),
               ),
@@ -5603,13 +6336,8 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
                     _selectedEmbeddedSubtitleIndex == null &&
                     _currentSubtitlePath != null &&
                     _currentCues.isNotEmpty,
-                onDelayChanged: (sec) => _applyLiveDelay(sec),
-                onEnterTextSync: () {
-                  setState(() {
-                    _showSubSyncBar = false;
-                    _showTextSyncOverlay = true;
-                  });
-                },
+                onDelayChanged: (sec) => _setSubtitleDelay(sec),
+                onEnterTextSync: _openAlignSheet,
                 onClose: () {
                   setState(() => _showSubSyncBar = false);
                   _startHideControlsTimer();
@@ -5620,7 +6348,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         // In-Player Episodes Side Panel
         if (_showEpisodesPanel &&
             widget.detail?.videos.isNotEmpty == true &&
-            !_isLoading)
+            (!_isLoading || _streamStalled))
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -5685,15 +6413,34 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
             _currentCues.isNotEmpty &&
             _selectedEmbeddedSubtitleIndex == null)
           Positioned.fill(
-            child: TextSyncOverlay(
-              player: _player,
-              initialCues: _currentCues,
-              baseOffsetSec: _subtitleDelayMs / 1000.0,
-              onClose: () {
-                setState(() => _showTextSyncOverlay = false);
-                _startHideControlsTimer();
+            child: SubtitleAlignSheet(
+              cues: _currentCues,
+              nowSec: _positionValue.inMilliseconds / 1000.0,
+              delaySec: _subtitleDelayMs / 1000.0,
+              onPick: (delay) async {
+                _closeAlignSheet();
+                await _setSubtitleDelay(delay);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(l10nCurrent().subAlignDone(_signed(delay))),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
               },
-              onSave: _saveTextSyncedCues,
+              onBack: () {
+                final back = _positionValue - const Duration(seconds: 5);
+                _closeAlignSheet(resume: false);
+                // Through the room: alone, the step back was undone by the
+                // next heartbeat. Where the room may not be moved, the
+                // viewer goes back to where the room is instead.
+                final moved = _userSeek(
+                  back < Duration.zero ? Duration.zero : back,
+                  play: true,
+                );
+                if (!moved) _partyCatchUp();
+              },
+              onClose: _closeAlignSheet,
             ),
           ),
 
@@ -5747,7 +6494,8 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
             !_showEpisodesPanel &&
             !_showSourcesPanel &&
             !_isLocked &&
-            !_isResumeSearchActive)
+            !_isResumeSearchActive &&
+            !_partyLocked)
           Positioned(
             bottom: (_showControls || _activeMenu != null)
                 ? (MediaQuery.paddingOf(context).bottom +
@@ -5800,6 +6548,35 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         // and self-dismissing: it informs, it does not block playback.
         if (_showUpscaleAdvisory && !_isLocked)
           Positioned.fill(child: IgnorePointer(child: _buildUpscaleAdvisory())),
+
+        // A downloaded subtitle on Media3, which cannot load the file, and
+        // the AI's Chinese on either engine.
+        if ((_engine != null || _aiSource != null) &&
+            _isSubtitleEnabled &&
+            _selectedEmbeddedSubtitleIndex == null &&
+            _currentCues.isNotEmpty &&
+            !_showTextSyncOverlay)
+          Positioned.fill(
+            child: IgnorePointer(
+              // The position ticks without rebuilding the screen.
+              child: ValueListenableBuilder<Duration>(
+                valueListenable: _positionNotifier,
+                builder: (context, position, _) => SubtitleCueOverlay(
+                  cues: _currentCues,
+                  seconds: position.inMilliseconds / 1000.0,
+                  delaySec: _subtitleDelayMs / 1000.0,
+                  scale: _subtitleScale,
+                  raised: _showControls,
+                ),
+              ),
+            ),
+          ),
+
+        // The play or pause a tap on the picture just made.
+        if (_tapFlashPlaying != null && !_isLocked)
+          Positioned.fill(
+            child: IgnorePointer(child: _buildTapFlash(_tapFlashPlaying!)),
+          ),
 
         // 一起看: emoji floating up and the latest chat line, then the chat.
         if (WatchPartyService.instance.active)

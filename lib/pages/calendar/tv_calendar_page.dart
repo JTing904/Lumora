@@ -69,6 +69,8 @@ class _TvCalendarPageState extends State<_TvCalendarBody>
   bool _isLoadingDays = true;
   bool _isLoadingEpisodes = false;
   String _searchQuery = '';
+
+  /// The network picked, or 'All' (shown as 全部) for every one.
   String _selectedNetwork = 'All';
 
   @override
@@ -661,7 +663,7 @@ class _TvCalendarPageState extends State<_TvCalendarBody>
                             ),
                           const SizedBox(width: 5),
                           Text(
-                            net,
+                            net == 'All' ? l10nCurrent().filterAll : net,
                             style: ZplayType.caption
                                 .copyWith(
                                   size: 12,
@@ -961,7 +963,10 @@ class _TvCalendarPageState extends State<_TvCalendarBody>
                 child: Text(
                   _selectedNetwork == 'All'
                       ? l10nCurrent().cal2EpisodesAiring(episodes.length)
-                      : '${episodes.length} on $_selectedNetwork',
+                      : l10nCurrent().cal2EpisodesOnNetwork(
+                          episodes.length,
+                          _selectedNetwork,
+                        ),
                   style: ZplayType.bodySmall
                       .copyWith(weight: FontWeight.w700)
                       .toStyle(color: tokens.accent),

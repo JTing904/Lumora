@@ -311,7 +311,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsCalendarTitle => '剧集播出日历';
 
   @override
-  String get settingsCalendarOnSubtitle => '首页顶部和分区标题显示日历按钮';
+  String get settingsCalendarOnSubtitle => '“更多内容”中显示追剧日历';
 
   @override
   String get settingsCalendarOffSubtitle => '日历已关闭，所有页面都不显示';
@@ -320,7 +320,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAiQuizTitle => 'AI 推荐问答';
 
   @override
-  String get settingsAiQuizOnSubtitle => '首页和搜索栏显示 AI 口味问答';
+  String get settingsAiQuizOnSubtitle => '“更多内容”和搜索中显示 AI 选片';
 
   @override
   String get settingsAiQuizOffSubtitle => 'AI 问答已关闭，所有页面都不显示';
@@ -396,6 +396,32 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsChooseProfile => '选择 Lumora 资料文件';
+
+  @override
+  String backupRestoredFull(int count) {
+    return '已还原完整资料：$count 项设置，连同账号密码和 IPTV 门户。';
+  }
+
+  @override
+  String backupRestoredRedacted(int count) {
+    return '已还原资料：$count 项设置。账号密码、IPTV 门户和插件保持这台设备原来的。';
+  }
+
+  @override
+  String backupRestoredLegacy(int count) {
+    return '已还原资料：$count 项设置，连同插件和 IPTV 门户。';
+  }
+
+  @override
+  String backupNothingReadable(String paths) {
+    return '找不到能读取的资料文件。找过这些位置：\n$paths\n没有存储权限时，Lumora 只能读取自己的应用目录，请把资料文件放到那里，或者用“从文件导入”选择它。';
+  }
+
+  @override
+  String get backupChosenUnreadable => '读取不了选择的文件。请用“从文件导入”重新选择。';
+
+  @override
+  String get backupChosenEmpty => '选择的资料文件是空的。';
 
   @override
   String get settingsClearCacheTitle => '清除缓存';
@@ -1482,7 +1508,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get episodesSelectSources => '选片源';
 
   @override
-  String get syncTextSync => '按对白同步';
+  String get syncTextSync => '对不上？对齐这一句';
 
   @override
   String get syncDiscard => '放弃修改';
@@ -1624,6 +1650,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlUnknownError => '未知错误';
+
+  @override
+  String get dlErrInvalidPath => '下载位置已失效';
+
+  @override
+  String get dlErrFileMissing => '文件已被移动或删除';
+
+  @override
+  String get dlErrTorrentUnsupported => '不支持种子下载';
+
+  @override
+  String get dlErrNoDebridLink => '云端没有给出下载链接';
+
+  @override
+  String get dlErrEmptyUrl => '这个来源没有下载链接';
+
+  @override
+  String dlErrHttpStatus(int status) {
+    return '服务器拒绝了下载（HTTP $status）';
+  }
+
+  @override
+  String get dlErrNotEnoughSpace => '磁盘空间不足';
+
+  @override
+  String dlErrReconnecting(int attempt) {
+    return '正在重新连接（第 $attempt 次）…';
+  }
+
+  @override
+  String get dlErrSaveFailed => '无法保存下载好的文件';
+
+  @override
+  String get dlErrBadPlaylist => '这个视频流无法下载';
+
+  @override
+  String get dlErrNetwork => '网络连接中断';
 
   @override
   String get dlResume => '继续';
@@ -1921,6 +1984,26 @@ class AppLocalizationsZh extends AppLocalizations {
       '默认模式下所有片源同时搜索，结果按清晰度（4K、1080p、720p）和文件大小排序。';
 
   @override
+  String provAllActive(int count) {
+    return '全部 $count 个内置片源都已启用，并同时搜索。';
+  }
+
+  @override
+  String get addonTypeMovie => '电影';
+
+  @override
+  String get addonTypeSeries => '剧集';
+
+  @override
+  String get addonTypeAnime => '动漫';
+
+  @override
+  String get addonTypeTv => '电视频道';
+
+  @override
+  String get addonTypeEvents => '赛事';
+
+  @override
   String get provSwitchCustom => '切换到自定义模式';
 
   @override
@@ -1973,6 +2056,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get navMore => '更多内容';
+
+  @override
+  String get navCategories => '分类';
 
   @override
   String get catTrendingSeries => '热门剧集';
@@ -2050,7 +2136,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get catEmpty => '这里暂时没有内容。这些片单来自 TMDb，请到设置里检查 TMDb key。';
 
   @override
-  String get settingsMoreSubtitle => '漫画、电子书、有声书、音乐和合集';
+  String get settingsMoreSubtitle => '影视、合集、直播、漫画和音乐';
 
   @override
   String get homeResume => '继续播放';
@@ -4938,19 +5024,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgbUploadOrChooseWallpaper => '上传照片或选择精选深色壁纸';
 
   @override
-  String get stgbSmartRecsCaps => '智能推荐（“因为你收藏了”）';
+  String get stgbSmartRecsCaps => '为你推荐';
 
   @override
   String get stgbCuratedCollections => '精选合集';
 
   @override
-  String get stgbHeroBannerSpotlight => '焦点横幅与大图';
+  String get stgbHeroBannerSpotlight => '顶部轮播';
 
   @override
   String get stgbPosterCardsDensity => '海报卡片与密度';
 
   @override
-  String get stgbHeaderShortcuts => '顶栏快捷方式与按钮';
+  String get stgbHeaderShortcuts => '“更多内容”中的入口';
 
   @override
   String get stgbLiveLightingPreview => '实时光效引擎预览';
@@ -5052,13 +5138,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stgbTvAiringCalendar => '剧集播出日历';
 
   @override
-  String get stgbTvAiringCalendarDesc => '在首页顶栏和轮播中显示剧集日历按钮';
+  String get stgbTvAiringCalendarDesc => '在“更多内容”中显示追剧日历按钮';
 
   @override
   String get stgbAiRecQuiz => 'AI 推荐问答';
 
   @override
-  String get stgbAiRecQuizDesc => '在首页和搜索栏显示 AI 问答按钮';
+  String get stgbAiRecQuizDesc => '在“更多内容”和搜索中显示 AI 选片按钮';
 
   @override
   String get stgbReset => '重置';
@@ -8829,4 +8915,264 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get partyServiceDown => '现在连不上一起看的服务，请稍后再试。';
+
+  @override
+  String get partyHostAway => '房主连线中断，正在等待…';
+
+  @override
+  String get partyHostBack => '房主回来了';
+
+  @override
+  String get partyHostGone => '房主一直没有回来，一起看结束了';
+
+  @override
+  String get partyReconnecting => '和一起看的连线中断，正在重新连接…';
+
+  @override
+  String get partyReconnected => '已重新连上一起看';
+
+  @override
+  String get partyDropped => '一起看的房间断开了，没能重新连上';
+
+  @override
+  String get partyLocalSource => '这个片源只能在本机播放，访客会自己找片源';
+
+  @override
+  String get partyFindOwnSource => '房主的片源只能在他的设备上播放，正在为你找片源…';
+
+  @override
+  String partyPausedAway(String name) {
+    return '$name 暂停了（切到了后台）';
+  }
+
+  @override
+  String partySpeed(String name, String rate) {
+    return '$name 把速度调成 ${rate}x';
+  }
+
+  @override
+  String get subAlignTitle => '现在画面里在说哪一句？';
+
+  @override
+  String subAlignBody(String time) {
+    return '视频暂停在 $time。点一下正在说的那句，字幕就会对齐。';
+  }
+
+  @override
+  String get subAlignBack => '往前 5 秒再听';
+
+  @override
+  String subAlignDone(String offset) {
+    return '字幕时间调为 $offset 秒，已为这部片记住';
+  }
+
+  @override
+  String subOffsetRestored(String offset) {
+    return '已套用你上次为这部片调的字幕时间：$offset 秒';
+  }
+
+  @override
+  String get subAiTitle => 'AI 翻成中文 · 与画面同步';
+
+  @override
+  String get subAiBody => '把英文字幕一句句翻成中文，时间和英文一样';
+
+  @override
+  String subAiProgress(int done, int total) {
+    return '已翻译 $done / $total 句';
+  }
+
+  @override
+  String get subAiStarted => '正在翻成中文，翻好的句子会马上出现';
+
+  @override
+  String subAiDone(int total) {
+    return '$total 句已全部翻成中文';
+  }
+
+  @override
+  String get subAiSignedOut => '请先登录 Lumora 账号才能用 AI 字幕';
+
+  @override
+  String get subAiNotInvited => 'AI 字幕需要用过邀请码的账号';
+
+  @override
+  String get subAiUnavailable => 'AI 现在比较忙，请稍后再试';
+
+  @override
+  String get subAiNoEnglish => '没有可以翻译的英文字幕';
+
+  @override
+  String authSignUpWith(String provider) {
+    return '用 $provider 注册';
+  }
+
+  @override
+  String get authInviteFirst => '这个账号还没注册。请先填好邀请码，再用它注册。';
+
+  @override
+  String get tvStatusFindingPortals => '正在寻找可用的门户…';
+
+  @override
+  String get tvStatusSearchingMore => '正在搜索更多…';
+
+  @override
+  String tvStatusVerifyingNeed(int count, int need) {
+    return '正在验证 $count 个门户 · 还需要 $need 个';
+  }
+
+  @override
+  String tvStatusVerifyingAlive(int done, int total, int alive, int target) {
+    return '验证 $done/$total · 可用 $alive/$target';
+  }
+
+  @override
+  String get tvStatusSourceEmpty => '这个来源里没有找到可用的门户。';
+
+  @override
+  String get tvStatusNoNewTryAgain => '没有新的可用门户，可以再点一次“生成门户”。';
+
+  @override
+  String get tvStatusNoNew => '没有新的可用门户。';
+
+  @override
+  String tvStatusFoundPortals(int count) {
+    return '找到 $count 个可用门户。';
+  }
+
+  @override
+  String tvStatusFoundPortalsExhausted(int count) {
+    return '找到 $count 个可用门户（来源已经找完）。';
+  }
+
+  @override
+  String tvStatusFoundPortalsStopped(int count) {
+    return '找到 $count 个可用门户（提前停止）。';
+  }
+
+  @override
+  String tvStatusMoreQueued(int count) {
+    return '还有 $count 个等待验证。';
+  }
+
+  @override
+  String get tvStatusScrapeFailed => '没能获取门户，请检查网络后再试。';
+
+  @override
+  String get tvStatusRecheckingSaved => '正在重新检查已保存的门户…';
+
+  @override
+  String tvStatusStillAlive(int count) {
+    return '$count 个门户仍然可用。';
+  }
+
+  @override
+  String get tvAddAllFieldsRequired => '请填写所有字段';
+
+  @override
+  String get tvAddAlreadyAdded => '这个门户已经添加过了（登录信息相同）';
+
+  @override
+  String get tvAddLoginFailed => '登录失败：登录信息有误，或门户已失效。';
+
+  @override
+  String get tvImportBusy => '正在导入中。';
+
+  @override
+  String get tvImportNoPortalsArray => '这个 JSON 里没有 \"portals\" 列表。';
+
+  @override
+  String get tvImportBadShape => '这个 JSON 不是门户列表。';
+
+  @override
+  String get tvImportInvalidJson => '这个文件不是有效的 JSON。';
+
+  @override
+  String get tvImportNoEntries => '没有找到门户条目。';
+
+  @override
+  String tvImportProgress(int done, int total) {
+    return '正在导入 $done/$total…';
+  }
+
+  @override
+  String tvImportSummary(int added, int skipped, int failed) {
+    return '已导入 $added · 跳过 $skipped · 失败 $failed';
+  }
+
+  @override
+  String get tvStatusNoWorkingPortals => '没有可用的门户，请点“扫描更多”。';
+
+  @override
+  String tvStatusStreamsAlive(int count) {
+    return '$count 个直播流可用。';
+  }
+
+  @override
+  String get tvStatusNoMatches => '没有找到匹配的频道，试试“扫描更多”。';
+
+  @override
+  String tvStatusAliveNoNew(int count) {
+    return '$count 个可用 · 没有新的匹配。';
+  }
+
+  @override
+  String tvStatusNoAliveFor(String name) {
+    return '没有找到 $name 的可用直播流。';
+  }
+
+  @override
+  String tvStatusStreamsReady(int count) {
+    return '$count 个直播流已就绪。';
+  }
+
+  @override
+  String get tvDescUsLeagues =>
+      'NBA TV、NFL Network、RedZone、MLB、NHL、Fox Sports 与 CBS Sports';
+
+  @override
+  String get tvDescSoccer => '欧冠、英超、beIN Sports、西甲与意甲';
+
+  @override
+  String get tvDescRacing => 'F1、MotoGP、NASCAR 杯赛、IndyCar 与 WRC 拉力赛';
+
+  @override
+  String get tvDescMovies => 'HBO、Showtime、Starz、Cinemax、Paramount 与 AMC';
+
+  @override
+  String get tvDescNews => 'CNN、BBC World、Fox News、Sky News、半岛电视台与彭博';
+
+  @override
+  String get tvDescArabic => 'MBC、Rotana、OSN、阿布扎比电视台、迪拜电视台与 Al Arabiya';
+
+  @override
+  String get tvDescDiscovery => '国家地理、探索频道、历史频道与动物星球';
+
+  @override
+  String get tvDescKids => 'Cartoon Network、迪士尼频道、Nickelodeon 与 Spacetoon';
+
+  @override
+  String get tvDescCanada =>
+      'CBC News、CTV News、TSN、Sportsnet、Crave 与 Global News';
+
+  @override
+  String get tvDescBayArea =>
+      'KTVU Fox 2、KPIX 5 CBS、KGO 7 ABC、KRON 4 与 NBC Bay Area';
+
+  @override
+  String get filterNoMatches => '没有符合条件的作品。';
+
+  @override
+  String get filterLoadFailed => '没能加载列表。';
+
+  @override
+  String get homeUiForYou => '为你推荐';
+
+  @override
+  String get homeUiForYouDesc => '在首页按你常看的类型推荐';
+
+  @override
+  String cal2EpisodesOnNetwork(int count, String network) {
+    return '$network 有 $count 集';
+  }
 }

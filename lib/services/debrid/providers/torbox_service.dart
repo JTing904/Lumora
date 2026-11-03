@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import '../../account/account_scope.dart';
 import '../../storage/secret_keys.dart';
 import '../../storage/secure_store.dart';
 import '../models/debrid_error.dart';
@@ -10,14 +11,18 @@ import '../utils/debrid_failure_mapper.dart';
 import '../utils/debrid_media_matcher.dart';
 
 class TorBoxService {
-  Future<String?> getKey() => SecureStore.read(SecretKeys.torboxApiKey);
+  Future<String?> getKey() =>
+      SecureStore.read(AccountScope.key(SecretKeys.torboxApiKey));
 
   Future<void> saveKey(String key) async {
     final trimmed = key.trim();
     if (trimmed.isEmpty) {
-      await SecureStore.delete(SecretKeys.torboxApiKey);
+      await SecureStore.delete(AccountScope.key(SecretKeys.torboxApiKey));
     } else {
-      await SecureStore.write(SecretKeys.torboxApiKey, trimmed);
+      await SecureStore.write(
+        AccountScope.key(SecretKeys.torboxApiKey),
+        trimmed,
+      );
     }
   }
 

@@ -49,9 +49,9 @@ void main() {
       // this is belt and braces rather than the only path that finds it.
       for (final icon in const [
         Icons.home_rounded,
+        Icons.video_library_rounded,
         Icons.search_rounded,
         Icons.bookmark_rounded,
-        Icons.download_rounded,
         Icons.person_rounded,
       ]) {
         final row = find.descendant(

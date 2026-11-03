@@ -12,6 +12,9 @@ import '../../utils/download/download_path_helper.dart';
 import '../../utils/platform/storage_space_helper.dart';
 import '../../utils/security/safe_paths.dart';
 import '../debrid/debrid_service.dart';
+import 'download_error.dart';
+import 'download_files.dart';
+import 'download_task_store.dart';
 import 'hls_download_engine.dart';
 
 /// Comprehensive Background & In-App Download Manager.
@@ -49,59 +52,58 @@ class DownloadService {
   }
 
   // ── Task Persistence ───────────────────────────────────────────────────────
-  static const String _storageFilename = 'zplay_download_tasks.json';
-
-  Future<File> _getStorageFile() async {
-    final docDir = await getApplicationDocumentsDirectory();
-    return File(p.join(docDir.path, _storageFilename));
-  }
+  final DownloadTaskStore _store = DownloadTaskStore(
+    directory: getApplicationSupportDirectory,
+    legacyDirectory: getApplicationDocumentsDirectory,
+  );
 
   Future<void> _loadPersistedTasks() async {
     try {
-      final file = await _getStorageFile();
-      if (!await file.exists()) return;
+      final jsonList = await _store.load();
+      if (jsonList == null) return;
 
-      final content = await file.readAsString();
-      if (content.isEmpty) return;
-
-      final List<dynamic> jsonList = jsonDecode(content);
       final tasks = <DownloadTask>[];
       final downloadRoots =
           await DownloadPathHelper.getTrustedDownloadDirectories();
 
       for (final item in jsonList) {
-        if (item is Map<String, dynamic>) {
-          var task = DownloadTask.fromJson(item);
-          if (!downloadRoots.any(
-            (root) => isWithinDirectory(root, task.targetFilePath),
-          )) {
-            debugPrint(
-              '[DownloadService] Rejected download path outside configured roots',
-            );
+        // One malformed entry is skipped instead of losing the whole list.
+        DownloadTask task;
+        try {
+          task = DownloadTask.fromJson(item);
+        } catch (e) {
+          debugPrint('[DownloadService] Skipped unreadable task: $e');
+          continue;
+        }
+        if (!downloadRoots.any(
+          (root) => isWithinDirectory(root, task.targetFilePath),
+        )) {
+          debugPrint(
+            '[DownloadService] Rejected download path outside configured roots',
+          );
+          task = task.copyWith(
+            status: DownloadStatus.failed,
+            error: DownloadError.code(DownloadErrorKind.invalidPath),
+          );
+          tasks.add(task);
+          continue;
+        }
+        // If app was terminated while downloading, set state to paused
+        if (task.status == DownloadStatus.downloading ||
+            task.status == DownloadStatus.queued) {
+          task = task.copyWith(status: DownloadStatus.paused);
+        }
+        // Verify completed file still exists on disk
+        if (task.status == DownloadStatus.completed) {
+          final f = File(task.targetFilePath);
+          if (!f.existsSync()) {
             task = task.copyWith(
               status: DownloadStatus.failed,
-              error: 'Invalid download path',
+              error: DownloadError.code(DownloadErrorKind.fileMissing),
             );
-            tasks.add(task);
-            continue;
           }
-          // If app was terminated while downloading, set state to paused
-          if (task.status == DownloadStatus.downloading ||
-              task.status == DownloadStatus.queued) {
-            task = task.copyWith(status: DownloadStatus.paused);
-          }
-          // Verify completed file still exists on disk
-          if (task.status == DownloadStatus.completed) {
-            final f = File(task.targetFilePath);
-            if (!f.existsSync()) {
-              task = task.copyWith(
-                status: DownloadStatus.failed,
-                error: 'File was moved or deleted from disk',
-              );
-            }
-          }
-          tasks.add(task);
         }
+        tasks.add(task);
       }
 
       tasksNotifier.value = tasks;
@@ -111,14 +113,10 @@ class DownloadService {
     }
   }
 
-  Future<void> _persistTasks() async {
-    try {
-      final file = await _getStorageFile();
-      final jsonList = tasksNotifier.value.map((t) => t.toJson()).toList();
-      await file.writeAsString(jsonEncode(jsonList));
-    } catch (e) {
-      debugPrint('[DownloadService] Failed to persist tasks: $e');
-    }
+  Future<void> _persistTasks() {
+    return _store.save(
+      () => jsonEncode(tasksNotifier.value.map((t) => t.toJson()).toList()),
+    );
   }
 
   void _updateTask(DownloadTask updated) {
@@ -169,11 +167,12 @@ class DownloadService {
     final taskId =
         'dl_${mediaId}_${season ?? 0}_${episode ?? 0}_${now.millisecondsSinceEpoch}';
 
-    final safeTitle = DownloadPathHelper.sanitizeFilename(title);
-    final epSuffix = (season != null && episode != null)
-        ? '_S${season.toString().padLeft(2, '0')}E${episode.toString().padLeft(2, '0')}'
-        : '';
-    final baseFilename = '$safeTitle$epSuffix';
+    final baseFilename = DownloadFiles.baseFilename(
+      title: title,
+      mediaId: mediaId,
+      season: season,
+      episode: episode,
+    );
 
     final rawUrl = source.url;
     var infoHash = source.infoHash;
@@ -279,7 +278,7 @@ class DownloadService {
       _updateTask(
         task.copyWith(
           status: DownloadStatus.failed,
-          error: 'Invalid download path',
+          error: DownloadError.code(DownloadErrorKind.invalidPath),
         ),
       );
       return;
@@ -314,7 +313,7 @@ class DownloadService {
     _updateTask(
       task.copyWith(
         status: DownloadStatus.failed,
-        error: 'Torrent downloads are no longer supported',
+        error: DownloadError.code(DownloadErrorKind.torrentUnsupported),
       ),
     );
   }
@@ -337,7 +336,7 @@ class DownloadService {
       );
 
       if (debridFiles.isEmpty || debridFiles.first.downloadUrl.isEmpty) {
-        throw Exception('Debrid cloud returned no direct download links');
+        throw const DownloadFailure(DownloadErrorKind.noDebridLink);
       }
 
       final directDownloadUrl = debridFiles.first.downloadUrl;
@@ -349,7 +348,10 @@ class DownloadService {
       }
     } catch (e) {
       _updateTask(
-        task.copyWith(status: DownloadStatus.failed, error: e.toString()),
+        task.copyWith(
+          status: DownloadStatus.failed,
+          error: DownloadError.codeFor(e),
+        ),
       );
     }
   }
@@ -366,7 +368,10 @@ class DownloadService {
     } catch (e) {
       if (!_canceledOrPausedTaskIds.contains(task.id)) {
         _updateTask(
-          task.copyWith(status: DownloadStatus.failed, error: e.toString()),
+          task.copyWith(
+            status: DownloadStatus.failed,
+            error: DownloadError.codeFor(e),
+          ),
         );
       }
     }
@@ -383,20 +388,22 @@ class DownloadService {
       _updateTask(
         task.copyWith(
           status: DownloadStatus.failed,
-          error: 'Empty download URL',
+          error: DownloadError.code(DownloadErrorKind.emptyUrl),
         ),
       );
       return;
     }
 
-    final partFilePath = '${task.targetFilePath}.part';
-    final partFile = File(partFilePath);
+    final partFile = DownloadFiles.partFile(task.targetFilePath);
     if (!await partFile.parent.exists()) {
       await partFile.parent.create(recursive: true);
     }
 
+    // Only continue a .part this same source started; another source's bytes
+    // would be spliced onto it by the Range request below.
+    final sourceKey = DownloadFiles.sourceKey(task);
     int existingBytes = 0;
-    if (await partFile.exists()) {
+    if (await DownloadFiles.keepPartOnlyFor(task.targetFilePath, sourceKey)) {
       existingBytes = await partFile.length();
     }
 
@@ -441,8 +448,9 @@ class DownloadService {
           await _finalizeDownloadedFile(task, partFile);
           return;
         }
-        throw Exception(
-          'Server returned HTTP ${response.statusCode}: ${response.reasonPhrase}',
+        throw DownloadFailure(
+          DownloadErrorKind.httpStatus,
+          response.statusCode,
         );
       }
 
@@ -463,12 +471,15 @@ class DownloadService {
         totalBytes > 0 ? (totalBytes - existingBytes) : 1024 * 1024 * 500,
       );
       if (!enoughSpace) {
-        throw Exception('Insufficient free disk space on target partition');
+        throw const DownloadFailure(DownloadErrorKind.notEnoughSpace);
       }
 
       final mode = (existingBytes > 0 && isPartial)
           ? FileMode.append
           : FileMode.write;
+      if (mode == FileMode.write) {
+        await DownloadFiles.claimPart(task.targetFilePath, sourceKey);
+      }
       final sink = partFile.openWrite(mode: mode);
       _httpFileSinks[task.id] = sink;
 
@@ -528,7 +539,10 @@ class DownloadService {
             _updateTask(
               task.copyWith(
                 status: DownloadStatus.downloading,
-                error: 'Reconnecting remaining data (attempt $attempt)...',
+                error: DownloadError.code(
+                  DownloadErrorKind.reconnecting,
+                  attempt,
+                ),
                 speedBytesPerSec: 0.0,
               ),
             );
@@ -572,7 +586,10 @@ class DownloadService {
             _updateTask(
               task.copyWith(
                 status: DownloadStatus.downloading,
-                error: 'Reconnecting (attempt $attempt)...',
+                error: DownloadError.code(
+                  DownloadErrorKind.reconnecting,
+                  attempt,
+                ),
                 speedBytesPerSec: 0.0,
               ),
             );
@@ -592,7 +609,7 @@ class DownloadService {
           _updateTask(
             task.copyWith(
               status: DownloadStatus.failed,
-              error: err.toString(),
+              error: DownloadError.codeFor(err),
               speedBytesPerSec: 0.0,
             ),
           );
@@ -611,7 +628,10 @@ class DownloadService {
           _updateTask(
             task.copyWith(
               status: DownloadStatus.downloading,
-              error: 'Reconnecting (attempt $attempt)...',
+              error: DownloadError.code(
+                DownloadErrorKind.reconnecting,
+                attempt,
+              ),
               speedBytesPerSec: 0.0,
             ),
           );
@@ -624,7 +644,7 @@ class DownloadService {
         _updateTask(
           task.copyWith(
             status: DownloadStatus.failed,
-            error: e.toString(),
+            error: DownloadError.codeFor(e),
             speedBytesPerSec: 0.0,
           ),
         );
@@ -655,6 +675,7 @@ class DownloadService {
         } catch (_) {}
       }
 
+      await DownloadFiles.forgetSource(task.targetFilePath);
       final completedBytes = await File(task.targetFilePath).length();
 
       _updateTask(
@@ -673,7 +694,7 @@ class DownloadService {
       _updateTask(
         task.copyWith(
           status: DownloadStatus.failed,
-          error: 'Failed to save final file: $e',
+          error: DownloadError.code(DownloadErrorKind.saveFailed),
         ),
       );
     }
@@ -726,20 +747,7 @@ class DownloadService {
 
     await pauseDownload(taskId);
 
-    {
-      final partFile = File('${task.targetFilePath}.part');
-      if (await partFile.exists()) {
-        try {
-          await partFile.delete();
-        } catch (_) {}
-      }
-      final metaFile = File('${task.targetFilePath}.hls_meta.json');
-      if (await metaFile.exists()) {
-        try {
-          await metaFile.delete();
-        } catch (_) {}
-      }
-    }
+    await DownloadFiles.discardPart(task.targetFilePath);
 
     _updateTask(task.copyWith(status: DownloadStatus.canceled));
   }

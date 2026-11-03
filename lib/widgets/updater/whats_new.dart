@@ -11,6 +11,29 @@ import '../../ui/lu_theme.dart';
 /// What each version brought, in both languages, newest first. Shown once,
 /// on the first start after updating to that version.
 const Map<String, List<(String, String)>> releaseHighlights = {
+  '1.0.5': [
+    ('Tap the picture to pause or play.', '点一下画面就能暂停或播放。'),
+    (
+      'Subtitles come in Chinese and English only. When one is out of step, tap the line being spoken; the timing is remembered for the title.',
+      '字幕只留中文和英文。对不上时点一下正在说的那句就对齐，并为这部片记住。',
+    ),
+    (
+      'New: AI Chinese subtitles, translated from the English ones and in time with the picture.',
+      '新增「AI 翻成中文」字幕：从英文字幕翻译，和画面同步。',
+    ),
+    (
+      'On phones, 分类 opens TV series, movies, anime and live TV.',
+      '手机版新增「分类」，可以看电视剧、电影、动漫和直播。',
+    ),
+    (
+      'Playback keeps your volume and progress, and a source that fails offers another instead of a black screen.',
+      '播放会记住音量和进度；片源失效时会让你换一个，不再黑屏。',
+    ),
+    (
+      'Watch together stays in step through speed and episode changes. Everyone in a room needs 1.0.5.',
+      '一起看在倍速、换集和断线时更同步。房间里每个人都要更新到 1.0.5。',
+    ),
+  ],
   '1.0.4': [
     ('On Windows, Lumora opens from its icon again.', 'Windows 版从图标打开时不再闪退。'),
     (

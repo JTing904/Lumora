@@ -24,7 +24,6 @@ import '../../widgets/common/hero_meta_line.dart';
 import '../../widgets/common/local_title_text.dart';
 import '../../widgets/common/pill_button.dart';
 import '../../widgets/common/rail_skeleton.dart';
-import '../../widgets/common/segmented_tabs.dart';
 import '../../widgets/common/slider_arrow.dart';
 import '../../widgets/home/continue_watching_slider.dart';
 import '../../widgets/movie/movie_card.dart';
@@ -48,7 +47,10 @@ class _AnimePageState extends State<AnimePage> {
   final AnimeArabicService _arabicService = AnimeArabicService.instance;
   final ScrollController _scrollController = ScrollController();
 
-  bool _isArabicMode = false;
+  /// The Arabic anime tab (animeslayer, through a third-party proxy) is
+  /// gone: 动漫 in the main navigation covers anime in Chinese. Always false,
+  /// so its code paths are never reached.
+  final bool _isArabicMode = false;
   bool _loading = true;
   String? _error;
 
@@ -184,14 +186,6 @@ class _AnimePageState extends State<AnimePage> {
         });
       }
     }
-  }
-
-  void _onModeChanged(bool arabic) {
-    if (_isArabicMode == arabic) return;
-    setState(() {
-      _isArabicMode = arabic;
-    });
-    _loadAnimeData();
   }
 
   void _playEpisode(AnimeMedia anime, int episodeNumber) {
@@ -524,8 +518,6 @@ class _AnimePageState extends State<AnimePage> {
         right: 0,
         child: _AnimeGlassAppBar(
           topPadding: topPadding,
-          isArabicMode: _isArabicMode,
-          onModeChanged: _onModeChanged,
           onSearchTap: _navigateToSearch,
           onSettingsTap: _navigateToSettings,
           scrollController: _scrollController,
@@ -623,8 +615,6 @@ class _AnimeSkeleton extends StatelessWidget {
 
 class _AnimeGlassAppBar extends StatelessWidget {
   final double topPadding;
-  final bool isArabicMode;
-  final ValueChanged<bool> onModeChanged;
   final void Function(Offset?) onSearchTap;
   final VoidCallback onSettingsTap;
 
@@ -639,8 +629,6 @@ class _AnimeGlassAppBar extends StatelessWidget {
 
   const _AnimeGlassAppBar({
     required this.topPadding,
-    required this.isArabicMode,
-    required this.onModeChanged,
     required this.onSearchTap,
     required this.onSettingsTap,
     required this.scrollController,
@@ -656,10 +644,9 @@ class _AnimeGlassAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final isDesktop = MediaQuery.sizeOf(context).width > 700;
     final isMobile = MediaQuery.sizeOf(context).width < 430;
     // Every control in this bar is a focus target, and each one is at least the
-    // ten-foot target: the mode pills measured 25 dp tall, which is not
+    // ten-foot target: the old mode pills measured 25 dp tall, which is not
     // something a five-way pad can reliably land on.
     final minTapTarget = FormFactorService.of(context) == FormFactor.compact
         ? 40.0
@@ -678,38 +665,6 @@ class _AnimeGlassAppBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Mode switcher (General Anime vs Arabic Anime).
-          //
-          // The brand pill and the `ZPlay Anime` wordmark that used to sit to
-          // the left of this are gone: the shell's top bar already carries the
-          // brand, and the browse switcher above this page already says which
-          // vertical is showing.
-          //
-          // The two accent-filled pills and the bordered track around them went
-          // the same way. This is a single-choice mode switch over two fixed
-          // labels, which is what `SegmentedTabs` is for, and it paints no
-          // resting box at all: the travelling accent bar and the label's own
-          // weight say which mode is on, and `CardFocusRing` is the only edge
-          // it ever draws. Accent is the app's *selection* colour, so it marks
-          // the mode the user is in rather than filling a button.
-          SegmentedTabs<bool>(
-            options: [
-              SegmentedTabOption(
-                value: false,
-                label: isDesktop ? l10nCurrent().aniGeneralTab : '🇯🇵',
-              ),
-              SegmentedTabOption(
-                value: true,
-                label: isDesktop ? l10nCurrent().aniArabicAnimeTab : '🇸🇦',
-              ),
-            ],
-            selected: isArabicMode,
-            onSelected: onModeChanged,
-            semanticsLabel: l10nCurrent().animeCatalogue,
-            height: minTapTarget,
-          ),
-          const SizedBox(width: ZplaySpacing.s8),
-
           // Search, which reveals its own page from this button's own centre.
           Builder(
             builder: (context) => _AnimeChromeAction(

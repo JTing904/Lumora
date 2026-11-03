@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
-#  ZPlay — Multi-Platform CI/CD Release Builder
+#  Lumora — Multi-Platform CI/CD Release Builder
 #  Builds:
 #    - Windows: Installer (Inno Setup) & Portable ZIP (x64)
 #    - Android: Split-per-ABI APKs (arm64-v8a, armeabi-v7a, x86_64) — ARM devices,
@@ -11,7 +11,7 @@
 #  Trigger: Git tag push (v*) or Manual Workflow Dispatch
 #  Environment: Injects --dart-define-from-file=.env using ${{ secrets.ENV_FILE }}
 # ──────────────────────────────────────────────────────────────────────────────
-name: Build and Release ZPlay
+name: Build and Release Lumora
 
 on:
   push:
@@ -106,20 +106,20 @@ jobs:
       - name: Package Portable ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "ZPlay-Windows-x64-Portable.zip" -Force
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "Lumora-Windows-x64-Portable.zip" -Force
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-Windows
+          name: Lumora-Windows
           path: |
             Lumora-Windows-Setup.exe
-            ZPlay-Windows-x64-Portable.zip
+            Lumora-Windows-x64-Portable.zip
 
       - name: Upload Windows Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-Windows-symbols
+          name: Lumora-Windows-symbols
           if-no-files-found: ignore
           path: build/symbols/**
 
@@ -192,13 +192,13 @@ jobs:
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-Android
+          name: Lumora-Android
           path: build/app/outputs/flutter-apk/app-*-release.apk
 
       - name: Upload Android Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-Android-symbols
+          name: Lumora-Android-symbols
           if-no-files-found: ignore
           path: build/symbols/**
 
@@ -260,23 +260,23 @@ jobs:
             -o appimagetool
           chmod +x appimagetool
 
-          APP=ZPlay.AppDir
+          APP=Lumora.AppDir
           mkdir -p "$APP"
           cp -r build/linux/x64/release/bundle/* "$APP/"
 
           if [ -f "assets/icon.png" ]; then
-            cp assets/icon.png "$APP/ZPlay.png"
+            cp assets/icon.png "$APP/Lumora.png"
           elif [ -f "icon.png" ]; then
-            cp icon.png "$APP/ZPlay.png"
+            cp icon.png "$APP/Lumora.png"
           else
-            touch "$APP/ZPlay.png"
+            touch "$APP/Lumora.png"
           fi
 
-          cat <<EOF > "$APP/ZPlay.desktop"
+          cat <<EOF > "$APP/Lumora.desktop"
           [Desktop Entry]
-          Name=ZPlay
+          Name=Lumora
           Exec=AppRun
-          Icon=ZPlay
+          Icon=Lumora
           Type=Application
           Categories=AudioVideo;Audio;Video;Player;
           EOF
@@ -284,21 +284,21 @@ jobs:
           printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./lumora "$@"\n' > "$APP/AppRun"
           chmod +x "$APP/AppRun"
 
-          ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$APP" ZPlay-Linux-x86_64.AppImage
-          tar -czvf ZPlay-Linux-x86_64.tar.gz -C build/linux/x64/release/bundle .
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$APP" Lumora-Linux-x86_64.AppImage
+          tar -czvf Lumora-Linux-x86_64.tar.gz -C build/linux/x64/release/bundle .
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-Linux-x64
+          name: Lumora-Linux-x64
           path: |
-            ZPlay-Linux-x86_64.AppImage
-            ZPlay-Linux-x86_64.tar.gz
+            Lumora-Linux-x86_64.AppImage
+            Lumora-Linux-x86_64.tar.gz
 
       - name: Upload Linux Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-Linux-symbols
+          name: Lumora-Linux-symbols
           if-no-files-found: ignore
           path: build/symbols/**
 
@@ -343,34 +343,34 @@ jobs:
       - name: Package as DMG & ZIP
         run: |
           cd build/macos/Build/Products/Release
-          mv zplay.app ZPlay.app
+          mv zplay.app Lumora.app
 
-          codesign --sign - --force --deep ZPlay.app
+          codesign --sign - --force --deep Lumora.app
 
           mkdir -p dmg_temp
-          cp -R ZPlay.app dmg_temp/
+          cp -R Lumora.app dmg_temp/
           ln -s /Applications dmg_temp/Applications
 
           sync
           sleep 2
 
           for i in {1..3}; do
-            hdiutil create -volname "ZPlay" -srcfolder dmg_temp -ov -format UDZO ../../../../../ZPlay-macOS-arm64.dmg && break || sleep 3
+            hdiutil create -volname "Lumora" -srcfolder dmg_temp -ov -format UDZO ../../../../../Lumora-macOS-arm64.dmg && break || sleep 3
           done
-          zip -ry ../../../../../ZPlay-macOS-arm64.zip ZPlay.app
+          zip -ry ../../../../../Lumora-macOS-arm64.zip Lumora.app
 
       - name: Upload macOS ARM64 Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-macOS-arm64
+          name: Lumora-macOS-arm64
           path: |
-            ZPlay-macOS-arm64.dmg
-            ZPlay-macOS-arm64.zip
+            Lumora-macOS-arm64.dmg
+            Lumora-macOS-arm64.zip
 
       - name: Upload macOS ARM64 Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-macOS-arm64-symbols
+          name: Lumora-macOS-arm64-symbols
           if-no-files-found: ignore
           path: build/symbols/**
 
@@ -413,34 +413,34 @@ jobs:
       - name: Package as DMG & ZIP
         run: |
           cd build/macos/Build/Products/Release
-          mv zplay.app ZPlay.app
+          mv zplay.app Lumora.app
 
-          codesign --sign - --force --deep ZPlay.app
+          codesign --sign - --force --deep Lumora.app
 
           mkdir -p dmg_temp
-          cp -R ZPlay.app dmg_temp/
+          cp -R Lumora.app dmg_temp/
           ln -s /Applications dmg_temp/Applications
 
           sync
           sleep 2
 
           for i in {1..3}; do
-            hdiutil create -volname "ZPlay" -srcfolder dmg_temp -ov -format UDZO ../../../../../ZPlay-macOS-intel.dmg && break || sleep 3
+            hdiutil create -volname "Lumora" -srcfolder dmg_temp -ov -format UDZO ../../../../../Lumora-macOS-intel.dmg && break || sleep 3
           done
-          zip -ry ../../../../../ZPlay-macOS-intel.zip ZPlay.app
+          zip -ry ../../../../../Lumora-macOS-intel.zip Lumora.app
 
       - name: Upload macOS Intel Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-macOS-intel
+          name: Lumora-macOS-intel
           path: |
-            ZPlay-macOS-intel.dmg
-            ZPlay-macOS-intel.zip
+            Lumora-macOS-intel.dmg
+            Lumora-macOS-intel.zip
 
       - name: Upload macOS Intel Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-macOS-intel-symbols
+          name: Lumora-macOS-intel-symbols
           if-no-files-found: ignore
           path: build/symbols/**
 
@@ -482,18 +482,18 @@ jobs:
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -R Runner.app Payload/
-          zip -ry ../../../ZPlay-iOS.ipa Payload
+          zip -ry ../../../Lumora-iOS.ipa Payload
 
       - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-iOS
-          path: ZPlay-iOS.ipa
+          name: Lumora-iOS
+          path: Lumora-iOS.ipa
 
       - name: Upload iOS Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: ZPlay-iOS-symbols
+          name: Lumora-iOS-symbols
           if-no-files-found: ignore
           path: build/symbols/**
 
@@ -556,16 +556,16 @@ jobs:
             fi
             printf '\n<!-- zplay:changelog-end -->\n\n'
             printf '## Downloads\n\n'
-            printf -- '- **Windows** `Lumora-Windows-Setup.exe` or `ZPlay-Windows-x64-Portable.zip`\n'
+            printf -- '- **Windows** `Lumora-Windows-Setup.exe` or `Lumora-Windows-x64-Portable.zip`\n'
             printf -- '- **Android** `app-arm64-v8a-release.apk` or `app-armeabi-v7a-release.apk` (Android TV included); `app-x86_64-release.apk` for the emulator\n'
-            printf -- '- **Linux** `ZPlay-Linux-x86_64.AppImage` or `ZPlay-Linux-x86_64.tar.gz`\n'
-            printf -- '- **macOS** `ZPlay-macOS-arm64.dmg` or `ZPlay-macOS-intel.dmg`\n'
+            printf -- '- **Linux** `Lumora-Linux-x86_64.AppImage` or `Lumora-Linux-x86_64.tar.gz`\n'
+            printf -- '- **macOS** `Lumora-macOS-arm64.dmg` or `Lumora-macOS-intel.dmg`\n'
             # The iOS job is optional (see its comment): only advertise an IPA
             # when the artifact actually made it into this release.
-            if [ -f ZPlay-iOS.ipa ]; then
-              printf -- '- **iOS** `ZPlay-iOS.ipa` (unsigned, sideload only)\n\n'
+            if [ -f Lumora-iOS.ipa ]; then
+              printf -- '- **iOS** `Lumora-iOS.ipa` (unsigned, sideload only)\n\n'
             fi
-            printf 'ZPlay is a modified fork of PlayTorrio V3, © 2026 Ayman, distributed under the GNU GPL v3.0.\n'
+            printf 'Lumora is a modified version of ZPlay (© tzero86), itself a modified version of PlayTorrio V3 (© 2026 Ayman), distributed under the GNU GPL v3.0.\n'
             printf 'Corresponding source for this release: https://github.com/%s (tag %s)\n' "$GITHUB_REPOSITORY" "${GITHUB_REF_NAME}"
             printf 'Upstream project and source: https://github.com/ayman708-UX/PlayTorrioV3\n'
             printf 'This program comes with ABSOLUTELY NO WARRANTY.\n'
@@ -577,17 +577,17 @@ jobs:
           : > SHA256SUMS
           for file in \
             Lumora-Windows-Setup.exe \
-            ZPlay-Windows-x64-Portable.zip \
+            Lumora-Windows-x64-Portable.zip \
             app-arm64-v8a-release.apk \
             app-armeabi-v7a-release.apk \
             app-x86_64-release.apk \
-            ZPlay-Linux-x86_64.AppImage \
-            ZPlay-Linux-x86_64.tar.gz \
-            ZPlay-macOS-arm64.dmg \
-            ZPlay-macOS-arm64.zip \
-            ZPlay-macOS-intel.dmg \
-            ZPlay-macOS-intel.zip \
-            ZPlay-iOS.ipa
+            Lumora-Linux-x86_64.AppImage \
+            Lumora-Linux-x86_64.tar.gz \
+            Lumora-macOS-arm64.dmg \
+            Lumora-macOS-arm64.zip \
+            Lumora-macOS-intel.dmg \
+            Lumora-macOS-intel.zip \
+            Lumora-iOS.ipa
           do
             if [ -f "$file" ]; then
               sha256sum "$file" >> SHA256SUMS
@@ -600,7 +600,7 @@ jobs:
         # runtime that GitHub Actions has deprecated.
         uses: softprops/action-gh-release@v3
         with:
-          name: "ZPlay ${{ github.ref_name }}"
+          name: "Lumora ${{ github.ref_name }}"
           # Must be false. The in-app updater reads GitHub's releases/latest
           # endpoint, and that endpoint EXCLUDES drafts, so a draft release makes
           # the updater report "up to date" forever. This is why the app has 16
@@ -624,15 +624,15 @@ jobs:
           # how `zplay-new.exe` ended up attached to a release.
           files: |
             Lumora-Windows-Setup.exe
-            ZPlay-Windows-x64-Portable.zip
+            Lumora-Windows-x64-Portable.zip
             app-arm64-v8a-release.apk
             app-armeabi-v7a-release.apk
             app-x86_64-release.apk
-            ZPlay-Linux-x86_64.AppImage
-            ZPlay-Linux-x86_64.tar.gz
-            ZPlay-macOS-arm64.dmg
-            ZPlay-macOS-arm64.zip
-            ZPlay-macOS-intel.dmg
-            ZPlay-macOS-intel.zip
-            ZPlay-iOS.ipa
+            Lumora-Linux-x86_64.AppImage
+            Lumora-Linux-x86_64.tar.gz
+            Lumora-macOS-arm64.dmg
+            Lumora-macOS-arm64.zip
+            Lumora-macOS-intel.dmg
+            Lumora-macOS-intel.zip
+            Lumora-iOS.ipa
             SHA256SUMS

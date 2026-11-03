@@ -6,6 +6,7 @@ import '../../models/iptv/iptv_models.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/iptv/iptv_controller.dart';
+import '../../services/iptv/iptv_source_label.dart';
 import '../../services/iptv/iptv_storage.dart';
 import '../../services/iptv/live_health_ordering.dart';
 import '../../utils/navigation/route_transitions.dart';
@@ -188,9 +189,10 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
             : results.where((hit) {
                 final q = _searchQuery.trim().toLowerCase();
                 final nameMatches = hit.stream.name.toLowerCase().contains(q);
-                final portalMatches =
-                    hit.portal.name.toLowerCase().contains(q) ||
-                    hit.portal.portal.username.toLowerCase().contains(q);
+                final portalMatches = IptvSourceLabel.of(
+                  hit.portal,
+                  position: 0,
+                ).toLowerCase().contains(q);
                 final formatMatches = hit.stream.containerExt
                     .toLowerCase()
                     .contains(q);
@@ -711,19 +713,15 @@ class _IptvChannelSheetState extends State<IptvChannelSheet> {
                                   hit.streamUrl,
                                 );
                                 // The source this hit came from, as the row
-                                // states it. A hit off a public or user playlist
-                                // carries its honest label in `portal.name` (its
-                                // synthetic portal has no username), so this is
-                                // already the truth for those - the chip below
-                                // just marks which family they belong to.
-                                final sourceLabel =
-                                    hit.portal.portal.username.isNotEmpty
-                                    ? hit.portal.portal.username
-                                    : (hit.portal.name.isNotEmpty
-                                          ? hit.portal.name
-                                          : l10nCurrent().tv2ServerNumber(
-                                              index + 1,
-                                            ));
+                                // states it. A portal's name and username are
+                                // both its account login, so a portal is shown
+                                // by its host or number; a hit off a public or
+                                // user playlist keeps its honest label, and the
+                                // chip below marks which family it belongs to.
+                                final sourceLabel = IptvSourceLabel.of(
+                                  hit.portal,
+                                  position: index + 1,
+                                );
 
                                 return FocusableCard(
                                   onTap: () => _isSelecting

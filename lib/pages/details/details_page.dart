@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/common/page_back_keys.dart';
 import '../../l10n/l10n.dart';
 import '../../models/continue_watching/continue_watching_item.dart';
 import '../../models/movie/episode_order.dart';
@@ -690,19 +691,44 @@ class _DetailsPageState extends State<DetailsPage> {
 
   double _episodeWidth(BuildContext context) => _phone(context) ? 200 : 260;
 
+  /// How far below the top inset the back button sits.
+  double _backTop(BuildContext context) => _phone(context)
+      ? 12
+      : (MediaQuery.sizeOf(context).height < 700 ? 16 : 28);
+
   @override
   Widget build(BuildContext context) {
     return Theme(
       data: luTheme(),
-      child: Scaffold(
-        backgroundColor: LuColors.bg,
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: LuColors.gold),
-              )
-            : _detail == null
-            ? _buildError()
-            : _buildContent(context, _detail!),
+      child: PageBackKeys(
+        child: Scaffold(
+          backgroundColor: LuColors.bg,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: LuColors.gold),
+                      )
+                    : _detail == null
+                    ? _buildError()
+                    : _buildContent(context, _detail!),
+              ),
+              // Over the page rather than in it: it used to scroll away with
+              // the header, leaving a long page no way back but the system's,
+              // and it was missing altogether while the page loaded.
+              Positioned(
+                left: _pad(context),
+                top: MediaQuery.paddingOf(context).top + _backTop(context),
+                child: _RoundIcon(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  label: l10nOf(context).detailsGoBack,
+                  onTap: () => Navigator.maybePop(context),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -758,20 +784,13 @@ class _DetailsPageState extends State<DetailsPage> {
           ),
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(
-            pad,
-            top + (phone ? 12 : (size.height < 700 ? 16 : 28)),
-            pad,
-            0,
-          ),
+          padding: EdgeInsets.fromLTRB(pad, top + _backTop(context), pad, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _RoundIcon(
-                icon: Icons.arrow_back_ios_new_rounded,
-                label: l10n.detailsGoBack,
-                onTap: () => Navigator.pop(context),
-              ),
+              // The back button's place; the button itself is pinned over
+              // the page (see [build]).
+              const SizedBox(height: _RoundIcon.size),
               SizedBox(
                 height: phone
                     ? backdropHeight * 0.24
@@ -1415,12 +1434,17 @@ class _Backdrop extends StatelessWidget {
 }
 
 /// A 44 dp glass disc: the page's back.
+///
+/// Dark glass, since it stays put while the page scrolls under it and has to
+/// read over text and posters as well as the backdrop.
 class _RoundIcon extends StatelessWidget {
   const _RoundIcon({
     required this.icon,
     required this.label,
     required this.onTap,
   });
+
+  static const double size = 44;
 
   final IconData icon;
   final String label;
@@ -1433,11 +1457,11 @@ class _RoundIcon extends StatelessWidget {
       semanticLabel: label,
       builder: (context, hi) => AnimatedContainer(
         duration: LuMotion.focus,
-        width: 44,
-        height: 44,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: hi ? const Color(0x33FFFFFF) : const Color(0x1FFFFFFF),
+          color: hi ? const Color(0xCC2A2A30) : const Color(0x990A0A0C),
           border: Border.all(color: const Color(0x38FFFFFF)),
         ),
         child: Icon(icon, size: 18, color: LuColors.text),

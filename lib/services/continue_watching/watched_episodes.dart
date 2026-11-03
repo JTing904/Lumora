@@ -9,11 +9,12 @@ import '../account/account_scope.dart';
 ///
 /// Continue Watching drops a session once it is finished, so without this the
 /// details page forgot that episode 3 was done and offered episode 1 again.
-/// Kept per show as `season:episode` keys, with the last one finished.
+/// Kept per show as `season:episode` keys.
 abstract final class WatchedEpisodes {
   static const _key = 'lumora_watched_episodes';
 
-  /// showId -> finished `season:episode` keys, most recent last.
+  /// showId -> finished `season:episode` keys, in no order to rely on (see
+  /// [lastFinished]).
   static final ValueNotifier<Map<String, List<String>>> shows = ValueNotifier(
     const {},
   );
@@ -60,14 +61,27 @@ abstract final class WatchedEpisodes {
     return shows.value[showId]?.contains(keyFor(season, episode)) ?? false;
   }
 
-  /// The last episode finished, as (season, episode).
+  /// The furthest episode finished, as (season, episode): the one "next up"
+  /// follows.
+  ///
+  /// Not the last in the list: merging two devices' copies (see
+  /// [LibrarySync]) puts one device's episodes after the other's, and an
+  /// old episode watched again lands last too, either of which would send
+  /// "next up" backwards.
   static (int, int)? lastFinished(String showId) {
-    final list = shows.value[showId];
-    if (list == null || list.isEmpty) return null;
-    final parts = list.last.split(':');
-    final s = int.tryParse(parts.first);
-    final e = parts.length > 1 ? int.tryParse(parts[1]) : null;
-    return s == null || e == null ? null : (s, e);
+    (int, int)? furthest;
+    for (final key in shows.value[showId] ?? const <String>[]) {
+      final parts = key.split(':');
+      final s = int.tryParse(parts.first);
+      final e = parts.length > 1 ? int.tryParse(parts[1]) : null;
+      if (s == null || e == null) continue;
+      if (furthest == null ||
+          s > furthest.$1 ||
+          (s == furthest.$1 && e > furthest.$2)) {
+        furthest = (s, e);
+      }
+    }
+    return furthest;
   }
 
   static Future<void> markFinished(

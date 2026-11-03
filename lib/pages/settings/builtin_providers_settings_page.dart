@@ -449,9 +449,7 @@ class _BuiltinProvidersSettingsPageState
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      l10nCurrent().localeName == 'zh'
-                          ? '全部 $totalCount 个内置片源都已启用，并同时搜索。'
-                          : 'All $totalCount built-in providers are active and scraped concurrently.',
+                      l10nCurrent().provAllActive(totalCount),
                       style: ZplayType.bodySmall.toStyle(
                         color: tokens.textSecondary,
                       ),

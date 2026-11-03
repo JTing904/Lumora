@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../account/library_sync.dart';
 import '../account/account_scope.dart';
+import '../account/server_clock.dart';
 
 /// What makes a title the kind of title it is, for taste: where it is from,
 /// whether it is animated, and whether it is a series or a film.
@@ -198,7 +199,7 @@ abstract final class TasteStore {
     DateTime? now,
   }) {
     if (id.isEmpty) return;
-    final at = now ?? DateTime.now();
+    final at = now ?? ServerClock.now();
     final current =
         entries.value[id] ??
         TasteEntry(
@@ -238,7 +239,7 @@ abstract final class TasteStore {
         title: title,
         progress: progress > e.progress ? progress : e.progress,
         finished: e.finished || progress >= 0.9,
-        lastSeen: now ?? DateTime.now(),
+        lastSeen: now ?? ServerClock.now(),
       ),
     );
   }
@@ -253,7 +254,7 @@ abstract final class TasteStore {
       id,
       title: title,
       series: series,
-      change: (e) => e.copyWith(listed: listed, lastSeen: DateTime.now()),
+      change: (e) => e.copyWith(listed: listed, lastSeen: ServerClock.now()),
     );
   }
 
@@ -268,7 +269,7 @@ abstract final class TasteStore {
       id,
       title: title,
       series: series,
-      change: (e) => e.copyWith(rating: rating, lastSeen: DateTime.now()),
+      change: (e) => e.copyWith(rating: rating, lastSeen: ServerClock.now()),
     );
   }
 

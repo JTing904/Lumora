@@ -8,6 +8,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -49,6 +50,18 @@ class AccountException implements Exception {
 }
 
 /// What a sign-up ended in.
+/// What becomes of an account that has not used an invite code.
+enum UninvitedAccount {
+  /// A code was entered before the GitHub (or other) sign-in: spend it.
+  redeem,
+
+  /// Made just now through 登录 without a code: not an account at all.
+  discard,
+
+  /// Older than that: ask for a code ([RedeemInvitePage]).
+  ask,
+}
+
 enum SignUpResult {
   /// Signed in straight away.
   signedIn,
@@ -320,16 +333,35 @@ abstract final class AccountService {
     _configured = false;
     session.value = null;
     invitedState.value = null;
+    _invitedFor = null;
+    _redeemedFor = null;
+    _inviteRecheck?.cancel();
+    _inviteRecheck = null;
+    _inviteRecheckDelay = Duration.zero;
+    rpcOverride = null;
   }
 
+  /// Stands in for the server's functions in tests.
+  @visibleForTesting
+  static Future<dynamic> Function(String fn, Map<String, dynamic>? params)?
+  rpcOverride;
+
+  static Future<dynamic> _rpc(String fn, {Map<String, dynamic>? params}) =>
+      rpcOverride?.call(fn, params) ?? _client.rpc(fn, params: params);
+
+  @visibleForTesting
+  static Future<void> refreshAccountForTesting() => _refreshAccount();
+
   /// Asks the server whether this account is an admin and has used an
-  /// invite. Signed out, or on any failure, it is neither. An answer that
-  /// arrives after the account changed (signed out, someone else signed in)
-  /// is dropped, so one viewer's admin switch never lands on another.
+  /// invite. Signed out, or on any failure, it is not an admin. An answer
+  /// that arrives after the account changed (signed out, someone else signed
+  /// in) is dropped, so one viewer's admin switch never lands on another.
   static Future<void> _refreshAccount() async {
     final uid = session.value?.user.id;
     if (uid == null) {
       invitedState.value = null;
+      _inviteRecheck?.cancel();
+      _inviteRecheck = null;
       await ContentSettings.setAdmin(false);
       return;
     }
@@ -341,19 +373,50 @@ abstract final class AccountService {
     }
     if (session.value?.user.appMetadata['invited'] == true) {
       invitedState.value = true;
+      unawaited(_rememberInvited(uid, true));
+      // An account that already had an invite: a code entered for a new one
+      // is not left for the next person to sign in on this device.
+      unawaited(_clearPendingInvite());
     } else {
+      bool? result;
       try {
-        final result = await _client.rpc('is_invited');
-        if (stillSame()) invitedState.value = result == true;
+        result = await _rpc('is_invited') == true;
       } catch (e) {
         debugPrint('[AccountService] is_invited failed: $e');
-        // Offline: keep what this account was last told; never asked, ask
-        // for the code (the server still checks it).
-        if (stillSame()) invitedState.value ??= false;
+      }
+      if (result == null) {
+        // Offline: what the server last said on this device, so an invited
+        // viewer still reaches their downloads. An email account has used a
+        // code by construction (the server refuses one without), so it is let
+        // in even before it was ever asked here. Anyone else is asked for a
+        // code, which the server still checks. Nothing is settled from a
+        // check that failed: only the server's "no" removes an account.
+        final known =
+            await lastKnownInvited(uid) ??
+            (session.value?.user.appMetadata['provider'] == 'email'
+                ? true
+                : null);
+        if (stillSame()) {
+          invitedState.value ??= known ?? false;
+          _recheckInviteLater();
+        }
+      } else {
+        _inviteRecheck?.cancel();
+        _inviteRecheck = null;
+        _inviteRecheckDelay = Duration.zero;
+        if (result) unawaited(_clearPendingInvite());
+        if (!result && stillSame()) await _settleUninvited();
+        // A code spent while settling says yes; a yes this launch took from
+        // the device's memory does not outlast the server's no.
+        if (stillSame()) {
+          final now = result || _redeemedFor == uid;
+          invitedState.value = now;
+          unawaited(_rememberInvited(uid, now));
+        }
       }
     }
     try {
-      final result = await _client.rpc('is_admin');
+      final result = await _rpc('is_admin');
       if (stillSame()) await ContentSettings.setAdmin(result == true);
     } catch (e) {
       debugPrint('[AccountService] is_admin failed: $e');
@@ -481,6 +544,146 @@ abstract final class AccountService {
 
   static HttpServer? _loopback;
   static Timer? _loopbackTimeout;
+
+  /// The invite code entered for a GitHub (or other) sign-up, kept until the
+  /// browser hands the new account back. Stored, because a phone may close
+  /// the app while the browser is open.
+  static const pendingInviteKey = 'lumora_pending_invite_v1';
+
+  /// How long a code waits for its sign-in, and how new an account without
+  /// one must be to count as made by mistake through 登录.
+  static const pendingInviteFor = Duration(minutes: 30);
+
+  /// Set when an account made through 登录 without a code was removed: the
+  /// sign-in page says to register with a code first.
+  static final ValueNotifier<bool> inviteFirst = ValueNotifier(false);
+
+  /// What to do with an account that has not used a code: spend the code
+  /// entered before its sign-in, else remove it when it was made just now,
+  /// else ask for one.
+  @visibleForTesting
+  static UninvitedAccount uninvitedAction({
+    required String? pendingCode,
+    required DateTime? createdAt,
+    required DateTime now,
+  }) {
+    if (pendingCode != null && pendingCode.isNotEmpty) {
+      return UninvitedAccount.redeem;
+    }
+    if (createdAt != null && now.difference(createdAt) < pendingInviteFor) {
+      return UninvitedAccount.discard;
+    }
+    return UninvitedAccount.ask;
+  }
+
+  /// The code waiting for its sign-in, if it has not gone stale. It stays
+  /// stored until it is spent or refused: a redeem that failed offline must
+  /// find it again rather than read as an account that came with no code.
+  static Future<String?> _pendingInvite() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(pendingInviteKey);
+      if (raw == null) return null;
+      final saved = jsonDecode(raw) as Map<String, dynamic>;
+      final at = DateTime.tryParse('${saved['at']}');
+      if (at == null || DateTime.now().difference(at) > pendingInviteFor) {
+        await prefs.remove(pendingInviteKey);
+        return null;
+      }
+      return saved['code'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _clearPendingInvite() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(pendingInviteKey);
+    } catch (_) {}
+  }
+
+  /// One settling at a time: the session restored at start and its replayed
+  /// sign-in event both ask, and two at once could remove an account while
+  /// the other is spending its code.
+  static Future<void>? _settling;
+
+  /// An account without a code, just signed in: see [uninvitedAction].
+  static Future<void> _settleUninvited() =>
+      _settling ??= _settle().whenComplete(() => _settling = null);
+
+  static Future<void> _settle() async {
+    final user = session.value?.user;
+    if (user == null) return;
+    final code = await _pendingInvite();
+    final createdAt = DateTime.tryParse(user.createdAt)?.toUtc();
+    switch (uninvitedAction(
+      pendingCode: code,
+      createdAt: createdAt,
+      now: DateTime.now().toUtc(),
+    )) {
+      case UninvitedAccount.redeem:
+        bool spent;
+        try {
+          spent = await redeemInvite(code!);
+        } catch (e) {
+          debugPrint('[AccountService] pending invite: $e');
+          return; // Offline: the code is kept and tried on the next check.
+        }
+        await _clearPendingInvite();
+        if (spent) return;
+        // Taken since it was checked: the account was made for nothing.
+        await _discardSelf();
+      case UninvitedAccount.discard:
+        await _discardSelf();
+      case UninvitedAccount.ask:
+        return;
+    }
+  }
+
+  /// Removes the signed-in account, which has no code, and signs out. The
+  /// server only removes an account without an invite.
+  static Future<void> _discardSelf() async {
+    try {
+      final gone = await _rpc('discard_uninvited_self') == true;
+      if (!gone) return;
+    } catch (e) {
+      debugPrint('[AccountService] discard: $e');
+      return; // Nothing removed: the code page asks instead.
+    }
+    inviteFirst.value = true;
+    try {
+      await _client.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {}
+    session.value = null;
+    invitedState.value = null;
+  }
+
+  /// A new account through GitHub (or another provider): [inviteCode] is
+  /// checked first and spent once the account comes back, so no account is
+  /// made without one.
+  static Future<void> signUpWith(
+    OAuthProvider provider,
+    String inviteCode,
+  ) async {
+    final code = normalizeInviteCode(inviteCode);
+    bool valid;
+    try {
+      valid =
+          await _client.rpc('invite_code_valid', params: {'code': code}) ==
+          true;
+    } catch (e) {
+      throw AccountException(AccountError.network, '$e');
+    }
+    if (!valid) throw const AccountException(AccountError.invalidInvite);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      pendingInviteKey,
+      jsonEncode({'code': code, 'at': DateTime.now().toIso8601String()}),
+    );
+    inviteFirst.value = false;
+    await signInWith(provider);
+  }
 
   /// Opens the provider's sign-in in the browser. The session arrives through
   /// [session] when the browser hands back.
@@ -615,15 +818,74 @@ abstract final class AccountService {
   static final ValueNotifier<bool?> invitedState = ValueNotifier(null);
   static String? _invitedFor;
 
+  /// The account that spent a code in this run (see [redeemInvite]).
+  static String? _redeemedFor;
+
+  /// The server's last answer to [invited], per account on this device
+  /// (`lumora_invited_v1@<account id>`), for a launch with no network.
+  static const invitedCacheKey = 'lumora_invited_v1';
+
+  /// What the server last said about [uid] on this device, or null when it
+  /// was never asked here.
+  @visibleForTesting
+  static Future<bool?> lastKnownInvited(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('$invitedCacheKey@$uid');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _rememberInvited(String uid, bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('$invitedCacheKey@$uid', value);
+    } catch (_) {}
+  }
+
+  /// Asks again after an offline answer: soon at first, then less often, so
+  /// the server's word replaces the device's memory once the network is back.
+  static Timer? _inviteRecheck;
+  static Duration _inviteRecheckDelay = Duration.zero;
+
+  static void _recheckInviteLater() {
+    _inviteRecheck?.cancel();
+    final next = _inviteRecheckDelay * 2;
+    _inviteRecheckDelay = next < const Duration(seconds: 15)
+        ? const Duration(seconds: 15)
+        : next > const Duration(minutes: 5)
+        ? const Duration(minutes: 5)
+        : next;
+    _inviteRecheck = Timer(_inviteRecheckDelay, () {
+      _inviteRecheck = null;
+      unawaited(_refreshAccount());
+    });
+  }
+
+  /// Back in the foreground: a check that failed offline is tried now
+  /// rather than at its timer, since the network often returns with the app.
+  static void recheckIfOffline() {
+    if (_inviteRecheck == null) return;
+    _inviteRecheck!.cancel();
+    _inviteRecheck = null;
+    unawaited(_refreshAccount());
+  }
+
   /// Spends [code] for this account. False when it is wrong or already used.
   static Future<bool> redeemInvite(String code) async {
     try {
-      final ok = await _client.rpc(
+      final ok = await _rpc(
         'redeem_invite',
         params: {'code': normalizeInviteCode(code)},
       );
       if (ok != true) return false;
       invitedState.value = true;
+      final uid = session.value?.user.id;
+      if (uid != null) {
+        _redeemedFor = uid;
+        unawaited(_rememberInvited(uid, true));
+      }
       // The flag rides on the token: a fresh one carries it.
       final res = await _client.auth.refreshSession();
       session.value = res.session ?? session.value;
@@ -647,6 +909,8 @@ abstract final class AccountService {
     } finally {
       session.value = null;
       invitedState.value = null;
+      _inviteRecheck?.cancel();
+      _inviteRecheck = null;
       recovering.value = false;
       await ContentSettings.setAdmin(false);
     }

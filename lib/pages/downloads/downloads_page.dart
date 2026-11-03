@@ -13,6 +13,7 @@ import '../../utils/platform/open_file_location_helper.dart';
 import '../../utils/platform/storage_space_helper.dart';
 import '../../utils/download/download_path_helper.dart';
 import '../player/player_screen.dart';
+import 'download_error_text.dart';
 import '../../services/storage/app_image_cache.dart';
 import '../../widgets/common/focusable_card.dart';
 import '../../services/layout/form_factor.dart';
@@ -457,7 +458,10 @@ class _DownloadsPageState extends State<DownloadsPage> {
                         Text(
                           isFailed
                               ? l10nOf(context).dl3FailedReason(
-                                  task.error ?? l10nOf(context).dlUnknownError,
+                                  downloadErrorText(
+                                    l10nOf(context),
+                                    task.error,
+                                  ),
                                 )
                               : isPaused
                               ? l10nOf(context).dl3PausedPercent(

@@ -31,6 +31,7 @@ import '../simkl/simkl_service.dart';
 import '../simkl/simkl_continue_watching_service.dart';
 import '../account/library_sync.dart';
 import '../account/account_scope.dart';
+import '../account/server_clock.dart';
 import '../../l10n/l10n.dart';
 import '../archive/archive_source_loader.dart';
 import '../official/official_source_loader.dart';
@@ -439,7 +440,7 @@ class ContinueWatchingService {
       fileIdx: source.fileIdx,
       positionSeconds: positionSeconds,
       totalDurationSeconds: totalDurationSeconds,
-      lastWatchedAt: DateTime.now(),
+      lastWatchedAt: ServerClock.now(),
       isAdult: isAdultSession(
         id: detail.id,
         type: detail.type,

@@ -191,7 +191,7 @@ void main() {
     expect(bar.top, 844 - 64, reason: 'the bottom bar is pinned to the foot');
     // The phone mockup's bar: each glyph with its name under it, short enough
     // that five fit across one phone, and each drawn whole.
-    for (final label in ['Home', 'Search', 'My List', 'Downloads', 'Me']) {
+    for (final label in ['Home', 'Categories', 'Search', 'My List', 'Me']) {
       expect(find.text(label), findsOneWidget);
     }
     expect(tester.takeException(), isNull);

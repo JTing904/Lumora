@@ -14,6 +14,8 @@ import '../../models/iptv/iptv_models.dart';
 import '../../services/iptv/hardcoded_channels.dart';
 import '../../services/iptv/iptv_storage.dart';
 import '../../services/iptv/live_health_ordering.dart';
+import '../../services/iptv/iptv_source_label.dart';
+import '../../services/iptv/live_reconnect_budget.dart';
 import '../../services/theme/design_tokens.dart';
 import '../../services/player/player_settings.dart';
 import '../../services/player/video_panel_metrics.dart';
@@ -128,8 +130,15 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
   // Stream watchdog metrics
   Duration _lastPosition = Duration.zero;
   DateTime _lastPositionChange = DateTime.now();
-  int _retryCount = 0;
+  late final LiveReconnectBudget _reconnects = LiveReconnectBudget(
+    maxReconnects: _maxReconnects,
+  );
   bool _hasFallenBackToSoftware = false;
+
+  /// An error the player reported while a source was still being opened.
+  /// It used to be dropped because the spinner was up, and the source then
+  /// sat dark with nothing playing, which the stall watchdog never notices.
+  Object? _openError;
 
   /// Stream URLs that have already failed in this player session. The automatic
   /// failover never returns to one, so a channel holding six dead portals ends
@@ -145,9 +154,10 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
   /// gives up on that source and moves to the next untried hit.
   ///
   /// A stalled live feed re-enters through the watchdog, which is not the
-  /// catch path [_retryCount] used to guard, so the old cap never applied and
-  /// the player looped on the same dead URL forever. [_switchSource] resets the
-  /// count, so this is an allowance per source, not for the channel.
+  /// catch path the old count guarded, so the old cap never applied and the
+  /// player looped on the same dead URL forever. [_switchSource] resets the
+  /// count, so this is an allowance per source, not for the channel; see
+  /// [LiveReconnectBudget] for when a reopened source earns it back.
   static const int _maxReconnects = 3;
 
   /// Most distinct sources one player session will move through before it stops
@@ -198,7 +208,7 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
     WakelockPlus.enable();
     _activeHitIndex = _sortedIndexForRequested(widget.initialHitIndex);
     _sourcesScrollController = ScrollController();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    unawaited(WindowService.instance.enterPlayerFullscreen(this));
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
@@ -216,6 +226,7 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
       _player.stream.position.listen((pos) {
         _position = pos;
         _positionNotifier.value = pos;
+        _reconnects.position(pos);
       }),
       _player.stream.duration.listen((dur) {
         if (mounted && _duration != dur) setState(() => _duration = dur);
@@ -240,7 +251,12 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
         // merely still buffering; then it painted an error and stopped there,
         // which is why a fight with four working portals behind it ended on the
         // one that had just died.
-        if (!mounted || _isLoading) return;
+        if (!mounted) return;
+        if (_isLoading) {
+          // _initPlayer checks this once open() returns and fails the source.
+          _openError = error;
+          return;
+        }
         _handleFeedFailure(l10nCurrent().tv2FeedStopped(error));
       }),
     ]);
@@ -272,7 +288,9 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
         WindowService.instance.isFullscreen) {
       WindowService.instance.exitFullscreen();
     }
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // The app's normal bars, not a hard-coded mode: a television stays
+    // immersive, and a player opened after this one keeps its own.
+    unawaited(WindowService.instance.leavePlayerFullscreen(this));
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     DiscordRpcService.instance.clearToIdle();
     super.dispose();
@@ -298,6 +316,8 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
     final currentHit = _hits[_activeHitIndex];
     final streamUrl = currentHit.streamUrl;
     _hasFallenBackToSoftware = false;
+    _openError = null;
+    _reconnects.opened();
 
     setState(() {
       _isLoading = true;
@@ -305,7 +325,10 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
       _statusMessage = l10nCurrent().tv2BufferingName(
         currentHit.stream.name.isNotEmpty
             ? currentHit.stream.name
-            : currentHit.portal.name,
+            : IptvSourceLabel.of(
+                currentHit.portal,
+                position: _activeHitIndex + 1,
+              ),
       );
     });
 
@@ -328,11 +351,13 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
       await PlayerSettings.applyToPlayer(_player, isLive: true);
       _player.setVolume(_isMuted ? 0.0 : _volume * 100.0);
 
+      final openError = _openError;
+      if (openError != null) throw StateError('Open failed: $openError');
+
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _feedError = null;
-        _retryCount = 0;
         _lastPosition = Duration.zero;
         _lastPositionChange = DateTime.now();
       });
@@ -426,7 +451,7 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
       // Every source gets its own reconnect allowance. Without this reset, the
       // watchdog's third stall on the first source ended the channel even when
       // untried portals were still holding the same event.
-      _retryCount = 0;
+      _reconnects.reset();
       if (manual) {
         // The user picked this source on purpose, so a URL that failed earlier
         // in this run is not held against it.
@@ -499,11 +524,10 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
           isPlaying &&
           DateTime.now().difference(_lastPositionChange).inSeconds > 10 &&
           !_isLoading) {
-        if (_retryCount < _maxReconnects) {
-          _retryCount++;
+        if (_reconnects.tryReconnect()) {
           debugPrint(
             '[IPTV Watchdog] Stream frozen > 10s — reconnecting '
-            '(attempt $_retryCount/$_maxReconnects)…',
+            '(attempt ${_reconnects.used}/$_maxReconnects)…',
           );
           _initPlayer();
         } else {
@@ -840,8 +864,8 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
                               const SizedBox(height: ZplaySpacing.s16),
                               FilledButton.icon(
                                 onPressed: () {
+                                  _reconnects.reset();
                                   setState(() {
-                                    _retryCount = 0;
                                     _feedError = null;
                                     _isLoading = true;
                                     _statusMessage =
@@ -1692,17 +1716,14 @@ class _IptvPlayerPageState extends State<_IptvPlayerPageBody>
                                                     const SizedBox(
                                                       height: ZplaySpacing.s2,
                                                     ),
+                                                    // The source's host or
+                                                    // number, never the
+                                                    // portal's login.
                                                     Text(
-                                                      hit
-                                                              .portal
-                                                              .portal
-                                                              .username
-                                                              .isNotEmpty
-                                                          ? hit
-                                                                .portal
-                                                                .portal
-                                                                .username
-                                                          : hit.portal.name,
+                                                      IptvSourceLabel.of(
+                                                        hit.portal,
+                                                        position: index + 1,
+                                                      ),
                                                       maxLines: 1,
                                                       overflow:
                                                           TextOverflow.ellipsis,

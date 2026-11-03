@@ -385,10 +385,12 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
   bool _loading = false;
   bool _done = false;
 
-  /// The last page asked for came back empty after the first. The list gives
-  /// an empty page both when it fails and when it is over, so this offers
-  /// Retry rather than calling the results finished.
+  /// The last page asked for, after the first, could not be read: the Load
+  /// more button offers Retry. The list's end is not a failure.
   bool _moreFailed = false;
+
+  /// The first page could not be read.
+  bool _firstFailed = false;
 
   /// Keeps the remote's focus on 加载更多 while the next page loads: the
   /// button stays (pressing it does nothing meanwhile) instead of giving way
@@ -416,6 +418,7 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
       _done = false;
       _loading = false;
       _moreFailed = false;
+      _firstFailed = false;
       _more();
     }
   }
@@ -437,6 +440,7 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
     _done = false;
     _loading = false;
     _moreFailed = false;
+    _firstFailed = false;
     _more();
   }
 
@@ -445,36 +449,37 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
     final generation = _generation;
     setState(() => _loading = true);
     final next = _page + 1;
-    final movies = await TmdbCatalog.row(
+    final page = await TmdbCatalog.page(
       widget.filter.query(widget.kind, page: next),
       resolveImdb: false,
     );
     if (!mounted || generation != _generation) return;
     // The last page: Load more goes, so a remote on it moves up to the
     // posters first rather than being left focused on nothing.
-    final last = movies.isNotEmpty && (movies.length < 10 || next >= 10);
+    final last = page != null && page.last;
     if (last && _moreFocus.hasFocus) {
       _moreFocus.focusInDirection(TraversalDirection.up);
     }
     setState(() {
       _loading = false;
-      if (movies.isEmpty) {
-        // A failed read and the end of the list both come back empty. On
-        // the first page the empty state offers Retry; after it, so does the
-        // Load more button - the page is asked again rather than skipped.
+      if (page == null) {
+        // TMDb did not answer. On the first page the empty state offers
+        // Retry; after it, so does the Load more button - the page is asked
+        // again rather than skipped.
         _moreFailed = next > 1;
-        if (next == 1) _done = true;
+        if (next == 1) _done = _firstFailed = true;
         return;
       }
       _moreFailed = false;
       _page = next;
       final seen = _movies.map((m) => m.id).toSet();
       final fresh = AdultGuard.filter(
-        movies.where((m) => seen.add(m.id)).toList(),
+        page.movies.where((m) => seen.add(m.id)).toList(),
       );
       _movies.addAll(fresh);
-      // TMDb pages are 20; a short page is the end.
-      if (last) _done = true;
+      // TMDb's total_pages says where the list ends; an empty page after the
+      // first is its end too, not a failure.
+      if (last || page.movies.isEmpty) _done = true;
     });
   }
 
@@ -490,8 +495,8 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
       );
     }
     if (_movies.isEmpty) {
-      // Nothing came back: no matches, or the list could not be read - the
-      // two look the same from here, so say both and offer Retry.
+      // No matches, or the first page could not be read: only a failure
+      // offers Retry.
       return Padding(
         padding: const EdgeInsets.all(48),
         child: Center(
@@ -499,17 +504,19 @@ class _CategoryFilterResultsState extends State<CategoryFilterResults> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                l10n.filterEmptyOrFailed,
+                _firstFailed ? l10n.filterLoadFailed : l10n.filterNoMatches,
                 textAlign: TextAlign.center,
                 style: LuText.bodySoft,
               ),
-              const SizedBox(height: 20),
-              LuButton(
-                label: l10n.actionRetry,
-                icon: Icons.refresh_rounded,
-                kind: LuButtonKind.secondary,
-                onPressed: _retryFirst,
-              ),
+              if (_firstFailed) ...[
+                const SizedBox(height: 20),
+                LuButton(
+                  label: l10n.actionRetry,
+                  icon: Icons.refresh_rounded,
+                  kind: LuButtonKind.secondary,
+                  onPressed: _retryFirst,
+                ),
+              ],
             ],
           ),
         ),

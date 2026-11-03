@@ -30,10 +30,10 @@ void main() {
     expect(back.episodeId, 'tt0032599:1:2');
     expect(back.season, 1);
     expect(back.episode, 2);
-    expect(back.source.url, media.source.url);
-    expect(back.source.addonName, 'Internet Archive');
-    expect(back.source.headers, {'Referer': 'https://archive.org/'});
-    expect(back.source.behaviorHints?['filename'], 'x.mp4');
+    expect(back.source!.url, media.source!.url);
+    expect(back.source!.addonName, 'Internet Archive');
+    expect(back.source!.headers, {'Referer': 'https://archive.org/'});
+    expect(back.source!.behaviorHints?['filename'], 'x.mp4');
   });
 
   test('a message without a playable source is not a room state', () {
@@ -92,4 +92,52 @@ void main() {
     );
     expect(paused.positionNow, const Duration(minutes: 8));
   });
+
+  test(
+    'a host on a new episode starts the room over, not at the old end',
+    () async {
+      final service = WatchPartyService.instance;
+      PartyMedia episode(int n) => PartyMedia(
+        id: 'tt1',
+        type: 'series',
+        title: 'X',
+        episodeId: 'tt1:1:$n',
+        season: 1,
+        episode: n,
+        source: StreamSource(url: 'https://a/$n.mp4', addonName: 'A'),
+      );
+      service.room.value = const PartyRoom(code: 'K7QM3X', isHost: true);
+      addTearDown(() => service.leave());
+      await service.setMedia(episode(1));
+      service.reportHostPosition(
+        playing: true,
+        position: const Duration(minutes: 43),
+        rate: 1.25,
+      );
+      expect(service.hostPlayback!.mediaKey, episode(1).key);
+
+      // Another source for the same episode keeps the place.
+      await service.setMedia(
+        PartyMedia(
+          id: 'tt1',
+          type: 'series',
+          title: 'X',
+          episodeId: 'tt1:1:1',
+          season: 1,
+          episode: 1,
+          source: StreamSource(url: 'https://b/1.mp4', addonName: 'B'),
+        ),
+      );
+      expect(service.hostPlayback!.position, const Duration(minutes: 43));
+
+      // The next episode starts where the host's player opens it.
+      await service.setMedia(episode(2), startAt: const Duration(seconds: 90));
+      final pb = service.hostPlayback!;
+      expect(pb.position, const Duration(seconds: 90));
+      expect(pb.playing, isFalse);
+      expect(pb.mediaKey, episode(2).key);
+      // The room's speed carries over.
+      expect(pb.rate, 1.25);
+    },
+  );
 }

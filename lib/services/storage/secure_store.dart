@@ -36,9 +36,12 @@ class PlatformSecureKeyValueStore implements SecureKeyValueStore {
 ///
 /// A keystore is not always there: unit tests have no plugin, a Linux desktop
 /// without libsecret cannot open one, and a locked keychain can refuse a read.
-/// None of those may make a saved credential disappear, so every operation
-/// degrades to [SharedPreferences] under the same key, and a value found only
-/// in preferences is migrated into the keystore on the first successful read.
+/// None of those may make a saved credential disappear, so when the keystore
+/// fails every operation degrades to [SharedPreferences] under the same key,
+/// and a value found only in preferences is migrated into the keystore on the
+/// first successful read. A keystore that is only slow is waited for instead:
+/// reading around it would miss a migrated secret, and writing around it would
+/// put the secret in plaintext.
 abstract final class SecureStore {
   static final SecureKeyValueStore _platformStore =
       PlatformSecureKeyValueStore();
@@ -70,13 +73,37 @@ abstract final class SecureStore {
   static void resetForTesting() {
     storeOverride = null;
     _warned = false;
+    _unresponsive = false;
+    platformTimeout = _defaultPlatformTimeout;
+    slowKeystoreGrace = _defaultSlowKeystoreGrace;
   }
 
-  /// A keystore call that does not answer must not hold startup, a settings
-  /// page or a background sync open. The platform implementations answer in
-  /// milliseconds; this is long enough for a cold keychain and short enough
-  /// that a locked or missing one degrades to preferences immediately.
-  static const Duration _platformTimeout = Duration(milliseconds: 500);
+  /// How long a keystore call gets before it counts as slow. The platform
+  /// implementations usually answer in milliseconds, but the first call on a
+  /// slow phone (Android Keystore unlocking EncryptedSharedPreferences) can
+  /// take seconds; the old 500 ms sent those reads to preferences, where a
+  /// migrated secret no longer is, and those writes to plaintext.
+  static const Duration _defaultPlatformTimeout = Duration(seconds: 5);
+
+  /// How much longer a slow keystore is waited for before giving up. Slow is
+  /// not missing: a keystore that is not there throws instead, and only that
+  /// falls back to preferences.
+  static const Duration _defaultSlowKeystoreGrace = Duration(seconds: 10);
+
+  @visibleForTesting
+  static Duration platformTimeout = _defaultPlatformTimeout;
+
+  @visibleForTesting
+  static Duration slowKeystoreGrace = _defaultSlowKeystoreGrace;
+
+  /// Set once a call has outlasted the grace as well, cleared by any call
+  /// that answers. Startup reads several secrets in a row, so a keystore that
+  /// has stopped answering costs the longer wait once, not once per secret
+  /// before the first frame.
+  static bool _unresponsive = false;
+
+  static Duration get _graceNow =>
+      _unresponsive ? Duration.zero : slowKeystoreGrace;
 
   /// The stored value for [key], or null.
   ///
@@ -85,13 +112,32 @@ abstract final class SecureStore {
   static Future<String?> read(String key) async {
     if (_bypassPlatformStore) return _legacyRead(key);
 
-    final String? value;
+    final pending = _store.read(key);
+    String? value;
     try {
-      value = await _store.read(key).timeout(_platformTimeout);
+      value = await pending.timeout(platformTimeout);
+    } on TimeoutException {
+      // A plaintext copy from before the migration can answer at once.
+      // Otherwise the secret may well be in the keystore, so keep waiting for
+      // it: answering "no value" here would sign the user out of a session
+      // the keystore still holds.
+      final legacy = await _legacyRead(key);
+      if (legacy != null) {
+        unawaited(pending.then<void>((_) {}, onError: (Object _) {}));
+        return legacy;
+      }
+      try {
+        value = await pending.timeout(_graceNow);
+      } catch (error) {
+        if (error is TimeoutException) _unresponsive = true;
+        _warn('read', error);
+        return null;
+      }
     } catch (error) {
       _warn('read', error);
       return _legacyRead(key);
     }
+    _unresponsive = false;
 
     if (value != null) {
       // A plaintext copy left over from before the migration must not
@@ -103,18 +149,33 @@ abstract final class SecureStore {
     return _migrateLegacy(key);
   }
 
-  /// Stores [value] in the keystore, falling back to [SharedPreferences].
+  /// Stores [value] in the keystore, falling back to [SharedPreferences]
+  /// only when there is no keystore at all.
   ///
   /// A successful keystore write removes the plaintext preference, so the
-  /// secret does not exist in two places at once.
+  /// secret does not exist in two places at once. A keystore that is merely
+  /// slow is waited for and never answered with a plaintext copy: if even the
+  /// longer wait runs out, the write is left to finish on its own and nothing
+  /// is written to preferences.
   static Future<void> write(String key, String value) async {
     if (_bypassPlatformStore) {
       await _legacyWrite(key, value);
       return;
     }
 
+    final pending = _store.write(key, value);
     try {
-      await _store.write(key, value).timeout(_platformTimeout);
+      await pending.timeout(platformTimeout + _graceNow);
+      _unresponsive = false;
+    } on TimeoutException catch (error) {
+      _unresponsive = true;
+      _warn('write', error);
+      // When it does land, the plaintext copy (if any) goes, as on a write
+      // that answered in time.
+      unawaited(
+        pending.then<void>((_) => _removeLegacy(key), onError: (Object _) {}),
+      );
+      return;
     } catch (error) {
       _warn('write', error);
       await _legacyWrite(key, value);
@@ -134,7 +195,7 @@ abstract final class SecureStore {
     }
 
     try {
-      await _store.delete(key).timeout(_platformTimeout);
+      await _store.delete(key).timeout(platformTimeout);
     } catch (error) {
       _warn('delete', error);
     }
@@ -173,7 +234,7 @@ abstract final class SecureStore {
     if (legacy == null) return null;
 
     try {
-      await _store.write(key, legacy).timeout(_platformTimeout);
+      await _store.write(key, legacy).timeout(platformTimeout);
     } catch (error) {
       // The keystore refused the value, so the plaintext copy stays the only
       // readable one and is left where it is.
@@ -198,9 +259,7 @@ abstract final class SecureStore {
   static void _warn(String operation, Object error) {
     if (_warned) return;
     _warned = true;
-    debugPrint(
-      '[SecureStore] $operation fell back to SharedPreferences: $error',
-    );
+    debugPrint('[SecureStore] $operation did not reach the keystore: $error');
   }
 }
 

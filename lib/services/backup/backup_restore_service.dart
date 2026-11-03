@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,14 +7,20 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../l10n/l10n.dart';
+import '../account/account_scope.dart';
+import '../account/library_sync.dart';
 import '../addon/addon_manager.dart';
 import '../anime/anime_library_service.dart';
 import '../books/continue_reading_service.dart';
 import '../books/reader_settings.dart';
 import '../config/service_credentials.dart';
 import '../continue_watching/continue_watching_service.dart';
+import '../continue_watching/watched_episodes.dart';
+import '../recommend/taste_store.dart';
 import '../metadata/tmdb_service.dart';
 import '../music/music_download_service.dart';
+import '../music/music_library_service.dart';
 import '../my_list/my_list_service.dart';
 import '../theme/app_theme_service.dart';
 import '../home/home_page_settings.dart';
@@ -71,6 +78,65 @@ class BackupRestoreService {
     'pt_iptv_portalfav_',
   ];
 
+  /// The name [key] is exported under while [uid] is signed in (null: signed
+  /// out), or null when it stays on this device.
+  ///
+  /// The account's own copies travel under their plain names, so the file
+  /// says nothing about which account wrote it and an import can put them in
+  /// whichever account reads it. Other accounts' copies on a shared device,
+  /// and the device's sign-in itself (see [AccountScope.isDeviceAccountState]),
+  /// never leave.
+  @visibleForTesting
+  static String? exportNameFor(String key, String? uid) {
+    if (AccountScope.isDeviceAccountState(key)) return null;
+    final scoped = AccountScope.splitScoped(key);
+    if (scoped != null) return scoped.uid == uid ? scoped.base : null;
+    // Signed in, a plain copy of an account's document is what a signed-out
+    // session left behind, not this account's.
+    if (uid != null && AccountScope.isPerAccount(key)) return null;
+    return key;
+  }
+
+  /// Where an imported [key] is written while [uid] is signed in (null:
+  /// signed out), or null when it is not written. [source] is the account
+  /// whose copies an older file carries under their scoped names.
+  ///
+  /// A profile's library is the reader's from now on: it lands in the
+  /// account signed in here, not in the one that wrote the file, which would
+  /// leave My List and progress restored where nobody can see them.
+  @visibleForTesting
+  static String? importKeyFor(
+    String key, {
+    required String? uid,
+    required String? source,
+  }) {
+    if (AccountScope.isDeviceAccountState(key)) return null;
+    final scoped = AccountScope.splitScoped(key);
+    if (scoped != null) {
+      if (scoped.uid != source) return null;
+      return uid == null ? scoped.base : '${scoped.base}@$uid';
+    }
+    if (AccountScope.isPerAccount(key)) {
+      return uid == null ? key : '$key@$uid';
+    }
+    return key;
+  }
+
+  /// The account whose scoped copies an older file carries: the importing
+  /// account when the file has its copies, else the only account it has
+  /// copies of. A file from a shared device with several accounts' copies
+  /// and none of the reader's names no one, and those copies are skipped
+  /// rather than one stranger's library guessed at.
+  @visibleForTesting
+  static String? sourceAccountOf(Iterable<String> keys, String? uid) {
+    final ids = <String>{
+      for (final key in keys)
+        if (AccountScope.splitScoped(key) case final scoped?) scoped.uid,
+    };
+    if (uid != null && ids.contains(uid)) return uid;
+    return ids.length == 1 ? ids.single : null;
+  }
+
   /// Exports a profile.
   ///
   /// With no [passphrase] this is the redacted profile: credentials, IPTV
@@ -97,6 +163,9 @@ class BackupRestoreService {
     // 1. SharedPreferences dump of core settings
     final allKeys = prefs.getKeys();
     final settingsMap = <String, dynamic>{};
+    // Names already filled from the signed-in account's own copy, which a
+    // plain copy left from a signed-out session must not replace.
+    final fromAccount = <String>{};
     for (final key in allKeys) {
       if (key.endsWith('__backup') || key.endsWith('__corrupt')) continue;
       if (_installStateKeys.contains(key)) continue;
@@ -108,13 +177,18 @@ class BackupRestoreService {
       } else if (_isExcluded(key)) {
         continue;
       }
+      final name = exportNameFor(key, AccountScope.userId);
+      if (name == null) continue;
+      final scoped = name != key;
+      if (!scoped && fromAccount.contains(name)) continue;
       final val = prefs.get(key);
       if (val is String ||
           val is int ||
           val is double ||
           val is bool ||
           val is List<String>) {
-        settingsMap[key] = val;
+        settingsMap[name] = val;
+        if (scoped) fromAccount.add(name);
       }
     }
     exportData['settings'] = settingsMap;
@@ -200,12 +274,15 @@ class BackupRestoreService {
   /// the app is not allowed to read - under Android 14 scoped storage that is
   /// everything outside the app's own directory - so the message says where it
   /// looked and where the app can actually reach.
+  ///
+  /// The old file name is still looked for but not listed: the message names
+  /// where a profile should go now.
   static String _nothingReadable(List<String> candidates) {
-    final tried = candidates.map((path) => '  - $path').join('\n');
-    return 'No readable settings file. Looked in:\n'
-        '$tried\n'
-        'Lumora can only read its own app directory without a storage '
-        'permission, so push the profile there, or choose it with "From File".';
+    final tried = candidates
+        .where((path) => !path.endsWith(legacyImportFileName))
+        .map((path) => '  - $path')
+        .join('\n');
+    return l10nCurrent().backupNothingReadable(tried);
   }
 
   static Future<String> _readFile(String path) async {
@@ -235,15 +312,10 @@ class BackupRestoreService {
     } else if (path != null && path.isNotEmpty) {
       contents = await _readFile(path);
     } else {
-      throw const FileSystemException(
-        'The chosen file could not be read. Choose it again with "From File".',
-      );
+      throw FileSystemException(l10nCurrent().backupChosenUnreadable);
     }
     if (contents.trim().isEmpty) {
-      throw FileSystemException(
-        'The chosen profile file is empty.',
-        name ?? '',
-      );
+      throw FileSystemException(l10nCurrent().backupChosenEmpty, name ?? '');
     }
     // Parsed before imported, so a file that is not a profile fails here
     // rather than half-applying whatever could be read from it.
@@ -251,7 +323,11 @@ class BackupRestoreService {
   }
 
   /// The file name a profile is given wherever it is moved to.
-  static const String importFileName = 'zplay_profile.json';
+  static const String importFileName = 'lumora_profile.json';
+
+  /// The name a profile had before Lumora, still looked for, so a file
+  /// pushed by an older guide or script imports.
+  static const String legacyImportFileName = 'zplay_profile.json';
 
   /// Where a pushed profile is looked for, most readable first.
   ///
@@ -272,25 +348,31 @@ class BackupRestoreService {
     Future<Directory?> Function()? externalStorage,
   }) async {
     final paths = <String>[];
-    final own = await _ownProfilePath(
+    final own = await _ownProfileDirectory(
       externalStorage ?? getExternalStorageDirectory,
     );
-    if (own != null) paths.add(own);
+    if (own != null) {
+      paths.add(p.join(own, importFileName));
+      paths.add(p.join(own, legacyImportFileName));
+    }
     paths.addAll(legacyImportSearchPaths);
     return paths;
   }
 
-  /// The locations a pushed profile has historically been looked for in.
+  /// The locations a pushed profile has historically been looked for in,
+  /// under its name now and then its old one.
   ///
   /// Kept as the fallback described on [importSearchPaths].
   static const List<String> legacyImportSearchPaths = <String>[
-    '/sdcard/Download/zplay_profile.json',
-    '/storage/emulated/0/Download/zplay_profile.json',
+    '/sdcard/Download/$importFileName',
+    '/storage/emulated/0/Download/$importFileName',
+    '/sdcard/Download/$legacyImportFileName',
+    '/storage/emulated/0/Download/$legacyImportFileName',
   ];
 
-  /// The profile inside the app's own external files directory, or null where
-  /// there is no such directory (desktop, or no plugin behind the call).
-  static Future<String?> _ownProfilePath(
+  /// The app's own external files directory, or null where there is no such
+  /// directory (desktop, or no plugin behind the call).
+  static Future<String?> _ownProfileDirectory(
     Future<Directory?> Function() externalStorage,
   ) async {
     try {
@@ -304,7 +386,7 @@ class BackupRestoreService {
           await dir.create(recursive: true);
         } catch (_) {}
       }
-      return p.join(dir.path, importFileName);
+      return dir.path;
     } catch (_) {
       return null;
     }
@@ -358,13 +440,25 @@ class BackupRestoreService {
     // 1. Restore SharedPreferences
     if (decoded.containsKey('settings') && decoded['settings'] is Map) {
       final settings = decoded['settings'] as Map;
-      for (final entry in settings.entries) {
-        final key = entry.key.toString();
+      final uid = AccountScope.userId;
+      final source = sourceAccountOf(settings.keys.map((k) => '$k'), uid);
+      // Plain names first: an older file that has both a plain and a scoped
+      // copy of a document holds the account's own in the scoped one.
+      final entries = settings.entries.toList()
+        ..sort((a, b) {
+          final aScoped = AccountScope.splitScoped('${a.key}') != null;
+          final bScoped = AccountScope.splitScoped('${b.key}') != null;
+          return aScoped == bScoped ? 0 : (aScoped ? 1 : -1);
+        });
+      for (final entry in entries) {
+        final name = entry.key.toString();
         // Older exports carried these; the device keeps its own.
-        if (_installStateKeys.contains(key)) continue;
-        if (secretsExcluded && _isExcluded(key)) continue;
+        if (_installStateKeys.contains(name)) continue;
+        if (secretsExcluded && _isExcluded(name)) continue;
         // Credentials from a full profile live in the keystore, not here.
-        if (hasSecretMap && SecretKeys.isSecret(key)) continue;
+        if (hasSecretMap && SecretKeys.isSecret(name)) continue;
+        final key = importKeyFor(name, uid: uid, source: source);
+        if (key == null) continue;
         final dynamic val = entry.value;
 
         if (val is String) {
@@ -393,10 +487,16 @@ class BackupRestoreService {
     // launch. None of these touch the network.
     await MyListService.reloadLocal();
     await ContinueWatchingService.reloadLocal();
+    await WatchedEpisodes.initialize();
+    await TasteStore.initialize();
     await AnimeLibraryService.instance.reloadLocal();
     await ContinueReadingService.reload();
     await ReaderSettings.reload();
     await MusicDownloadService.instance.reload();
+    await MusicLibraryService.instance.reload();
+    // The restored library goes up to the account like any other edit,
+    // merged with what the server already has.
+    unawaited(LibrarySync.pull(force: true));
 
     // 2. Restore Theme
     if (decoded.containsKey('theme') && decoded['theme'] is Map) {
@@ -503,14 +603,10 @@ class BackupRestoreService {
       }
     }
 
-    if (encrypted) {
-      return 'Successfully restored full profile ($restoredItems settings, '
-          'credentials and portals).';
-    }
-    if (secretsExcluded) {
-      return 'Successfully restored configuration ($restoredItems settings). '
-          'Credentials, portals and addons stay on this device.';
-    }
-    return 'Successfully restored configuration ($restoredItems settings, addons & portals restored).';
+    // Shown as it is by Settings, so in the app's language.
+    final l10n = l10nCurrent();
+    if (encrypted) return l10n.backupRestoredFull(restoredItems);
+    if (secretsExcluded) return l10n.backupRestoredRedacted(restoredItems);
+    return l10n.backupRestoredLegacy(restoredItems);
   }
 }

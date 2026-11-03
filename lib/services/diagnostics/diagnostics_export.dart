@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../account/account_scope.dart';
 import '../layout/device_profile.dart';
 import '../player/player_settings.dart';
 import '../storage/secret_keys.dart';
@@ -47,12 +48,14 @@ class DiagnosticsExport {
     DateTime Function()? clock,
     List<Breadcrumb> Function()? breadcrumbs,
     String? Function()? torrentEngineState,
+    String? Function()? accountId,
   }) : _packageInfo = packageInfo ?? _defaultPackageInfo,
        _preferences = preferences ?? _defaultPreferences,
        _reportDirectory = reportDirectory ?? _defaultReportDirectory,
        _clock = clock ?? DateTime.now,
        _breadcrumbs = breadcrumbs ?? (() => CrashBreadcrumbs.entries),
-       _torrentEngineState = torrentEngineState ?? _defaultTorrentEngineState;
+       _torrentEngineState = torrentEngineState ?? _defaultTorrentEngineState,
+       _accountId = accountId ?? (() => AccountScope.userId);
 
   /// The production instance. [DiagnosticsExport] is stateless apart from its
   /// injected seams, so one instance is enough and callers cannot accidentally
@@ -101,18 +104,29 @@ class DiagnosticsExport {
   final DateTime Function() _clock;
   final List<Breadcrumb> Function() _breadcrumbs;
   final String? Function() _torrentEngineState;
+  final String? Function() _accountId;
 
-  /// Whether [prefKey] must be left out of a report.
+  /// Whether [prefKey] must be left out of a report written while
+  /// [accountId] is signed in (null: signed out).
   ///
   /// The same predicate `BackupRestoreService` applies to a profile export:
-  /// credentials, the store's own backup/quarantine copies, and the settings
-  /// whose values embed credentials.
-  static bool isExcludedKey(String prefKey) =>
+  /// credentials, the store's own backup/quarantine copies, the settings
+  /// whose values embed credentials, the device's sign-in (the account
+  /// session above all, see [AccountScope.isDeviceAccountState]), and the
+  /// library of any other account kept on a shared device.
+  static bool isExcludedKey(String prefKey, {String? accountId}) =>
       SecretKeys.isSecret(prefKey) ||
       prefKey.endsWith('__backup') ||
       prefKey.endsWith('__corrupt') ||
       prefKey.startsWith(_iptvStoragePrefix) ||
-      _credentialBearingKeys.contains(prefKey);
+      _credentialBearingKeys.contains(prefKey) ||
+      AccountScope.isDeviceAccountState(prefKey) ||
+      _otherAccount(prefKey, accountId);
+
+  static bool _otherAccount(String prefKey, String? accountId) {
+    final scoped = AccountScope.splitScoped(prefKey);
+    return scoped != null && scoped.uid != accountId;
+  }
 
   /// Collects the report as JSON-shaped data.
   Future<Map<String, Object?>> collect() async {
@@ -256,8 +270,9 @@ class DiagnosticsExport {
     }
     final settings = <String, Object?>{};
     var redacted = 0;
+    final accountId = _safe(_accountId);
     for (final key in prefs.getKeys()) {
-      if (isExcludedKey(key)) {
+      if (isExcludedKey(key, accountId: accountId)) {
         redacted++;
         continue;
       }

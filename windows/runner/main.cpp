@@ -75,6 +75,117 @@ std::string ReadSavedRendererBackend() {
   return "skia";
 }
 
+// One running copy per user session. Two copies would overwrite each other's
+// shared_preferences.json and both try to listen on the sign-in callback port.
+// The Local namespace scopes the name to this sign-in session, matching the
+// per-user profile the copies would otherwise share.
+constexpr wchar_t kSingleInstanceMutex[] =
+    L"Local\\io.github.jting904.lumora.single-instance";
+
+// The class Win32Window registers (win32_window.cpp) and the title main()
+// creates the window with; the app_links plugin looks for the same class when
+// it forwards a sign-in link.
+constexpr wchar_t kRunnerWindowClass[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
+constexpr wchar_t kRunnerWindowTitle[] = L"Lumora";
+
+// Finds the top-level window of another running Lumora. A copy started from
+// the same executable is preferred, which is what app_links matches on; a
+// window with the same class and title from another install path still counts,
+// because it writes to the same profile.
+HWND FindRunningInstanceWindow() {
+  struct Search {
+    DWORD own_pid;
+    wchar_t own_exe[MAX_PATH];
+    HWND same_exe;
+    HWND same_title;
+  };
+  Search search = {};
+  search.own_pid = ::GetCurrentProcessId();
+  ::GetModuleFileNameW(nullptr, search.own_exe, MAX_PATH);
+
+  ::EnumWindows(
+      [](HWND hwnd, LPARAM param) -> BOOL {
+        auto* search = reinterpret_cast<Search*>(param);
+        wchar_t class_name[64] = {};
+        ::GetClassNameW(hwnd, class_name, 64);
+        if (_wcsicmp(class_name, kRunnerWindowClass) != 0) {
+          return TRUE;
+        }
+        DWORD pid = 0;
+        ::GetWindowThreadProcessId(hwnd, &pid);
+        if (pid == search->own_pid) {
+          return TRUE;
+        }
+        HANDLE process =
+            ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if (process != nullptr) {
+          wchar_t exe[MAX_PATH] = {};
+          DWORD length = MAX_PATH;
+          const BOOL named =
+              ::QueryFullProcessImageNameW(process, 0, exe, &length);
+          ::CloseHandle(process);
+          if (named && _wcsicmp(exe, search->own_exe) == 0) {
+            search->same_exe = hwnd;
+            return FALSE;
+          }
+        }
+        wchar_t title[64] = {};
+        ::GetWindowTextW(hwnd, title, 64);
+        if (search->same_title == nullptr &&
+            wcscmp(title, kRunnerWindowTitle) == 0) {
+          search->same_title = hwnd;
+        }
+        return TRUE;
+      },
+      reinterpret_cast<LPARAM>(&search));
+
+  return search.same_exe != nullptr ? search.same_exe : search.same_title;
+}
+
+// Brings the running copy's window forward. A window that is not visible yet
+// belongs to a copy still starting up: it shows itself on its first frame, so
+// it is left alone rather than shown early as an empty frame.
+void BringToFront(HWND hwnd) {
+  if (!::IsWindowVisible(hwnd)) {
+    return;
+  }
+  if (::IsIconic(hwnd)) {
+    ::ShowWindow(hwnd, SW_RESTORE);
+  }
+  ::SetForegroundWindow(hwnd);
+}
+
+// Called when another copy already holds the single-instance mutex. Hands this
+// launch (and its sign-in link, if any) to that copy and returns true, in
+// which case this process should exit. Returns false when this process should
+// carry on starting: the other copy closed while we waited (the mutex is then
+// ours), or it never showed a window that accepted the hand-off. Starting a
+// second copy in that last case is what happened before this check existed,
+// and it beats a click that silently does nothing because the other copy is
+// stuck before its first frame.
+bool HandOffToRunningInstance(HANDLE instance_mutex, bool has_link) {
+  // About ten seconds: long enough for a cold start of the other copy to
+  // reach its first frame, so a double-click opens one window, not two.
+  constexpr int kAttempts = 40;
+  constexpr DWORD kWaitPerAttemptMs = 250;
+  for (int attempt = 0; attempt < kAttempts; ++attempt) {
+    const HWND running = FindRunningInstanceWindow();
+    // A link can be delivered while the other copy is still starting (its
+    // plugin queues it); a plain launch waits until there is a window to show.
+    if (running != nullptr &&
+        (has_link ? SendAppLink(running) : ::IsWindowVisible(running))) {
+      BringToFront(running);
+      return true;
+    }
+    const DWORD wait = ::WaitForSingleObject(instance_mutex, kWaitPerAttemptMs);
+    if (wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED) {
+      return false;
+    }
+  }
+  OutputDebugStringA("[SingleInstance] running copy did not answer; starting");
+  return false;
+}
+
 }  // namespace
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
@@ -96,9 +207,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   // A Google or Facebook sign-in comes back as a lumora:// link that Windows
   // opens in a new process. Hand it to the copy already running and leave.
-  if (command_line != nullptr &&
-      wcsstr(command_line, L"io.github.jting904.lumora://") != nullptr &&
-      SendAppLinkToInstance()) {
+  const bool has_link =
+      command_line != nullptr &&
+      wcsstr(command_line, L"io.github.jting904.lumora://") != nullptr;
+  if (has_link && SendAppLinkToInstance()) {
+    ::CoUninitialize();
+    return EXIT_SUCCESS;
+  }
+
+  // Held until this process exits; Windows releases it then even after a
+  // crash, and a waiting launch sees that as WAIT_ABANDONED.
+  HANDLE instance_mutex =
+      ::CreateMutexW(nullptr, TRUE, kSingleInstanceMutex);
+  if (instance_mutex != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS &&
+      HandOffToRunningInstance(instance_mutex, has_link)) {
+    ::CloseHandle(instance_mutex);
+    ::CoUninitialize();
     return EXIT_SUCCESS;
   }
 
@@ -115,7 +239,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // process is grouped by an implicit identity derived from its shortcut/executable
   // path, so the separation would then depend on where each app happens to be
   // installed; setting one makes the identity explicit and stable across installs.
-  ::SetCurrentProcessExplicitAppUserModelID(L"io.github.tzero86.zplay");
+  //
+  // The installer stamps the same ID on its Start menu and desktop shortcuts
+  // (installer/windows/setup.iss), so a pinned shortcut and the running window
+  // share one taskbar button. Change both together.
+  ::SetCurrentProcessExplicitAppUserModelID(L"io.github.jting904.lumora");
 
   flutter::DartProject project(L"data");
 
@@ -239,6 +367,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  if (instance_mutex != nullptr) {
+    ::ReleaseMutex(instance_mutex);
+    ::CloseHandle(instance_mutex);
+  }
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }

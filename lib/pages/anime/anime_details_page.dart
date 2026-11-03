@@ -1,3 +1,4 @@
+import '../../widgets/common/page_back_keys.dart';
 import '../../l10n/l10n.dart';
 import 'dart:math' as math;
 import 'dart:ui';
@@ -377,6 +378,9 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage>
                 ),
               ),
             ),
+
+            // Esc and the mouse's back button close the page as well.
+            const Positioned.fill(child: PageBackKeys()),
 
             // Floating Frosted Back Button (Top Left)
             Positioned(

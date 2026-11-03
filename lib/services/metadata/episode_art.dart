@@ -47,6 +47,17 @@ class TmdbEpisode {
 abstract final class EpisodeArt {
   static final Map<String, Future<List<TmdbEpisode>?>> _cache = {};
 
+  /// When each [_cache] entry was asked for. An airing show gains episodes,
+  /// so a list is asked again after [episodesTtl] rather than kept for the
+  /// session.
+  static final Map<String, DateTime> _askedAt = {};
+
+  static const Duration episodesTtl = Duration(hours: 1);
+
+  /// The clock [episodesTtl] is measured against, moved by tests.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
   /// How far apart two sources' dates for the same airing may be.
   static const int anchorToleranceDays = 3;
 
@@ -89,7 +100,13 @@ abstract final class EpisodeArt {
   static Future<List<TmdbEpisode>?> _episodes(int tmdbId, String language) {
     final key = '$tmdbId|$language';
     final known = _cache[key];
-    if (known != null) return known;
+    final askedAt = _askedAt[key];
+    if (known != null &&
+        askedAt != null &&
+        clock().difference(askedAt) < episodesTtl) {
+      return known;
+    }
+    _askedAt[key] = clock();
     final lookup = () async {
       final show = await TmdbService.getScraperJson('/tv/$tmdbId', {
         'language': language,
@@ -141,15 +158,18 @@ abstract final class EpisodeArt {
     return s.isEmpty ? null : s;
   }
 
-  /// `Episode 4`, `第 4 集`, `EP04`: a name that only repeats the number.
+  /// `Episode 4`, `Episode #1.4`, `第 4 集`, `EP04`: a name that only
+  /// repeats the number.
   static bool isPlaceholderName(String? name) {
     final s = name?.trim() ?? '';
     if (s.isEmpty) return true;
     return RegExp(
-      r'^(?:episode|ep\.?|e)\s*\d+$|^第\s*\d+\s*[集话話]$',
+      r'^(?:episode|ep\.?|e)\s*#?\s*\d+(?:\.\d+)?$|^第\s*\d+\s*[集话話]$',
       caseSensitive: false,
     ).hasMatch(s);
   }
+
+  static final RegExp _han = RegExp(r'[一-鿿]');
 
   /// [videos] with the aligned TMDb episode's still, name and synopsis.
   /// Returns [videos] itself when nothing aligned.
@@ -177,9 +197,20 @@ abstract final class EpisodeArt {
             final name = t.name != null && !isPlaceholderName(t.name)
                 ? t.name
                 : null;
+            final displayNumber =
+                straightThrough && v.season != 0 && t.episode != v.episode
+                ? t.episode
+                : v.displayNumber;
+            // A Chinese viewer given only 第N集 by TMDb does not get the
+            // addon's English name under it ("Pilot", "Episode #1.4"): the
+            // episode is called by its number, as the card's badge says.
             final title =
                 name != null && (preferTmdbText || isPlaceholderName(v.title))
                 ? name
+                : preferTmdbText && !_han.hasMatch(v.title)
+                ? l10nCurrent().wgPlyEpisodeFallback(
+                    displayNumber ?? v.episode ?? t.episode,
+                  )
                 : v.title;
             final overview =
                 t.overview != null &&
@@ -187,10 +218,6 @@ abstract final class EpisodeArt {
                 ? t.overview
                 : v.overview;
             final thumbnail = t.still ?? v.thumbnail;
-            final displayNumber =
-                straightThrough && v.season != 0 && t.episode != v.episode
-                ? t.episode
-                : v.displayNumber;
             if (title == v.title &&
                 overview == v.overview &&
                 thumbnail == v.thumbnail &&
@@ -364,5 +391,8 @@ abstract final class EpisodeArt {
   }
 
   @visibleForTesting
-  static void clearCache() => _cache.clear();
+  static void clearCache() {
+    _cache.clear();
+    _askedAt.clear();
+  }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/audiobook/audiobook_model.dart';
+import '../account/account_scope.dart';
 import '../storage/json_document_store.dart';
 
 class AudiobookProgress {
@@ -68,9 +69,11 @@ class AudiobookProgressService {
     return result;
   }
 
-  static final JsonDocumentStore<List<AudiobookProgress>> _store =
+  /// Per account (see [AccountScope]); read afresh on every call, so an
+  /// account change needs no reload here.
+  static JsonDocumentStore<List<AudiobookProgress>> get _store =>
       JsonDocumentStore<List<AudiobookProgress>>(
-        key: _storageKey,
+        key: AccountScope.key(_storageKey),
         version: 1,
         decode: _decode,
         encode: (all) => all.map((p) => p.toJson()).toList(),

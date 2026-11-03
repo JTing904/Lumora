@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/anime/anime_media.dart';
+import '../account/account_scope.dart';
 import '../content/content_settings.dart';
 import '../storage/json_document_store.dart';
 
@@ -32,18 +33,20 @@ class AnimeLibraryService extends ChangeNotifier {
     return items;
   }
 
-  static final JsonDocumentStore<List<AnimeWatchlistItem>> _watchlistStore =
+  /// Both documents are per account (see [AccountScope]); [reloadLocal]
+  /// reads them again when the account changes.
+  static JsonDocumentStore<List<AnimeWatchlistItem>> get _watchlistStore =>
       JsonDocumentStore<List<AnimeWatchlistItem>>(
-        key: _watchlistKey,
+        key: AccountScope.key(_watchlistKey),
         version: 1,
         decode: _decodeItems,
         encode: (items) => items.map((item) => item.toJson()).toList(),
         migrations: <int, JsonMigration>{0: (value) => value},
       );
 
-  static final JsonDocumentStore<List<AnimeWatchlistItem>> _historyStore =
+  static JsonDocumentStore<List<AnimeWatchlistItem>> get _historyStore =>
       JsonDocumentStore<List<AnimeWatchlistItem>>(
-        key: _historyKey,
+        key: AccountScope.key(_historyKey),
         version: 1,
         decode: _decodeItems,
         encode: (items) => items.map((item) => item.toJson()).toList(),

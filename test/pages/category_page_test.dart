@@ -122,4 +122,53 @@ void main() {
     expect(find.byType(LuRail), findsWidgets);
     expect(find.byIcon(Icons.refresh_rounded), findsNothing);
   });
+
+  testWidgets('a row that failed is read again by itself, the rest kept', (
+    tester,
+  ) async {
+    // Tall enough that every row is built.
+    tester.view.physicalSize = const Size(1440, 8000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    // Series in Chinese: no test above has cached these rows.
+    LocaleSettings.locale.value = const Locale('zh');
+    addTearDown(() => LocaleSettings.locale.value = const Locale('en'));
+    var failing = true;
+    TmdbService.client = MockClient((request) async {
+      paths.add(request.url.path);
+      // Only 港剧 (Hong Kong dramas) fails at first.
+      final hk = request.url.queryParameters['with_origin_country'] == 'HK';
+      if (failing && hk) return http.Response('oops', 500);
+      return http.Response(
+        jsonEncode({'results': _results()}),
+        200,
+        headers: const {'content-type': 'application/json; charset=utf-8'},
+      );
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: CategoryPage(kind: CategoryKind.series)),
+      ),
+    );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    final rails = find.byType(LuRail).evaluate().length;
+    expect(rails, 9, reason: 'every row but 港剧');
+    expect(find.byIcon(Icons.refresh_rounded), findsNothing);
+    paths.clear();
+
+    failing = false;
+    await tester.pump(const Duration(seconds: 21));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    // The cards' Chinese-name lookups aside, one list request.
+    final lists = paths.where(
+      (p) => p.contains('/discover/') || p.contains('/trending/'),
+    );
+    expect(lists, hasLength(1), reason: 'only the failed row is asked again');
+    expect(find.byType(LuRail).evaluate().length, rails + 1);
+  });
 }

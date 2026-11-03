@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/my_list/my_list_item.dart';
 import '../../services/content/content_settings.dart';
 import '../../services/layout/form_factor.dart';
+import '../../services/metadata/localized_meta.dart';
 import '../../services/my_list/my_list_service.dart';
 import '../../services/my_list/new_episode_service.dart';
 import '../../utils/navigation/route_transitions.dart';
@@ -34,7 +35,35 @@ class _MyListPageState extends State<MyListPage> {
     super.initState();
     // 有新集: checks the saved series in the background.
     NewEpisodeService.ensureStarted();
+    _warmNames();
   }
+
+  /// Looks up every saved title's name in the viewer's language, so the
+  /// search box matches 吞噬星空 as well as "Swallowed Star" before each card
+  /// has asked for its own. The cards ask the same cache, so this costs no
+  /// second request; a search already typed is run again once they land.
+  Future<void> _warmNames() async {
+    await Future.wait([
+      for (final item in MyListService.visibleItems)
+        if (item.imdbId case final id? when id.startsWith('tt'))
+          LocalizedMeta.forImdbId(
+            id,
+            series: item.type != 'movie',
+          ).catchError((Object _) => null),
+    ]);
+    if (mounted && _searchQuery.trim().isNotEmpty) setState(() {});
+  }
+
+  /// The name the card shows: the viewer's-language one once it has been
+  /// looked up ([LocalTitleText] on the card), the saved one until then.
+  String _shownTitle(MyListItem item) =>
+      LocalizedMeta.knownName(
+        _movieFor(item).id,
+        title: item.title,
+        year: item.year?.toString(),
+        series: item.type != 'movie',
+      ) ??
+      item.title;
 
   @override
   void dispose() {
@@ -54,9 +83,12 @@ class _MyListPageState extends State<MyListPage> {
 
       // 2. Filter by search query
       if (_searchQuery.trim().isNotEmpty) {
+        // The saved (often English) name or the one on the card.
         final query = _searchQuery.toLowerCase().trim();
-        final title = item.title.toLowerCase();
-        if (!title.contains(query)) return false;
+        if (!item.title.toLowerCase().contains(query) &&
+            !_shownTitle(item).toLowerCase().contains(query)) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -68,7 +100,9 @@ class _MyListPageState extends State<MyListPage> {
         break;
       case 'title':
         filtered.sort(
-          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+          (a, b) => _shownTitle(
+            a,
+          ).toLowerCase().compareTo(_shownTitle(b).toLowerCase()),
         );
         break;
       case 'year':
@@ -118,7 +152,7 @@ class _MyListPageState extends State<MyListPage> {
     final confirm = await showLuConfirm(
       context,
       title: l10n.listRemoveConfirm,
-      message: item.title,
+      message: _shownTitle(item),
       confirmLabel: l10n.listRemove,
     );
     if (confirm && mounted) MyListService.remove(item);
@@ -202,6 +236,11 @@ class _MyListPageState extends State<MyListPage> {
                 LuPosterCard(
                   width: cardWidth,
                   title: item.title,
+                  // The name in the viewer's language, as 继续观看 shows it:
+                  // the list keeps the English name the sources search by.
+                  titleId: _movieFor(item).id,
+                  series: item.type != 'movie',
+                  year: item.year?.toString(),
                   poster: item.poster,
                   badge: newEps[item.uniqueKey]?.isNew == true
                       ? l10n.newEpBadge

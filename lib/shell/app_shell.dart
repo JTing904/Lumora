@@ -8,8 +8,8 @@
 /// scratch on every section change, and going "back" to a section was a fresh
 /// push rather than the page the user left.
 ///
-/// The shell keeps every slot mounted in one [IndexedStack] instead, so a switch
-/// is a paint change and nothing else. State survives, there is no history entry
+/// The shell keeps every slot it has shown mounted in one [IndexedStack]
+/// instead, so a switch is a paint change and nothing else. State survives, there is no history entry
 /// to unwind, and navigation stops being something a page can forget to render,
 /// because pages no longer render any.
 ///
@@ -54,7 +54,7 @@ import '../widgets/updater/whats_new.dart';
 /// One enum rather than five routes, because all five are mounted at once and
 /// only one is painted: the slot is the index into that stack, so the
 /// declaration order here is load bearing. Nothing repeats that order by hand,
-/// though: [_AppShellState._pages] is built from [ShellSlot.values], so a sixth
+/// though: the stack's children are built from [ShellSlot.values], so a new
 /// slot is a compile error in `_pageFor` rather than a silently missing child.
 enum ShellSlot {
   /// Home, the personalised landing page.
@@ -214,15 +214,30 @@ class _AppShellState extends State<AppShell> {
   /// choosing any row - Browse's own included - takes the mark back off Live TV.
   bool _liveTvSelected = false;
 
-  /// One page per slot, built once for the shell's whole life.
+  /// The category (电视剧, 电影, 动漫 or 直播) the viewer was last on, which
+  /// the phone's single 分类 row opens. See [ShellRail.categorySlot].
+  ShellSlot _lastCategory = ShellRail.categorySlots.contains(initialShellSlot())
+      ? initialShellSlot()
+      : ShellSlot.series;
+
+  /// The page of each slot visited so far, built the first time its slot is
+  /// shown and then kept for the shell's whole life.
   ///
-  /// The list is derived from [ShellSlot.values] through [_pageFor] so the enum
-  /// and the stack cannot drift, and it is built here rather than in [build] so
-  /// the pages are constructed exactly once and their elements survive every
-  /// rebuild of the shell.
-  late final List<Widget> _pages = <Widget>[
-    for (final ShellSlot slot in ShellSlot.values) _pageFor(slot),
-  ];
+  /// Built lazily because every page starts loading the moment it is mounted:
+  /// with all ten built at launch, the category rows, the Live TV channel
+  /// scan and the other verticals all ran against a window that only showed
+  /// Home, and Live TV announced itself as being watched. A slot nobody opens
+  /// now costs nothing. Once built a page stays, so a slot switch is still
+  /// just a paint change and keeps the page's scroll and filters.
+  final Map<ShellSlot, Widget> _pages = <ShellSlot, Widget>{};
+
+  /// The page for [slot] if it has been shown, or an empty box in its place.
+  Widget _pageOrPlaceholder(ShellSlot slot) {
+    if (slot == _slot.value) {
+      return _pages.putIfAbsent(slot, () => _pageFor(slot));
+    }
+    return _pages[slot] ?? const SizedBox.shrink();
+  }
 
   /// Cached in [build] before any descendant can read it.
   ///
@@ -371,6 +386,7 @@ class _AppShellState extends State<AppShell> {
     // own row - and returning early would leave it with nothing to show.
     if (_liveTvSelected) setState(() => _liveTvSelected = false);
     if (slot == _slot.value) return true;
+    if (ShellRail.categorySlots.contains(slot)) _lastCategory = slot;
     // Notify first, then repaint. A page that listens (Home reloading its rails
     // on re-entry) sees the new slot before the frame that shows it, so it
     // cannot render against the old one, and its own `setState` joins the same
@@ -494,6 +510,7 @@ class _AppShellState extends State<AppShell> {
       onLiveTv: _openLiveTv,
       autofocus: _formFactor == FormFactor.television,
       blend: blend,
+      categorySlot: _lastCategory,
     );
     if (!handOverDown) return rail;
     return _TopChromeHandover(onDown: _handOverDownToPage, child: rail);
@@ -604,8 +621,8 @@ class _AppShellState extends State<AppShell> {
     return true;
   }
 
-  /// Every slot stays in the tree, so every slot has to be told when it is
-  /// hidden. [IndexedStack] lays out all of its children, which is exactly what
+  /// Every slot once shown stays in the tree, so every slot has to be told
+  /// when it is hidden. [IndexedStack] lays out all of its children, which is exactly what
   /// preserves their state and their measurements, and this is the price of it.
   ///
   /// [TickerMode] is the one that nothing else covers. `IndexedStack` paints,
@@ -619,7 +636,7 @@ class _AppShellState extends State<AppShell> {
   List<Widget> _slotChildren() {
     final int active = _slot.value.index;
     return <Widget>[
-      for (int i = 0; i < _pages.length; i++)
+      for (int i = 0; i < ShellSlot.values.length; i++)
         ExcludeFocus(
           excluding: i != active,
           child: ExcludeSemantics(
@@ -646,7 +663,18 @@ class _AppShellState extends State<AppShell> {
               child: NotificationListener<ScrollNotification>(
                 onNotification: (n) =>
                     _onScrollNotification(n, ShellSlot.values[i]),
-                child: SkipPageShellFocus(child: _pages[i]),
+                // On a phone the category pages sit under the tab header, so
+                // they are charged its row as top padding the way the top bar
+                // charges every page its height. Always wrapped, so a window
+                // resized across the phone band keeps each page's state.
+                child: _ExtraTopPadding(
+                  extra: _showsCategoryTabs(ShellSlot.values[i])
+                      ? ShellCategoryTabs.rowHeight
+                      : 0,
+                  child: SkipPageShellFocus(
+                    child: _pageOrPlaceholder(ShellSlot.values[i]),
+                  ),
+                ),
               ),
             ),
           ),
@@ -863,14 +891,43 @@ class _AppShellState extends State<AppShell> {
         ],
       );
     }
+    // The phone: the page, the now-playing bar, the bottom bar. Over the four
+    // category pages sits their tab header, since the bottom bar has a single
+    // 分类 row for all four; it blends into the page's art like the top bar.
     return Column(
       children: <Widget>[
-        Expanded(child: content),
+        Expanded(
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              content,
+              if (_showsCategoryTabs(_slot.value))
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _slotScrollOffset,
+                    builder: (context, offset, _) => ShellCategoryTabs(
+                      current: _slot.value,
+                      onSelect: _select,
+                      blend: 1 - (offset / _navBlendThreshold).clamp(0.0, 1.0),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         bar,
         _nav(),
       ],
     );
   }
+
+  /// Whether [slot] is drawn under the phone's category tab header.
+  bool _showsCategoryTabs(ShellSlot slot) =>
+      _formFactor == FormFactor.compact &&
+      ShellRail.categorySlots.contains(slot);
 
   @override
   Widget build(BuildContext context) {
@@ -944,6 +1001,30 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Adds [extra] to the top padding its child reads, on top of whatever the
+/// shell above it has already charged.
+///
+/// A widget rather than a `MediaQuery` built in the shell's own `build`,
+/// because the shell's context is above the top bar's `MediaQuery`: read
+/// there, the padding would lose the bar's height.
+class _ExtraTopPadding extends StatelessWidget {
+  const _ExtraTopPadding({required this.extra, required this.child});
+
+  final double extra;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = MediaQuery.of(context);
+    return MediaQuery(
+      data: data.copyWith(
+        padding: data.padding.copyWith(top: data.padding.top + extra),
+      ),
+      child: child,
     );
   }
 }

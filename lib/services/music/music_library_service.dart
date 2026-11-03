@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/music/music_track.dart';
+import '../account/account_scope.dart';
 
 class MusicLibraryService extends ChangeNotifier {
   static final MusicLibraryService instance = MusicLibraryService._internal();
@@ -22,12 +23,22 @@ class MusicLibraryService extends ChangeNotifier {
 
   Future<void> init() async {
     if (_initialized) return;
+    await reload();
+  }
+
+  /// Reads the signed-in account's library (see [AccountScope]) again,
+  /// replacing what is in memory: after an account change or a profile
+  /// import, an account with nothing saved shows nothing.
+  Future<void> reload() async {
     _initialized = true;
+    _likedTracks = [];
+    _userPlaylists = [];
+    _recentTracks = [];
     try {
       final prefs = await SharedPreferences.getInstance();
 
       // Load Liked Tracks
-      final likedJson = prefs.getString(_likedTracksKey);
+      final likedJson = prefs.getString(AccountScope.key(_likedTracksKey));
       if (likedJson != null) {
         final list = jsonDecode(likedJson) as List<dynamic>;
         _likedTracks = list
@@ -37,7 +48,7 @@ class MusicLibraryService extends ChangeNotifier {
       }
 
       // Load User Playlists
-      final plJson = prefs.getString(_userPlaylistsKey);
+      final plJson = prefs.getString(AccountScope.key(_userPlaylistsKey));
       if (plJson != null) {
         final list = jsonDecode(plJson) as List<dynamic>;
         _userPlaylists = list
@@ -47,7 +58,7 @@ class MusicLibraryService extends ChangeNotifier {
       }
 
       // Load Recent Tracks
-      final recentJson = prefs.getString(_recentTracksKey);
+      final recentJson = prefs.getString(AccountScope.key(_recentTracksKey));
       if (recentJson != null) {
         final list = jsonDecode(recentJson) as List<dynamic>;
         _recentTracks = list
@@ -55,11 +66,10 @@ class MusicLibraryService extends ChangeNotifier {
             .map((t) => MusicTrack.fromJson(t))
             .toList();
       }
-
-      notifyListeners();
     } catch (e) {
       debugPrint('MusicLibraryService init error: $e');
     }
+    notifyListeners();
   }
 
   bool isTrackLiked(String trackId) {
@@ -118,7 +128,10 @@ class MusicLibraryService extends ChangeNotifier {
     }
   }
 
-  Future<void> removeTrackFromPlaylist(String playlistId, String trackId) async {
+  Future<void> removeTrackFromPlaylist(
+    String playlistId,
+    String trackId,
+  ) async {
     final idx = _userPlaylists.indexWhere((p) => p.id == playlistId);
     if (idx >= 0) {
       _userPlaylists[idx].tracks.removeWhere((t) => t.id == trackId);
@@ -131,7 +144,7 @@ class MusicLibraryService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = jsonEncode(_likedTracks.map((t) => t.toJson()).toList());
-      await prefs.setString(_likedTracksKey, json);
+      await prefs.setString(AccountScope.key(_likedTracksKey), json);
     } catch (_) {}
   }
 
@@ -139,7 +152,7 @@ class MusicLibraryService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = jsonEncode(_userPlaylists.map((p) => p.toJson()).toList());
-      await prefs.setString(_userPlaylistsKey, json);
+      await prefs.setString(AccountScope.key(_userPlaylistsKey), json);
     } catch (_) {}
   }
 
@@ -147,7 +160,7 @@ class MusicLibraryService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = jsonEncode(_recentTracks.map((t) => t.toJson()).toList());
-      await prefs.setString(_recentTracksKey, json);
+      await prefs.setString(AccountScope.key(_recentTracksKey), json);
     } catch (_) {}
   }
 }

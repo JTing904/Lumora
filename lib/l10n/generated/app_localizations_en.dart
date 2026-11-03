@@ -324,8 +324,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsCalendarTitle => 'TV Airing Calendar';
 
   @override
-  String get settingsCalendarOnSubtitle =>
-      'Calendar buttons active on Home top bar and section headers';
+  String get settingsCalendarOnSubtitle => 'Airing calendar shown in More';
 
   @override
   String get settingsCalendarOffSubtitle =>
@@ -335,8 +334,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAiQuizTitle => 'AI Recommendation Quiz';
 
   @override
-  String get settingsAiQuizOnSubtitle =>
-      'AI Taste Profile Quiz active on Home and Search bars';
+  String get settingsAiQuizOnSubtitle => 'AI picks shown in More and Search';
 
   @override
   String get settingsAiQuizOffSubtitle =>
@@ -421,6 +419,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsChooseProfile => 'Choose a Lumora profile';
+
+  @override
+  String backupRestoredFull(int count) {
+    return 'Restored the full profile: $count settings, plus credentials and portals.';
+  }
+
+  @override
+  String backupRestoredRedacted(int count) {
+    return 'Profile restored: $count settings. Credentials, portals and addons stay on this device.';
+  }
+
+  @override
+  String backupRestoredLegacy(int count) {
+    return 'Profile restored: $count settings, with addons and portals.';
+  }
+
+  @override
+  String backupNothingReadable(String paths) {
+    return 'No readable profile file. Looked in:\n$paths\nWithout a storage permission Lumora can only read its own app directory, so put the profile there, or choose it with \"From File\".';
+  }
+
+  @override
+  String get backupChosenUnreadable =>
+      'The chosen file could not be read. Choose it again with \"From File\".';
+
+  @override
+  String get backupChosenEmpty => 'The chosen profile file is empty.';
 
   @override
   String get settingsClearCacheTitle => 'Clear cache';
@@ -1560,7 +1585,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get episodesSelectSources => 'Select Sources';
 
   @override
-  String get syncTextSync => 'Text Sync';
+  String get syncTextSync => 'Align a line';
 
   @override
   String get syncDiscard => 'Discard changes';
@@ -1707,6 +1732,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlUnknownError => 'Unknown error';
+
+  @override
+  String get dlErrInvalidPath => 'The download folder is no longer allowed';
+
+  @override
+  String get dlErrFileMissing => 'The file was moved or deleted';
+
+  @override
+  String get dlErrTorrentUnsupported => 'Torrent downloads are not supported';
+
+  @override
+  String get dlErrNoDebridLink => 'The cloud service gave no download link';
+
+  @override
+  String get dlErrEmptyUrl => 'This source has no download link';
+
+  @override
+  String dlErrHttpStatus(int status) {
+    return 'The server refused the download (HTTP $status)';
+  }
+
+  @override
+  String get dlErrNotEnoughSpace => 'Not enough free disk space';
+
+  @override
+  String dlErrReconnecting(int attempt) {
+    return 'Reconnecting (attempt $attempt)…';
+  }
+
+  @override
+  String get dlErrSaveFailed => 'Could not save the finished file';
+
+  @override
+  String get dlErrBadPlaylist => 'This stream cannot be downloaded';
+
+  @override
+  String get dlErrNetwork => 'The connection was lost';
 
   @override
   String get dlResume => 'Resume';
@@ -2019,6 +2081,26 @@ class AppLocalizationsEn extends AppLocalizations {
       'In Default mode all providers run at once and results are sorted by resolution (4K, 1080p, 720p) and file size.';
 
   @override
+  String provAllActive(int count) {
+    return 'All $count built-in providers are active and scraped concurrently.';
+  }
+
+  @override
+  String get addonTypeMovie => 'Movies';
+
+  @override
+  String get addonTypeSeries => 'Series';
+
+  @override
+  String get addonTypeAnime => 'Anime';
+
+  @override
+  String get addonTypeTv => 'TV channels';
+
+  @override
+  String get addonTypeEvents => 'Events';
+
+  @override
   String get provSwitchCustom => 'Switch to Custom Mode';
 
   @override
@@ -2072,6 +2154,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get navMore => 'More';
+
+  @override
+  String get navCategories => 'Categories';
 
   @override
   String get catTrendingSeries => 'Trending series';
@@ -2151,7 +2236,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMoreSubtitle =>
-      'Manga, books, audiobooks, music and collections';
+      'Movies & TV, collections, live TV, manga and music';
 
   @override
   String get homeResume => 'Resume';
@@ -5155,20 +5240,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'Upload photos or choose curated dark wallpapers';
 
   @override
-  String get stgbSmartRecsCaps =>
-      'SMART RECOMMENDATIONS (\"BECAUSE YOU HAVE ON YOUR LIST\")';
+  String get stgbSmartRecsCaps => 'RECOMMENDED FOR YOU';
 
   @override
   String get stgbCuratedCollections => 'CURATED COLLECTIONS';
 
   @override
-  String get stgbHeroBannerSpotlight => 'HERO BANNER & SPOTLIGHT';
+  String get stgbHeroBannerSpotlight => 'TOP CAROUSEL';
 
   @override
   String get stgbPosterCardsDensity => 'POSTER CARDS & DENSITY';
 
   @override
-  String get stgbHeaderShortcuts => 'HEADER SHORTCUTS & BUTTONS';
+  String get stgbHeaderShortcuts => 'SHORTCUTS IN MORE';
 
   @override
   String get stgbLiveLightingPreview => 'LIVE LIGHTING ENGINE PREVIEW';
@@ -5285,13 +5369,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stgbTvAiringCalendarDesc =>
-      'Show TV Calendar buttons on Home bar & sliders';
+      'Show the airing calendar button in More';
 
   @override
   String get stgbAiRecQuiz => 'AI Recommendation Quiz';
 
   @override
-  String get stgbAiRecQuizDesc => 'Show AI Quiz button on Home & Search bars';
+  String get stgbAiRecQuizDesc => 'Show the AI picks button in More and Search';
 
   @override
   String get stgbReset => 'Reset';
@@ -9152,4 +9236,288 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get partyServiceDown =>
       'Can\'t reach the watch-together service right now. Try again later.';
+
+  @override
+  String get partyHostAway => 'The host lost the connection. Waiting…';
+
+  @override
+  String get partyHostBack => 'The host is back';
+
+  @override
+  String get partyHostGone => 'The host didn\'t come back. The room has ended.';
+
+  @override
+  String get partyReconnecting => 'Lost the room\'s connection. Reconnecting…';
+
+  @override
+  String get partyReconnected => 'Back in the room';
+
+  @override
+  String get partyDropped => 'Lost the room and couldn\'t get back in';
+
+  @override
+  String get partyLocalSource =>
+      'This source only plays on this device. Guests will find their own source.';
+
+  @override
+  String get partyFindOwnSource =>
+      'The host\'s source only plays on their device. Finding one for you…';
+
+  @override
+  String partyPausedAway(String name) {
+    return '$name paused (left the app)';
+  }
+
+  @override
+  String partySpeed(String name, String rate) {
+    return '$name set the speed to ${rate}x';
+  }
+
+  @override
+  String get subAlignTitle => 'Which line is being spoken now?';
+
+  @override
+  String subAlignBody(String time) {
+    return 'Paused at $time. Tap the line being spoken and the subtitles move to match.';
+  }
+
+  @override
+  String get subAlignBack => 'Back 5 s and listen again';
+
+  @override
+  String subAlignDone(String offset) {
+    return 'Subtitles set to $offset s, remembered for this title';
+  }
+
+  @override
+  String subOffsetRestored(String offset) {
+    return 'Using the subtitle timing you set for this title: $offset s';
+  }
+
+  @override
+  String get subAiTitle => 'AI Chinese · in sync with the picture';
+
+  @override
+  String get subAiBody =>
+      'Translates the English subtitle line by line and keeps its timing';
+
+  @override
+  String subAiProgress(int done, int total) {
+    return 'Translated $done of $total lines';
+  }
+
+  @override
+  String get subAiStarted =>
+      'Translating into Chinese. Lines appear as they are ready.';
+
+  @override
+  String subAiDone(int total) {
+    return 'All $total lines are in Chinese';
+  }
+
+  @override
+  String get subAiSignedOut =>
+      'Sign in to your Lumora account to use AI subtitles';
+
+  @override
+  String get subAiNotInvited =>
+      'AI subtitles need an account that used an invite code';
+
+  @override
+  String get subAiUnavailable =>
+      'The AI is busy right now. Try again in a moment.';
+
+  @override
+  String get subAiNoEnglish => 'No English subtitle to translate';
+
+  @override
+  String authSignUpWith(String provider) {
+    return 'Sign up with $provider';
+  }
+
+  @override
+  String get authInviteFirst =>
+      'That account is not registered yet. Enter your invite code, then sign up with it.';
+
+  @override
+  String get tvStatusFindingPortals => 'Finding live portals…';
+
+  @override
+  String get tvStatusSearchingMore => 'Searching for more…';
+
+  @override
+  String tvStatusVerifyingNeed(int count, int need) {
+    return 'Verifying $count portals · need $need more';
+  }
+
+  @override
+  String tvStatusVerifyingAlive(int done, int total, int alive, int target) {
+    return 'Verifying $done / $total · alive $alive / $target';
+  }
+
+  @override
+  String get tvStatusSourceEmpty => 'No live portals found in this source.';
+
+  @override
+  String get tvStatusNoNewTryAgain =>
+      'No new live portals. Try Generate Portals again.';
+
+  @override
+  String get tvStatusNoNew => 'No new live portals.';
+
+  @override
+  String tvStatusFoundPortals(int count) {
+    return 'Found $count live portals.';
+  }
+
+  @override
+  String tvStatusFoundPortalsExhausted(int count) {
+    return 'Found $count live portals (source exhausted).';
+  }
+
+  @override
+  String tvStatusFoundPortalsStopped(int count) {
+    return 'Found $count live portals (stopped early).';
+  }
+
+  @override
+  String tvStatusMoreQueued(int count) {
+    return '$count more waiting to be checked.';
+  }
+
+  @override
+  String get tvStatusScrapeFailed =>
+      'Could not get portals. Check your connection and try again.';
+
+  @override
+  String get tvStatusRecheckingSaved => 'Re-checking saved portals…';
+
+  @override
+  String tvStatusStillAlive(int count) {
+    return '$count portals still alive.';
+  }
+
+  @override
+  String get tvAddAllFieldsRequired => 'All fields are required';
+
+  @override
+  String get tvAddAlreadyAdded => 'This portal is already added (same login)';
+
+  @override
+  String get tvAddLoginFailed =>
+      'Login failed: wrong login or the portal is down.';
+
+  @override
+  String get tvImportBusy => 'Already importing.';
+
+  @override
+  String get tvImportNoPortalsArray => 'The JSON has no \"portals\" list.';
+
+  @override
+  String get tvImportBadShape => 'This JSON is not a portal list.';
+
+  @override
+  String get tvImportInvalidJson => 'This file is not valid JSON.';
+
+  @override
+  String get tvImportNoEntries => 'No portal entries found.';
+
+  @override
+  String tvImportProgress(int done, int total) {
+    return 'Importing $done / $total…';
+  }
+
+  @override
+  String tvImportSummary(int added, int skipped, int failed) {
+    return 'Imported $added · skipped $skipped · failed $failed';
+  }
+
+  @override
+  String get tvStatusNoWorkingPortals =>
+      'No working portals available. Tap Scan More.';
+
+  @override
+  String tvStatusStreamsAlive(int count) {
+    return '$count streams alive.';
+  }
+
+  @override
+  String get tvStatusNoMatches => 'No matching channels found. Try Scan More.';
+
+  @override
+  String tvStatusAliveNoNew(int count) {
+    return '$count alive · no new matches.';
+  }
+
+  @override
+  String tvStatusNoAliveFor(String name) {
+    return 'No live streams found for $name.';
+  }
+
+  @override
+  String tvStatusStreamsReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count live streams ready.',
+      one: '1 live stream ready.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get tvDescUsLeagues =>
+      'NBA TV, NFL Network, RedZone, MLB, NHL, Fox Sports & CBS Sports';
+
+  @override
+  String get tvDescSoccer =>
+      'UEFA Champions League, Premier League, beIN Sports, La Liga & Serie A';
+
+  @override
+  String get tvDescRacing =>
+      'Formula 1, MotoGP, NASCAR Cup, IndyCar & Rally WRC';
+
+  @override
+  String get tvDescMovies => 'HBO, Showtime, Starz, Cinemax, Paramount & AMC';
+
+  @override
+  String get tvDescNews =>
+      'CNN, BBC World, Fox News, Sky News, Al Jazeera & Bloomberg';
+
+  @override
+  String get tvDescArabic =>
+      'MBC, Rotana, OSN, Abu Dhabi TV, Dubai TV & Al Arabiya';
+
+  @override
+  String get tvDescDiscovery =>
+      'National Geographic, Discovery Channel, History & Animal Planet';
+
+  @override
+  String get tvDescKids =>
+      'Cartoon Network, Disney Channel, Nickelodeon & Spacetoon';
+
+  @override
+  String get tvDescCanada =>
+      'CBC News, CTV News, TSN Sportsnet, Crave & Global News';
+
+  @override
+  String get tvDescBayArea =>
+      'KTVU Fox 2, KPIX 5 CBS, KGO 7 ABC, KRON 4 & NBC Bay Area';
+
+  @override
+  String get filterNoMatches => 'No titles match these filters.';
+
+  @override
+  String get filterLoadFailed => 'Couldn\'t load the list.';
+
+  @override
+  String get homeUiForYou => 'Recommended for you';
+
+  @override
+  String get homeUiForYouDesc => 'Rows on Home of the kinds you watch most';
+
+  @override
+  String cal2EpisodesOnNetwork(int count, String network) {
+    return '$count on $network';
+  }
 }

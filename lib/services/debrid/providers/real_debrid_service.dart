@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../account/account_scope.dart';
 import '../../storage/secret_keys.dart';
 import '../../storage/secure_store.dart';
 import '../models/debrid_error.dart';
@@ -11,14 +12,18 @@ import '../utils/debrid_failure_mapper.dart';
 import '../utils/debrid_media_matcher.dart';
 
 class RealDebridService {
-  Future<String?> getToken() => SecureStore.read(SecretKeys.realDebridToken);
+  Future<String?> getToken() =>
+      SecureStore.read(AccountScope.key(SecretKeys.realDebridToken));
 
   Future<void> saveToken(String key) async {
     final trimmed = key.trim();
     if (trimmed.isEmpty) {
-      await SecureStore.delete(SecretKeys.realDebridToken);
+      await SecureStore.delete(AccountScope.key(SecretKeys.realDebridToken));
     } else {
-      await SecureStore.write(SecretKeys.realDebridToken, trimmed);
+      await SecureStore.write(
+        AccountScope.key(SecretKeys.realDebridToken),
+        trimmed,
+      );
     }
   }
 

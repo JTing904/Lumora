@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zplay/models/movie/video.dart';
 import 'package:zplay/services/metadata/episode_art.dart';
+import 'package:zplay/services/settings/locale_settings.dart';
 
 Video _v(int s, int e, String date, {String? title, String? thumb}) => Video(
   id: 'tt1:$s:$e',
@@ -130,6 +133,7 @@ void main() {
       'E5',
       '第 4 集',
       '第4话',
+      'Episode #1.4',
       '',
     ]) {
       expect(EpisodeArt.isPlaceholderName(n), isTrue, reason: n);
@@ -137,5 +141,22 @@ void main() {
     for (final n in ['Ordinary man', '风起天南1：七玄门', 'Episode 4: The Return']) {
       expect(EpisodeArt.isPlaceholderName(n), isFalse, reason: n);
     }
+  });
+
+  test('in Chinese an English name over TMDb 第N集 goes', () {
+    LocaleSettings.locale.value = const Locale('zh');
+    addTearDown(() => LocaleSettings.locale.value = null);
+    final numbered = [
+      _t(1, '2020-07-25', '第 1 集'),
+      _t(2, '2020-08-01', '第 2 集'),
+    ];
+    final english = [
+      _v(1, 1, '2020-07-25', title: 'Pilot'),
+      _v(1, 2, '2020-08-01', title: 'Episode #1.2'),
+    ];
+    final zh = EpisodeArt.apply(english, numbered, preferTmdbText: true);
+    expect(zh.map((v) => v.title), ['第 1 集', '第 2 集']);
+    final en = EpisodeArt.apply(english, numbered, preferTmdbText: false);
+    expect(en.first.title, 'Pilot', reason: 'English keeps the real name');
   });
 }
