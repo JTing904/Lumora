@@ -90,6 +90,10 @@ abstract final class LocalizedMeta {
   }) async {
     if (!_wantsChinese || !TmdbService.hasScraperKey) return null;
     if (_cache.containsKey(imdbId)) return _cache[imdbId];
+    if (_resting(imdbId)) return null;
+    // The details page doesn't join a card's lookup that may still be queued
+    // behind dozens of others; it asks at the front.
+    if (TmdbService.isUrgent) return _lookUp(imdbId, series: series);
     // One request per title however many cards ask at once.
     return _pending[imdbId] ??=
         _lookUp(
@@ -137,9 +141,29 @@ abstract final class LocalizedMeta {
       );
     } catch (e) {
       debugPrint('[LocalizedMeta] $imdbId: $e');
+      _rest(imdbId);
       return null;
     }
   }
+
+  /// Lookups TMDb didn't answer, and when they may be asked again. A card is
+  /// built again and again (scrolling, a carousel's tick), and every build
+  /// asking again turned one unanswered title into a stream of requests that
+  /// crowded out the rest.
+  static final Map<String, DateTime> _restUntil = {};
+  @visibleForTesting
+  static Duration restFor = const Duration(minutes: 2);
+
+  static bool _resting(String key) {
+    final until = _restUntil[key];
+    if (until == null) return false;
+    if (DateTime.now().isBefore(until)) return true;
+    _restUntil.remove(key);
+    return false;
+  }
+
+  static void _rest(String key) =>
+      _restUntil[key] = DateTime.now().add(restFor);
 
   static Future<Map?> _find(
     String imdbId, {
@@ -230,6 +254,7 @@ abstract final class LocalizedMeta {
     final key = _titleKey(title, year, series);
     final known = _byTitle[key];
     if (known != null) return known;
+    if (_resting(key)) return Future.value(null);
     final lookup = () async {
       // "Black Clover Season 2" is not a title TMDb knows; the show is
       // 黑色四叶草, and the season goes back on the end. A later season's
@@ -253,11 +278,24 @@ abstract final class LocalizedMeta {
         }
       }
 
+      // Whether every request was answered. A title that was answered and
+      // has no Chinese name is kept as such; one that wasn't is asked again
+      // later.
+      var unanswered = false;
+      Future<Map<String, dynamic>?> read(
+        String path,
+        Map<String, String> params,
+      ) async {
+        final body = await TmdbService.getScraperJson(path, params);
+        if (body == null) unanswered = true;
+        return body;
+      }
+
       Future<Map<String, dynamic>?> search(
         ({String base, int? season, String? year}) a,
         bool tv,
         String language,
-      ) => TmdbService.getScraperJson(tv ? '/search/tv' : '/search/movie', {
+      ) => read(tv ? '/search/tv' : '/search/movie', {
         'query': a.base,
         'language': language,
         if (a.year != null && a.year!.length == 4)
@@ -304,7 +342,10 @@ abstract final class LocalizedMeta {
           }
         }
       }
-      if (hit == null) return null;
+      if (hit == null) {
+        if (unanswered) throw StateError('TMDb did not answer');
+        return null;
+      }
       final season = ask.season;
       final want = _bare(ask.base);
       final path = '/${hit.tv ? 'tv' : 'movie'}/${hit.id}';
@@ -326,7 +367,7 @@ abstract final class LocalizedMeta {
         return _han.hasMatch(o) && !_kana.hasMatch(o) ? o : null;
       }
 
-      final cn = await TmdbService.getScraperJson(path, {'language': 'zh-CN'});
+      final cn = await read(path, {'language': 'zh-CN'});
       // A Chinese title asked by its own name (a category grid's 庆余年, which
       // TMDb's list already gave in zh-CN) gets that name back. Taking it as
       // "no translation" went on to zh-TW and put 慶餘年 on the card while the
@@ -336,19 +377,18 @@ abstract final class LocalizedMeta {
       var name = nameOf(cn, sameIsName: chinese);
       var overview = overviewOf(cn);
       if (name == null || overview == null) {
-        final tw = await TmdbService.getScraperJson(path, {
-          'language': 'zh-TW',
-        });
+        final tw = await read(path, {'language': 'zh-TW'});
         name ??= nameOf(tw);
         overview ??= overviewOf(tw);
       }
       if (season != null && hit.tv) {
-        final page = await TmdbService.getScraperJson('$path/season/$season', {
-          'language': 'zh-CN',
-        });
+        final page = await read('$path/season/$season', {'language': 'zh-CN'});
         overview = overviewOf(page) ?? overview;
       }
-      if (name == null && overview == null) return null;
+      if (name == null && overview == null) {
+        if (unanswered) throw StateError('TMDb did not answer');
+        return null;
+      }
       return LocalText(
         name: name == null || season == null ? name : '$name 第$season季',
         overview: overview,
@@ -359,14 +399,16 @@ abstract final class LocalizedMeta {
     _byTitle[key] = lookup;
     lookup.then(
       (text) {
-        if (text == null) _byTitle.remove(key);
         if (text?.name case final name?) _titleNames[key] = name;
       },
       onError: (Object _) {
         _byTitle.remove(key);
+        _rest(key);
       },
     );
-    return lookup;
+    // Callers get null for an unanswered title, as before; the error only
+    // tells the cache apart from "no Chinese name".
+    return lookup.catchError((Object _) => null);
   }
 
   static final RegExp _kana = RegExp(r'[぀-ヿ]');
@@ -459,6 +501,7 @@ abstract final class LocalizedMeta {
     _cache.clear();
     _byTitle.clear();
     _titleNames.clear();
+    _restUntil.clear();
     _genreNames.clear();
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
@@ -196,33 +197,94 @@ abstract final class TmdbService {
 
   /// A GET through [proxyBase], signed in as the current user. No body when
   /// there is no proxy or it does not answer.
+  ///
+  /// The proxy lets each address ask a limited number of times a minute, and
+  /// a refused answer used to read as "no Chinese data", so a busy start-up
+  /// left titles and synopses in English. Requests are now paced under that
+  /// limit, the same request in flight twice is asked once, and a refusal is
+  /// waited out and asked again.
   static Future<({Map<String, dynamic>? body, int? status})> _proxyJson(
     String path,
     Map<String, String> params,
-  ) async {
+  ) {
     final base = proxyBase;
-    if (base == null) return (body: null, status: null);
+    if (base == null) return Future.value((body: null, status: null));
     final uri = Uri.parse(
       '$base$path',
     ).replace(queryParameters: params.isEmpty ? null : params);
+    // The page the viewer is looking at goes ahead of every card title queued
+    // at start-up; it doesn't wait behind a shared copy that is still queued.
+    if (Zone.current[_urgentKey] == true) return _askProxy(uri, urgent: true);
+    final key = uri.toString();
+    // A block body: `remove` hands back this very future, and whenComplete
+    // waits for a future its callback returns, so an arrow would wait on
+    // itself forever.
+    return _proxyInFlight[key] ??= _askProxy(uri).whenComplete(() {
+      _proxyInFlight.remove(key);
+    });
+  }
+
+  static final Object _urgentKey = Object();
+
+  /// Whether the code running now is inside [urgently].
+  static bool get isUrgent => Zone.current[_urgentKey] == true;
+
+  /// Runs [body] with its TMDb requests ahead of the queue: for what the
+  /// viewer is waiting on (a details page), not for card titles filling in.
+  static Future<T> urgently<T>(Future<T> Function() body) => urgentZone(body);
+
+  /// [urgently] for work that starts synchronously and keeps going, such as
+  /// a source search that hands back a stream.
+  static T urgentZone<T>(T Function() body) =>
+      runZoned(body, zoneValues: {_urgentKey: true});
+
+  static final Map<String, Future<({Map<String, dynamic>? body, int? status})>>
+  _proxyInFlight = {};
+
+  /// Under the proxy's own limit (120 a minute per address), with 30 of them
+  /// kept for the page the viewer is looking at.
+  static final ProxyPace _proxyPace = ProxyPace(perMinute: 110, reserve: 30);
+
+  /// The first wait after a refusal; doubled each time. Zero in tests.
+  @visibleForTesting
+  static Duration proxyRetryBase = const Duration(milliseconds: 1500);
+
+  static Future<({Map<String, dynamic>? body, int? status})> _askProxy(
+    Uri uri, {
+    bool urgent = false,
+  }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     final publishable = AccountService.publishableKey;
     if (publishable != null) headers['apikey'] = publishable;
     final token = AccountService.accessToken;
     if (token != null) headers['Authorization'] = 'Bearer $token';
-    try {
-      final response = await client
-          .get(uri, headers: headers)
-          .timeout(_timeout);
-      final status = response.statusCode;
-      if (status != 200) return (body: null, status: status);
-      final decoded = jsonDecode(response.body);
-      return (
-        body: decoded is Map<String, dynamic> ? decoded : null,
-        status: status,
-      );
-    } catch (_) {
-      return (body: null, status: null);
+    const attempts = 3;
+    for (var attempt = 0; ; attempt++) {
+      await _proxyPace.take(urgent: urgent);
+      try {
+        final response = await client
+            .get(uri, headers: headers)
+            .timeout(_timeout);
+        final status = response.statusCode;
+        if (status == 429 && attempt + 1 < attempts) {
+          final asked = int.tryParse(response.headers['retry-after'] ?? '');
+          final backoff = proxyRetryBase * (1 << attempt);
+          await Future<void>.delayed(
+            asked != null && asked > 0 && proxyRetryBase > Duration.zero
+                ? Duration(seconds: asked.clamp(1, 10))
+                : backoff,
+          );
+          continue;
+        }
+        if (status != 200) return (body: null, status: status);
+        final decoded = jsonDecode(response.body);
+        return (
+          body: decoded is Map<String, dynamic> ? decoded : null,
+          status: status,
+        );
+      } catch (_) {
+        return (body: null, status: null);
+      }
     }
   }
 
@@ -416,4 +478,80 @@ class _HttpOutcome {
 
   /// The HTTP status answered with; null when nothing answered.
   final int? code;
+}
+
+/// Spaces requests so that no more than [perMinute] go out in any minute,
+/// keeping [reserve] of them for urgent ones: a burst of card titles at
+/// start-up can't make the page the viewer opened wait for the next minute.
+/// Callers are served in the order they asked, urgent ones first.
+class ProxyPace {
+  ProxyPace({
+    required this.perMinute,
+    this.reserve = 0,
+    DateTime Function()? now,
+    Future<void> Function(Duration)? sleep,
+  }) : _now = now ?? DateTime.now,
+       _sleep = sleep ?? ((d) => Future<void>.delayed(d));
+
+  final int perMinute;
+  final int reserve;
+  final DateTime Function() _now;
+  final Future<void> Function(Duration) _sleep;
+  final ListQueue<DateTime> _sent = ListQueue();
+  final List<({bool urgent, Completer<void> turn})> _waiting = [];
+  bool _serving = false;
+
+  /// How often a waiting queue looks again, so an urgent request that
+  /// arrives meanwhile isn't held behind an ordinary one's long wait.
+  static const Duration _tick = Duration(milliseconds: 250);
+
+  /// Waits for a free place in the minute, then holds it. An [urgent] call
+  /// goes ahead of every ordinary one still waiting and may use [reserve].
+  Future<void> take({bool urgent = false}) {
+    final turn = Completer<void>();
+    final entry = (urgent: urgent, turn: turn);
+    if (urgent) {
+      final firstOrdinary = _waiting.indexWhere((w) => !w.urgent);
+      _waiting.insert(
+        firstOrdinary < 0 ? _waiting.length : firstOrdinary,
+        entry,
+      );
+    } else {
+      _waiting.add(entry);
+    }
+    unawaited(_serve());
+    return turn.future;
+  }
+
+  Future<void> _serve() async {
+    if (_serving) return;
+    _serving = true;
+    try {
+      while (_waiting.isNotEmpty) {
+        final head = _waiting.first;
+        final wait = _waitFor(head.urgent ? perMinute : perMinute - reserve);
+        if (wait == Duration.zero) {
+          _sent.addLast(_now());
+          _waiting.removeAt(0).turn.complete();
+          continue;
+        }
+        await _sleep(wait < _tick ? wait : _tick);
+      }
+    } finally {
+      _serving = false;
+    }
+  }
+
+  /// How long until fewer than [limit] requests went out in the last minute.
+  Duration _waitFor(int limit) {
+    const minute = Duration(minutes: 1);
+    final now = _now();
+    while (_sent.isNotEmpty && now.difference(_sent.first) >= minute) {
+      _sent.removeFirst();
+    }
+    if (_sent.length < limit) return Duration.zero;
+    final freesAt = _sent.elementAt(_sent.length - limit).add(minute);
+    final wait = freesAt.difference(now);
+    return wait > Duration.zero ? wait : const Duration(milliseconds: 1);
+  }
 }

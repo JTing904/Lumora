@@ -1342,6 +1342,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'This source cannot seek • Starting from the beginning';
 
   @override
+  String playerAdsRemoved(int seconds) {
+    return 'Removed $seconds s of ads';
+  }
+
+  @override
   String get playerSubDownloadFailed => 'Failed to download subtitle';
 
   @override
@@ -1496,6 +1501,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subSpeechSync => 'Speech Text Sync';
+
+  @override
+  String get subDefaultTitle => 'Default subtitles';
+
+  @override
+  String get subDefaultChinese => 'Chinese';
+
+  @override
+  String get subDefaultEnglish => 'English';
+
+  @override
+  String get subDefaultHint =>
+      'New episodes open with this. Picking a subtitle by hand updates it.';
+
+  @override
+  String get subAutoEnglish => 'No Chinese subtitle found, English is on';
+
+  @override
+  String get subBurnedInHint =>
+      'This source usually has subtitles in the picture, so none was turned on. Pick one in the subtitle menu if you need it.';
+
+  @override
+  String cwResuming(String title) {
+    return 'Resuming $title…';
+  }
+
+  @override
+  String cwResumingEpisode(String title, int episode) {
+    return 'Resuming $title, episode $episode…';
+  }
 
   @override
   String get subOff => 'Off';
@@ -9295,40 +9330,42 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get subAiTitle => 'AI Chinese · in sync with the picture';
+  String get subAutoSyncOn => 'Align subtitles automatically';
 
   @override
-  String get subAiBody =>
-      'Translates the English subtitle line by line and keeps its timing';
+  String get subAutoSyncOnHint =>
+      'Compares the subtitle with the film while you watch and corrects its timing';
 
   @override
-  String subAiProgress(int done, int total) {
-    return 'Translated $done of $total lines';
+  String get subAutoSyncListening => 'Auto-align: listening…';
+
+  @override
+  String get subAutoSyncAligned => 'Auto-align: in time';
+
+  @override
+  String get subAutoSyncUnsure => 'Auto-align: not sure, left as is';
+
+  @override
+  String get subAutoSyncPaused => 'Auto-align: paused, you set the timing';
+
+  @override
+  String get subAutoSyncOff => 'Auto-align: off';
+
+  @override
+  String get subAutoSyncNoSource => 'Auto-align: nothing to compare with';
+
+  @override
+  String subAutoSyncDone(String offset) {
+    return 'Subtitles aligned automatically ($offset s)';
   }
 
   @override
-  String get subAiStarted =>
-      'Translating into Chinese. Lines appear as they are ready.';
-
-  @override
-  String subAiDone(int total) {
-    return 'All $total lines are in Chinese';
+  String subAutoSyncDoneStretched(String offset) {
+    return 'Subtitles aligned automatically ($offset s), and their speed corrected';
   }
 
   @override
-  String get subAiSignedOut =>
-      'Sign in to your Lumora account to use AI subtitles';
-
-  @override
-  String get subAiNotInvited =>
-      'AI subtitles need an account that used an invite code';
-
-  @override
-  String get subAiUnavailable =>
-      'The AI is busy right now. Try again in a moment.';
-
-  @override
-  String get subAiNoEnglish => 'No English subtitle to translate';
+  String get subAutoSyncUndo => 'Undo';
 
   @override
   String authSignUpWith(String provider) {

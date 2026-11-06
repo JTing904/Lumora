@@ -121,5 +121,16 @@ void main() {
       ], '');
       expect(ranked.map((v) => v.title), ['one', 'two']);
     });
+
+    test('a machine translation goes last even when it fits best', () {
+      final ranked = SubtitleChoice.rank([
+        _v(
+          'chi',
+          'Hocus.Pocus.1993.720p.BrRip.x264.YIFY - Chinese (Auto Translated)',
+        ),
+        _v('chi', 'Hocus Pocus 1993 - Chinese (S)'),
+      ], 'Hocus.Pocus.1993.720p.BrRip.x264.YIFY');
+      expect(ranked.first.title, 'Hocus Pocus 1993 - Chinese (S)');
+    });
   });
 }

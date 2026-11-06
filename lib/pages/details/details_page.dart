@@ -14,6 +14,7 @@ import '../../services/layout/form_factor.dart';
 import '../../services/metadata/bestsimilar_scraper.dart';
 import '../../services/metadata/episode_art.dart';
 import '../../services/metadata/localized_meta.dart';
+import '../../services/metadata/tmdb_service.dart';
 import '../../services/metadata/metadata_service.dart';
 import '../../services/metadata/tmdb_catalog.dart';
 import '../../services/my_list/my_list_service.dart';
@@ -192,7 +193,9 @@ class _DetailsPageState extends State<DetailsPage> {
   final Map<String, Future<List<CastMember>?>> _localCastById = {};
   Future<List<CastMember>?> _localCast(MovieDetail meta) =>
       _localCastById[meta.id] ??= meta.id.startsWith('tt')
-      ? LocalizedMeta.castFor(meta.id, series: _isSeries)
+      ? TmdbService.urgently(
+          () => LocalizedMeta.castFor(meta.id, series: _isSeries),
+        )
       : Future.value(null);
 
   void _onSessionsChanged() {
@@ -254,7 +257,9 @@ class _DetailsPageState extends State<DetailsPage> {
   /// that returns without a detail ends on the unavailable state.
   Future<void> _fetchDetails() async {
     try {
-      await _loadDetails();
+      // Ahead of the card titles still filling in elsewhere: the viewer is
+      // looking at this page.
+      await TmdbService.urgently(_loadDetails);
     } catch (e) {
       debugPrint('[Details] ${widget.movie.id}: $e');
     } finally {

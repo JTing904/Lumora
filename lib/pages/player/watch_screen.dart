@@ -1,4 +1,5 @@
 import '../../services/metadata/title_kind_service.dart';
+import '../../services/metadata/tmdb_service.dart';
 import '../../services/metadata/episode_art.dart';
 import '../account/login_page.dart' show SignInRequired;
 import '../../services/player/source_pick_settings.dart';
@@ -427,39 +428,43 @@ class _WatchScreenState extends State<_WatchScreenBody>
       if (!mounted) return;
     }
 
-    _streamSub =
-        StreamService.fetchStreams(
-          type: effectiveType,
-          id: streamId,
-          title: effectiveTitle,
-          year: effectiveYear,
-          season: effectiveSeason,
-          episode: effectiveEpisode,
-          chineseEpisode: chineseEpisode,
-          genres: widget.detail.genres,
-        ).listen(
-          (source) {
-            if (!mounted) return;
-            _recordSubtitles(source.subtitles);
-            _pendingSources.add(source);
-            if (_sources.isEmpty) {
+    // The viewer is waiting on this list: its TMDb look-ups go ahead of the
+    // card titles still filling in elsewhere.
+    _streamSub = TmdbService.urgentZone(
+      () =>
+          StreamService.fetchStreams(
+            type: effectiveType,
+            id: streamId,
+            title: effectiveTitle,
+            year: effectiveYear,
+            season: effectiveSeason,
+            episode: effectiveEpisode,
+            chineseEpisode: chineseEpisode,
+            genres: widget.detail.genres,
+          ).listen(
+            (source) {
+              if (!mounted) return;
+              _recordSubtitles(source.subtitles);
+              _pendingSources.add(source);
+              if (_sources.isEmpty) {
+                _flushPendingSources();
+              } else {
+                _sourceBatchTimer ??= Timer(
+                  const Duration(milliseconds: 50),
+                  _flushPendingSources,
+                );
+              }
+            },
+            onError: (_) {},
+            onDone: () {
+              _scrapeDone = true;
               _flushPendingSources();
-            } else {
-              _sourceBatchTimer ??= Timer(
-                const Duration(milliseconds: 50),
-                _flushPendingSources,
-              );
-            }
-          },
-          onError: (_) {},
-          onDone: () {
-            _scrapeDone = true;
-            _flushPendingSources();
-            if (mounted && _isLoadingSources && _allSourcesAnswered) {
-              setState(() => _isLoadingSources = false);
-            }
-          },
-        );
+              if (mounted && _isLoadingSources && _allSourcesAnswered) {
+                setState(() => _isLoadingSources = false);
+              }
+            },
+          ),
+    );
 
     if (!isColl) _loadOfficialUploads();
     if (!isColl) _loadArchiveFilms();

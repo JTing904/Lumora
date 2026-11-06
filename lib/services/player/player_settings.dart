@@ -6,6 +6,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../subtitles/subtitle_choice.dart';
 import 'engine/exo_player_engine.dart';
 
 /// Subtitle styling preset for rapid 1-tap appearance selection.
@@ -462,6 +463,7 @@ abstract final class PlayerSettings {
   static const _keyEnableSurfaceProducer = 'player_enable_surface_producer';
   static const _keyPlaybackEngine = 'player_playback_engine';
   static const _keyPlayerVolume = 'player_saved_volume';
+  static const _keySubtitleDefault = 'player_subtitle_default';
 
   // Hardcoded engine defaults — not user-configurable
   // autoResyncOnStall and hardwareAudioClock are kept as ValueNotifiers for
@@ -544,6 +546,12 @@ abstract final class PlayerSettings {
   // Subtitle Customization ValueNotifiers
   static final ValueNotifier<SubtitleStylePreset> subStylePreset =
       ValueNotifier<SubtitleStylePreset>(SubtitleStylePreset.classicWhite);
+
+  /// The subtitle a video opens with: the viewer's last pick, so a new
+  /// episode or film does not start with the subtitles off. Chinese until
+  /// they choose otherwise.
+  static final ValueNotifier<SubtitlePreference> subtitleDefault =
+      ValueNotifier<SubtitlePreference>(SubtitlePreference.chinese);
   static final ValueNotifier<String> subFont = ValueNotifier<String>('subfont');
   static final ValueNotifier<int> subFontSize = ValueNotifier<int>(32);
   static final ValueNotifier<double> subScale = ValueNotifier<double>(1.0);
@@ -639,6 +647,9 @@ abstract final class PlayerSettings {
         orElse: () => SubtitleStylePreset.classicWhite,
       );
     }
+    subtitleDefault.value = SubtitlePreference.fromName(
+      prefs.getString(_keySubtitleDefault),
+    );
     subFont.value = prefs.getString(_keySubFont) ?? 'subfont';
     subFontSize.value = prefs.getInt(_keySubFontSize) ?? 32;
     subScale.value = prefs.getDouble(_keySubScale) ?? 1.0;
@@ -1709,6 +1720,14 @@ abstract final class PlayerSettings {
     _notify();
   }
 
+  /// Remembers [preference] for the videos opened from now on.
+  static Future<void> setSubtitleDefault(SubtitlePreference preference) async {
+    if (subtitleDefault.value == preference) return;
+    subtitleDefault.value = preference;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keySubtitleDefault, preference.name);
+  }
+
   static Future<void> setSubFont(String font, {Player? player}) async {
     subFont.value = font;
     subStylePreset.value = SubtitleStylePreset.custom;
@@ -1966,6 +1985,8 @@ abstract final class PlayerSettings {
     await prefs.remove(_keyAutoRecoverBlackScreen);
     await prefs.remove(_keyPlayerVolume);
     await prefs.remove(_keyPlaybackEngine);
+    await prefs.remove(_keySubtitleDefault);
+    subtitleDefault.value = SubtitlePreference.chinese;
     anime4kPreset.value = Anime4KPreset.off;
     enableSurfaceProducer.value = true;
     hwdecMode.value = HardwareAccelerationMode.autoSafe;

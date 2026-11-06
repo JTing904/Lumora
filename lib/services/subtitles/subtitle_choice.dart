@@ -11,6 +11,36 @@ enum SubtitleLanguage {
   final String label;
 }
 
+/// What the viewer wants on screen when a video opens, remembered across
+/// videos: the last subtitle they picked by hand.
+enum SubtitlePreference {
+  off,
+  chinese,
+  english;
+
+  /// The stored [name] as a preference. Anything unknown, including the
+  /// `aiChinese` of a build that translated with an AI, is Chinese: the
+  /// default, and what that choice was after.
+  static SubtitlePreference fromName(String? name) =>
+      values.firstWhere((p) => p.name == name, orElse: () => chinese);
+
+  /// The preference a subtitle in [language] stands for, or null when the
+  /// language is neither (a track that names none says nothing).
+  static SubtitlePreference? forLanguage(SubtitleLanguage? language) =>
+      switch (language) {
+        SubtitleLanguage.chinese => chinese,
+        SubtitleLanguage.english => english,
+        null => null,
+      };
+
+  /// The language to look for, or null for [off].
+  SubtitleLanguage? get language => switch (this) {
+    off => null,
+    chinese => SubtitleLanguage.chinese,
+    english => SubtitleLanguage.english,
+  };
+}
+
 /// Which subtitles to offer and which to pick first.
 ///
 /// Providers answer in every language they have, under labels of their own
@@ -117,21 +147,36 @@ abstract final class SubtitleChoice {
   }
 
   /// [variants] with the best fit for [sourceText] first; ties keep their
-  /// order.
+  /// order. Machine translations go last whatever their fit: one cut for
+  /// the right release still reads worse than a person's subtitle, and as
+  /// the default it was the first thing a viewer saw.
   static List<SubtitleVariant> rank(
     List<SubtitleVariant> variants,
     String sourceText,
   ) {
     final scored = [
       for (var i = 0; i < variants.length; i++)
-        (i, versionScore(variants[i].title, sourceText), variants[i]),
+        (
+          i,
+          versionScore(variants[i].title, sourceText),
+          variants[i],
+          isMachineTranslated(variants[i].title),
+        ),
     ];
     scored.sort((a, b) {
+      if (a.$4 != b.$4) return a.$4 ? 1 : -1;
       final byScore = b.$2.compareTo(a.$2);
       return byScore != 0 ? byScore : a.$1.compareTo(b.$1);
     });
     return [for (final s in scored) s.$3];
   }
+
+  /// A subtitle a machine translated ("... (Auto Translated)", SubtitleCat's
+  /// label for its own translations).
+  static bool isMachineTranslated(String title) => RegExp(
+    r'auto[\s-]*translated|machine[\s-]*translat|机翻|機翻',
+    caseSensitive: false,
+  ).hasMatch(title);
 
   static Set<String> _tokens(String text) {
     final lower = text.toLowerCase().replaceAll('web-dl', 'webdl');

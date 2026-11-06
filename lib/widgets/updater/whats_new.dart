@@ -11,6 +11,25 @@ import '../../ui/lu_theme.dart';
 /// What each version brought, in both languages, newest first. Shown once,
 /// on the first start after updating to that version.
 const Map<String, List<(String, String)>> releaseHighlights = {
+  '1.0.6': [
+    (
+      'Subtitles come on by themselves, in Chinese (English when there is none). Your last choice is remembered.',
+      '字幕会自动开，默认中文（没有中文时开英文），并记住你上次的选择。',
+    ),
+    (
+      'Subtitles that are out of step are put right while you watch.',
+      '字幕和画面对不上时，会边看边自动对齐。',
+    ),
+    (
+      'Ads spliced into 资源站 videos are removed, and their own burned-in subtitles no longer get a second line on top.',
+      '资源站片子里插的广告会自动去掉；画面自带字幕时不再叠第二层。',
+    ),
+    (
+      'Titles and details stay in Chinese, and sources are found faster.',
+      '片名和简介不再变回英文，找片源也更快。',
+    ),
+    ('AI Chinese subtitles are removed.', 'AI 中文字幕已移除。'),
+  ],
   '1.0.5': [
     ('Tap the picture to pause or play.', '点一下画面就能暂停或播放。'),
     (

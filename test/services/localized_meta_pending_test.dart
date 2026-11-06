@@ -89,10 +89,21 @@ void main() {
   test(
     'a TMDb that did not answer is asked again, not cached as no match',
     () async {
+      LocalizedMeta.restFor = Duration.zero;
+      addTearDown(() => LocalizedMeta.restFor = const Duration(minutes: 2));
       failFinds = 2; // the first ask and its retry
       expect(await LocalizedMeta.forImdbId('tt5950044', series: false), isNull);
       final again = await LocalizedMeta.forImdbId('tt5950044', series: false);
       expect(again?.name, '超人');
     },
   );
+
+  test('an unanswered title rests before it is asked again', () async {
+    failFinds = 2;
+    expect(await LocalizedMeta.forImdbId('tt5950044', series: false), isNull);
+    final asked = finds;
+    // A card built again right away doesn't ask again.
+    expect(await LocalizedMeta.forImdbId('tt5950044', series: false), isNull);
+    expect(finds, asked);
+  });
 }

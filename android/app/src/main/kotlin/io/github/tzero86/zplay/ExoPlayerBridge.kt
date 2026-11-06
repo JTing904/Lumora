@@ -82,6 +82,13 @@ class ExoPlayerBridge(private val context: Context) {
      */
     private var speed: Float = 1f
 
+    /**
+     * Measures the audio's speech-band level for the subtitle auto-sync. It
+     * lives here rather than on the player for the same reason as [volume]: the
+     * Dart subscription outlives every load. Off until Dart asks.
+     */
+    private val audioLevels = AudioLevelTap(::emit)
+
     private var playWhenReady: Boolean = true
     private var subtitlesVisible: Boolean = true
     private var lastError: String? = null
@@ -164,8 +171,13 @@ class ExoPlayerBridge(private val context: Context) {
                         subtitlesVisible = call.argument<Boolean>("visible") ?: true
                         result.success(true)
                     }
+                    "setAudioLevelsEnabled" -> {
+                        audioLevels.setEnabled(call.argument<Boolean>("enabled") ?: false)
+                        result.success(true)
+                    }
                     "release" -> {
                         release()
+                        audioLevels.setEnabled(false)
                         result.success(true)
                     }
                     else -> result.notImplemented()
@@ -254,6 +266,7 @@ class ExoPlayerBridge(private val context: Context) {
         isLive: Boolean
     ) {
         release()
+        audioLevels.clear()
         lastError = null
 
         // HTTP headers go on the data source factory, not on MediaItem:
@@ -284,7 +297,7 @@ class ExoPlayerBridge(private val context: Context) {
         // Not chained: Kotlin refuses to continue a builder chain across a Java
         // method that returns a widened type, and the intermediate steps read
         // no worse this way.
-        val renderersFactory = DefaultRenderersFactory(context)
+        val renderersFactory = AudioLevelRenderersFactory(context, audioLevels)
         // The load control is set on the ExoPlayer builder, not here:
         // DefaultRenderersFactory has no such setter in Media3 1.11.
         renderersFactory.setExtensionRendererMode(
@@ -448,6 +461,7 @@ class ExoPlayerBridge(private val context: Context) {
 
     fun destroy() {
         release()
+        audioLevels.setEnabled(false)
         eventSink = null
     }
 }

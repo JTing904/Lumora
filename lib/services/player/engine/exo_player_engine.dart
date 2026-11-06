@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart' show PlatformViewHitTestBehavior;
 import 'package:flutter/widgets.dart';
 
+import 'audio_level.dart';
 import 'video_engine.dart';
 
 /// [VideoEngine] backed by Android's ExoPlayer/Media3, rendering into a
@@ -51,6 +52,12 @@ class ExoPlayerEngine implements VideoEngine {
       StreamController<EngineState>.broadcast();
   final ValueNotifier<bool> surfaceMounted = ValueNotifier<bool>(false);
 
+  late final StreamController<AudioLevelSample> _audioLevels =
+      StreamController<AudioLevelSample>.broadcast(
+        onListen: () => unawaited(_setAudioLevelsEnabled(true)),
+        onCancel: () => unawaited(_setAudioLevelsEnabled(false)),
+      );
+
   EngineState _state = const EngineState();
   StreamSubscription<dynamic>? _eventSub;
 
@@ -83,6 +90,31 @@ class ExoPlayerEngine implements VideoEngine {
 
   @override
   Stream<EngineState> get events => _stateStream.stream;
+
+  /// How loud the speech band of the audio is, a sample for each tenth of a
+  /// second, stamped with where in the film that stretch plays.
+  ///
+  /// Measuring costs the player CPU, so the native side only does it while
+  /// something listens here: the first listener switches it on and the last
+  /// one leaving switches it off. The samples run a little ahead of what the
+  /// speakers are playing (the audio output buffers some), and a seek can
+  /// report a stretch a second time, so a consumer keys them by [AudioLevelSample.timeSec]
+  /// and lets the later one replace the earlier.
+  Stream<AudioLevelSample> get audioLevels => _audioLevels.stream;
+
+  Future<void> _setAudioLevelsEnabled(bool enabled) async {
+    if (_disposed) return;
+    try {
+      await _invoke('setAudioLevelsEnabled', <String, dynamic>{
+        'enabled': enabled,
+      });
+    } on EngineUnsupported {
+      // No bridge means no measurement, which is what the listener gets: a
+      // stream that never produces anything.
+    } on PlatformException {
+      // A native failure to start measuring must not take the player down.
+    }
+  }
 
   /// The video surface. Mount this where the frames belong.
   ///
@@ -190,10 +222,30 @@ class ExoPlayerEngine implements VideoEngine {
             subtitleTracks: _tracks(event['subtitle'], 'Subtitle'),
           ),
         );
+      case 'audioLevels':
+        _applyAudioLevels(event['t'], event['db']);
       case 'error':
         _emit(_state.copyWith(ready: EngineReadyState.error));
       default:
         break;
+    }
+  }
+
+  /// The native side batches several samples into two parallel lists, to keep
+  /// the channel to a few messages a second. A pair that doesn't line up, or a
+  /// value that isn't a finite number, is skipped rather than trusted.
+  void _applyAudioLevels(Object? times, Object? levels) {
+    if (_disposed || _audioLevels.isClosed || !_audioLevels.hasListener) return;
+    if (times is! List || levels is! List) return;
+    final int count = times.length < levels.length
+        ? times.length
+        : levels.length;
+    for (int i = 0; i < count; i++) {
+      final Object? t = times[i];
+      final Object? db = levels[i];
+      if (t is! num || db is! num) continue;
+      if (!t.isFinite || !db.isFinite) continue;
+      _audioLevels.add(AudioLevelSample(t.toDouble(), db.toDouble()));
     }
   }
 
@@ -307,6 +359,7 @@ class ExoPlayerEngine implements VideoEngine {
     _eventSub = null;
     surfaceMounted.dispose();
     await _stateStream.close();
+    await _audioLevels.close();
     try {
       await _invoke('release');
     } on EngineUnsupported {

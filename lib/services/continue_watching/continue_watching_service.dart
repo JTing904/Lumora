@@ -25,6 +25,7 @@ import '../stream/stream_health_checker.dart';
 import '../storage/json_document_store.dart';
 import '../diagnostics/crash_breadcrumbs.dart';
 import '../metadata/metadata_service.dart';
+import '../metadata/tmdb_service.dart';
 import '../trakt/trakt_service.dart';
 import '../trakt/trakt_continue_watching_service.dart';
 import '../simkl/simkl_service.dart';
@@ -893,7 +894,7 @@ class ContinueWatchingService {
                 ),
                 const SizedBox(width: 16),
                 Text(
-                  'Resuming ${item.title} Ep $episodeNum...',
+                  l10nCurrent().cwResumingEpisode(item.title, episodeNum),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -1043,7 +1044,7 @@ class ContinueWatchingService {
               ),
               const SizedBox(width: 16),
               Text(
-                'Resuming ${item.title}...',
+                l10nCurrent().cwResuming(item.title),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -1075,17 +1076,20 @@ class ContinueWatchingService {
     );
 
     try {
-      final stream = StreamService.fetchStreams(
-        type: item.type,
-        id: streamId,
-        title: item.title,
-        year: int.tryParse(item.year ?? ''),
-        season: item.season,
-        episode: item.episode,
-        // The fetch runs alongside this rescrape rather than in front of it, so
-        // the fetched genres are not in hand yet and this first pass starts on
-        // the session's; they reach the detail the player opens with below.
-        genres: movieDetail.genres,
+      // The viewer is waiting to resume: its TMDb look-ups go first.
+      final stream = TmdbService.urgentZone(
+        () => StreamService.fetchStreams(
+          type: item.type,
+          id: streamId,
+          title: item.title,
+          year: int.tryParse(item.year ?? ''),
+          season: item.season,
+          episode: item.episode,
+          // The fetch runs alongside this rescrape rather than in front of it, so
+          // the fetched genres are not in hand yet and this first pass starts on
+          // the session's; they reach the detail the player opens with below.
+          genres: movieDetail.genres,
+        ),
       );
 
       final completer = Completer<void>();

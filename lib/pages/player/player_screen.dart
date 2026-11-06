@@ -19,10 +19,12 @@ import 'package:zplay/models/movie/video.dart';
 import 'package:zplay/models/movie/movie_detail.dart';
 import 'package:zplay/models/subtitle/subtitle_model.dart';
 import 'package:zplay/services/subtitles/subtitle_choice.dart';
+import 'package:zplay/services/subtitles/subtitle_autosync.dart'
+    show SubtitleAutoSync;
+import 'package:zplay/services/subtitles/subtitle_autosync_settings.dart';
 import 'package:zplay/services/subtitles/subtitle_offset_store.dart';
 import 'package:zplay/services/subtitles/subtitle_service.dart';
 import 'package:zplay/services/subtitles/subtitle_parser.dart';
-import 'package:zplay/services/subtitles/subtitle_translator.dart';
 
 import '../../models/stream/stream_model.dart';
 import '../../services/continue_watching/continue_watching_service.dart';
@@ -31,6 +33,7 @@ import '../../services/debrid/models/debrid_error.dart';
 import '../../services/layout/form_factor.dart';
 import '../../services/stream/network_speed.dart';
 import '../../services/stream/auto_source_picker.dart';
+import '../../services/stream/hls_ad_cleaner.dart';
 import '../../services/player/source_pick_settings.dart';
 import '../../widgets/player/player_quality_menu.dart';
 import '../../services/theme/design_tokens.dart';
@@ -55,7 +58,11 @@ import '../../widgets/player/player_loading_overlay.dart';
 import '../../widgets/player/player_playback_rules.dart';
 import '../../widgets/player/player_remote_keys.dart';
 import '../../widgets/player/player_screen_tap.dart';
+import '../../services/player/mpv_subtitle_reference.dart';
+import '../../services/player/windows_audio_levels.dart';
 import '../../widgets/player/subtitle_align_sheet.dart';
+import '../../widgets/player/subtitle_autoload.dart';
+import '../../widgets/player/subtitle_autosync_controller.dart';
 import '../../widgets/player/subtitle_cue_overlay.dart';
 import '../../widgets/player/player_touch_gesture.dart';
 import '../../widgets/player/player_top_bar.dart';
@@ -639,6 +646,20 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     if (!isPlayableUrl(request.url)) {
       throw StateError('Not a stream address');
     }
+    // ffmpeg will not fetch http segments named by a playlist it read from a
+    // file unless it is told those protocols are fine. The setting outlives
+    // the open, so any other stream puts back the usual setting.
+    try {
+      await (_player.platform as dynamic)?.setProperty(
+        'demuxer-lavf-o',
+        HlsAdCleaner.isCleanedPlaylist(request.url)
+            ? HlsAdCleaner.mpvDemuxerOptions
+            // What PlayerSettings.applyPreOpenProperties sets for every open.
+            : 'strict=experimental',
+      );
+    } catch (e) {
+      debugPrint('[PlayerScreen] Could not set the demuxer protocols: $e');
+    }
     await _player.open(
       Media(
         request.url,
@@ -721,6 +742,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         _selectedAudioTrackIndex = activeIdx;
       }
     });
+    _autoLoadSubtitle();
   }
 
   /// Media3 reports a failure as a ready state with no text, so none of the
@@ -1097,13 +1119,61 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   String? _currentSubtitlePath;
   List<SubCue> _currentCues = [];
   double _subtitleDelayMs = 0;
+
+  /// The subtitle's clock against the video's (1 = same). Not 1 only for a
+  /// subtitle cut for another frame rate, which the auto-sync can find.
+  double _subtitleRatio = 1;
   double _subtitleScale = 1.0;
+
+  /// Lines the downloaded subtitle up with the film by itself.
+  late final SubtitleAutoSyncController _autoSync = SubtitleAutoSyncController(
+    onApply: _applyAutoTiming,
+    onAligned: _onAutoAligned,
+  );
+
+  /// The video's own subtitle track, read for timing on mpv.
+  MpvSubtitleReference? _embeddedRef;
+
+  /// The Windows sound level for the auto-sync; [_winLevelsUsable] turns
+  /// false once capture turned out not to work here.
+  WindowsAudioLevels? _winLevels;
+  bool _winLevelsUsable = true;
 
   /// Moves on with every source or episode change. A subtitle search or
   /// download that was started for the previous one checks it after its
   /// awaits and drops its result: the search keeps streaming batches long
   /// after the switch, and the last episode's file used to land on this one.
   final AttemptToken _subtitleEpisode = AttemptToken();
+
+  // The automatic choice of subtitle for this open (see
+  // SubtitleAutoloadRules). Reset with every source or episode change.
+
+  /// When the subtitle search of this open began; null before it has.
+  DateTime? _subtitleAutoStart;
+
+  /// The search has answered with everything it is going to.
+  bool _subtitleSearchDone = false;
+
+  /// How good the automatic choice on screen is, so a better one can replace
+  /// a worse one but never the other way round.
+  AutoloadSettled _subtitleSettled = AutoloadSettled.nothing;
+
+  /// The viewer picked or switched off a subtitle during this open: the
+  /// automatic choice leaves it alone from then on.
+  bool _subtitleTouched = false;
+
+  /// The viewer's own choice, carried to another source of the same episode:
+  /// a downloaded subtitle fits any source of it, and a switch the viewer
+  /// didn't ask for shouldn't undo their pick. An embedded track belonged to
+  /// the old stream, so that choice starts over.
+  SubtitleVariant? _carriedSubtitle;
+  bool _carriedSubtitleOff = false;
+
+  /// The "this source has its own subtitles" note was shown for this open.
+  bool _burnedSubtitleHintShown = false;
+
+  /// Asks again once the wanted language has had its [patience].
+  Timer? _subtitleAutoTimer;
 
   // Skip Segments State (IntroDB)
   List<MediaSkipSegment> _skipSegments = [];
@@ -1140,6 +1210,12 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   bool _streamStalled = false;
   final Map<String, List<StreamSource>> _cachedSourcesByEpisode = {};
   String? _activeStreamUrl;
+
+  /// What the engine was actually handed when that differs from
+  /// [_activeStreamUrl]: the local copy of a 资源站 playlist with its ads cut.
+  /// Everything that tells sources apart (resume, dead links, sharing) keeps
+  /// using [_activeStreamUrl]; only a reopen of the same stream uses this.
+  String? _activeOpenUrl;
 
   /// Headers the active network stream was opened with. The black-screen
   /// watchdog's recovery path must reuse these: several built-in providers
@@ -1224,6 +1300,10 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     WakelockPlus.enable();
 
     PlayerSettings.changeNotifier.addListener(_onPlayerSettingsChanged);
+    SubtitleAutoSyncSettings.enabled.addListener(_onAutoSyncSetting);
+    unawaited(
+      SubtitleAutoSyncSettings.load().then((_) => _onAutoSyncSetting()),
+    );
 
     _subscriptions.addAll([
       _player.stream.playing.listen(_setPlaying),
@@ -1408,9 +1488,26 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       // between "about to open" and playback, so an incident inside the player
       // left no trail at all - which is why a hung open looked like nothing
       // happened.
+      // 资源站 playlists carry gambling ads. Open a copy without them when one
+      // can be made in a few seconds, otherwise the address as it is.
+      var openUrl = cleanUri.toString();
+      var adSeconds = 0.0;
+      if (!isTorrentStream &&
+          !isLive &&
+          HlsAdCleaner.appliesTo(_currentSource.providerName, openUrl)) {
+        final cleaned = await HlsAdCleaner.instance.clean(
+          openUrl,
+          headers: playerHeaders,
+        );
+        if (!mounted || !_openToken.isCurrent(ticket)) return;
+        openUrl = cleaned.url;
+        adSeconds = cleaned.removedSeconds;
+      }
+      _activeOpenUrl = openUrl == cleanUri.toString() ? null : openUrl;
+
       CrashBreadcrumbs.stream('open.start', title: _currentTitle);
       final request = ve.EngineRequest(
-        url: cleanUri.toString(),
+        url: openUrl,
         headers: isTorrentStream ? const <String, String>{} : playerHeaders,
         start: seekTarget ?? Duration.zero,
         isLive: isLive,
@@ -1452,6 +1549,9 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _startFrameWatchdog();
       _startHideControlsTimer();
       if (usedMedia3) _armMedia3SilenceWatchdog(request);
+      if (adSeconds >= 1) {
+        _showNotice(l10nCurrent().playerAdsRemoved(adSeconds.round()));
+      }
 
       // Defer background services until after playback starts
       Future.microtask(() {
@@ -2302,6 +2402,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     // and reopening or reporting the abandoned URL would then race the
     // replacement's own open and describe a source that is no longer playing.
     final String? recoveryUrl = _activeStreamUrl;
+    final String? recoveryOpenUrl = _activeOpenUrl ?? recoveryUrl;
     final int sourceHeight = _watchdogSourceHeight();
 
     final PlayerWatchdogAction action =
@@ -2359,7 +2460,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         await platform?.setProperty('glsl-shaders', '');
         await platform?.setProperty('vid', 'auto');
         await _player.open(
-          Media(recoveryUrl, httpHeaders: _activeHttpHeaders, start: resumePos),
+          Media(
+            recoveryOpenUrl ?? recoveryUrl,
+            httpHeaders: _activeHttpHeaders,
+            start: resumePos,
+          ),
           play: true,
         );
       } catch (e) {
@@ -2507,6 +2612,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         _selectedAudioTrackIndex = activeIdx;
       }
     });
+    _autoLoadSubtitle();
+    // A subtitle can come on before the file's own tracks are listed.
+    if (_autoSync.hasSubtitle && !(_embeddedRef?.isRunning ?? false)) {
+      unawaited(_startEmbeddedReference());
+    }
   }
 
   static String cleanMediaTitle(String raw) {
@@ -2529,6 +2639,25 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   Future<void> _fetchInitialSubtitles() async {
     final int ticket = _subtitleEpisode.current;
+    _subtitleAutoStart = DateTime.now();
+    _subtitleSearchDone = false;
+    _subtitleAutoTimer?.cancel();
+    _subtitleAutoTimer = Timer(
+      SubtitleAutoloadRules.patience,
+      _autoLoadSubtitle,
+    );
+    // Another source of the same episode: the viewer's own pick comes back
+    // rather than the automatic one.
+    final SubtitleVariant? carried = _carriedSubtitle;
+    if (carried != null || _carriedSubtitleOff) {
+      _subtitleTouched = true;
+      if (carried != null) unawaited(_loadSubtitle(carried, auto: true));
+    }
+    _carriedSubtitle = null;
+    _carriedSubtitleOff = false;
+    // The stream's own tracks and subtitles are known before any provider
+    // answers.
+    _autoLoadSubtitle();
     try {
       int? searchYear;
       if (widget.detail?.year != null && widget.detail!.year!.isNotEmpty) {
@@ -2583,48 +2712,77 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
           ),
         );
 
-        // Auto-load matching language subtitle for the new episode if subtitles were enabled and none loaded yet
-        if (_isSubtitleEnabled &&
-            _currentSubtitleVariant != null &&
-            _currentSubtitlePath == null) {
-          // The AI's Chinese before: translate this episode's English too.
-          if (_aiWanted) {
-            if (!_aiStarting &&
-                _aiSource == null &&
-                _subtitleGroups.any(
-                  (g) => g.language == SubtitleLanguage.english.label,
-                )) {
-              unawaited(_startAiSubtitle());
-            }
-            continue;
-          }
-          // The language chosen before, else 中文. A track inside the stream
-          // in that language wins over a download: it was cut for this video.
-          final wanted =
-              SubtitleChoice.languageOf(_currentSubtitleVariant!.language) ??
-              SubtitleLanguage.chinese;
-          final embedded = _embeddedSubtitles
-              .where(
-                (e) =>
-                    SubtitleChoice.languageOf(e.language ?? e.title) == wanted,
-              )
-              .firstOrNull;
-          if (embedded != null) {
-            _selectEmbeddedSubtitle(embedded);
-            continue;
-          }
-          final matchingGroup = _subtitleGroups.firstWhere(
-            (g) => g.language == wanted.label,
-            orElse: () => _subtitleGroups.first,
-          );
-          if (matchingGroup.variants.isNotEmpty) {
-            _loadSubtitle(matchingGroup.variants.first);
-          }
-        }
+        _autoLoadSubtitle();
       }
     } catch (e) {
       debugPrint('[PlayerScreen] Error loading subtitles: $e');
     }
+    // Over, whether it ended or failed: Chinese that has not come by now is
+    // not coming.
+    if (!mounted || !_subtitleEpisode.isCurrent(ticket)) return;
+    _subtitleSearchDone = true;
+    _autoLoadSubtitle();
+  }
+
+  /// Opens the video with the subtitle the viewer last picked, as soon as
+  /// one that fits is known. Asked again whenever something new arrives; see
+  /// [SubtitleAutoloadRules] for what it picks. Never touches the remembered
+  /// choice: only the viewer's own pick does.
+  void _autoLoadSubtitle() {
+    final started = _subtitleAutoStart;
+    if (!mounted || started == null || _subtitleTouched) return;
+    // The picture already has its subtitles: say so once, and leave turning
+    // one on to the viewer. The remembered choice is untouched, so the next
+    // source without them opens with subtitles as usual.
+    if (SubtitleAutoloadRules.sourceHasBurnedSubtitles(
+      _currentSource.providerId,
+    )) {
+      if (!_burnedSubtitleHintShown &&
+          PlayerSettings.subtitleDefault.value != SubtitlePreference.off) {
+        _burnedSubtitleHintShown = true;
+        _snack(l10nCurrent().subBurnedInHint, seconds: 4);
+      }
+      return;
+    }
+    final decision = SubtitleAutoloadRules.decide(
+      preference: PlayerSettings.subtitleDefault.value,
+      groups: _subtitleGroups,
+      embedded: _embeddedSubtitles,
+      providersDone: _subtitleSearchDone,
+      elapsed: DateTime.now().difference(started),
+    );
+    if (!SubtitleAutoloadRules.shouldApply(_subtitleSettled, decision)) return;
+    _subtitleSettled = SubtitleAutoloadRules.settledBy(decision);
+    switch (decision) {
+      case AutoloadEmbedded(:final track):
+        _selectEmbeddedSubtitle(track, auto: true);
+      case AutoloadVariant(:final variant):
+        unawaited(_loadSubtitle(variant, auto: true));
+      case AutoloadWait() || AutoloadNone():
+        return;
+    }
+    if (decision.isFallback) _snack(l10nCurrent().subAutoEnglish);
+  }
+
+  /// The viewer's own choice of subtitle in [language] (null when the track
+  /// does not say): it is what the next video opens with, and it ends the
+  /// automatic choice for this one.
+  void _rememberSubtitlePick(SubtitleLanguage? language) {
+    _subtitleTouched = true;
+    final preference = SubtitlePreference.forLanguage(language);
+    if (preference != null) {
+      unawaited(PlayerSettings.setSubtitleDefault(preference));
+    }
+  }
+
+  void _snack(String text, {int seconds = 3}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        duration: Duration(seconds: seconds),
+      ),
+    );
   }
 
   void _loadSourceSubtitles(List<SubtitleVariant> subs) {
@@ -2992,8 +3150,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     });
   }
 
-  void _selectEmbeddedSubtitle(PlayerEmbeddedSubtitle embedded) {
-    _stopAiSubtitle(wanted: false);
+  /// [auto] is the automatic choice: it says nothing unless it has to.
+  void _selectEmbeddedSubtitle(
+    PlayerEmbeddedSubtitle embedded, {
+    bool auto = false,
+  }) {
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     setState(() {
       _selectedEmbeddedSubtitleIndex = embedded.index;
@@ -3019,7 +3180,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     final variant = _currentSubtitleVariant;
     if (variant != null) unawaited(_restoreSubtitleOffset(variant));
 
-    if (mounted) {
+    if (mounted && !auto) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10nCurrent().ply2SwitchedEmbeddedSub(embedded.title)),
@@ -3029,8 +3190,14 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     }
   }
 
+  /// The viewer switched the subtitles off: so do the next videos.
+  void _pickNoSubtitle() {
+    _subtitleTouched = true;
+    unawaited(PlayerSettings.setSubtitleDefault(SubtitlePreference.off));
+    _disableSubtitles();
+  }
+
   void _disableSubtitles() {
-    _stopAiSubtitle(wanted: false);
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     setState(() {
       _isSubtitleEnabled = false;
@@ -3040,9 +3207,15 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _currentCues = [];
     });
     _requestNoSubtitle();
+    _endAutoSync();
+    unawaited(_applyLiveRatio(1));
   }
 
-  Future<void> _loadSubtitle(SubtitleVariant variant) async {
+  /// [auto] is the automatic choice: it says nothing unless it has to.
+  Future<void> _loadSubtitle(
+    SubtitleVariant variant, {
+    bool auto = false,
+  }) async {
     final int ticket = _subtitleEpisode.current;
     // Replaced by another choice, or by another source or episode, while the
     // file was on its way.
@@ -3050,14 +3223,13 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         !mounted ||
         !_subtitleEpisode.isCurrent(ticket) ||
         !identical(variant, _currentSubtitleVariant);
-    _stopAiSubtitle(wanted: false);
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     _currentSubtitleVariant = variant;
     _selectedEmbeddedSubtitleIndex = null;
     _isSubtitleEnabled = true;
     _requestNoSubtitle();
 
-    if (mounted) {
+    if (mounted && !auto) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -3106,8 +3278,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _setSubtitleScale(_subtitleScale);
     _applyMpvSubtitleStyling();
     await _restoreSubtitleOffset(variant);
+    // The overlay on Media3 draws from these cues, and an automatic load has
+    // no snack bar to rebuild the screen.
+    if (mounted) setState(() {});
 
-    if (mounted) {
+    if (mounted && !auto) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -3179,7 +3354,6 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       if (mounted) setState(() {});
       return;
     }
-    if (_aiSource != null && mounted) setState(() {});
     final np = _player.platform as dynamic;
     try {
       np.setProperty('sub-delay', delaySec.toString());
@@ -3188,37 +3362,245 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     }
   }
 
+  /// Stretches the subtitle's clock, live: `sub-speed` on libmpv (a
+  /// player-wide setting, so it goes back to 1 whenever a subtitle or video
+  /// that does not need it comes on), the cue overlay's ratio on Media3.
+  Future<void> _applyLiveRatio(double ratio) async {
+    final changed = (_subtitleRatio - ratio).abs() > 1e-9;
+    _subtitleRatio = ratio;
+    if (_engine == null) {
+      final np = _player.platform as dynamic;
+      try {
+        await np.setProperty('sub-speed', ratio.toString());
+      } catch (e) {
+        print('[PlayerScreen] applyLiveRatio error: $e');
+      }
+    }
+    if (changed && mounted) setState(() {});
+  }
+
   /// The timing remembered for [variant] on this title, or none.
-  Future<void> _restoreSubtitleOffset(SubtitleVariant variant) async {
+  Future<SubtitleTiming?> _restoreSubtitleOffset(
+    SubtitleVariant variant,
+  ) async {
     final titleId = widget.detail?.id;
     final saved = titleId == null
         ? null
-        : await SubtitleOffsetStore.load(
+        : await SubtitleOffsetStore.loadTiming(
             SubtitleOffsetStore.keyFor(titleId, variant),
           );
-    if (!mounted || !identical(variant, _currentSubtitleVariant)) return;
-    await _applyLiveDelay(saved ?? 0);
+    if (!mounted || !identical(variant, _currentSubtitleVariant)) return null;
+    await _applyLiveDelay(saved?.delaySec ?? 0);
+    await _applyLiveRatio(saved?.ratio ?? 1);
     if (saved != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10nCurrent().subOffsetRestored(_signed(saved))),
+          content: Text(
+            l10nCurrent().subOffsetRestored(_signed(saved.delaySec)),
+          ),
           duration: const Duration(seconds: 3),
         ),
       );
     }
+    _beginAutoSync(saved);
+    return saved;
   }
 
-  /// Applies [delaySec] and remembers it for this title and subtitle.
+  /// Applies [delaySec] and remembers it for this title and subtitle: the
+  /// viewer's own timing, which the auto-sync then leaves alone.
   Future<void> _setSubtitleDelay(double delaySec) async {
+    _autoSync.viewerMoved(delaySec);
     await _applyLiveDelay(delaySec);
+    await _saveSubtitleTiming(delaySec, _subtitleRatio, auto: false);
+  }
+
+  Future<void> _saveSubtitleTiming(
+    double delaySec,
+    double ratio, {
+    required bool auto,
+  }) async {
     final titleId = widget.detail?.id;
     final variant = _currentSubtitleVariant;
     if (titleId != null && variant != null) {
-      await SubtitleOffsetStore.save(
+      await SubtitleOffsetStore.saveTiming(
         SubtitleOffsetStore.keyFor(titleId, variant),
-        delaySec,
+        SubtitleTiming(delaySec, ratio: ratio, auto: auto),
       );
     }
+  }
+
+  // ── Subtitle auto-sync ────────────────────────────────────────────────────
+
+  /// The auto-sync's change, through the same writes as the viewer's own
+  /// timing, so it is saved for the title and works on both engines.
+  Future<void> _applyAutoTiming(
+    double delaySec,
+    double ratio, {
+    required bool auto,
+  }) async {
+    await _applyLiveDelay(delaySec);
+    await _applyLiveRatio(ratio);
+    await _saveSubtitleTiming(delaySec, ratio, auto: auto);
+  }
+
+  void _onAutoAligned(AutoSyncChange change) {
+    if (!mounted) return;
+    final l10n = l10nCurrent();
+    final offset = _signed(change.delaySec);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            change.stretched
+                ? l10n.subAutoSyncDoneStretched(offset)
+                : l10n.subAutoSyncDone(offset),
+          ),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: l10n.subAutoSyncUndo,
+            onPressed: () => unawaited(_autoSync.undo()),
+          ),
+        ),
+      );
+  }
+
+  /// A downloaded subtitle is on screen: start comparing it with the film.
+  void _beginAutoSync(SubtitleTiming? saved) {
+    final variant = _currentSubtitleVariant;
+    if (variant == null ||
+        _selectedEmbeddedSubtitleIndex != null ||
+        _currentCues.isEmpty) {
+      _endAutoSync();
+      return;
+    }
+    _autoSync.enabled = SubtitleAutoSyncSettings.enabled.value;
+    // Media3 measures the sound itself; on Windows the app's own output is
+    // listened to (the libmpv this app ships has no audio filter for that),
+    // and the video's own subtitle track is a reference alongside.
+    _autoSync.begin(
+      cues: _currentCues,
+      delaySec: _subtitleDelayMs / 1000.0,
+      ratio: _subtitleRatio,
+      savedTiming: saved,
+      streamReference: _streamReferenceFor(variant),
+    );
+    _attachAutoSyncAudio();
+    unawaited(_startEmbeddedReference());
+  }
+
+  void _endAutoSync() {
+    _autoSync.end();
+    _attachAutoSyncAudio();
+    unawaited(_stopEmbeddedReference());
+  }
+
+  /// Follows the sound's speech level while a downloaded subtitle is on and
+  /// the auto-sync is switched on, and stops listening otherwise (on Windows
+  /// that is a capture running, so it is only on when it is used).
+  void _attachAutoSyncAudio() {
+    final exo = _exoEngine;
+    if (exo != null) {
+      // Media3 keeps its own level stream, attached once per subtitle.
+      if (!_autoSync.audioAttached) _autoSync.attachAudio(exo.audioLevels);
+      return;
+    }
+    final wanted =
+        Platform.isWindows &&
+        _engine == null &&
+        _winLevelsUsable &&
+        SubtitleAutoSyncSettings.enabled.value &&
+        _autoSync.hasSubtitle;
+    if (!wanted) {
+      _autoSync.attachAudio(null);
+      return;
+    }
+    _winLevels ??= WindowsAudioLevels(
+      mediaPosition: () => _player.state.position,
+      rate: () => _player.state.rate,
+      // Sound only comes out while it plays: a pause, or a stall waiting for
+      // data, would read as a long stretch without speech.
+      playing: () => _player.state.playing && !_player.state.buffering,
+      onUnavailable: () {
+        // Older Windows, or no way to capture: do not count on it.
+        _winLevelsUsable = false;
+        if (mounted) _autoSync.attachAudio(null);
+      },
+    );
+    if (!_autoSync.audioAttached) _autoSync.attachAudio(_winLevels!.levels);
+  }
+
+  void _onAutoSyncSetting() {
+    final on = SubtitleAutoSyncSettings.enabled.value;
+    _autoSync.enabled = on;
+    _attachAutoSyncAudio();
+    if (!on) {
+      unawaited(_stopEmbeddedReference());
+    } else if (_autoSync.hasSubtitle) {
+      unawaited(_startEmbeddedReference());
+    }
+  }
+
+  /// Reads the video's own subtitle track on libmpv, when there is one.
+  Future<void> _startEmbeddedReference() async {
+    if (_engine != null ||
+        !SubtitleAutoSyncSettings.enabled.value ||
+        !_autoSync.hasSubtitle) {
+      return;
+    }
+    final ref = _embeddedRef ??= MpvSubtitleReference(_player.platform)
+      ..onCue = () => _autoSync.setLiveReference(_embeddedRef!.cues);
+    if (ref.isRunning) return;
+    final ok = await ref.start();
+    if (mounted) _autoSync.setLiveReferenceAvailable(ok);
+  }
+
+  Future<void> _stopEmbeddedReference() async {
+    final ref = _embeddedRef;
+    _autoSync.setLiveReferenceAvailable(false);
+    if (ref == null) return;
+    _embeddedRef = null;
+    await ref.stop();
+  }
+
+  /// Loads the lines of a subtitle the stream came with, when the chosen one
+  /// is another: those were cut for this video, so they are in time with it.
+  Future<List<SubCue>?> Function()? _streamReferenceFor(
+    SubtitleVariant chosen,
+  ) {
+    if (_streamSubtitleUrls.isEmpty ||
+        _streamSubtitleUrls.contains(chosen.downloadUrl)) {
+      return null;
+    }
+    return () async {
+      final own = <SubtitleVariant>[
+        for (final g in _subtitleGroups)
+          for (final v in g.variants)
+            if (_streamSubtitleUrls.contains(v.downloadUrl)) v,
+      ];
+      // English first: its lines are the most complete.
+      int rank(SubtitleVariant v) =>
+          SubtitleChoice.languageOf(v.language) == SubtitleLanguage.english
+          ? 0
+          : 1;
+      own.sort((a, b) => rank(a).compareTo(rank(b)));
+      for (final v in own.take(2)) {
+        final path = await SubtitleService().downloadSubtitle(v);
+        if (path == null) continue;
+        try {
+          final bytes = await File(path).readAsBytes();
+          final cues = SubtitleParser.parse(
+            SubtitleParser.decodeBytesWithFallback(bytes),
+          ).cues;
+          if (cues.length >= SubtitleAutoSync.minCues) return cues;
+        } catch (e) {
+          debugPrint('[PlayerScreen] stream reference parse error: $e');
+        } finally {
+          SubtitleService().deleteSubtitleFile(path);
+        }
+      }
+      return null;
+    };
   }
 
   static String _signed(double sec) {
@@ -3228,161 +3610,6 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
 
   /// Whether playback was running when the align sheet paused it.
   bool _alignResumes = false;
-
-  /// The English subtitle the AI is turning into Chinese, while that
-  /// Chinese is the subtitle on screen. The app draws it on either engine.
-  SubtitleVariant? _aiSource;
-
-  /// The viewer picked the AI's Chinese: the next episode gets it too.
-  bool _aiWanted = false;
-
-  /// Between picking the AI and its first lines being set up.
-  bool _aiStarting = false;
-
-  /// Bumped to stop a translation nobody is watching any more.
-  int _aiRun = 0;
-
-  /// Lines translated so far, for the menu.
-  int _aiDone = 0;
-
-  void _stopAiSubtitle({bool? wanted}) {
-    _aiRun++;
-    _aiSource = null;
-    _aiStarting = false;
-    if (wanted != null) _aiWanted = wanted;
-  }
-
-  void _snack(String text, {int seconds = 3}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(text),
-        duration: Duration(seconds: seconds),
-      ),
-    );
-  }
-
-  /// Shows the English subtitle's lines in Chinese, translated by the AI,
-  /// with the English timing. The English one on screen is used when there
-  /// is one: the viewer may already have put it in time.
-  Future<void> _startAiSubtitle() async {
-    final l10n = l10nCurrent();
-    final current = _currentSubtitleVariant;
-    final usingEnglish =
-        current != null &&
-        _aiSource == null &&
-        _selectedEmbeddedSubtitleIndex == null &&
-        _currentSubtitlePath != null &&
-        _currentCues.isNotEmpty &&
-        SubtitleChoice.languageOf(current.language) == SubtitleLanguage.english;
-    final source = usingEnglish
-        ? current
-        : _subtitleGroups
-              .where((g) => g.language == SubtitleLanguage.english.label)
-              .firstOrNull
-              ?.variants
-              .firstOrNull;
-    if (source == null) {
-      _snack(l10n.subAiNoEnglish);
-      return;
-    }
-
-    _stopAiSubtitle(wanted: true);
-    final run = _aiRun;
-    _aiStarting = true;
-    var cues = _currentCues;
-    var path = _currentSubtitlePath;
-    if (!usingEnglish) {
-      final downloaded = await SubtitleService().downloadSubtitle(source);
-      if (run != _aiRun || !mounted) return;
-      var parsed = const <SubCue>[];
-      if (downloaded != null) {
-        try {
-          final bytes = await File(downloaded).readAsBytes();
-          parsed = SubtitleParser.parse(
-            SubtitleParser.decodeBytesWithFallback(bytes),
-          ).cues;
-        } catch (e) {
-          debugPrint('[PlayerScreen] AI source parse error: $e');
-        }
-      }
-      if (run != _aiRun || !mounted) return;
-      if (parsed.isEmpty) {
-        _aiStarting = false;
-        _snack(l10n.playerSubDownloadFailed);
-        return;
-      }
-      SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
-      cues = parsed;
-      path = downloaded;
-    }
-
-    // Same provider and release name as the English file, so the timing
-    // remembered for it applies here and the other way round.
-    final variant = SubtitleVariant(
-      providerName: source.providerName,
-      language: SubtitleLanguage.chinese.label,
-      title: source.title,
-      downloadUrl: 'ai:${source.downloadUrl}',
-      format: source.format,
-    );
-    final english = List<SubCue>.unmodifiable(cues);
-    _requestNoSubtitle();
-    setState(() {
-      _aiSource = source;
-      _aiStarting = false;
-      _aiDone = 0;
-      _currentSubtitleVariant = variant;
-      _selectedEmbeddedSubtitleIndex = null;
-      _isSubtitleEnabled = true;
-      _currentSubtitlePath = path;
-      _currentCues = List.of(english);
-    });
-    await _restoreSubtitleOffset(variant);
-    if (run != _aiRun || !mounted) return;
-    _snack(l10n.subAiStarted, seconds: 2);
-
-    // The line on screen now; asked before each batch, so a seek is followed.
-    int focus() {
-      final now =
-          _positionValue.inMilliseconds / 1000.0 - _subtitleDelayMs / 1000.0;
-      final i = english.indexWhere((c) => c.end >= now);
-      return i < 0 ? english.length - 1 : i;
-    }
-
-    try {
-      await SubtitleTranslator().translate(
-        english,
-        cacheKey: SubtitleTranslator.cacheKeyFor(source.downloadUrl),
-        focus: focus,
-        cancelled: () => run != _aiRun || !mounted,
-        onLines: (lines) {
-          if (run != _aiRun || !mounted) return;
-          final next = List.of(_currentCues);
-          lines.forEach((i, text) {
-            if (i < next.length) next[i] = next[i].copyWith(text: text);
-          });
-          setState(() {
-            _currentCues = next;
-            _aiDone += lines.length;
-          });
-        },
-      );
-      if (run == _aiRun && mounted && _aiDone >= english.length) {
-        _snack(l10n.subAiDone(english.length), seconds: 2);
-      }
-    } on SubtitleTranslationError catch (e) {
-      if (run != _aiRun || !mounted) return;
-      _snack(switch (e.failure) {
-        SubtitleTranslationFailure.signedOut => l10n.subAiSignedOut,
-        SubtitleTranslationFailure.notInvited => l10n.subAiNotInvited,
-        SubtitleTranslationFailure.unavailable => l10n.subAiUnavailable,
-      });
-      // Nothing came back: show the English subtitle the normal way rather
-      // than an untranslated AI one.
-      if (_aiDone == 0) unawaited(_loadSubtitle(source));
-    }
-  }
 
   void _openAlignSheet() {
     if (_selectedEmbeddedSubtitleIndex != null ||
@@ -3571,7 +3798,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
   Future<void> _recoverFromRefusedSeek() async {
     if (_hasRetriedWithoutSeek) return;
     final Duration? requested = _seekTarget;
-    final String? url = _activeStreamUrl;
+    final String? url = _activeOpenUrl ?? _activeStreamUrl;
     if (url == null || requested == null || requested <= Duration.zero) return;
     _hasRetriedWithoutSeek = true;
     // Never ask this stream for a position again, so the refusal cannot repeat.
@@ -4243,13 +4470,34 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _savePlaybackProgress();
     _sendFinalScrobble();
 
-    final prevVariant = _currentSubtitleVariant;
-    final wasSubEnabled = _isSubtitleEnabled;
+    final bool keepPick = _subtitleTouched && newEpisode.id == currentId;
+    final SubtitleVariant? picked = _currentSubtitleVariant;
+    _carriedSubtitle =
+        keepPick &&
+            _isSubtitleEnabled &&
+            _selectedEmbeddedSubtitleIndex == null &&
+            picked != null &&
+            picked.downloadUrl.isNotEmpty
+        ? picked
+        : null;
+    _carriedSubtitleOff = keepPick && !_isSubtitleEnabled;
+    _subtitleAutoTimer?.cancel();
+    _subtitleAutoStart = null;
+    _subtitleSearchDone = false;
+    _subtitleSettled = AutoloadSettled.nothing;
+    _subtitleTouched = false;
+    _burnedSubtitleHintShown = false;
     SubtitleService().deleteSubtitleFile(_currentSubtitlePath);
     _cachedSourcesByEpisode.clear();
     try {
       await _requestStop();
     } catch (_) {}
+    // What was measured of the last video, and its subtitle's stretch, mean
+    // nothing for this one.
+    _autoSync.newSource();
+    _attachAutoSyncAudio();
+    unawaited(_stopEmbeddedReference());
+    unawaited(_applyLiveRatio(1));
 
     setState(() {
       _currentSource = newSource;
@@ -4285,12 +4533,17 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       _upNextShown = false;
       _upNextDismissed = false;
       _subtitleGroups = [];
+      // The old stream's tracks are gone, and so is its subtitle: what the
+      // new one opens with is the viewer's remembered choice, once its own
+      // tracks and the search have answered.
+      _embeddedSubtitles = [];
+      _selectedEmbeddedSubtitleIndex = null;
       _currentSubtitlePath = null;
       _activeStreamUrl = null;
+      _activeOpenUrl = null;
       _currentCues = [];
-      _currentSubtitleVariant = prevVariant;
-      _isSubtitleEnabled = wasSubEnabled;
-      _stopAiSubtitle();
+      _currentSubtitleVariant = null;
+      _isSubtitleEnabled = false;
     });
 
     if (newSource.subtitles != null && newSource.subtitles!.isNotEmpty) {
@@ -4802,6 +5055,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
     _audioHudTimer?.cancel();
     _aspectHudTimer?.cancel();
     _upscaleAdvisoryTimer?.cancel();
+    _subtitleAutoTimer?.cancel();
     _tapFlashTimer?.cancel();
     _savePlaybackProgress();
     _sendFinalScrobble();
@@ -4814,6 +5068,11 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
       DeviceOrientation.landscapeRight,
     ]);
     PlayerSettings.changeNotifier.removeListener(_onPlayerSettingsChanged);
+    SubtitleAutoSyncSettings.enabled.removeListener(_onAutoSyncSetting);
+    _embeddedRef?.onCue = null;
+    unawaited(_embeddedRef?.stop());
+    _autoSync.dispose();
+    _winLevels?.dispose();
     _stopParty(leaveRoom: !_leavingForNext && !_partyHandingOver);
     _positionNotifier.dispose();
     _bufferNotifier.dispose();
@@ -6142,10 +6401,19 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
                       : null,
                   delaySec: _subtitleDelayMs / 1000.0,
                   onSelectVariant: (v) {
-                    if (v != null) _loadSubtitle(v);
+                    if (v == null) return;
+                    _rememberSubtitlePick(
+                      SubtitleChoice.languageOf(v.language),
+                    );
+                    _loadSubtitle(v);
                   },
-                  onSelectEmbedded: (emb) => _selectEmbeddedSubtitle(emb),
-                  onToggleOff: _disableSubtitles,
+                  onSelectEmbedded: (emb) {
+                    _rememberSubtitlePick(
+                      SubtitleChoice.languageOf(emb.language ?? emb.title),
+                    );
+                    _selectEmbeddedSubtitle(emb);
+                  },
+                  onToggleOff: _pickNoSubtitle,
                   onOpenSyncBar: () {
                     if (_selectedEmbeddedSubtitleIndex != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -6169,14 +6437,6 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
                     _focusOverlayAfterFrame(_activeMenuKey);
                   },
                   onOpenTextSync: _openAlignSheet,
-                  onAiTranslate: () => unawaited(_startAiSubtitle()),
-                  aiActive: _aiSource != null,
-                  aiStatus: _aiSource == null
-                      ? null
-                      : l10nCurrent().subAiProgress(
-                          _aiDone.clamp(0, _currentCues.length),
-                          _currentCues.length,
-                        ),
                   onClose: () => setState(() => _activeMenu = null),
                 ),
               ),
@@ -6331,6 +6591,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
             child: KeyedSubtree(
               key: _subSyncKey,
               child: SubSyncBar(
+                autoSync: _autoSync,
                 delaySec: _subtitleDelayMs / 1000.0,
                 isTextSyncAvailable:
                     _selectedEmbeddedSubtitleIndex == null &&
@@ -6414,7 +6675,16 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
             _selectedEmbeddedSubtitleIndex == null)
           Positioned.fill(
             child: SubtitleAlignSheet(
-              cues: _currentCues,
+              // With a stretched clock the lines are picked where they play.
+              cues: _subtitleRatio == 1
+                  ? _currentCues
+                  : [
+                      for (final c in _currentCues)
+                        c.copyWith(
+                          start: c.start * _subtitleRatio,
+                          end: c.end * _subtitleRatio,
+                        ),
+                    ],
               nowSec: _positionValue.inMilliseconds / 1000.0,
               delaySec: _subtitleDelayMs / 1000.0,
               onPick: (delay) async {
@@ -6549,9 +6819,8 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
         if (_showUpscaleAdvisory && !_isLocked)
           Positioned.fill(child: IgnorePointer(child: _buildUpscaleAdvisory())),
 
-        // A downloaded subtitle on Media3, which cannot load the file, and
-        // the AI's Chinese on either engine.
-        if ((_engine != null || _aiSource != null) &&
+        // A downloaded subtitle on Media3, which cannot load the file.
+        if (_engine != null &&
             _isSubtitleEnabled &&
             _selectedEmbeddedSubtitleIndex == null &&
             _currentCues.isNotEmpty &&
@@ -6565,6 +6834,7 @@ class _PlayerScreenState extends State<_PlayerScreenBody>
                   cues: _currentCues,
                   seconds: position.inMilliseconds / 1000.0,
                   delaySec: _subtitleDelayMs / 1000.0,
+                  ratio: _subtitleRatio,
                   scale: _subtitleScale,
                   raised: _showControls,
                 ),

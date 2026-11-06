@@ -1,6 +1,8 @@
 import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
+import '../../services/subtitles/subtitle_autosync_settings.dart';
 import '../../services/theme/design_tokens.dart';
+import 'subtitle_autosync_controller.dart';
 import 'player_glass.dart';
 import '../common/focusable_card.dart';
 import 'lu_player_style.dart';
@@ -15,8 +17,12 @@ class SubSyncBar extends StatefulWidget {
   final VoidCallback onClose;
   final VoidCallback? onSave;
 
+  /// The auto-sync whose status and switch the bar shows, if any.
+  final SubtitleAutoSyncController? autoSync;
+
   const SubSyncBar({
     super.key,
+    this.autoSync,
     required this.delaySec,
     required this.onDelayChanged,
     this.onEnterTextSync,
@@ -80,196 +86,268 @@ class _SubSyncBarState extends State<SubSyncBar> {
             horizontal: 10,
             vertical: ZplaySpacing.s8,
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Left: Speech Text Sync button
-                if (widget.onEnterTextSync != null) ...[
-                  FocusableInkWell(
-                    borderRadius: LuRadius.field,
-                    onTap: widget.isTextSyncAvailable
-                        ? widget.onEnterTextSync
-                        : null,
-                    enabled: widget.isTextSyncAvailable,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ZplaySpacing.s12,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: widget.isTextSyncAvailable
-                            ? PlayerTheme.accent.withValues(alpha: 0.18)
-                            : tokens.textPrimary.withValues(alpha: 0.04),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Left: Speech Text Sync button
+                    if (widget.onEnterTextSync != null) ...[
+                      FocusableInkWell(
                         borderRadius: LuRadius.field,
+                        onTap: widget.isTextSyncAvailable
+                            ? widget.onEnterTextSync
+                            : null,
+                        enabled: widget.isTextSyncAvailable,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: ZplaySpacing.s12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.isTextSyncAvailable
+                                ? PlayerTheme.accent.withValues(alpha: 0.18)
+                                : tokens.textPrimary.withValues(alpha: 0.04),
+                            borderRadius: LuRadius.field,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.text_fields_rounded,
+                                size: 15,
+                                color: widget.isTextSyncAvailable
+                                    ? PlayerTheme.accent
+                                    : PlayerTheme.inkSubtle,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                l10nCurrent().syncTextSync,
+                                style: ZplayType.label
+                                    .toStyle(
+                                      color: widget.isTextSyncAvailable
+                                          ? PlayerTheme.ink
+                                          : PlayerTheme.inkSubtle,
+                                    )
+                                    .copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+
+                    // Center: Stepper Buttons & Display Pill
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: tokens.bg.withValues(alpha: 0.4),
+                        borderRadius: LuRadius.field,
+                        border: Border.all(color: PlayerTheme.edgeSoft),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.text_fields_rounded,
-                            size: 15,
-                            color: widget.isTextSyncAvailable
-                                ? PlayerTheme.accent
-                                : PlayerTheme.inkSubtle,
+                          _StepButton(
+                            label: '−0.5s',
+                            onTap: () => _applyDelay(_localDelay - 0.5),
+                            isWide: true,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            l10nCurrent().syncTextSync,
-                            style: ZplayType.label
-                                .toStyle(
-                                  color: widget.isTextSyncAvailable
-                                      ? PlayerTheme.ink
-                                      : PlayerTheme.inkSubtle,
-                                )
-                                .copyWith(fontWeight: FontWeight.w600),
+                          _StepButton(
+                            label: '−0.1s',
+                            onTap: () => _applyDelay(_localDelay - 0.1),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: ZplaySpacing.s4,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: PlayerTheme.raised,
+                              borderRadius: LuRadius.field,
+                              border: Border.all(
+                                color: isNonZero
+                                    ? PlayerTheme.edge
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${_localDelay >= 0 ? '+' : ''}${_localDelay.toStringAsFixed(2)}s',
+                                  style: ZplayType.labelNumeric
+                                      .toStyle(
+                                        color: isNonZero
+                                            ? PlayerTheme.accent
+                                            : PlayerTheme.inkMuted,
+                                      )
+                                      .copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                if (isNonZero) ...[
+                                  const SizedBox(width: 6),
+                                  FocusableCard(
+                                    onTap: () => _applyDelay(0.0),
+                                    builder: (context, _) => Container(
+                                      padding: const EdgeInsets.all(
+                                        ZplaySpacing.s2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: tokens.textPrimary.withValues(
+                                          alpha: ZplayOpacity.overlayHover,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.replay_rounded,
+                                        color: tokens.textPrimary,
+                                        size: 11,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          _StepButton(
+                            label: '+0.1s',
+                            onTap: () => _applyDelay(_localDelay + 0.1),
+                          ),
+                          _StepButton(
+                            label: '+0.5s',
+                            onTap: () => _applyDelay(_localDelay + 0.5),
+                            isWide: true,
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
 
-                // Center: Stepper Buttons & Display Pill
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: tokens.bg.withValues(alpha: 0.4),
-                    borderRadius: LuRadius.field,
-                    border: Border.all(color: PlayerTheme.edgeSoft),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _StepButton(
-                        label: '−0.5s',
-                        onTap: () => _applyDelay(_localDelay - 0.5),
-                        isWide: true,
+                    const SizedBox(width: 8),
+
+                    // Right: Discard & Save Done & Close
+                    if (isDirty) ...[
+                      PlayerIconButton(
+                        size: 32,
+                        iconSize: 15,
+                        icon: const Icon(Icons.undo_rounded),
+                        tooltip: l10nCurrent().syncDiscard,
+                        onPressed: _handleDiscard,
                       ),
-                      _StepButton(
-                        label: '−0.1s',
-                        onTap: () => _applyDelay(_localDelay - 0.1),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: ZplaySpacing.s4,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: PlayerTheme.raised,
-                          borderRadius: LuRadius.field,
-                          border: Border.all(
-                            color: isNonZero
-                                ? PlayerTheme.edge
-                                : Colors.transparent,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '${_localDelay >= 0 ? '+' : ''}${_localDelay.toStringAsFixed(2)}s',
-                              style: ZplayType.labelNumeric
-                                  .toStyle(
-                                    color: isNonZero
-                                        ? PlayerTheme.accent
-                                        : PlayerTheme.inkMuted,
-                                  )
-                                  .copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            if (isNonZero) ...[
-                              const SizedBox(width: 6),
-                              FocusableCard(
-                                onTap: () => _applyDelay(0.0),
-                                builder: (context, _) => Container(
-                                  padding: const EdgeInsets.all(
-                                    ZplaySpacing.s2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: tokens.textPrimary.withValues(
-                                      alpha: ZplayOpacity.overlayHover,
-                                    ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.replay_rounded,
-                                    color: tokens.textPrimary,
-                                    size: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      _StepButton(
-                        label: '+0.1s',
-                        onTap: () => _applyDelay(_localDelay + 0.1),
-                      ),
-                      _StepButton(
-                        label: '+0.5s',
-                        onTap: () => _applyDelay(_localDelay + 0.5),
-                        isWide: true,
-                      ),
+                      const SizedBox(width: 4),
                     ],
-                  ),
-                ),
 
-                const SizedBox(width: 8),
-
-                // Right: Discard & Save Done & Close
-                if (isDirty) ...[
-                  PlayerIconButton(
-                    size: 32,
-                    iconSize: 15,
-                    icon: const Icon(Icons.undo_rounded),
-                    tooltip: l10nCurrent().syncDiscard,
-                    onPressed: _handleDiscard,
-                  ),
-                  const SizedBox(width: 4),
-                ],
-
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: PlayerTheme.accent,
-                    foregroundColor: tokens.onAccent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: ZplaySpacing.s12,
-                      vertical: 7,
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: PlayerTheme.accent,
+                        foregroundColor: tokens.onAccent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ZplaySpacing.s12,
+                          vertical: 7,
+                        ),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: LuRadius.field,
+                        ),
+                        minimumSize: const Size(0, 32),
+                      ),
+                      icon: const Icon(Icons.check_rounded, size: 15),
+                      label: Text(
+                        l10nCurrent().syncDone,
+                        style: ZplayType.label.toStyle().copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: _handleSave,
                     ),
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: LuRadius.field,
-                    ),
-                    minimumSize: const Size(0, 32),
-                  ),
-                  icon: const Icon(Icons.check_rounded, size: 15),
-                  label: Text(
-                    l10nCurrent().syncDone,
-                    style: ZplayType.label.toStyle().copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onPressed: _handleSave,
-                ),
-                const SizedBox(width: 4),
+                    const SizedBox(width: 4),
 
-                PlayerIconButton(
-                  size: 32,
-                  iconSize: 15,
-                  icon: const Icon(Icons.close_rounded),
-                  tooltip: l10nCurrent().panelClose,
-                  onPressed: widget.onClose,
+                    PlayerIconButton(
+                      size: 32,
+                      iconSize: 15,
+                      icon: const Icon(Icons.close_rounded),
+                      tooltip: l10nCurrent().panelClose,
+                      onPressed: widget.onClose,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              if (widget.autoSync != null)
+                _AutoSyncRow(controller: widget.autoSync!),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// What the auto-sync is doing, and the switch for it.
+class _AutoSyncRow extends StatelessWidget {
+  const _AutoSyncRow({required this.controller});
+
+  final SubtitleAutoSyncController controller;
+
+  String _label(AutoSyncStatus status, bool enabled) {
+    final l10n = l10nCurrent();
+    if (!enabled) return l10n.subAutoSyncOff;
+    return switch (status) {
+      AutoSyncStatus.off => l10n.subAutoSyncOn,
+      AutoSyncStatus.noSource => l10n.subAutoSyncNoSource,
+      AutoSyncStatus.listening => l10n.subAutoSyncListening,
+      AutoSyncStatus.aligned => l10n.subAutoSyncAligned,
+      AutoSyncStatus.unsure => l10n.subAutoSyncUnsure,
+      AutoSyncStatus.paused => l10n.subAutoSyncPaused,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        controller,
+        SubtitleAutoSyncSettings.enabled,
+      ]),
+      builder: (context, _) {
+        final enabled = SubtitleAutoSyncSettings.enabled.value;
+        return Padding(
+          padding: const EdgeInsets.only(top: ZplaySpacing.s4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.auto_fix_high_rounded,
+                size: 14,
+                color: enabled ? PlayerTheme.accent : PlayerTheme.inkSubtle,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _label(controller.status, enabled),
+                style: ZplayType.caption.toStyle(
+                  color: enabled ? PlayerTheme.inkMuted : PlayerTheme.inkSubtle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message: l10nCurrent().subAutoSyncOnHint,
+                child: Transform.scale(
+                  scale: 0.7,
+                  child: Switch(
+                    value: enabled,
+                    onChanged: SubtitleAutoSyncSettings.setEnabled,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

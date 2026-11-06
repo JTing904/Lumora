@@ -28,6 +28,15 @@ void main() {
       expect(activeCueText(cues, 193.0, delaySec: 1.5), '这一天，终于来了');
       expect(activeCueText(cues, 190.0, delaySec: -1.5), '这一天，终于来了');
     });
+
+    test('follows the ratio: a line at t shows at t * ratio + delay', () {
+      // The line from 191.2 shows at 191.2 * 1.04 + 1 = 199.85.
+      expect(
+        activeCueText(cues, 199.9, delaySec: 1, ratio: 1.04),
+        '这一天，终于来了',
+      );
+      expect(activeCueText(cues, 192.0, delaySec: 1, ratio: 1.04), isNull);
+    });
   });
 
   group('aligning a line', () {

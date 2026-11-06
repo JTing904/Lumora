@@ -4,12 +4,16 @@ import '../../services/subtitles/subtitle_parser.dart';
 
 /// The subtitle line on screen at [seconds] of the video, with the viewer's
 /// [delaySec] applied (positive shows lines later). Null between lines.
+///
+/// [ratio] stretches the subtitle's own clock (a line at `t` shows at
+/// `t * ratio + delaySec`), for a subtitle cut for another frame rate.
 String? activeCueText(
   List<SubCue> cues,
   double seconds, {
   double delaySec = 0,
+  double ratio = 1,
 }) {
-  final t = seconds - delaySec;
+  final t = (seconds - delaySec) / ratio;
   var lo = 0;
   var hi = cues.length - 1;
   // The last cue starting at or before t; cues are in time order.
@@ -44,6 +48,7 @@ class SubtitleCueOverlay extends StatelessWidget {
     required this.cues,
     required this.seconds,
     required this.delaySec,
+    this.ratio = 1.0,
     this.scale = 1.0,
     this.raised = false,
   });
@@ -51,6 +56,9 @@ class SubtitleCueOverlay extends StatelessWidget {
   final List<SubCue> cues;
   final double seconds;
   final double delaySec;
+
+  /// The subtitle's clock against the video's; see [activeCueText].
+  final double ratio;
   final double scale;
 
   /// The controls are up: sit above them.
@@ -58,7 +66,7 @@ class SubtitleCueOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = activeCueText(cues, seconds, delaySec: delaySec);
+    final text = activeCueText(cues, seconds, delaySec: delaySec, ratio: ratio);
     if (text == null) return const SizedBox.shrink();
     final width = MediaQuery.sizeOf(context).width;
     final base = width < 680 ? 17.0 : 26.0;

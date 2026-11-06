@@ -1282,6 +1282,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerCannotSeek => '这个片源不能跳转 · 从头开始播';
 
   @override
+  String playerAdsRemoved(int seconds) {
+    return '已去除广告 $seconds 秒';
+  }
+
+  @override
   String get playerSubDownloadFailed => '字幕下载失败';
 
   @override
@@ -1419,6 +1424,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get subSpeechSync => '按对白同步字幕';
+
+  @override
+  String get subDefaultTitle => '默认字幕';
+
+  @override
+  String get subDefaultChinese => '中文';
+
+  @override
+  String get subDefaultEnglish => 'English';
+
+  @override
+  String get subDefaultHint => '新的一集会自动开这个字幕，手动选字幕时也会更新';
+
+  @override
+  String get subAutoEnglish => '没有中文字幕，已开英文字幕';
+
+  @override
+  String get subBurnedInHint => '这个片源通常自带中文字幕，没有自动开外挂字幕；需要时可在字幕菜单开启';
+
+  @override
+  String cwResuming(String title) {
+    return '正在继续播放 $title…';
+  }
+
+  @override
+  String cwResumingEpisode(String title, int episode) {
+    return '正在继续播放 $title 第 $episode 集…';
+  }
 
   @override
   String get subOff => '关';
@@ -8972,35 +9005,41 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get subAiTitle => 'AI 翻成中文 · 与画面同步';
+  String get subAutoSyncOn => '自动对齐字幕';
 
   @override
-  String get subAiBody => '把英文字幕一句句翻成中文，时间和英文一样';
+  String get subAutoSyncOnHint => '边看边拿字幕和影片比对，不同步时自动校正时间';
 
   @override
-  String subAiProgress(int done, int total) {
-    return '已翻译 $done / $total 句';
+  String get subAutoSyncListening => '自动对齐：正在听…';
+
+  @override
+  String get subAutoSyncAligned => '自动对齐：已对齐';
+
+  @override
+  String get subAutoSyncUnsure => '自动对齐：没把握，未调整';
+
+  @override
+  String get subAutoSyncPaused => '自动对齐：已暂停（时间由你调整）';
+
+  @override
+  String get subAutoSyncOff => '自动对齐：已关闭';
+
+  @override
+  String get subAutoSyncNoSource => '自动对齐：这部片没有可参照的内容';
+
+  @override
+  String subAutoSyncDone(String offset) {
+    return '已自动对齐字幕（$offset 秒）';
   }
 
   @override
-  String get subAiStarted => '正在翻成中文，翻好的句子会马上出现';
-
-  @override
-  String subAiDone(int total) {
-    return '$total 句已全部翻成中文';
+  String subAutoSyncDoneStretched(String offset) {
+    return '已自动对齐字幕（$offset 秒），并校正了快慢';
   }
 
   @override
-  String get subAiSignedOut => '请先登录 Lumora 账号才能用 AI 字幕';
-
-  @override
-  String get subAiNotInvited => 'AI 字幕需要用过邀请码的账号';
-
-  @override
-  String get subAiUnavailable => 'AI 现在比较忙，请稍后再试';
-
-  @override
-  String get subAiNoEnglish => '没有可以翻译的英文字幕';
+  String get subAutoSyncUndo => '撤销';
 
   @override
   String authSignUpWith(String provider) {

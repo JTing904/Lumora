@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zplay/services/player/engine/audio_level.dart';
 import 'package:zplay/services/player/engine/exo_player_engine.dart';
 import 'package:zplay/services/player/engine/video_engine.dart';
 
@@ -17,6 +20,9 @@ void main() {
   late List<MethodCall> calls;
   const MethodChannel channel = MethodChannel(
     'io.github.tzero86.zplay/exo_player',
+  );
+  const EventChannel eventChannel = EventChannel(
+    'io.github.tzero86.zplay/exo_player/events',
   );
 
   setUp(() {
@@ -164,5 +170,141 @@ void main() {
     // which is the failure the first spike had.
     expect(engine.state.decodedWidth, isNull);
     expect(engine.state.decodedHeight, isNull);
+  });
+
+  group('audio levels', () {
+    MockStreamHandlerEventSink? sink;
+
+    setUp(() {
+      sink = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockStreamHandler(
+            eventChannel,
+            MockStreamHandler.inline(
+              onListen: (Object? arguments, MockStreamHandlerEventSink events) {
+                sink = events;
+              },
+            ),
+          );
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockStreamHandler(eventChannel, null);
+    });
+
+    List<Object?> enableCalls() => calls
+        .where((MethodCall c) => c.method == 'setAudioLevelsEnabled')
+        .map(
+          (MethodCall c) => (c.arguments as Map<Object?, Object?>)['enabled'],
+        )
+        .toList();
+
+    test(
+      'measuring starts with the first listener and stops with the last',
+      () async {
+        final ExoPlayerEngine engine = ExoPlayerEngine();
+        addTearDown(engine.dispose);
+
+        // Nothing is measured while nobody is listening.
+        expect(enableCalls(), isEmpty);
+
+        final StreamSubscription<AudioLevelSample> first = engine.audioLevels
+            .listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+        expect(enableCalls(), <Object?>[true]);
+
+        // A second listener shares the measurement instead of restarting it.
+        final StreamSubscription<AudioLevelSample> second = engine.audioLevels
+            .listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+        expect(enableCalls(), <Object?>[true]);
+
+        await first.cancel();
+        await Future<void>.delayed(Duration.zero);
+        expect(enableCalls(), <Object?>[true]);
+
+        await second.cancel();
+        await Future<void>.delayed(Duration.zero);
+        expect(enableCalls(), <Object?>[true, false]);
+      },
+    );
+
+    test('a batched event becomes one sample per pair', () async {
+      final ExoPlayerEngine engine = ExoPlayerEngine();
+      addTearDown(engine.dispose);
+      engine.start();
+      await Future<void>.delayed(Duration.zero);
+
+      final List<AudioLevelSample> got = <AudioLevelSample>[];
+      final StreamSubscription<AudioLevelSample> sub = engine.audioLevels
+          .listen(got.add);
+      addTearDown(sub.cancel);
+
+      sink!.success(<String, Object?>{
+        'type': 'audioLevels',
+        't': <double>[12.0, 12.1, 12.2],
+        'db': <double>[-40.5, -22.0, -18.25],
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(got.map((AudioLevelSample s) => s.timeSec), <double>[
+        12.0,
+        12.1,
+        12.2,
+      ]);
+      expect(got.map((AudioLevelSample s) => s.rmsDb), <double>[
+        -40.5,
+        -22.0,
+        -18.25,
+      ]);
+    });
+
+    test(
+      'a ragged or malformed batch keeps only the pairs that make sense',
+      () async {
+        final ExoPlayerEngine engine = ExoPlayerEngine();
+        addTearDown(engine.dispose);
+        engine.start();
+        await Future<void>.delayed(Duration.zero);
+
+        final List<AudioLevelSample> got = <AudioLevelSample>[];
+        final StreamSubscription<AudioLevelSample> sub = engine.audioLevels
+            .listen(got.add);
+        addTearDown(sub.cancel);
+
+        sink!.success(<String, Object?>{
+          'type': 'audioLevels',
+          // One more time than levels, and a value that is not a number.
+          't': <Object?>[1.0, 'x', 3.0, 4.0],
+          'db': <Object?>[-30.0, -20.0, double.nan],
+        });
+        sink!.success(<String, Object?>{'type': 'audioLevels', 't': 5});
+        await Future<void>.delayed(Duration.zero);
+
+        expect(got, hasLength(1));
+        expect(got.single.timeSec, 1.0);
+        expect(got.single.rmsDb, -30.0);
+      },
+    );
+
+    test('level events leave the playback state alone', () async {
+      final ExoPlayerEngine engine = ExoPlayerEngine();
+      addTearDown(engine.dispose);
+      engine.start();
+      await Future<void>.delayed(Duration.zero);
+      final EngineState before = engine.state;
+
+      sink!.success(<String, Object?>{
+        'type': 'audioLevels',
+        't': <double>[1.0],
+        'db': <double>[-20.0],
+      });
+      sink!.success(<String, Object?>{'type': 'isPlaying', 'value': true});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(before.playing, isFalse);
+      expect(engine.state.playing, isTrue);
+    });
   });
 }

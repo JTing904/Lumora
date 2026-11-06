@@ -2402,6 +2402,12 @@ abstract class AppLocalizations {
   /// **'This source cannot seek • Starting from the beginning'**
   String get playerCannotSeek;
 
+  /// No description provided for @playerAdsRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {seconds} s of ads'**
+  String playerAdsRemoved(int seconds);
+
   /// No description provided for @playerSubDownloadFailed.
   ///
   /// In en, this message translates to:
@@ -2653,6 +2659,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Speech Text Sync'**
   String get subSpeechSync;
+
+  /// No description provided for @subDefaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default subtitles'**
+  String get subDefaultTitle;
+
+  /// No description provided for @subDefaultChinese.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese'**
+  String get subDefaultChinese;
+
+  /// No description provided for @subDefaultEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get subDefaultEnglish;
+
+  /// No description provided for @subDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New episodes open with this. Picking a subtitle by hand updates it.'**
+  String get subDefaultHint;
+
+  /// No description provided for @subAutoEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'No Chinese subtitle found, English is on'**
+  String get subAutoEnglish;
+
+  /// No description provided for @subBurnedInHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This source usually has subtitles in the picture, so none was turned on. Pick one in the subtitle menu if you need it.'**
+  String get subBurnedInHint;
+
+  /// No description provided for @cwResuming.
+  ///
+  /// In en, this message translates to:
+  /// **'Resuming {title}…'**
+  String cwResuming(String title);
+
+  /// No description provided for @cwResumingEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resuming {title}, episode {episode}…'**
+  String cwResumingEpisode(String title, int episode);
 
   /// No description provided for @subOff.
   ///
@@ -16219,59 +16273,71 @@ abstract class AppLocalizations {
   /// **'Using the subtitle timing you set for this title: {offset} s'**
   String subOffsetRestored(String offset);
 
-  /// No description provided for @subAiTitle.
+  /// No description provided for @subAutoSyncOn.
   ///
   /// In en, this message translates to:
-  /// **'AI Chinese · in sync with the picture'**
-  String get subAiTitle;
+  /// **'Align subtitles automatically'**
+  String get subAutoSyncOn;
 
-  /// No description provided for @subAiBody.
+  /// No description provided for @subAutoSyncOnHint.
   ///
   /// In en, this message translates to:
-  /// **'Translates the English subtitle line by line and keeps its timing'**
-  String get subAiBody;
+  /// **'Compares the subtitle with the film while you watch and corrects its timing'**
+  String get subAutoSyncOnHint;
 
-  /// No description provided for @subAiProgress.
+  /// No description provided for @subAutoSyncListening.
   ///
   /// In en, this message translates to:
-  /// **'Translated {done} of {total} lines'**
-  String subAiProgress(int done, int total);
+  /// **'Auto-align: listening…'**
+  String get subAutoSyncListening;
 
-  /// No description provided for @subAiStarted.
+  /// No description provided for @subAutoSyncAligned.
   ///
   /// In en, this message translates to:
-  /// **'Translating into Chinese. Lines appear as they are ready.'**
-  String get subAiStarted;
+  /// **'Auto-align: in time'**
+  String get subAutoSyncAligned;
 
-  /// No description provided for @subAiDone.
+  /// No description provided for @subAutoSyncUnsure.
   ///
   /// In en, this message translates to:
-  /// **'All {total} lines are in Chinese'**
-  String subAiDone(int total);
+  /// **'Auto-align: not sure, left as is'**
+  String get subAutoSyncUnsure;
 
-  /// No description provided for @subAiSignedOut.
+  /// No description provided for @subAutoSyncPaused.
   ///
   /// In en, this message translates to:
-  /// **'Sign in to your Lumora account to use AI subtitles'**
-  String get subAiSignedOut;
+  /// **'Auto-align: paused, you set the timing'**
+  String get subAutoSyncPaused;
 
-  /// No description provided for @subAiNotInvited.
+  /// No description provided for @subAutoSyncOff.
   ///
   /// In en, this message translates to:
-  /// **'AI subtitles need an account that used an invite code'**
-  String get subAiNotInvited;
+  /// **'Auto-align: off'**
+  String get subAutoSyncOff;
 
-  /// No description provided for @subAiUnavailable.
+  /// No description provided for @subAutoSyncNoSource.
   ///
   /// In en, this message translates to:
-  /// **'The AI is busy right now. Try again in a moment.'**
-  String get subAiUnavailable;
+  /// **'Auto-align: nothing to compare with'**
+  String get subAutoSyncNoSource;
 
-  /// No description provided for @subAiNoEnglish.
+  /// No description provided for @subAutoSyncDone.
   ///
   /// In en, this message translates to:
-  /// **'No English subtitle to translate'**
-  String get subAiNoEnglish;
+  /// **'Subtitles aligned automatically ({offset} s)'**
+  String subAutoSyncDone(String offset);
+
+  /// No description provided for @subAutoSyncDoneStretched.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles aligned automatically ({offset} s), and their speed corrected'**
+  String subAutoSyncDoneStretched(String offset);
+
+  /// No description provided for @subAutoSyncUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get subAutoSyncUndo;
 
   /// No description provided for @authSignUpWith.
   ///
